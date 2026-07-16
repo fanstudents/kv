@@ -1,0 +1,104 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Bell,
+  FileBarChart,
+  CalendarClock,
+  IdCard,
+  Receipt,
+  Settings,
+  MessageCircle,
+} from "lucide-react";
+import { AGENTS } from "@/lib/agent-data";
+import type { AgentSlug } from "@/lib/types";
+
+const AGENT_ICONS: Record<AgentSlug, React.ElementType> = {
+  notify: Bell,
+  report: FileBarChart,
+  schedule: CalendarClock,
+  card: IdCard,
+  expense: Receipt,
+};
+
+export default function Sidebar() {
+  const pathname = usePathname();
+
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  return (
+    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="flex items-center gap-2 border-b border-neutral-200 px-5 py-5 dark:border-neutral-800">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#06C755] text-white">
+          <MessageCircle size={18} />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-neutral-900 dark:text-white">LINE Agent 控制台</p>
+          <p className="text-xs text-neutral-400">tbr.digital</p>
+        </div>
+      </div>
+
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <Link
+          href="/"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <LayoutDashboard size={18} />
+          總覽儀表板
+        </Link>
+
+        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">AGENT 管理</p>
+        {AGENTS.map((agent) => {
+          const Icon = AGENT_ICONS[agent.slug];
+          const href = `/agents/${agent.slug}`;
+          return (
+            <Link
+              key={agent.slug}
+              href={href}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                isActive(href)
+                  ? "bg-[#06C755]/10 text-[#06C755]"
+                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              }`}
+            >
+              <Icon size={18} />
+              {agent.name}
+              <span
+                className={`ml-auto h-1.5 w-1.5 rounded-full ${
+                  agent.status === "active"
+                    ? "bg-[#06C755]"
+                    : agent.status === "paused"
+                      ? "bg-amber-500"
+                      : "bg-neutral-300 dark:bg-neutral-600"
+                }`}
+              />
+            </Link>
+          );
+        })}
+
+        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">系統</p>
+        <Link
+          href="/settings"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/settings")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <Settings size={18} />
+          LINE OA 連線設定
+        </Link>
+      </nav>
+
+      <div className="border-t border-neutral-200 px-5 py-4 text-xs text-neutral-400 dark:border-neutral-800">
+        service@tbr.digital
+      </div>
+    </aside>
+  );
+}
