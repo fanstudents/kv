@@ -2,6 +2,7 @@ import "server-only";
 import crypto from "node:crypto";
 
 const LINE_API_BASE = "https://api.line.me/v2/bot";
+const LINE_DATA_API_BASE = "https://api-data.line.me/v2/bot";
 
 export function verifyLineSignature(rawBody: string, signature: string | null): boolean {
   const secret = process.env.LINE_CHANNEL_SECRET;
@@ -13,6 +14,25 @@ export function verifyLineSignature(rawBody: string, signature: string | null): 
   const b = Buffer.from(signature);
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
+}
+
+// 下載使用者傳來的圖片等訊息內容，轉成 data URL 方便交給影像辨識模型
+export async function getLineMessageContentAsDataUrl(messageId: string): Promise<string> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token) throw new Error("Missing LINE_CHANNEL_ACCESS_TOKEN environment variable");
+
+  const res = await fetch(`${LINE_DATA_API_BASE}/message/${messageId}/content`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`LINE content fetch failed (${res.status}): ${body}`);
+  }
+
+  const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return `data:${contentType};base64,${buffer.toString("base64")}`;
 }
 
 export async function pushLineMessage(to: string, text: string) {
