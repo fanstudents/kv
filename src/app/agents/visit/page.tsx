@@ -48,7 +48,7 @@ export default function VisitAgentPage() {
   const [inputSources, setInputSources] = useState<string[]>(INPUT_SOURCES);
   const [calendarSource, setCalendarSource] = useState("google");
   const [rangeStartDays, setRangeStartDays] = useState("3");
-  const [rangeEndDays, setRangeEndDays] = useState("5");
+  const [rangeEndDays, setRangeEndDays] = useState("7");
   const [slotCount, setSlotCount] = useState("2");
   const [meetingDuration, setMeetingDuration] = useState("30");
   const [meetingType, setMeetingType] = useState("喝咖啡");
