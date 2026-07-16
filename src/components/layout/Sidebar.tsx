@@ -51,11 +51,9 @@ export default function Sidebar() {
             >
               <Avatar personEn={agent.personEn} color={agent.color} size={30} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate">
-                  {agent.personEn} {agent.personZh}
-                </span>
+                <span className="block truncate">{agent.name}</span>
                 <span className="block truncate text-xs font-normal text-neutral-400">
-                  {agent.role} · {agent.shortName}
+                  {agent.personEn} {agent.personZh} · {agent.role}
                 </span>
               </span>
               <span
