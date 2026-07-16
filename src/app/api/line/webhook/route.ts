@@ -137,8 +137,10 @@ async function handleVisitOfferReply(
 
   if (!offer) return false;
 
-  const isConfirm = CONFIRM_WORDS.some((w) => text.includes(w));
-  const isCancel = !isConfirm && CANCEL_WORDS.some((w) => text.includes(w));
+  // 檢查順序很重要："不要" 這類否定詞本身就包含 CONFIRM_WORDS 裡的「要」，
+  // 必須先比對 CANCEL_WORDS，否則會被誤判成確認。
+  const isCancel = CANCEL_WORDS.some((w) => text.includes(w));
+  const isConfirm = !isCancel && CONFIRM_WORDS.some((w) => text.includes(w));
   if (!isConfirm && !isCancel) return false;
 
   const contact = offer.contacts as { id: string; name: string; title?: string; company?: string; email: string } | null;
@@ -275,7 +277,9 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-line-signature");
   const supabase = getSupabase();
-  const baseUrl = req.nextUrl.origin;
+  // Zeabur（以及多數容器平台）的反向代理不會把外部網域帶進容器內部的 Host header，
+  // 所以 req.nextUrl.origin 在正式環境會變成 localhost。改用固定的環境變數組網址。
+  const baseUrl = process.env.APP_BASE_URL || req.nextUrl.origin;
 
   if (!verifyLineSignature(rawBody, signature)) {
     await supabase.from("line_agent_activity").insert({
