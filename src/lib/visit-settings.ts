@@ -19,10 +19,10 @@ export async function getVisitAgentSettings(
   return {
     rangeStartDays: Number(s.rangeStartDays) || 3,
     rangeEndDays: Number(s.rangeEndDays) || 7,
-    meetingDuration: Number(s.meetingDuration) || 30,
+    meetingDuration: Number(s.meetingDuration) || 60,
     meetingType: typeof s.meetingType === "string" && s.meetingType ? s.meetingType : "喝咖啡",
     workingHoursStart: typeof s.workingHoursStart === "string" ? s.workingHoursStart : "09:00",
     workingHoursEnd: typeof s.workingHoursEnd === "string" ? s.workingHoursEnd : "18:00",
-    senderName: typeof s.senderName === "string" && s.senderName ? s.senderName : "Jason",
+    senderName: typeof s.senderName === "string" && s.senderName ? s.senderName : "樊松蒲 Dennis",
   };
 }

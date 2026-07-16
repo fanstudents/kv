@@ -9,6 +9,7 @@ import Toggle from "@/components/ui/Toggle";
 import PhoneFrame from "@/components/agents/PhoneFrame";
 import { LineTextMessage } from "@/components/agents/LineMessages";
 import EmailMessage from "@/components/agents/EmailMessage";
+import { buildInviteEmailHtml } from "@/lib/email-templates";
 
 const agent = getAgent("visit")!;
 
@@ -50,15 +51,15 @@ export default function VisitAgentPage() {
   const [rangeStartDays, setRangeStartDays] = useState("3");
   const [rangeEndDays, setRangeEndDays] = useState("7");
   const [slotCount, setSlotCount] = useState("2");
-  const [meetingDuration, setMeetingDuration] = useState("30");
+  const [meetingDuration, setMeetingDuration] = useState("60");
   const [meetingType, setMeetingType] = useState("喝咖啡");
   const [workingHoursStart, setWorkingHoursStart] = useState("09:00");
   const [workingHoursEnd, setWorkingHoursEnd] = useState("18:00");
   const [requireApproval, setRequireApproval] = useState(true);
-  const [senderName, setSenderName] = useState("Jason");
+  const [senderName, setSenderName] = useState("樊松蒲 Dennis");
   const [emailSubject, setEmailSubject] = useState("{{myName}} 想與您約時間{{meetingType}} ☕");
   const [emailBody, setEmailBody] = useState(
-    "{{contactName}} 您好，\n\n很高興認識您！不知道您接下來方便的話，是否能約個時間{{meetingType}}聊聊？\n我這邊 {{slot1}} 或 {{slot2}} 都可以，看哪個時段您比較方便？\n\n期待與您見面！\n{{myName}}"
+    "{{contactName}} 您好，\n\n很高興認識您！不知道您接下來方便的話，是否能約個時間{{meetingType}}聊聊？"
   );
   const [lineConfirmTemplate, setLineConfirmTemplate] = useState(
     "已為您寄出邀約信給 {{contactName}}，提議 {{slot1}} 或 {{slot2}} 見面，等候對方回覆。"
@@ -137,6 +138,7 @@ export default function VisitAgentPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contactName: contact.name,
+          contactTitle: contact.title,
           company: contact.company,
           meetingType,
           slot1,
@@ -165,6 +167,20 @@ export default function VisitAgentPage() {
   const previewSubject = aiDraft ? aiDraft.subject : fill(emailSubject);
   const previewBody = aiDraft ? aiDraft.body : fill(emailBody);
   const previewLineText = fill(lineConfirmTemplate);
+
+  const previewHtml = useMemo(
+    () =>
+      buildInviteEmailHtml({
+        introText: previewBody,
+        senderName,
+        slot1Label: slot1,
+        slot2Label: slot2,
+        respondUrl1: "#",
+        respondUrl2: "#",
+        respondUrlBoth: "#",
+      }),
+    [previewBody, senderName, slot1, slot2]
+  );
 
   return (
     <AgentPageShell
@@ -337,7 +353,7 @@ export default function VisitAgentPage() {
               </button>
             )}
             <p className="mt-2 text-[11px] leading-snug text-neutral-400">
-              時段（{slot1} / {slot2}）目前依「搜尋範圍」設定計算，尚未串接 Google Calendar 空檔查詢，之後串接後會自動改為真實空檔。
+              時段（{slot1} / {slot2}）僅為預覽用途，依「搜尋範圍」設定試算；實際透過 LINE 觸發時會查詢您 Google Calendar 的真實空檔。
             </p>
           </div>
 
@@ -346,7 +362,7 @@ export default function VisitAgentPage() {
               <Sparkles size={10} /> AI 產生草稿
             </span>
           )}
-          <EmailMessage to={contact.email} subject={previewSubject} body={previewBody} />
+          <EmailMessage to={contact.email} subject={previewSubject} bodyHtml={previewHtml} />
           <PhoneFrame accountName="約拜訪助理">
             <LineTextMessage
               text={previewLineText}

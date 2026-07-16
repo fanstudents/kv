@@ -139,6 +139,7 @@ export async function sendGmail(params: { to: string; subject: string; body: str
 export async function createCalendarEvent(params: {
   summary: string;
   description?: string;
+  location?: string;
   startISO: string;
   endISO: string;
   attendeeEmail: string;
@@ -151,6 +152,7 @@ export async function createCalendarEvent(params: {
     requestBody: {
       summary: params.summary,
       description: params.description,
+      location: params.location,
       start: { dateTime: params.startISO, timeZone: "Asia/Taipei" },
       end: { dateTime: params.endISO, timeZone: "Asia/Taipei" },
       attendees: [{ email: params.attendeeEmail }],

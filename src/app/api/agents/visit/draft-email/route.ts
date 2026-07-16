@@ -5,6 +5,7 @@ import { getSupabase } from "@/lib/supabase";
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const contactName = typeof body.contactName === "string" ? body.contactName.trim() : "";
+  const contactTitle = typeof body.contactTitle === "string" ? body.contactTitle : "";
   const company = typeof body.company === "string" ? body.company : "";
   const meetingType = typeof body.meetingType === "string" ? body.meetingType : "喝咖啡";
   const slot1 = typeof body.slot1 === "string" ? body.slot1 : "";
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
   const supabase = getSupabase();
 
   try {
-    const draft = await draftInviteEmail({ contactName, company, meetingType, slot1, slot2, senderName });
+    const draft = await draftInviteEmail({ contactName, contactTitle, company, meetingType, slot1, slot2, senderName });
     await supabase.from("line_agent_activity").insert({
       agent_slug: "visit",
       summary: `已用 AI 產生邀約信草稿給 ${contactName}`,

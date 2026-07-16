@@ -128,7 +128,7 @@ async function handleVisitOfferReply(
 
   const { data: offer } = await supabase
     .from("visit_offers")
-    .select("*, contacts(id, name, company, email)")
+    .select("*, contacts(id, name, title, company, email)")
     .eq("line_user_id", userId)
     .eq("status", "pending")
     .order("created_at", { ascending: false })
@@ -141,7 +141,7 @@ async function handleVisitOfferReply(
   const isCancel = !isConfirm && CANCEL_WORDS.some((w) => text.includes(w));
   if (!isConfirm && !isCancel) return false;
 
-  const contact = offer.contacts as { id: string; name: string; company?: string; email: string } | null;
+  const contact = offer.contacts as { id: string; name: string; title?: string; company?: string; email: string } | null;
 
   if (isCancel || !contact?.email) {
     await supabase
@@ -180,6 +180,7 @@ async function handleVisitOfferReply(
 
     const draft = await draftInviteEmail({
       contactName: contact.name,
+      contactTitle: contact.title,
       company: contact.company,
       meetingType: settings.meetingType,
       slot1: slots[0].label,

@@ -4,11 +4,13 @@ export default function EmailMessage({
   to,
   subject,
   body,
+  bodyHtml,
   from = "service@tbr.digital",
 }: {
   to: string;
   subject: string;
-  body: string;
+  body?: string;
+  bodyHtml?: string;
   from?: string;
 }) {
   return (
@@ -31,9 +33,18 @@ export default function EmailMessage({
           <span className="font-medium text-neutral-800 dark:text-neutral-100">{subject}</span>
         </div>
       </div>
-      <div className="whitespace-pre-line px-4 py-3 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-        {body}
-      </div>
+      {bodyHtml ? (
+        <iframe
+          title="邀約信 HTML 預覽"
+          srcDoc={bodyHtml}
+          sandbox=""
+          className="h-[600px] w-full bg-white"
+        />
+      ) : (
+        <div className="whitespace-pre-line px-4 py-3 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+          {body}
+        </div>
+      )}
     </div>
   );
 }
