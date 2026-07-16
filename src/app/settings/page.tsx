@@ -6,6 +6,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
+import { AGENTS } from "@/lib/agent-data";
 
 export default function SettingsPage() {
   const [channelId, setChannelId] = useState("2007xxxxx01");
@@ -29,7 +30,7 @@ export default function SettingsPage() {
     <div>
       <PageHeader
         title="LINE OA 連線設定"
-        description="設定官方帳號的 Channel 憑證與 Webhook，以便讓 5 個 Agent 透過此帳號推播訊息"
+        description={`設定官方帳號的 Channel 憑證與 Webhook，以便讓 ${AGENTS.length} 個 Agent 透過此帳號推播訊息`}
         actions={<Badge tone="warning">尚未部署，此頁面目前為介面示範</Badge>}
       />
 

@@ -1,11 +1,23 @@
 import type { AgentActivity, AgentMeta, AgentSlug } from "./types";
 
+// Illustrated, generated avatars (DiceBear, MIT licensed) — not photos of real
+// people. Deterministic per seed so each agent keeps a consistent face.
+export function avatarUrl(seed: string, colorHex: string) {
+  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${colorHex.replace(
+    "#",
+    ""
+  )}`;
+}
+
 export const AGENTS: AgentMeta[] = [
   {
     slug: "notify",
     name: "通知 Agent",
     shortName: "通知",
     tagline: "跳出提醒通知",
+    personEn: "Kevin",
+    personZh: "凱文",
+    role: "即時監控員",
     description:
       "監控指定指標或事件，一旦觸發條件成立，立即透過 LINE 推播提醒通知給指定對象。",
     color: "#06C755",
@@ -22,6 +34,9 @@ export const AGENTS: AgentMeta[] = [
     name: "報表 Agent",
     shortName: "報表",
     tagline: "定期寄送報表",
+    personEn: "Ivy",
+    personZh: "艾薇",
+    role: "數據分析師",
     description:
       "依排程自動彙整關鍵指標，產出報表並附上 AI 行動建議，定時推播至 LINE 群組或個人。",
     color: "#2F7DE1",
@@ -38,6 +53,9 @@ export const AGENTS: AgentMeta[] = [
     name: "行程 Agent",
     shortName: "行程",
     tagline: "行事曆預約",
+    personEn: "Milo",
+    personZh: "米樂",
+    role: "行程助理",
     description:
       "串接行事曆，協助處理預約、提醒與改期，並自動發送確認訊息給對方。",
     color: "#8B5CF6",
@@ -54,6 +72,9 @@ export const AGENTS: AgentMeta[] = [
     name: "名片 Agent",
     shortName: "名片",
     tagline: "名片掃描、發會後信",
+    personEn: "Sunny",
+    personZh: "陽陽",
+    role: "人脈公關",
     description:
       "掃描名片自動辨識聯絡資訊，建立聯絡人並於會後自動寄送跟進信件。",
     color: "#F59E0B",
@@ -70,6 +91,9 @@ export const AGENTS: AgentMeta[] = [
     name: "報帳 Agent",
     shortName: "報帳",
     tagline: "發票掃描歸檔",
+    personEn: "Leo",
+    personZh: "立歐",
+    role: "財務小尖兵",
     description:
       "自動辨識發票內容並歸檔至指定表單或系統，並於每月截止前提醒尚未報帳項目。",
     color: "#EF4444",
@@ -80,6 +104,82 @@ export const AGENTS: AgentMeta[] = [
     ],
     lastRun: "尚未啟用",
     recipients: 6,
+  },
+  {
+    slug: "visit",
+    name: "約拜訪 Agent",
+    shortName: "約拜訪",
+    tagline: "名片／Email 辨識 + 自動邀約",
+    personEn: "Coco",
+    personZh: "可可",
+    role: "商務邀約專員",
+    description:
+      "收到您傳來的名片圖片或轉寄 Email 後，比對您的行事曆空檔，挑選未來幾天內的時段，主動寄信邀約對方見面。",
+    color: "#0EA5E9",
+    status: "draft",
+    metrics: [
+      { label: "本月邀約數", value: "0" },
+      { label: "對方回覆率", value: "—" },
+    ],
+    lastRun: "尚未啟用",
+    recipients: 1,
+  },
+  {
+    slug: "today",
+    name: "今日完成 Agent",
+    shortName: "今日完成",
+    tagline: "客戶待辦彙整 + 逾期提醒",
+    personEn: "Dana",
+    personZh: "丹娜",
+    role: "客服跟進專員",
+    description:
+      "整合最近兩天內兩個 Gmail 信箱與「數位簡報室」LINE 官方帳號的客戶待辦事項，自動判斷完成狀態，若對方遲遲無回應則主動提醒。",
+    color: "#14B8A6",
+    status: "draft",
+    metrics: [
+      { label: "追蹤中待辦", value: "0" },
+      { label: "逾期未回應", value: "0" },
+    ],
+    lastRun: "尚未啟用",
+    recipients: 1,
+  },
+  {
+    slug: "competitor",
+    name: "競爭對手 Agent",
+    shortName: "競爭對手",
+    tagline: "對手情報蒐集 + 影響分級",
+    personEn: "Jay",
+    personZh: "杰宇",
+    role: "市場情報官",
+    description:
+      "追蹤您指定的競爭對手官網、新聞報導、徵才資訊與產品口碑，為每則情報標籤分類，標出對公司有影響、需要展開行動的訊息。",
+    color: "#D946EF",
+    status: "draft",
+    metrics: [
+      { label: "本月蒐集情報", value: "0" },
+      { label: "需展開行動", value: "0" },
+    ],
+    lastRun: "尚未啟用",
+    recipients: 1,
+  },
+  {
+    slug: "operations",
+    name: "營運 Agent",
+    shortName: "營運",
+    tagline: "產品線儀表板",
+    personEn: "Morgan",
+    personZh: "摩根",
+    role: "營運總管",
+    description:
+      "彙整企業內訓、公開課程、AI 導入、一對一陪跑與其他專案等各產品線的狀態與下一步，一眼掌握公司營運全貌。",
+    color: "#F97316",
+    status: "active",
+    metrics: [
+      { label: "進行中專案", value: "0" },
+      { label: "本週更新", value: "0" },
+    ],
+    lastRun: "尚未啟用",
+    recipients: 1,
   },
 ];
 
@@ -110,5 +210,17 @@ export const ACTIVITY_LOGS: Record<AgentSlug, AgentActivity[]> = {
   ],
   expense: [
     { id: "e1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
+  ],
+  visit: [
+    { id: "v1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
+  ],
+  today: [
+    { id: "t1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
+  ],
+  competitor: [
+    { id: "co1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
+  ],
+  operations: [
+    { id: "op1", timestamp: "尚未啟用", summary: "營運儀表板已建立，尚待填入各產品線現況", status: "pending" },
   ],
 };

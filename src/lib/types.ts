@@ -1,4 +1,13 @@
-export type AgentSlug = "notify" | "report" | "schedule" | "card" | "expense";
+export type AgentSlug =
+  | "notify"
+  | "report"
+  | "schedule"
+  | "card"
+  | "expense"
+  | "visit"
+  | "today"
+  | "competitor"
+  | "operations";
 
 export type AgentStatus = "active" | "paused" | "draft";
 
@@ -20,4 +29,7 @@ export interface AgentMeta {
   metrics: { label: string; value: string; delta?: string }[];
   lastRun: string;
   recipients: number;
+  personEn: string;
+  personZh: string;
+  role: string;
 }

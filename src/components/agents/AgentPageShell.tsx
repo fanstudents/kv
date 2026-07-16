@@ -6,6 +6,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import Toggle from "@/components/ui/Toggle";
 import ActivityLog from "@/components/agents/ActivityLog";
+import Avatar from "@/components/agents/Avatar";
 import type { AgentMeta, AgentActivity } from "@/lib/types";
 
 const TEST_USER_ID_KEY = "line-agent-console:test-user-id";
@@ -17,6 +18,8 @@ export default function AgentPageShell({
   fallbackActivity,
   settingsForm,
   preview,
+  previewTitle = "LINE 推播預覽",
+  testPushLabel = "傳送測試訊息",
   onSettingsLoaded,
 }: {
   agent: AgentMeta;
@@ -25,6 +28,8 @@ export default function AgentPageShell({
   fallbackActivity: AgentActivity[];
   settingsForm: React.ReactNode;
   preview: React.ReactNode;
+  previewTitle?: string;
+  testPushLabel?: string;
   onSettingsLoaded?: (settings: Record<string, unknown>) => void;
 }) {
   const [enabled, setEnabled] = useState(agent.status === "active");
@@ -130,7 +135,19 @@ export default function AgentPageShell({
   return (
     <div>
       <PageHeader
-        title={agent.name}
+        title={
+          <span className="flex items-center gap-3">
+            <Avatar personEn={agent.personEn} color={agent.color} size={40} />
+            <span>
+              <span className="block">
+                {agent.personEn} {agent.personZh}
+                <span className="ml-2 text-sm font-normal text-neutral-400">
+                  {agent.role} · {agent.name}
+                </span>
+              </span>
+            </span>
+          </span>
+        }
         description={agent.description}
         actions={
           <>
@@ -167,7 +184,7 @@ export default function AgentPageShell({
 
         <div className="space-y-6">
           <Card>
-            <h2 className="mb-4 text-sm font-semibold text-neutral-700 dark:text-neutral-200">LINE 推播預覽</h2>
+            <h2 className="mb-4 text-sm font-semibold text-neutral-700 dark:text-neutral-200">{previewTitle}</h2>
             {preview}
           </Card>
 
@@ -190,7 +207,7 @@ export default function AgentPageShell({
               className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#06C755] px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {testState === "sending" ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              {testState === "sent" ? "已送出！請查看 LINE" : "傳送測試訊息"}
+              {testState === "sent" ? "已送出！請查看 LINE" : testPushLabel}
             </button>
             {testState === "error" && <p className="mt-2 text-xs text-red-500">{testError}</p>}
           </Card>
