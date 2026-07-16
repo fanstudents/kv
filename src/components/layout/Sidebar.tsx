@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListChecks, Settings, MessageCircle } from "lucide-react";
+import { LayoutDashboard, ListChecks, AlertTriangle, Settings, MessageCircle } from "lucide-react";
 import { AGENTS } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
 
@@ -72,6 +72,17 @@ export default function Sidebar() {
         })}
 
         <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">系統</p>
+        <Link
+          href="/anomalies"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/anomalies")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <AlertTriangle size={18} />
+          異常儀表板
+        </Link>
         <Link
           href="/todos"
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
