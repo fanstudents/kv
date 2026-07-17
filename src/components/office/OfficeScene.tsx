@@ -13,13 +13,55 @@ interface ActivityRow {
   status: "success" | "failed" | "pending";
 }
 
+// 走動路徑：沿著辦公室走道（座標為容器的百分比位置）
+const WALK_PATHS: Record<string, { frames: string; duration: number; delay: number }> = {
+  notify: {
+    frames: "0%{left:18%;top:36%}25%{left:50%;top:36%}50%{left:50%;top:63%}75%{left:18%;top:63%}100%{left:18%;top:36%}",
+    duration: 28,
+    delay: 0,
+  },
+  report: {
+    frames: "0%{left:68%;top:36%}25%{left:31%;top:36%}50%{left:31%;top:63%}75%{left:68%;top:63%}100%{left:68%;top:36%}",
+    duration: 34,
+    delay: -8,
+  },
+  schedule: {
+    frames: "0%{left:50%;top:13%}25%{left:79%;top:13%}50%{left:79%;top:63%}75%{left:50%;top:63%}100%{left:50%;top:13%}",
+    duration: 38,
+    delay: -15,
+  },
+  visit: {
+    frames: "0%{left:31%;top:87%}25%{left:68%;top:87%}50%{left:68%;top:63%}75%{left:31%;top:63%}100%{left:31%;top:87%}",
+    duration: 26,
+    delay: -5,
+  },
+  operations: {
+    frames: "0%{left:10%;top:36%}25%{left:10%;top:87%}50%{left:50%;top:87%}75%{left:50%;top:36%}100%{left:10%;top:36%}",
+    duration: 42,
+    delay: -20,
+  },
+};
+
+const FALLBACK_WALK = WALK_PATHS.notify;
+
+// 暫停中的座位（喝咖啡）：右上角圓桌會議區
+const COFFEE_SPOTS = [{ left: "88.5%", top: "22%" }];
+
+// 草稿（打瞌睡）安排在空桌的座位上
+const SLEEP_SPOTS = [
+  { left: "40%", top: "29%" },
+  { left: "77%", top: "56%" },
+  { left: "22%", top: "80%" },
+  { left: "59%", top: "29%" },
+];
+
 function TypingDots() {
   return (
-    <div className="flex h-5 items-end gap-0.5 rounded-full bg-white/90 px-2 py-1 shadow-sm">
+    <div className="flex h-4 items-end gap-0.5 rounded-full bg-white/90 px-1.5 py-0.5 shadow-sm">
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="h-1.5 w-1.5 rounded-full bg-[#06C755]"
+          className="h-1 w-1 rounded-full bg-[#06C755]"
           style={{ animation: `office-typing 1.1s ease-in-out ${i * 0.18}s infinite` }}
         />
       ))}
@@ -29,12 +71,12 @@ function TypingDots() {
 
 function CoffeeBreak() {
   return (
-    <div className="relative flex h-5 items-center justify-center">
-      <span className="text-sm">☕</span>
+    <div className="relative flex h-4 items-center justify-center">
+      <span className="text-xs">☕</span>
       {[0, 1].map((i) => (
         <span
           key={i}
-          className="absolute -top-1 h-2 w-0.5 rounded-full bg-neutral-400/70"
+          className="absolute -top-1 h-1.5 w-0.5 rounded-full bg-neutral-400/70"
           style={{ left: `${46 + i * 10}%`, animation: `office-steam 1.8s ease-out ${i * 0.5}s infinite` }}
         />
       ))}
@@ -44,12 +86,12 @@ function CoffeeBreak() {
 
 function Snooze() {
   return (
-    <div className="relative h-5 w-8">
+    <div className="relative h-4 w-7">
       {[0, 1].map((i) => (
         <span
           key={i}
-          className="absolute bottom-0 text-[10px] font-bold text-sky-400"
-          style={{ left: i * 10, animation: `office-snooze 2.4s ease-out ${i * 0.9}s infinite` }}
+          className="absolute bottom-0 text-[9px] font-bold text-sky-500 drop-shadow"
+          style={{ left: i * 9, animation: `office-snooze 2.4s ease-out ${i * 0.9}s infinite` }}
         >
           z
         </span>
@@ -58,32 +100,7 @@ function Snooze() {
   );
 }
 
-function Monitor({ working }: { working: boolean }) {
-  return (
-    <div className="flex flex-col items-center">
-      <div
-        className={`h-9 w-13 rounded-md border-2 border-neutral-700 bg-neutral-900 p-1 ${
-          working ? "shadow-[0_0_10px_rgba(6,199,85,0.45)]" : ""
-        }`}
-        style={{ width: 52 }}
-      >
-        {working ? (
-          <div className="flex h-full flex-col justify-center gap-0.5 px-0.5">
-            <span className="h-0.5 w-3/4 rounded bg-[#06C755]/80" />
-            <span className="h-0.5 w-1/2 rounded bg-[#06C755]/50" />
-            <span className="office-blink h-0.5 w-2/3 rounded bg-[#06C755]" />
-          </div>
-        ) : (
-          <div className="h-full rounded-sm bg-neutral-800" />
-        )}
-      </div>
-      <div className="h-1.5 w-2 bg-neutral-700" />
-      <div className="h-1 w-6 rounded-sm bg-neutral-600" />
-    </div>
-  );
-}
-
-function Desk({
+function Person({
   agent,
   count24h,
   celebrating,
@@ -92,61 +109,56 @@ function Desk({
   count24h: number;
   celebrating: boolean;
 }) {
-  const working = agent.status === "active";
+  const walking = agent.status === "active";
+  const walk = WALK_PATHS[agent.slug] ?? FALLBACK_WALK;
+
+  const spotIndex = AGENTS.filter((a) => a.status === agent.status).findIndex((a) => a.slug === agent.slug);
+  const positionStyle: React.CSSProperties = walking
+    ? { animation: `walk-${agent.slug in WALK_PATHS ? agent.slug : "notify"} ${walk.duration}s ease-in-out ${walk.delay}s infinite` }
+    : agent.status === "paused"
+      ? COFFEE_SPOTS[spotIndex % COFFEE_SPOTS.length]
+      : SLEEP_SPOTS[spotIndex % SLEEP_SPOTS.length];
 
   return (
     <Link
       href={`/agents/${agent.slug}`}
-      className="group relative flex flex-col items-center transition-transform hover:-translate-y-1"
+      className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 transition-transform hover:z-40 hover:scale-110"
+      style={positionStyle}
+      title={`${agent.name}：${agent.personEn} ${agent.personZh}`}
     >
-      {/* 桌面上方的狀態提示區 */}
-      <div className="relative z-20 flex h-8 items-end justify-center">
-        {celebrating ? (
-          <div className="office-float-up whitespace-nowrap rounded-full bg-[#06C755] px-2.5 py-1 text-[11px] font-bold text-white shadow-lg">
-            🎉 任務完成！
-          </div>
-        ) : working ? (
-          <TypingDots />
-        ) : agent.status === "paused" ? (
-          <CoffeeBreak />
-        ) : (
-          <Snooze />
-        )}
-      </div>
+      <div className="flex flex-col items-center">
+        <div className="relative z-20 flex h-5 items-end justify-center">
+          {celebrating ? (
+            <div className="office-float-up whitespace-nowrap rounded-full bg-[#06C755] px-2 py-0.5 text-[10px] font-bold text-white shadow-lg">
+              🎉 任務完成！
+            </div>
+          ) : walking ? (
+            <TypingDots />
+          ) : agent.status === "paused" ? (
+            <CoffeeBreak />
+          ) : (
+            <Snooze />
+          )}
+        </div>
 
-      {/* 人物 */}
-      <div className={working ? "office-bob relative z-0" : "relative z-0"}>
-        <Avatar personEn={agent.personEn} color={agent.color} size={54} />
-        {count24h > 0 && (
-          <span className="office-pop absolute -right-1.5 -top-1 z-30 inline-flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-[#06C755] px-1 text-[10px] font-bold text-white shadow">
-            {count24h}
+        <div className={walking ? "office-bob relative" : "relative"}>
+          <span className="block rounded-full shadow-lg ring-2 ring-white">
+            <Avatar personEn={agent.personEn} color={agent.color} size={44} />
           </span>
-        )}
-      </div>
+          {count24h > 0 && (
+            <span className="office-pop absolute -right-1.5 -top-1 z-30 inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full border-2 border-white bg-[#06C755] px-1 text-[9px] font-bold text-white shadow">
+              {count24h}
+            </span>
+          )}
+        </div>
 
-      {/* 螢幕 + 辦公桌 */}
-      <div className="relative z-10 -mt-2 flex flex-col items-center">
-        <Monitor working={working} />
         <div
-          className="-mt-0.5 h-8 w-28 rounded-lg shadow-md"
-          style={{ background: "linear-gradient(180deg, #C9955F 0%, #A9744A 60%, #8F5F3B 100%)" }}
-        />
-        <div className="flex w-24 justify-between px-2">
-          <span className="h-3 w-1.5 rounded-b bg-[#7A4E2E]" />
-          <span className="h-3 w-1.5 rounded-b bg-[#7A4E2E]" />
+          className="z-20 mt-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm"
+          style={{ backgroundColor: agent.color }}
+        >
+          {agent.shortName}
         </div>
       </div>
-
-      {/* 名牌 */}
-      <div
-        className="z-20 -mt-1 rounded-md px-2 py-0.5 text-[11px] font-bold text-white shadow-sm"
-        style={{ backgroundColor: agent.color }}
-      >
-        {agent.shortName}
-      </div>
-      <p className="mt-0.5 text-[10px] font-medium text-[#6E4527]">
-        {agent.personEn} {agent.personZh}
-      </p>
     </Link>
   );
 }
@@ -210,70 +222,49 @@ export default function OfficeScene() {
     };
   }, []);
 
+  const walkKeyframes = Object.entries(WALK_PATHS)
+    .map(([slug, p]) => `@keyframes walk-${slug}{${p.frames}}`)
+    .join("\n");
+
   return (
-    <div className="overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm">
-      {/* 牆面 */}
-      <div
-        className="relative h-32"
-        style={{ background: "linear-gradient(180deg, #F7EDDD 0%, #F1E3CC 100%)" }}
-      >
-        {/* 掛牌 */}
-        <div className="office-sway absolute left-1/2 top-0 z-10 -translate-x-1/2">
-          <div className="flex justify-center gap-16">
-            <span className="h-5 w-0.5 bg-neutral-400" />
-            <span className="h-5 w-0.5 bg-neutral-400" />
-          </div>
-          <div
-            className="rounded-lg border-4 border-[#6E4527] px-6 py-2 shadow-md"
-            style={{ background: "linear-gradient(180deg, #A9744A 0%, #8F5F3B 100%)" }}
-          >
-            <p className="whitespace-nowrap text-lg font-black tracking-widest text-white drop-shadow">
-              原騰數位科技
-            </p>
-            <p className="text-center text-[9px] font-medium tracking-[0.3em] text-[#F7EDDD]">
-              AI AGENT OFFICE
-            </p>
-          </div>
-        </div>
+    <div
+      className="relative w-full overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm"
+      style={{
+        aspectRatio: "16 / 9",
+        backgroundImage: "url(/office-bg.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <style>{walkKeyframes}</style>
 
-        {/* 窗戶 */}
-        <div className="absolute left-6 top-6 hidden h-16 w-24 rounded-lg border-4 border-white shadow-sm sm:block" style={{ background: "linear-gradient(180deg, #BCE0F5 0%, #DDF0FB 100%)" }}>
-          <div className="absolute left-1/2 top-0 h-full w-1 -translate-x-1/2 bg-white" />
-          <div className="absolute top-1/2 h-1 w-full -translate-y-1/2 bg-white" />
-          <span className="absolute left-1 top-1 text-[10px]">☁️</span>
+      {/* 掛牌 */}
+      <div className="office-sway absolute left-1/2 top-0 z-30 -translate-x-1/2">
+        <div className="flex justify-center gap-14">
+          <span className="h-4 w-0.5 bg-neutral-500/60" />
+          <span className="h-4 w-0.5 bg-neutral-500/60" />
         </div>
-
-        {/* 時鐘 */}
-        <div className="absolute right-8 top-6 hidden h-12 w-12 items-center justify-center rounded-full border-4 border-[#6E4527] bg-white shadow-sm sm:flex">
-          <div className="relative h-full w-full">
-            <span className="absolute left-1/2 top-1/2 h-3 w-0.5 origin-bottom -translate-x-1/2 -translate-y-full rotate-45 rounded bg-neutral-700" />
-            <span className="absolute left-1/2 top-1/2 h-2 w-0.5 origin-bottom -translate-x-1/2 -translate-y-full -rotate-90 rounded bg-neutral-500" />
-            <span className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-neutral-800" />
-          </div>
+        <div
+          className="rounded-lg border-4 border-[#6E4527] px-5 py-1.5 shadow-lg"
+          style={{ background: "linear-gradient(180deg, #A9744A 0%, #8F5F3B 100%)" }}
+        >
+          <p className="whitespace-nowrap text-base font-black tracking-widest text-white drop-shadow">
+            原騰數位科技
+          </p>
+          <p className="text-center text-[8px] font-medium tracking-[0.3em] text-[#F7EDDD]">
+            AI AGENT OFFICE
+          </p>
         </div>
       </div>
 
-      {/* 地板（棋盤磁磚） */}
-      <div
-        className="relative px-4 pb-6 pt-2 sm:px-8"
-        style={{
-          background: "repeating-conic-gradient(#EADFC9 0% 25%, #F4ECDB 0% 50%) 50% / 64px 64px",
-        }}
-      >
-        <span className="absolute bottom-3 left-3 text-xl sm:text-2xl">🪴</span>
-        <span className="absolute bottom-3 right-3 text-xl sm:text-2xl">🗄️</span>
-
-        <div className="grid grid-cols-3 gap-x-2 gap-y-4 pt-2 lg:grid-cols-3 xl:gap-x-6">
-          {AGENTS.map((agent) => (
-            <Desk
-              key={agent.slug}
-              agent={agent}
-              count24h={counts[agent.slug] ?? 0}
-              celebrating={celebrating.has(agent.slug)}
-            />
-          ))}
-        </div>
-      </div>
+      {AGENTS.map((agent) => (
+        <Person
+          key={agent.slug}
+          agent={agent}
+          count24h={counts[agent.slug] ?? 0}
+          celebrating={celebrating.has(agent.slug)}
+        />
+      ))}
     </div>
   );
 }

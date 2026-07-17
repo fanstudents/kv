@@ -120,12 +120,12 @@ export const AGENTS: AgentMeta[] = [
     description:
       "收到您傳來的名片圖片或轉寄 Email 後，比對您的行事曆空檔，挑選未來幾天內的時段，主動寄信邀約對方見面。",
     color: "#0EA5E9",
-    status: "draft",
+    status: "active",
     metrics: [
       { label: "本月邀約數", value: "0" },
       { label: "對方回覆率", value: "—" },
     ],
-    lastRun: "尚未啟用",
+    lastRun: "運作中",
     recipients: 1,
   },
   {
