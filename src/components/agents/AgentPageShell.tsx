@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Send, Save, Loader2 } from "lucide-react";
+import { Send, Save, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import Toggle from "@/components/ui/Toggle";
@@ -35,6 +35,7 @@ export default function AgentPageShell({
   onSettingsLoaded?: (settings: Record<string, unknown>) => void;
 }) {
   const [enabled, setEnabled] = useState(agent.status === "active");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [activity, setActivity] = useState<AgentActivity[]>(fallbackActivity);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -173,15 +174,6 @@ export default function AgentPageShell({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <Card>
-            <h2 className="mb-4 text-sm font-semibold text-neutral-700 dark:text-neutral-200">
-              Agent 設定 {!loaded && <span className="ml-2 text-xs font-normal text-neutral-400">載入中…</span>}
-            </h2>
-            <fieldset disabled={!enabled} className={enabled ? "" : "opacity-50"}>
-              {settingsForm}
-            </fieldset>
-          </Card>
-
-          <Card>
             <h2 className="mb-1 text-sm font-semibold text-neutral-700 dark:text-neutral-200">任務流程節點</h2>
             <p className="mb-4 text-xs text-neutral-400">
               {latestRun
@@ -194,6 +186,27 @@ export default function AgentPageShell({
           <Card>
             <h2 className="mb-4 text-sm font-semibold text-neutral-700 dark:text-neutral-200">執行紀錄</h2>
             <ActivityLog items={activity} />
+          </Card>
+
+          <Card>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((v) => !v)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+                Agent 設定 {!loaded && <span className="ml-2 text-xs font-normal text-neutral-400">載入中…</span>}
+              </h2>
+              <span className="flex items-center gap-1 text-xs font-medium text-neutral-400">
+                {settingsOpen ? "收合" : "展開"}
+                {settingsOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </span>
+            </button>
+            {settingsOpen && (
+              <fieldset disabled={!enabled} className={`mt-4 ${enabled ? "" : "opacity-50"}`}>
+                {settingsForm}
+              </fieldset>
+            )}
           </Card>
         </div>
 
