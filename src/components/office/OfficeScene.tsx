@@ -13,14 +13,25 @@ interface ActivityRow {
   status: "success" | "failed" | "pending";
 }
 
-// 走動路徑：沿著辦公室走道（座標為容器的百分比位置）
+// 場景定義：左右箭頭可在場景間切換
+const SCENES = [
+  { id: "office", name: "辦公區", bg: "/office-bg.jpg" },
+  { id: "warroom", name: "資訊戰情室・主管辦公室", bg: "/office-warroom.jpg" },
+] as const;
+
+// 每位成員所在的場景（未列出者預設在辦公區）
+const AGENT_SCENE: Record<string, (typeof SCENES)[number]["id"]> = {
+  teamlead: "warroom",
+};
+
+// 走動路徑：沿著各場景的走道（座標為容器的百分比位置）
 const WALK_PATHS: Record<string, { frames: string; duration: number; delay: number }> = {
-  // 大總管沿外圍巡視整間辦公室
+  // 大總管在戰情室內巡視三張指揮桌與大螢幕牆
   teamlead: {
     frames:
-      "0%{left:10%;top:13%}20%{left:79%;top:13%}40%{left:79%;top:87%}60%{left:10%;top:87%}80%{left:10%;top:50%}100%{left:10%;top:13%}",
-    duration: 48,
-    delay: -12,
+      "0%{left:15%;top:52%}25%{left:50%;top:44%}50%{left:83%;top:52%}70%{left:83%;top:86%}85%{left:50%;top:90%}100%{left:15%;top:52%}",
+    duration: 40,
+    delay: -10,
   },
   notify: {
     frames: "0%{left:18%;top:36%}25%{left:50%;top:36%}50%{left:50%;top:63%}75%{left:18%;top:63%}100%{left:18%;top:36%}",
@@ -173,6 +184,7 @@ function Person({
 export default function OfficeScene() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [celebrating, setCelebrating] = useState<Set<string>>(new Set());
+  const [sceneIndex, setSceneIndex] = useState(0);
   const prevLatestSuccess = useRef<Record<string, string> | null>(null);
 
   useEffect(() => {
@@ -233,38 +245,92 @@ export default function OfficeScene() {
     .map(([slug, p]) => `@keyframes walk-${slug}{${p.frames}}`)
     .join("\n");
 
+  const scene = SCENES[sceneIndex];
+  const sceneAgents = AGENTS.filter((a) => (AGENT_SCENE[a.slug] ?? "office") === scene.id);
+  const goPrev = () => setSceneIndex((i) => (i - 1 + SCENES.length) % SCENES.length);
+  const goNext = () => setSceneIndex((i) => (i + 1) % SCENES.length);
+  const prevScene = SCENES[(sceneIndex - 1 + SCENES.length) % SCENES.length];
+  const nextScene = SCENES[(sceneIndex + 1) % SCENES.length];
+
   return (
     <div
-      className="relative w-full overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm"
+      key={scene.id}
+      className="office-pop relative w-full overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm"
       style={{
         aspectRatio: "16 / 9",
-        backgroundImage: "url(/office-bg.jpg)",
+        backgroundImage: `url(${scene.bg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
     >
       <style>{walkKeyframes}</style>
 
-      {/* 掛牌 */}
-      <div className="office-sway absolute left-1/2 top-0 z-30 -translate-x-1/2">
-        <div className="flex justify-center gap-14">
-          <span className="h-4 w-0.5 bg-neutral-500/60" />
-          <span className="h-4 w-0.5 bg-neutral-500/60" />
+      {/* 掛牌（辦公區）／門牌（戰情室） */}
+      {scene.id === "office" ? (
+        <div className="office-sway absolute left-1/2 top-0 z-30 -translate-x-1/2">
+          <div className="flex justify-center gap-14">
+            <span className="h-4 w-0.5 bg-neutral-500/60" />
+            <span className="h-4 w-0.5 bg-neutral-500/60" />
+          </div>
+          <div
+            className="rounded-lg border-4 border-[#6E4527] px-5 py-1.5 shadow-lg"
+            style={{ background: "linear-gradient(180deg, #A9744A 0%, #8F5F3B 100%)" }}
+          >
+            <p className="whitespace-nowrap text-base font-black tracking-widest text-white drop-shadow">
+              原騰數位科技
+            </p>
+            <p className="text-center text-[8px] font-medium tracking-[0.3em] text-[#F7EDDD]">
+              AI AGENT OFFICE
+            </p>
+          </div>
         </div>
-        <div
-          className="rounded-lg border-4 border-[#6E4527] px-5 py-1.5 shadow-lg"
-          style={{ background: "linear-gradient(180deg, #A9744A 0%, #8F5F3B 100%)" }}
-        >
-          <p className="whitespace-nowrap text-base font-black tracking-widest text-white drop-shadow">
-            原騰數位科技
-          </p>
-          <p className="text-center text-[8px] font-medium tracking-[0.3em] text-[#F7EDDD]">
-            AI AGENT OFFICE
-          </p>
+      ) : (
+        <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-lg border border-sky-300/40 bg-[#0B1F3A]/85 px-5 py-1.5 shadow-lg backdrop-blur-sm">
+          <p className="whitespace-nowrap text-sm font-black tracking-widest text-sky-100">資訊戰情室・主管辦公室</p>
+          <p className="text-center text-[8px] font-medium tracking-[0.3em] text-sky-300/80">COMMAND CENTER</p>
         </div>
+      )}
+
+      {/* 場景指示 */}
+      <div className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
+        {SCENES.map((s, i) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => setSceneIndex(i)}
+            aria-label={s.name}
+            className={`h-2 rounded-full transition-all ${
+              i === sceneIndex ? "w-6 bg-white shadow" : "w-2 bg-white/50 hover:bg-white/80"
+            }`}
+          />
+        ))}
       </div>
 
-      {AGENTS.map((agent) => (
+      {/* 左右切換場景 */}
+      <button
+        type="button"
+        onClick={goPrev}
+        className="group absolute left-0 top-0 z-30 flex h-full w-14 items-center justify-start pl-2"
+        aria-label={`前往${prevScene.name}`}
+        title={`前往${prevScene.name}`}
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
+          ‹
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={goNext}
+        className="group absolute right-0 top-0 z-30 flex h-full w-14 items-center justify-end pr-2"
+        aria-label={`前往${nextScene.name}`}
+        title={`前往${nextScene.name}`}
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
+          ›
+        </span>
+      </button>
+
+      {sceneAgents.map((agent) => (
         <Person
           key={agent.slug}
           agent={agent}
