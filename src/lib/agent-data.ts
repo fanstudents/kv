@@ -1,22 +1,11 @@
 import type { AgentActivity, AgentMeta, AgentSlug } from "./types";
 
-// Realistic placeholder portraits from randomuser.me（授權供 UI mockup 使用的
-// 模特兒照片庫），每位 Agent 固定一張，代表虛構的 AI 角色而非真實員工。
-const PORTRAITS: Record<string, string> = {
-  Kevin: "men/32",
-  Ivy: "women/44",
-  Milo: "men/75",
-  Sunny: "women/65",
-  Leo: "men/85",
-  Coco: "women/68",
-  Dana: "women/17",
-  Jay: "men/43",
-  Morgan: "men/60",
-};
+// AI 生成的台灣人形象照（虛構人物，不存在於現實），存放在 public/avatars/
+// 自行託管，每位 Agent 固定一張臉。
+const PORTRAIT_NAMES = new Set(["Kevin", "Ivy", "Milo", "Sunny", "Leo", "Coco", "Dana", "Jay", "Morgan"]);
 
 export function avatarUrl(seed: string, colorHex: string) {
-  const portrait = PORTRAITS[seed];
-  if (portrait) return `https://randomuser.me/api/portraits/${portrait}.jpg`;
+  if (PORTRAIT_NAMES.has(seed)) return `/avatars/${seed.toLowerCase()}.jpg`;
   // Fallback for unknown seeds: keep the previous illustrated style.
   return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${colorHex.replace(
     "#",
