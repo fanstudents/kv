@@ -46,6 +46,24 @@ export async function getLineMessageContentAsDataUrl(messageId: string, channel:
   return `data:${contentType};base64,${buffer.toString("base64")}`;
 }
 
+export interface LineProfile {
+  displayName: string;
+  pictureUrl?: string;
+}
+
+export async function getLineProfile(userId: string, channel: LineChannel = "primary"): Promise<LineProfile | null> {
+  const { token } = channelEnv(channel);
+  if (!token) return null;
+
+  const res = await fetch(`${LINE_API_BASE}/profile/${userId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  return { displayName: data.displayName ?? "", pictureUrl: data.pictureUrl };
+}
+
 export async function pushLineMessage(to: string, text: string, channel: LineChannel = "primary") {
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);

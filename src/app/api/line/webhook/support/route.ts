@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyLineSignature, replyLineMessage } from "@/lib/line";
+import { touchSubscriber } from "@/lib/subscribers";
 import { getSupabase } from "@/lib/supabase";
 
 // 第二個 LINE 官方帳號（客服用）的 webhook，跟主控台帳號完全獨立。
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
       if (event.type !== "message" || event.message?.type !== "text" || !event.replyToken) return;
       const userId = event.source?.userId ?? "未知使用者";
       const text = event.message.text ?? "";
+      if (event.source?.userId) await touchSubscriber(event.source.userId, "support").catch(() => {});
 
       try {
         await replyLineMessage(event.replyToken, autoReplyText, "support");

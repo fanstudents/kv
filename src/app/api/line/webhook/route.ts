@@ -8,6 +8,7 @@ import { parseBusinessCard, draftInviteEmail, type ParsedCard } from "@/lib/open
 import { findFreeSlots, sendGmail } from "@/lib/google";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
+import { touchSubscriber } from "@/lib/subscribers";
 import { getSupabase } from "@/lib/supabase";
 
 export async function GET() {
@@ -301,6 +302,7 @@ export async function POST(req: NextRequest) {
     events.map(async (event) => {
       if (event.type !== "message" || !event.replyToken) return;
       const userId = event.source?.userId ?? "未知使用者";
+      if (event.source?.userId) await touchSubscriber(event.source.userId, "primary").catch(() => {});
 
       if (event.message?.type === "image") {
         await handleImageMessage(event, userId);
