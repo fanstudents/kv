@@ -1,13 +1,43 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, ListChecks, AlertTriangle, Table2, Settings, MessageCircle } from "lucide-react";
 import { AGENTS } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
 
+interface ActivityRow {
+  agent_slug: string | null;
+  occurred_at: string;
+  status: "success" | "failed" | "pending";
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const load = () =>
+      fetch("/api/activity?status=success&limit=500")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((rows: ActivityRow[]) => {
+          if (!Array.isArray(rows)) return;
+          const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+          const counts: Record<string, number> = {};
+          for (const row of rows) {
+            if (!row.agent_slug) continue;
+            if (new Date(row.occurred_at).getTime() < cutoff) continue;
+            counts[row.agent_slug] = (counts[row.agent_slug] ?? 0) + 1;
+          }
+          setDayCounts(counts);
+        })
+        .catch(() => {});
+
+    load();
+    const timer = setInterval(load, 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
@@ -56,10 +86,18 @@ export default function Sidebar() {
                   {agent.personEn} {agent.personZh} · {agent.role}
                 </span>
               </span>
+              {(dayCounts[agent.slug] ?? 0) > 0 && (
+                <span
+                  className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#06C755]/15 px-1.5 text-[10px] font-bold text-[#06C755]"
+                  title="最近 24 小時完成任務數"
+                >
+                  {dayCounts[agent.slug]}
+                </span>
+              )}
               <span
                 className={`h-1.5 w-1.5 shrink-0 rounded-full ${
                   agent.status === "active"
-                    ? "bg-[#06C755]"
+                    ? "animate-pulse bg-[#06C755]"
                     : agent.status === "paused"
                       ? "bg-amber-500"
                       : "bg-neutral-300 dark:bg-neutral-600"

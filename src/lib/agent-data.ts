@@ -1,8 +1,23 @@
 import type { AgentActivity, AgentMeta, AgentSlug } from "./types";
 
-// Illustrated, generated avatars (DiceBear, MIT licensed) — not photos of real
-// people. Deterministic per seed so each agent keeps a consistent face.
+// Realistic placeholder portraits from randomuser.me（授權供 UI mockup 使用的
+// 模特兒照片庫），每位 Agent 固定一張，代表虛構的 AI 角色而非真實員工。
+const PORTRAITS: Record<string, string> = {
+  Kevin: "men/32",
+  Ivy: "women/44",
+  Milo: "men/75",
+  Sunny: "women/65",
+  Leo: "men/85",
+  Coco: "women/68",
+  Dana: "women/17",
+  Jay: "men/43",
+  Morgan: "men/60",
+};
+
 export function avatarUrl(seed: string, colorHex: string) {
+  const portrait = PORTRAITS[seed];
+  if (portrait) return `https://randomuser.me/api/portraits/${portrait}.jpg`;
+  // Fallback for unknown seeds: keep the previous illustrated style.
   return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${colorHex.replace(
     "#",
     ""

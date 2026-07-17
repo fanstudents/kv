@@ -7,6 +7,8 @@ import Card from "@/components/ui/Card";
 import Toggle from "@/components/ui/Toggle";
 import ActivityLog from "@/components/agents/ActivityLog";
 import Avatar from "@/components/agents/Avatar";
+import VisitFlowSteps from "@/components/agents/VisitFlowSteps";
+import { deriveFlowSteps } from "@/lib/agent-flows";
 import type { AgentMeta, AgentActivity } from "@/lib/types";
 
 const TEST_USER_ID_KEY = "line-agent-console:test-user-id";
@@ -72,6 +74,9 @@ export default function AgentPageShell({
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agent.slug]);
+
+  // 最近一次「真正的執行」——排除草稿狀態的種子紀錄，避免誤導流程圖
+  const latestRun = activity.find((a) => !a.summary.includes("草稿狀態") && a.timestamp !== "尚未啟用");
 
   const handleToggle = async (next: boolean) => {
     setEnabled(next);
@@ -174,6 +179,16 @@ export default function AgentPageShell({
             <fieldset disabled={!enabled} className={enabled ? "" : "opacity-50"}>
               {settingsForm}
             </fieldset>
+          </Card>
+
+          <Card>
+            <h2 className="mb-1 text-sm font-semibold text-neutral-700 dark:text-neutral-200">任務流程節點</h2>
+            <p className="mb-4 text-xs text-neutral-400">
+              {latestRun
+                ? `依最近一次執行（${latestRun.timestamp}）顯示各節點狀態`
+                : "尚無執行紀錄，Agent 待命中"}
+            </p>
+            <VisitFlowSteps steps={deriveFlowSteps(agent.slug, latestRun)} />
           </Card>
 
           <Card>

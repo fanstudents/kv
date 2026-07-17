@@ -4,6 +4,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import Avatar from "@/components/agents/Avatar";
+import OfficeScene from "@/components/office/OfficeScene";
 import { AGENTS } from "@/lib/agent-data";
 
 export default function DashboardPage() {
@@ -14,8 +15,12 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="團隊總覽"
-        description={`${AGENTS.length} 位 AI 隊友埋設在 LINE 官方帳號中，各自負責一項任務，隨時待命`}
+        description={`歡迎回到原騰數位科技！${AGENTS.length} 位 AI 隊友正在辦公室裡各司其職，點擊座位可查看細節`}
       />
+
+      <div className="mb-8">
+        <OfficeScene />
+      </div>
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
