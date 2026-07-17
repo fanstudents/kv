@@ -13,7 +13,7 @@ interface ActivityRow {
   status: "success" | "failed" | "pending";
 }
 
-// 場景定義：左右箭頭可在場景間切換
+// 場景定義：左右箭頭可在場景間切換（畫面用橫向滑動連接）
 const SCENES = [
   { id: "office", name: "辦公區", bg: "/office-bg.jpg" },
   { id: "warroom", name: "資訊戰情室", bg: "/office-warroom.jpg" },
@@ -25,7 +25,7 @@ const AGENT_SCENE: Record<string, (typeof SCENES)[number]["id"]> = {
   teamlead: "execoffice",
 };
 
-// 走動路徑：沿著各場景的走道（座標為容器的百分比位置）
+// 走動路徑：沿著各場景的走道（座標為該場景畫面的百分比位置）
 const WALK_PATHS: Record<string, { frames: string; duration: number; delay: number }> = {
   // 大總管在主管辦公室裡的辦公桌與會客區之間走動
   teamlead: {
@@ -182,6 +182,40 @@ function Person({
   );
 }
 
+function DoorPlate({ sceneId }: { sceneId: (typeof SCENES)[number]["id"] }) {
+  if (sceneId === "office") {
+    return (
+      <div className="office-sway absolute left-1/2 top-0 z-20 -translate-x-1/2">
+        <div className="flex justify-center gap-14">
+          <span className="h-4 w-0.5 bg-neutral-500/60" />
+          <span className="h-4 w-0.5 bg-neutral-500/60" />
+        </div>
+        <div
+          className="rounded-lg border-4 border-[#6E4527] px-5 py-1.5 shadow-lg"
+          style={{ background: "linear-gradient(180deg, #A9744A 0%, #8F5F3B 100%)" }}
+        >
+          <p className="whitespace-nowrap text-base font-black tracking-widest text-white drop-shadow">原騰數位科技</p>
+          <p className="text-center text-[8px] font-medium tracking-[0.3em] text-[#F7EDDD]">AI AGENT OFFICE</p>
+        </div>
+      </div>
+    );
+  }
+  if (sceneId === "warroom") {
+    return (
+      <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-lg border border-sky-300/40 bg-[#0B1F3A]/85 px-5 py-1.5 shadow-lg backdrop-blur-sm">
+        <p className="whitespace-nowrap text-sm font-black tracking-widest text-sky-100">資訊戰情室</p>
+        <p className="text-center text-[8px] font-medium tracking-[0.3em] text-sky-300/80">COMMAND CENTER</p>
+      </div>
+    );
+  }
+  return (
+    <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-lg border border-amber-200/60 bg-[#2B2117]/85 px-5 py-1.5 shadow-lg backdrop-blur-sm">
+      <p className="whitespace-nowrap text-sm font-black tracking-widest text-amber-100">主管辦公室</p>
+      <p className="text-center text-[8px] font-medium tracking-[0.3em] text-amber-200/70">EXECUTIVE OFFICE</p>
+    </div>
+  );
+}
+
 export default function OfficeScene() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [celebrating, setCelebrating] = useState<Set<string>>(new Set());
@@ -246,8 +280,6 @@ export default function OfficeScene() {
     .map(([slug, p]) => `@keyframes walk-${slug}{${p.frames}}`)
     .join("\n");
 
-  const scene = SCENES[sceneIndex];
-  const sceneAgents = AGENTS.filter((a) => (AGENT_SCENE[a.slug] ?? "office") === scene.id);
   const goPrev = () => setSceneIndex((i) => (i - 1 + SCENES.length) % SCENES.length);
   const goNext = () => setSceneIndex((i) => (i + 1) % SCENES.length);
   const prevScene = SCENES[(sceneIndex - 1 + SCENES.length) % SCENES.length];
@@ -255,49 +287,46 @@ export default function OfficeScene() {
 
   return (
     <div
-      key={scene.id}
-      className="office-pop relative w-full overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm"
-      style={{
-        aspectRatio: "16 / 9",
-        backgroundImage: `url(${scene.bg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      className="relative w-full overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm"
+      style={{ aspectRatio: "16 / 9" }}
     >
       <style>{walkKeyframes}</style>
 
-      {/* 掛牌／門牌：依場景切換樣式 */}
-      {scene.id === "office" && (
-        <div className="office-sway absolute left-1/2 top-0 z-30 -translate-x-1/2">
-          <div className="flex justify-center gap-14">
-            <span className="h-4 w-0.5 bg-neutral-500/60" />
-            <span className="h-4 w-0.5 bg-neutral-500/60" />
-          </div>
-          <div
-            className="rounded-lg border-4 border-[#6E4527] px-5 py-1.5 shadow-lg"
-            style={{ background: "linear-gradient(180deg, #A9744A 0%, #8F5F3B 100%)" }}
-          >
-            <p className="whitespace-nowrap text-base font-black tracking-widest text-white drop-shadow">
-              原騰數位科技
-            </p>
-            <p className="text-center text-[8px] font-medium tracking-[0.3em] text-[#F7EDDD]">
-              AI AGENT OFFICE
-            </p>
-          </div>
-        </div>
-      )}
-      {scene.id === "warroom" && (
-        <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-lg border border-sky-300/40 bg-[#0B1F3A]/85 px-5 py-1.5 shadow-lg backdrop-blur-sm">
-          <p className="whitespace-nowrap text-sm font-black tracking-widest text-sky-100">資訊戰情室</p>
-          <p className="text-center text-[8px] font-medium tracking-[0.3em] text-sky-300/80">COMMAND CENTER</p>
-        </div>
-      )}
-      {scene.id === "execoffice" && (
-        <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-lg border border-amber-200/60 bg-[#2B2117]/85 px-5 py-1.5 shadow-lg backdrop-blur-sm">
-          <p className="whitespace-nowrap text-sm font-black tracking-widest text-amber-100">主管辦公室</p>
-          <p className="text-center text-[8px] font-medium tracking-[0.3em] text-amber-200/70">EXECUTIVE OFFICE</p>
-        </div>
-      )}
+      {/* 場景滑軌：橫向排列所有場景，用 translateX 做移動式切換 */}
+      <div
+        className="flex h-full"
+        style={{
+          width: `${SCENES.length * 100}%`,
+          transform: `translateX(-${(100 / SCENES.length) * sceneIndex}%)`,
+          transition: "transform 0.7s cubic-bezier(0.65,0,0.35,1)",
+        }}
+      >
+        {SCENES.map((s) => {
+          const sceneAgents = AGENTS.filter((a) => (AGENT_SCENE[a.slug] ?? "office") === s.id);
+          return (
+            <div
+              key={s.id}
+              className="relative h-full shrink-0"
+              style={{
+                width: `${100 / SCENES.length}%`,
+                backgroundImage: `url(${s.bg})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            >
+              <DoorPlate sceneId={s.id} />
+              {sceneAgents.map((agent) => (
+                <Person
+                  key={agent.slug}
+                  agent={agent}
+                  count24h={counts[agent.slug] ?? 0}
+                  celebrating={celebrating.has(agent.slug)}
+                />
+              ))}
+            </div>
+          );
+        })}
+      </div>
 
       {/* 場景指示 */}
       <div className="absolute bottom-3 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2">
@@ -307,6 +336,7 @@ export default function OfficeScene() {
             type="button"
             onClick={() => setSceneIndex(i)}
             aria-label={s.name}
+            title={s.name}
             className={`h-2 rounded-full transition-all ${
               i === sceneIndex ? "w-6 bg-white shadow" : "w-2 bg-white/50 hover:bg-white/80"
             }`}
@@ -314,38 +344,37 @@ export default function OfficeScene() {
         ))}
       </div>
 
-      {/* 左右切換場景 */}
+      {/* 左右切換場景，hover 時標示目的地名稱 */}
       <button
         type="button"
         onClick={goPrev}
-        className="group absolute left-0 top-0 z-30 flex h-full w-14 items-center justify-start pl-2"
+        className="group absolute left-0 top-0 z-30 flex h-full w-20 items-center justify-start pl-2"
         aria-label={`前往${prevScene.name}`}
-        title={`前往${prevScene.name}`}
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
-          ‹
+        <span className="flex items-center gap-1.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
+            ‹
+          </span>
+          <span className="translate-x-[-6px] whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow backdrop-blur-sm transition-all group-hover:translate-x-0 group-hover:opacity-100">
+            {prevScene.name}
+          </span>
         </span>
       </button>
       <button
         type="button"
         onClick={goNext}
-        className="group absolute right-0 top-0 z-30 flex h-full w-14 items-center justify-end pr-2"
+        className="group absolute right-0 top-0 z-30 flex h-full w-20 items-center justify-end pr-2"
         aria-label={`前往${nextScene.name}`}
-        title={`前往${nextScene.name}`}
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
-          ›
+        <span className="flex items-center gap-1.5">
+          <span className="translate-x-[6px] whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow backdrop-blur-sm transition-all group-hover:translate-x-0 group-hover:opacity-100">
+            {nextScene.name}
+          </span>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
+            ›
+          </span>
         </span>
       </button>
-
-      {sceneAgents.map((agent) => (
-        <Person
-          key={agent.slug}
-          agent={agent}
-          count24h={counts[agent.slug] ?? 0}
-          celebrating={celebrating.has(agent.slug)}
-        />
-      ))}
     </div>
   );
 }
