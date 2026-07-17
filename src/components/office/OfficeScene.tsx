@@ -16,22 +16,23 @@ interface ActivityRow {
 // 場景定義：左右箭頭可在場景間切換
 const SCENES = [
   { id: "office", name: "辦公區", bg: "/office-bg.jpg" },
-  { id: "warroom", name: "資訊戰情室・主管辦公室", bg: "/office-warroom.jpg" },
+  { id: "warroom", name: "資訊戰情室", bg: "/office-warroom.jpg" },
+  { id: "execoffice", name: "主管辦公室", bg: "/office-execoffice.jpg" },
 ] as const;
 
 // 每位成員所在的場景（未列出者預設在辦公區）
 const AGENT_SCENE: Record<string, (typeof SCENES)[number]["id"]> = {
-  teamlead: "warroom",
+  teamlead: "execoffice",
 };
 
 // 走動路徑：沿著各場景的走道（座標為容器的百分比位置）
 const WALK_PATHS: Record<string, { frames: string; duration: number; delay: number }> = {
-  // 大總管在戰情室內巡視三張指揮桌與大螢幕牆
+  // 大總管在主管辦公室裡的辦公桌與會客區之間走動
   teamlead: {
     frames:
-      "0%{left:15%;top:52%}25%{left:50%;top:44%}50%{left:83%;top:52%}70%{left:83%;top:86%}85%{left:50%;top:90%}100%{left:15%;top:52%}",
-    duration: 40,
-    delay: -10,
+      "0%{left:50%;top:44%}30%{left:50%;top:66%}45%{left:40%;top:74%}60%{left:50%;top:66%}80%{left:22%;top:60%}100%{left:50%;top:44%}",
+    duration: 34,
+    delay: -8,
   },
   notify: {
     frames: "0%{left:18%;top:36%}25%{left:50%;top:36%}50%{left:50%;top:63%}75%{left:18%;top:63%}100%{left:18%;top:36%}",
@@ -265,8 +266,8 @@ export default function OfficeScene() {
     >
       <style>{walkKeyframes}</style>
 
-      {/* 掛牌（辦公區）／門牌（戰情室） */}
-      {scene.id === "office" ? (
+      {/* 掛牌／門牌：依場景切換樣式 */}
+      {scene.id === "office" && (
         <div className="office-sway absolute left-1/2 top-0 z-30 -translate-x-1/2">
           <div className="flex justify-center gap-14">
             <span className="h-4 w-0.5 bg-neutral-500/60" />
@@ -284,10 +285,17 @@ export default function OfficeScene() {
             </p>
           </div>
         </div>
-      ) : (
+      )}
+      {scene.id === "warroom" && (
         <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-lg border border-sky-300/40 bg-[#0B1F3A]/85 px-5 py-1.5 shadow-lg backdrop-blur-sm">
-          <p className="whitespace-nowrap text-sm font-black tracking-widest text-sky-100">資訊戰情室・主管辦公室</p>
+          <p className="whitespace-nowrap text-sm font-black tracking-widest text-sky-100">資訊戰情室</p>
           <p className="text-center text-[8px] font-medium tracking-[0.3em] text-sky-300/80">COMMAND CENTER</p>
+        </div>
+      )}
+      {scene.id === "execoffice" && (
+        <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-lg border border-amber-200/60 bg-[#2B2117]/85 px-5 py-1.5 shadow-lg backdrop-blur-sm">
+          <p className="whitespace-nowrap text-sm font-black tracking-widest text-amber-100">主管辦公室</p>
+          <p className="text-center text-[8px] font-medium tracking-[0.3em] text-amber-200/70">EXECUTIVE OFFICE</p>
         </div>
       )}
 
