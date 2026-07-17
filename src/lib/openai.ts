@@ -33,18 +33,23 @@ export interface ParsedCard {
 
 export async function parseBusinessCard(imageDataUrl: string): Promise<ParsedCard> {
   const data = await chatCompletion({
-    model: "gpt-4o-mini",
+    model: "gpt-4o",
     messages: [
       {
         role: "system",
         content:
-          "你是名片辨識助手。請從圖片中擷取聯絡人資訊，只回傳 JSON 物件，欄位為 name, company, title, email, phone，無法辨識的欄位請填空字串，不要編造內容。",
+          "你是名片辨識助手，辨識準確度是最重要的事。請逐字逐符號仔細比對圖片中印刷的文字，一個字都不能猜測或修改：\n" +
+          "- 中文姓名、公司名、職稱：必須跟名片上印刷的字完全一致，不要用你以為常見的字取代（例如「昇」不要誤讀成「升」、「陳」不要誤讀成「陣」）。\n" +
+          "- Email：務必包含正確的 @ 與網域，每個英文字母、數字都要核對，不要因為看起來像常見網域就自動改寫（例如不要把 .con 自動改成 .com，除非圖片上真的是 .com）。\n" +
+          "- 電話：務必保留完整位數與正確的每一碼數字，不要四捨五入或憑印象填入常見號碼。\n" +
+          "- 如果某個欄位因為印刷模糊、反光、字太小而無法百分之百確定，請填空字串，絕對不要用猜的填入看似合理的內容。\n" +
+          "只回傳 JSON 物件，欄位為 name, company, title, email, phone。",
       },
       {
         role: "user",
         content: [
-          { type: "text", text: "請辨識這張名片圖片中的聯絡資訊。" },
-          { type: "image_url", image_url: { url: imageDataUrl } },
+          { type: "text", text: "請仔細辨識這張名片圖片中的聯絡資訊，注意小字與容易混淆的字元。" },
+          { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
         ],
       },
     ],

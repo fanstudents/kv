@@ -94,7 +94,8 @@ export async function findFreeSlots(params: {
     let cursor = taipeiWallToUtc(dayParts.year, dayParts.month, dayParts.date, startH, startM);
     const dayEnd = taipeiWallToUtc(dayParts.year, dayParts.month, dayParts.date, endH, endM);
 
-    while (cursor.getTime() + durationMs <= dayEnd.getTime() && slots.length < params.slotCount) {
+    // 每天最多取一個時段，確保建議的時段分散在不同天，不會同一天出現兩次
+    while (cursor.getTime() + durationMs <= dayEnd.getTime()) {
       const slotStart = cursor.getTime();
       const slotEnd = slotStart + durationMs;
       const conflict = busy.some((b) => slotStart < b.end && slotEnd > b.start);
@@ -104,6 +105,7 @@ export async function findFreeSlots(params: {
           end: new Date(slotEnd).toISOString(),
           label: formatTaipeiLabel(new Date(slotStart)),
         });
+        break;
       }
       cursor = new Date(cursor.getTime() + stepMinutes * 60000);
     }
