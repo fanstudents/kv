@@ -1,4 +1,5 @@
 export type AgentSlug =
+  | "teamlead"
   | "notify"
   | "report"
   | "schedule"

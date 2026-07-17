@@ -15,6 +15,13 @@ interface ActivityRow {
 
 // 走動路徑：沿著辦公室走道（座標為容器的百分比位置）
 const WALK_PATHS: Record<string, { frames: string; duration: number; delay: number }> = {
+  // 大總管沿外圍巡視整間辦公室
+  teamlead: {
+    frames:
+      "0%{left:10%;top:13%}20%{left:79%;top:13%}40%{left:79%;top:87%}60%{left:10%;top:87%}80%{left:10%;top:50%}100%{left:10%;top:13%}",
+    duration: 48,
+    delay: -12,
+  },
   notify: {
     frames: "0%{left:18%;top:36%}25%{left:50%;top:36%}50%{left:50%;top:63%}75%{left:18%;top:63%}100%{left:18%;top:36%}",
     duration: 28,

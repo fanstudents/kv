@@ -2,7 +2,7 @@ import type { AgentActivity, AgentMeta, AgentSlug } from "./types";
 
 // AI 生成的台灣人形象照（虛構人物，不存在於現實），存放在 public/avatars/
 // 自行託管，每位 Agent 固定一張臉。
-const PORTRAIT_NAMES = new Set(["Kevin", "Ivy", "Milo", "Sunny", "Leo", "Coco", "Dana", "Jay", "Morgan"]);
+const PORTRAIT_NAMES = new Set(["Kevin", "Ivy", "Milo", "Sunny", "Leo", "Coco", "Dana", "Jay", "Morgan", "Vivian"]);
 
 export function avatarUrl(seed: string, colorHex: string) {
   if (PORTRAIT_NAMES.has(seed)) return `/avatars/${seed.toLowerCase()}.jpg`;
@@ -14,6 +14,25 @@ export function avatarUrl(seed: string, colorHex: string) {
 }
 
 export const AGENTS: AgentMeta[] = [
+  {
+    slug: "teamlead",
+    name: "總管 Agent",
+    shortName: "總管",
+    tagline: "每日晨報 + 團隊督導",
+    personEn: "Vivian",
+    personZh: "薇薇安",
+    role: "Team Lead 大總管",
+    description:
+      "統管所有 AI 隊友的大總管，每天彙整過去 24 小時每位成員完成的工作、遇到的異常與待辦事項，主動透過 LINE 向您匯報團隊摘要。",
+    color: "#475569",
+    status: "active",
+    metrics: [
+      { label: "管理成員", value: "9 位" },
+      { label: "每日匯報", value: "09:00" },
+    ],
+    lastRun: "運作中",
+    recipients: 1,
+  },
   {
     slug: "notify",
     name: "通知 Agent",
@@ -192,6 +211,9 @@ export function getAgent(slug: string): AgentMeta | undefined {
 }
 
 export const ACTIVITY_LOGS: Record<AgentSlug, AgentActivity[]> = {
+  teamlead: [
+    { id: "tl1", timestamp: "尚未匯報", summary: "大總管已就任，等待第一次每日匯報", status: "pending" },
+  ],
   notify: [
     { id: "n1", timestamp: "2026-07-16 09:12", summary: "問卷完成率低於 65%，已通知行銷群組", status: "success" },
     { id: "n2", timestamp: "2026-07-15 14:30", summary: "訂單超過 24 小時未完成付款，已提醒承辦人", status: "success" },

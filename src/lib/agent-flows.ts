@@ -37,6 +37,12 @@ interface FlowStepDef {
 
 // 每位 Agent 的任務節點流程定義（依照實際運作方式拆解）
 export const AGENT_FLOWS: Record<AgentSlug, FlowStepDef[]> = {
+  teamlead: [
+    { key: "collect", label: "巡視團隊動態", icon: Eye },
+    { key: "analyze", label: "彙整 24h 工作", icon: Database },
+    { key: "summarize", label: "AI 撰寫摘要", icon: Sparkles },
+    { key: "push", label: "LINE 晨報匯報", icon: Send },
+  ],
   notify: [
     { key: "watch", label: "監測指標", icon: Eye },
     { key: "match", label: "條件成立", icon: Filter },
