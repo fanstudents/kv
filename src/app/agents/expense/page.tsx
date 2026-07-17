@@ -4,8 +4,6 @@ import { useCallback, useState } from "react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextArea, Select, TextInput } from "@/components/ui/Field";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("expense")!;
 
@@ -88,16 +86,6 @@ export default function ExpenseAgentPage() {
             <TextArea rows={3} value={template} onChange={(e) => setTemplate(e.target.value)} />
           </Field>
         </div>
-      }
-      preview={
-        <PhoneFrame accountName="財務助理">
-          <LineTextMessage
-            text={previewText}
-            caption="報帳 Agent 推播"
-            timestamp="上午 9:00"
-            accentColor={agent.color}
-          />
-        </PhoneFrame>
       }
     />
   );

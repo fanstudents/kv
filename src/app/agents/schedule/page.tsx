@@ -5,8 +5,6 @@ import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, TextArea, Select } from "@/components/ui/Field";
 import Toggle from "@/components/ui/Toggle";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("schedule")!;
 
@@ -69,16 +67,6 @@ export default function ScheduleAgentPage() {
             label="允許客戶透過 LINE 自行改期 / 取消"
           />
         </div>
-      }
-      preview={
-        <PhoneFrame accountName="行程助理">
-          <LineTextMessage
-            text={previewText}
-            caption="行程 Agent 推播"
-            timestamp="下午 6:04"
-            accentColor={agent.color}
-          />
-        </PhoneFrame>
       }
     />
   );

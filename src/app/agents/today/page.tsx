@@ -6,8 +6,6 @@ import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, TextArea } from "@/components/ui/Field";
 import Toggle from "@/components/ui/Toggle";
 import { Badge } from "@/components/ui/Badge";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("today")!;
 
@@ -124,9 +122,6 @@ export default function TodayAgentPage() {
           <p className="text-[11px] leading-snug text-neutral-400">
             以上為示範資料。實際串接需要 Gmail API（Google OAuth）與讀取「{lineOaName}」的訊息紀錄，目前尚未接上。
           </p>
-          <PhoneFrame accountName="今日完成助理">
-            <LineTextMessage text={previewText} caption="今日完成 Agent 推播" timestamp="下午 5:30" accentColor={agent.color} />
-          </PhoneFrame>
         </div>
       }
     />

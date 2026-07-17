@@ -6,8 +6,6 @@ import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("competitor")!;
 
@@ -194,9 +192,6 @@ export default function CompetitorAgentPage() {
           <p className="text-[11px] leading-snug text-neutral-400">
             以上為示範情報。實際監控需要新聞／搜尋資料來源（如 Google News RSS 或搜尋 API），目前尚未接上，僅示範標籤分類與影響分級的呈現方式。
           </p>
-          <PhoneFrame accountName="競爭情報助理">
-            <LineTextMessage text={previewText} caption="競爭對手 Agent 推播" timestamp="上午 9:00" accentColor={agent.color} />
-          </PhoneFrame>
         </div>
       }
     />

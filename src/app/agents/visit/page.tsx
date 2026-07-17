@@ -6,8 +6,6 @@ import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, TextArea, Select } from "@/components/ui/Field";
 import Toggle from "@/components/ui/Toggle";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 import EmailMessage from "@/components/agents/EmailMessage";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 
@@ -363,14 +361,6 @@ export default function VisitAgentPage() {
             </span>
           )}
           <EmailMessage to={contact.email} subject={previewSubject} bodyHtml={previewHtml} />
-          <PhoneFrame accountName="約拜訪助理">
-            <LineTextMessage
-              text={previewLineText}
-              caption="約拜訪 Agent 推播"
-              timestamp="下午 2:10"
-              accentColor={agent.color}
-            />
-          </PhoneFrame>
         </div>
       }
     />

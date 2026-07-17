@@ -4,8 +4,6 @@ import { useCallback, useState } from "react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, Select } from "@/components/ui/Field";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineCardMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("report")!;
 
@@ -95,24 +93,6 @@ export default function ReportAgentPage() {
             附加 AI 行動建議
           </label>
         </div>
-      }
-      preview={
-        <PhoneFrame accountName="行銷作業系統">
-          <LineCardMessage
-            title={`本月訂閱轉換${reportLabel}報`}
-            date="2026/7/13"
-            accentColor={agent.color}
-            kpis={metrics.map((m) => ({ label: m, value: kpiValues[m] }))}
-            deltas={["+11% 較上月", "+48% 較去年同期", "+6% 較上季均"]}
-            suggestion={
-              includeSuggestion
-                ? "問卷完成率穩定在 63%，可 A/B 測試更短版問卷，目標拉到 70%。"
-                : undefined
-            }
-            caption={`${recipient} · 行銷作業系統推播`}
-            timestamp="下午 3:49"
-          />
-        </PhoneFrame>
       }
     />
   );

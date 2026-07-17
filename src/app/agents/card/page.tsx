@@ -5,8 +5,6 @@ import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextArea, Select } from "@/components/ui/Field";
 import Toggle from "@/components/ui/Toggle";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("card")!;
 
@@ -79,16 +77,6 @@ export default function CardAgentPage() {
             <TextArea rows={3} value={template} onChange={(e) => setTemplate(e.target.value)} />
           </Field>
         </div>
-      }
-      preview={
-        <PhoneFrame accountName="業務助理">
-          <LineTextMessage
-            text={previewText}
-            caption="名片 Agent 推播"
-            timestamp="下午 4:20"
-            accentColor={agent.color}
-          />
-        </PhoneFrame>
       }
     />
   );

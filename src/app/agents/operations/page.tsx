@@ -6,8 +6,6 @@ import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("operations")!;
 
@@ -114,9 +112,6 @@ export default function OperationsAgentPage() {
               </div>
             ))}
           </div>
-          <PhoneFrame accountName="營運助理">
-            <LineTextMessage text={previewText} caption="營運 Agent 推播" timestamp="上午 9:00" accentColor={agent.color} />
-          </PhoneFrame>
         </div>
       }
     />

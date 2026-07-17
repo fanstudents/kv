@@ -4,8 +4,6 @@ import { useCallback, useState } from "react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, TextArea, Select } from "@/components/ui/Field";
-import PhoneFrame from "@/components/agents/PhoneFrame";
-import { LineTextMessage } from "@/components/agents/LineMessages";
 
 const agent = getAgent("notify")!;
 
@@ -91,16 +89,6 @@ export default function NotifyAgentPage() {
             </Field>
           </div>
         </div>
-      }
-      preview={
-        <PhoneFrame accountName="行銷作業系統">
-          <LineTextMessage
-            text={previewText}
-            caption="AI 行銷作業系統推播"
-            timestamp="下午 3:48"
-            accentColor={agent.color}
-          />
-        </PhoneFrame>
       }
     />
   );

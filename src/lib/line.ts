@@ -59,6 +59,28 @@ export async function pushLineMessage(to: string, text: string) {
   return res;
 }
 
+// 推播任意格式的 LINE 訊息（Flex、模板訊息等）
+export async function pushLineRawMessages(to: string, messages: unknown[]) {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token) throw new Error("Missing LINE_CHANNEL_ACCESS_TOKEN environment variable");
+
+  const res = await fetch(`${LINE_API_BASE}/message/push`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ to, messages }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`LINE push failed (${res.status}): ${body}`);
+  }
+
+  return res;
+}
+
 export async function replyLineMessage(replyToken: string, text: string) {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) throw new Error("Missing LINE_CHANNEL_ACCESS_TOKEN environment variable");
