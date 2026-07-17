@@ -24,6 +24,11 @@ import {
   AlertTriangle,
   Flag,
   Briefcase,
+  Headphones,
+  MessageCircle,
+  ShoppingCart,
+  Webhook,
+  Coins,
   type LucideIcon,
 } from "lucide-react";
 import type { AgentSlug } from "./types";
@@ -97,6 +102,18 @@ export const AGENT_FLOWS: Record<AgentSlug, FlowStepDef[]> = {
     { key: "update", label: "更新狀態", icon: RefreshCw },
     { key: "next", label: "標記下一步", icon: Flag },
     { key: "board", label: "儀表板呈現", icon: BarChart3 },
+  ],
+  support: [
+    { key: "receive", label: "接收客戶訊息", icon: MessageCircle },
+    { key: "log", label: "記錄對話", icon: Database },
+    { key: "reply", label: "自動回覆", icon: Headphones },
+    { key: "handoff", label: "轉真人待處理", icon: UserCheck },
+  ],
+  orders: [
+    { key: "webhook", label: "接收訂單 Webhook", icon: Webhook },
+    { key: "parse", label: "解析訂單內容", icon: ShoppingCart },
+    { key: "amount", label: "確認金額品項", icon: Coins },
+    { key: "notify", label: "LINE 即時通知", icon: Send },
   ],
 };
 

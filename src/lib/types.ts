@@ -8,7 +8,9 @@ export type AgentSlug =
   | "visit"
   | "today"
   | "competitor"
-  | "operations";
+  | "operations"
+  | "support"
+  | "orders";
 
 export type AgentStatus = "active" | "paused" | "draft";
 

@@ -72,6 +72,7 @@ const SLEEP_SPOTS = [
   { left: "77%", top: "56%" },
   { left: "22%", top: "80%" },
   { left: "59%", top: "29%" },
+  { left: "18%", top: "56%" },
 ];
 
 function TypingDots() {

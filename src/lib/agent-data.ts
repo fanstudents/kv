@@ -2,7 +2,20 @@ import type { AgentActivity, AgentMeta, AgentSlug } from "./types";
 
 // AI 生成的台灣人形象照（虛構人物，不存在於現實），存放在 public/avatars/
 // 自行託管，每位 Agent 固定一張臉。
-const PORTRAIT_NAMES = new Set(["Kevin", "Ivy", "Milo", "Sunny", "Leo", "Coco", "Dana", "Jay", "Morgan", "Vivian"]);
+const PORTRAIT_NAMES = new Set([
+  "Kevin",
+  "Ivy",
+  "Milo",
+  "Sunny",
+  "Leo",
+  "Coco",
+  "Dana",
+  "Jay",
+  "Morgan",
+  "Vivian",
+  "Amber",
+  "Ray",
+]);
 
 export function avatarUrl(seed: string, colorHex: string) {
   if (PORTRAIT_NAMES.has(seed)) return `/avatars/${seed.toLowerCase()}.jpg`;
@@ -204,6 +217,44 @@ export const AGENTS: AgentMeta[] = [
     lastRun: "尚未啟用",
     recipients: 1,
   },
+  {
+    slug: "support",
+    name: "客服 Agent",
+    shortName: "客服",
+    tagline: "第二支 LINE OA 客服接待",
+    personEn: "Amber",
+    personZh: "安柏",
+    role: "客服接待專員",
+    description:
+      "駐守在獨立的客服官方帳號，接收客戶訊息並自動回覆、記錄每一則對話，讓真人客服可以快速接手。",
+    color: "#EC4899",
+    status: "draft",
+    metrics: [
+      { label: "本月接待數", value: "0" },
+      { label: "平均回覆時間", value: "—" },
+    ],
+    lastRun: "尚未啟用",
+    recipients: 1,
+  },
+  {
+    slug: "orders",
+    name: "訂單 Agent",
+    shortName: "訂單",
+    tagline: "Teachify 訂單即時通知",
+    personEn: "Ray",
+    personZh: "睿哲",
+    role: "訂單值班員",
+    description:
+      "監看 Teachify 網站的訂單 Webhook，只要有新訂單成立或退款，立即透過 LINE 通知您金額與品項明細。",
+    color: "#F59E0B",
+    status: "draft",
+    metrics: [
+      { label: "本月訂單數", value: "0" },
+      { label: "本月營收", value: "—" },
+    ],
+    lastRun: "尚未啟用",
+    recipients: 1,
+  },
 ];
 
 export function getAgent(slug: string): AgentMeta | undefined {
@@ -248,5 +299,11 @@ export const ACTIVITY_LOGS: Record<AgentSlug, AgentActivity[]> = {
   ],
   operations: [
     { id: "op1", timestamp: "尚未啟用", summary: "營運儀表板已建立，尚待填入各產品線現況", status: "pending" },
+  ],
+  support: [
+    { id: "sup1", timestamp: "尚未啟用", summary: "等待接上第二支客服官方帳號的 Channel 金鑰", status: "pending" },
+  ],
+  orders: [
+    { id: "ord1", timestamp: "尚未啟用", summary: "等待 Teachify 訂單 Webhook 設定完成", status: "pending" },
   ],
 };
