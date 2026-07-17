@@ -6,7 +6,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("contacts")
     .select(
-      "*, visit_offers(status, created_at), pending_invites(status, slot1, slot2, chosen_slot, created_at, resolved_at)"
+      "*, visit_offers(status, created_at, resolved_at), pending_invites(id, status, subject, body, slot1, slot2, chosen_slot, location, calendar_event_id, to_email, created_at, resolved_at)"
     )
     .order("created_at", { ascending: false });
 
