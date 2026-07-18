@@ -16,8 +16,9 @@ import {
   X,
   Wallet,
 } from "lucide-react";
-import { AGENTS } from "@/lib/agent-data";
+import { AGENTS, agentTeam } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
+import type { AgentMeta } from "@/lib/types";
 
 interface ActivityRow {
   agent_slug: string | null;
@@ -59,6 +60,46 @@ export default function Sidebar() {
   }, []);
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+
+  const renderAgent = (agent: AgentMeta) => {
+    const href = `/agents/${agent.slug}`;
+    return (
+      <Link
+        key={agent.slug}
+        href={href}
+        className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
+          isActive(href)
+            ? "bg-[#06C755]/10 text-[#06C755]"
+            : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        }`}
+      >
+        <Avatar personEn={agent.personEn} color={agent.color} size={30} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">{agent.name}</span>
+          <span className="block truncate text-xs font-normal text-neutral-400">
+            {agent.personEn} {agent.personZh} · {agent.role}
+          </span>
+        </span>
+        {(dayCounts[agent.slug] ?? 0) > 0 && (
+          <span
+            className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#06C755]/15 px-1.5 text-[10px] font-bold text-[#06C755]"
+            title="最近 24 小時完成任務數"
+          >
+            {dayCounts[agent.slug]}
+          </span>
+        )}
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+            agent.status === "active"
+              ? "animate-pulse bg-[#06C755]"
+              : agent.status === "paused"
+                ? "bg-amber-500"
+                : "bg-neutral-300 dark:bg-neutral-600"
+          }`}
+        />
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -111,46 +152,11 @@ export default function Sidebar() {
           團隊總覽
         </Link>
 
-        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">團隊成員</p>
-        {AGENTS.map((agent) => {
-          const href = `/agents/${agent.slug}`;
-          return (
-            <Link
-              key={agent.slug}
-              href={href}
-              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                isActive(href)
-                  ? "bg-[#06C755]/10 text-[#06C755]"
-                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-              }`}
-            >
-              <Avatar personEn={agent.personEn} color={agent.color} size={30} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{agent.name}</span>
-                <span className="block truncate text-xs font-normal text-neutral-400">
-                  {agent.personEn} {agent.personZh} · {agent.role}
-                </span>
-              </span>
-              {(dayCounts[agent.slug] ?? 0) > 0 && (
-                <span
-                  className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#06C755]/15 px-1.5 text-[10px] font-bold text-[#06C755]"
-                  title="最近 24 小時完成任務數"
-                >
-                  {dayCounts[agent.slug]}
-                </span>
-              )}
-              <span
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                  agent.status === "active"
-                    ? "animate-pulse bg-[#06C755]"
-                    : agent.status === "paused"
-                      ? "bg-amber-500"
-                      : "bg-neutral-300 dark:bg-neutral-600"
-                }`}
-              />
-            </Link>
-          );
-        })}
+        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">行銷 Team</p>
+        {AGENTS.filter((a) => agentTeam(a.slug) === "marketing").map(renderAgent)}
+
+        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">行政 Team</p>
+        {AGENTS.filter((a) => agentTeam(a.slug) === "admin").map(renderAgent)}
 
         <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">系統</p>
         <Link

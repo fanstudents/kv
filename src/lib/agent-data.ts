@@ -67,19 +67,19 @@ export const AGENTS: AgentMeta[] = [
   },
   {
     slug: "report",
-    name: "報表 Agent",
-    shortName: "報表",
-    tagline: "定期寄送報表",
+    name: "數據 Agent",
+    shortName: "數據",
+    tagline: "成效數據彙整與洞察",
     personEn: "Ivy",
     personZh: "艾薇",
-    role: "數據分析師",
+    role: "成效分析師",
     description:
-      "依排程自動彙整關鍵指標，產出報表並附上 AI 行動建議，定時推播至 LINE 群組或個人。",
-    color: "#2F7DE1",
+      "彙整各行銷渠道的成效數據（流量、轉換、ROAS 等），定期產出洞察報表並附上 AI 行動建議，推播到 LINE。",
+    color: "#3B82F6",
     status: "active",
     metrics: [
       { label: "本月報表數", value: "4" },
-      { label: "訂閱轉換率", value: "34.7%", delta: "+6%" },
+      { label: "整體轉換率", value: "34.7%", delta: "+6%" },
     ],
     lastRun: "2026-07-13 15:49",
     recipients: 9,
@@ -105,41 +105,41 @@ export const AGENTS: AgentMeta[] = [
   },
   {
     slug: "card",
-    name: "名片 Agent",
-    shortName: "名片",
-    tagline: "名片掃描、發會後信",
+    name: "社群 Agent",
+    shortName: "社群",
+    tagline: "社群貼文發想與排程",
     personEn: "Sunny",
     personZh: "陽陽",
-    role: "人脈公關",
+    role: "社群小編",
     description:
-      "掃描名片自動辨識聯絡資訊，建立聯絡人並於會後自動寄送跟進信件。",
-    color: "#F59E0B",
-    status: "paused",
+      "依品牌調性發想各社群平台的貼文與圖文素材，安排發文排程，並彙整互動成效供調整內容方向。",
+    color: "#8B5CF6",
+    status: "active",
     metrics: [
-      { label: "本月掃描數", value: "31" },
-      { label: "會後信寄出率", value: "88%" },
+      { label: "本月貼文數", value: "0" },
+      { label: "平均互動率", value: "—" },
     ],
-    lastRun: "2026-07-10 11:20",
-    recipients: 31,
+    lastRun: "尚未啟用",
+    recipients: 1,
   },
   {
     slug: "expense",
-    name: "報帳 Agent",
-    shortName: "報帳",
-    tagline: "發票掃描歸檔",
+    name: "SEO Agent",
+    shortName: "SEO",
+    tagline: "關鍵字追蹤與內容優化建議",
     personEn: "Leo",
     personZh: "立歐",
-    role: "財務小尖兵",
+    role: "SEO 優化師",
     description:
-      "自動辨識發票內容並歸檔至指定表單或系統，並於每月截止前提醒尚未報帳項目。",
-    color: "#EF4444",
-    status: "draft",
+      "追蹤網站在搜尋引擎的關鍵字排名與自然流量，找出優化機會，提供內容與技術面的 SEO 改善建議。",
+    color: "#14B8A6",
+    status: "active",
     metrics: [
-      { label: "本月歸檔數", value: "0" },
-      { label: "待審核", value: "0" },
+      { label: "追蹤關鍵字", value: "0" },
+      { label: "自然流量變化", value: "—" },
     ],
     lastRun: "尚未啟用",
-    recipients: 6,
+    recipients: 1,
   },
   {
     slug: "visit",
@@ -162,38 +162,38 @@ export const AGENTS: AgentMeta[] = [
   },
   {
     slug: "today",
-    name: "今日完成 Agent",
-    shortName: "今日完成",
-    tagline: "客戶待辦彙整 + 逾期提醒",
+    name: "廣告 Agent",
+    shortName: "廣告",
+    tagline: "廣告投放監控與成效優化",
     personEn: "Dana",
     personZh: "丹娜",
-    role: "客服跟進專員",
+    role: "廣告投手",
     description:
-      "整合最近兩天內兩個 Gmail 信箱與「數位簡報室」LINE 官方帳號的客戶待辦事項，自動判斷完成狀態，若對方遲遲無回應則主動提醒。",
-    color: "#14B8A6",
-    status: "draft",
+      "監控 Meta、Google 等平台的廣告投放成效（花費、CPA、ROAS），發現異常主動提醒，並提供預算與素材的調整建議。",
+    color: "#EF4444",
+    status: "active",
     metrics: [
-      { label: "追蹤中待辦", value: "0" },
-      { label: "逾期未回應", value: "0" },
+      { label: "本月廣告花費", value: "—" },
+      { label: "整體 ROAS", value: "—" },
     ],
     lastRun: "尚未啟用",
     recipients: 1,
   },
   {
     slug: "competitor",
-    name: "競爭對手 Agent",
-    shortName: "競爭對手",
-    tagline: "對手情報蒐集 + 影響分級",
+    name: "口碑 Agent",
+    shortName: "口碑",
+    tagline: "品牌口碑與聲量監測",
     personEn: "Jay",
     personZh: "杰宇",
-    role: "市場情報官",
+    role: "口碑聲量官",
     description:
-      "追蹤您指定的競爭對手官網、新聞報導、徵才資訊與產品口碑，為每則情報標籤分類，標出對公司有影響、需要展開行動的訊息。",
+      "追蹤品牌在社群、論壇、新聞與評論平台的提及與情緒，為每則聲量標籤分類與情緒分級，標出需要即時回應的負面口碑。",
     color: "#D946EF",
-    status: "draft",
+    status: "active",
     metrics: [
-      { label: "本月蒐集情報", value: "0" },
-      { label: "需展開行動", value: "0" },
+      { label: "本月監測聲量", value: "0" },
+      { label: "需回應負評", value: "0" },
     ],
     lastRun: "尚未啟用",
     recipients: 1,
@@ -261,6 +261,13 @@ export function getAgent(slug: string): AgentMeta | undefined {
   return AGENTS.find((a) => a.slug === slug);
 }
 
+// 團隊分組：行銷 Team 由這幾個 slug 組成，其餘歸行政 Team。
+export const MARKETING_SLUGS: AgentSlug[] = ["today", "expense", "card", "report", "competitor"];
+
+export function agentTeam(slug: string): "marketing" | "admin" {
+  return (MARKETING_SLUGS as string[]).includes(slug) ? "marketing" : "admin";
+}
+
 export const ACTIVITY_LOGS: Record<AgentSlug, AgentActivity[]> = {
   teamlead: [
     { id: "tl1", timestamp: "尚未匯報", summary: "大總管已就任，等待第一次每日匯報", status: "pending" },
@@ -271,9 +278,7 @@ export const ACTIVITY_LOGS: Record<AgentSlug, AgentActivity[]> = {
     { id: "n3", timestamp: "2026-07-14 08:00", summary: "行事曆提醒推播失敗（LINE API 逾時）", status: "failed" },
   ],
   report: [
-    { id: "r1", timestamp: "2026-07-13 15:49", summary: "本月訂閱轉換月報已寄出至「行銷團隊」群組", status: "success" },
-    { id: "r2", timestamp: "2026-07-06 09:00", summary: "週報已寄出，問卷完成率 63.5%", status: "success" },
-    { id: "r3", timestamp: "2026-06-29 09:00", summary: "週報已寄出", status: "success" },
+    { id: "r1", timestamp: "尚未啟用", summary: "等待串接 GA4／廣告平台等成效數據來源", status: "pending" },
   ],
   schedule: [
     { id: "s1", timestamp: "2026-07-15 18:04", summary: "已為客戶「王小明」確認 7/18 14:00 諮詢預約", status: "success" },
@@ -281,21 +286,19 @@ export const ACTIVITY_LOGS: Record<AgentSlug, AgentActivity[]> = {
     { id: "s3", timestamp: "2026-07-14 09:30", summary: "會議前 30 分鐘提醒已發送", status: "success" },
   ],
   card: [
-    { id: "c1", timestamp: "2026-07-10 11:20", summary: "掃描名片「陳經理 / ABC 公司」並建立聯絡人", status: "success" },
-    { id: "c2", timestamp: "2026-07-09 16:40", summary: "會後跟進信已寄出（5 位新聯絡人）", status: "success" },
-    { id: "c3", timestamp: "2026-07-08 13:05", summary: "名片影像模糊，OCR 辨識失敗", status: "failed" },
+    { id: "c1", timestamp: "尚未啟用", summary: "等待串接社群平台，開始發想與排程貼文", status: "pending" },
   ],
   expense: [
-    { id: "e1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
+    { id: "e1", timestamp: "尚未啟用", summary: "等待串接 Search Console，開始追蹤關鍵字排名", status: "pending" },
   ],
   visit: [
     { id: "v1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
   ],
   today: [
-    { id: "t1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
+    { id: "t1", timestamp: "尚未啟用", summary: "等待串接 Meta／Google 廣告帳號，開始監控投放成效", status: "pending" },
   ],
   competitor: [
-    { id: "co1", timestamp: "尚未啟用", summary: "此 Agent 目前為草稿狀態，尚未開始運作", status: "pending" },
+    { id: "co1", timestamp: "尚未啟用", summary: "等待設定監測關鍵字，開始追蹤品牌聲量與口碑", status: "pending" },
   ],
   operations: [
     { id: "op1", timestamp: "尚未啟用", summary: "營運儀表板已建立，尚待填入各產品線現況", status: "pending" },
