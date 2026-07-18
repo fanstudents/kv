@@ -1,8 +1,12 @@
 import "server-only";
+import { logAiUsage } from "@/lib/ai-usage";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
 
-async function chatCompletion(body: Record<string, unknown>) {
+async function chatCompletion(
+  body: Record<string, unknown>,
+  meta: { operation: string; agentSlug?: string | null }
+) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
 
@@ -20,7 +24,15 @@ async function chatCompletion(body: Record<string, unknown>) {
     throw new Error(`OpenAI request failed (${res.status}): ${text}`);
   }
 
-  return res.json();
+  const data = await res.json();
+  // 記錄用量與成本（不阻塞回傳）
+  await logAiUsage({
+    operation: meta.operation,
+    model: typeof body.model === "string" ? body.model : "unknown",
+    usage: data.usage,
+    agentSlug: meta.agentSlug,
+  });
+  return data;
 }
 
 export interface ParsedCard {
@@ -55,7 +67,7 @@ export async function parseBusinessCard(imageDataUrl: string): Promise<ParsedCar
     ],
     response_format: { type: "json_object" },
     temperature: 0,
-  });
+  }, { operation: "名片辨識", agentSlug: "visit" });
 
   const content = data.choices?.[0]?.message?.content ?? "{}";
   let parsed: Partial<ParsedCard> = {};
@@ -106,7 +118,7 @@ export async function draftInviteEmail(params: {
     ],
     response_format: { type: "json_object" },
     temperature: 0.8,
-  });
+  }, { operation: "邀約信撰寫", agentSlug: "visit" });
 
   const content = data.choices?.[0]?.message?.content ?? "{}";
   let parsed: Partial<{ subject: string; body: string }> = {};

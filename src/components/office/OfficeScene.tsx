@@ -281,10 +281,13 @@ export default function OfficeScene() {
     .map(([slug, p]) => `@keyframes walk-${slug}{${p.frames}}`)
     .join("\n");
 
-  const goPrev = () => setSceneIndex((i) => (i - 1 + SCENES.length) % SCENES.length);
-  const goNext = () => setSceneIndex((i) => (i + 1) % SCENES.length);
-  const prevScene = SCENES[(sceneIndex - 1 + SCENES.length) % SCENES.length];
-  const nextScene = SCENES[(sceneIndex + 1) % SCENES.length];
+  // 非循環：到最左/最右就停用該方向箭頭，方向與位移一致（往左看左邊場景、往右看右邊場景）
+  const canPrev = sceneIndex > 0;
+  const canNext = sceneIndex < SCENES.length - 1;
+  const goPrev = () => canPrev && setSceneIndex((i) => i - 1);
+  const goNext = () => canNext && setSceneIndex((i) => i + 1);
+  const prevScene = canPrev ? SCENES[sceneIndex - 1] : null;
+  const nextScene = canNext ? SCENES[sceneIndex + 1] : null;
 
   return (
     <div
@@ -345,37 +348,41 @@ export default function OfficeScene() {
         ))}
       </div>
 
-      {/* 左右切換場景，hover 時標示目的地名稱 */}
-      <button
-        type="button"
-        onClick={goPrev}
-        className="group absolute left-0 top-0 z-30 flex h-full w-20 items-center justify-start pl-2"
-        aria-label={`前往${prevScene.name}`}
-      >
-        <span className="flex items-center gap-1.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
-            ‹
+      {/* 左右切換場景，hover 時標示目的地名稱；到頭/到尾就不顯示該方向箭頭 */}
+      {prevScene && (
+        <button
+          type="button"
+          onClick={goPrev}
+          className="group absolute left-0 top-0 z-30 flex h-full w-20 items-center justify-start pl-2"
+          aria-label={`前往${prevScene.name}`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
+              ‹
+            </span>
+            <span className="translate-x-[-6px] whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow backdrop-blur-sm transition-all group-hover:translate-x-0 group-hover:opacity-100">
+              {prevScene.name}
+            </span>
           </span>
-          <span className="translate-x-[-6px] whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow backdrop-blur-sm transition-all group-hover:translate-x-0 group-hover:opacity-100">
-            {prevScene.name}
+        </button>
+      )}
+      {nextScene && (
+        <button
+          type="button"
+          onClick={goNext}
+          className="group absolute right-0 top-0 z-30 flex h-full w-20 items-center justify-end pr-2"
+          aria-label={`前往${nextScene.name}`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span className="translate-x-[6px] whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow backdrop-blur-sm transition-all group-hover:translate-x-0 group-hover:opacity-100">
+              {nextScene.name}
+            </span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
+              ›
+            </span>
           </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        onClick={goNext}
-        className="group absolute right-0 top-0 z-30 flex h-full w-20 items-center justify-end pr-2"
-        aria-label={`前往${nextScene.name}`}
-      >
-        <span className="flex items-center gap-1.5">
-          <span className="translate-x-[6px] whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow backdrop-blur-sm transition-all group-hover:translate-x-0 group-hover:opacity-100">
-            {nextScene.name}
-          </span>
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/35 text-lg text-white opacity-60 shadow-lg backdrop-blur-sm transition-all group-hover:scale-110 group-hover:opacity-100">
-            ›
-          </span>
-        </span>
-      </button>
+        </button>
+      )}
     </div>
   );
 }

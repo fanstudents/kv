@@ -2,6 +2,7 @@ import "server-only";
 import { getSupabase } from "@/lib/supabase";
 import { pushLineRawMessages } from "@/lib/line";
 import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
+import { logAiUsage } from "@/lib/ai-usage";
 import { AGENTS } from "@/lib/agent-data";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
@@ -43,6 +44,7 @@ async function summarizeWithAI(rawBrief: string): Promise<string | null> {
     });
     if (!res.ok) return null;
     const data = await res.json();
+    await logAiUsage({ operation: "每日晨報摘要", model: "gpt-4o-mini", usage: data.usage, agentSlug: "teamlead" });
     return data.choices?.[0]?.message?.content ?? null;
   } catch {
     return null;

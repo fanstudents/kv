@@ -3,7 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ListChecks, AlertTriangle, Table2, Settings, MessageCircle, Users, LogOut } from "lucide-react";
+import {
+  LayoutDashboard,
+  ListChecks,
+  AlertTriangle,
+  Table2,
+  Settings,
+  MessageCircle,
+  Users,
+  LogOut,
+  Menu,
+  X,
+  Wallet,
+} from "lucide-react";
 import { AGENTS } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
 
@@ -17,6 +29,12 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
+  const [open, setOpen] = useState(false);
+
+  // 換頁時自動收起行動版抽屜
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const load = () =>
@@ -43,16 +61,42 @@ export default function Sidebar() {
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
-    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-      <div className="flex items-center gap-2 border-b border-neutral-200 px-5 py-5 dark:border-neutral-800">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#06C755] text-white">
-          <MessageCircle size={18} />
-        </div>
-        <div>
+    <>
+      {/* 行動版頂欄（含漢堡） */}
+      <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-neutral-200 bg-white/90 px-4 backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/90 lg:hidden">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#06C755] text-white">
+            <MessageCircle size={16} />
+          </div>
           <p className="text-sm font-semibold text-neutral-900 dark:text-white">LINE Agent 控制台</p>
-          <p className="text-xs text-neutral-400">tbr.digital</p>
         </div>
-      </div>
+        <button type="button" onClick={() => setOpen(true)} aria-label="開啟選單" className="p-1 text-neutral-600 dark:text-neutral-300">
+          <Menu size={22} />
+        </button>
+      </header>
+
+      {/* 行動版遮罩 */}
+      {open && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white transition-transform duration-300 dark:border-neutral-800 dark:bg-neutral-900 lg:static lg:translate-x-0 ${
+          open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-5 py-5 dark:border-neutral-800">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#06C755] text-white">
+              <MessageCircle size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-white">LINE Agent 控制台</p>
+              <p className="text-xs text-neutral-400">tbr.digital</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => setOpen(false)} aria-label="關閉選單" className="p-1 text-neutral-400 lg:hidden">
+            <X size={20} />
+          </button>
+        </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <Link
@@ -132,6 +176,17 @@ export default function Sidebar() {
           產出總覽
         </Link>
         <Link
+          href="/ai-usage"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/ai-usage")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <Wallet size={18} />
+          AI 成本
+        </Link>
+        <Link
           href="/anomalies"
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
             isActive("/anomalies")
@@ -182,6 +237,7 @@ export default function Sidebar() {
           登出
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
