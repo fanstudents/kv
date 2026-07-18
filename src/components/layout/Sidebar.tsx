@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, ListChecks, AlertTriangle, Table2, Settings, MessageCircle, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, ListChecks, AlertTriangle, Table2, Settings, MessageCircle, Users, LogOut } from "lucide-react";
 import { AGENTS } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
 
@@ -15,6 +15,7 @@ interface ActivityRow {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -165,8 +166,21 @@ export default function Sidebar() {
         </Link>
       </nav>
 
-      <div className="border-t border-neutral-200 px-5 py-4 text-xs text-neutral-400 dark:border-neutral-800">
-        service@tbr.digital
+      <div className="flex items-center justify-between border-t border-neutral-200 px-5 py-4 text-xs text-neutral-400 dark:border-neutral-800">
+        <span>service@tbr.digital</span>
+        <button
+          type="button"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+            router.replace("/login");
+            router.refresh();
+          }}
+          className="flex items-center gap-1 rounded-md px-2 py-1 font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+          title="登出"
+        >
+          <LogOut size={13} />
+          登出
+        </button>
       </div>
     </aside>
   );
