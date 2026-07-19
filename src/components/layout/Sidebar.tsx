@@ -141,9 +141,9 @@ export default function Sidebar() {
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <Link
-          href="/"
+          href="/dashboard"
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-            isActive("/")
+            isActive("/dashboard")
               ? "bg-[#06C755]/10 text-[#06C755]"
               : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
           }`}

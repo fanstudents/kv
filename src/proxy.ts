@@ -23,10 +23,15 @@ function isPublic(pathname: string): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // 首頁 = 公開的銷售到達頁（public/agent-team.html），後台移至 /dashboard
+  if (pathname === "/" || pathname === "/agent-team.html") {
+    return NextResponse.rewrite(new URL("/agent-team.html", request.url));
+  }
+
   if (isPublic(pathname)) {
-    // 已登入者造訪登入頁 → 導回首頁
+    // 已登入者造訪登入頁 → 導回後台
     if (pathname === "/login" && verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value)) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
   }
@@ -45,5 +50,5 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // 排除靜態資源與圖檔，其餘全部經過登入檢查
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|avatars/|office-.*\\.jpg).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|avatars/|managers/|office-.*\\.jpg).*)"],
 };

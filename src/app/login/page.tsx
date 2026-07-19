@@ -23,7 +23,7 @@ export default function LoginPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "登入失敗");
-      router.replace("/");
+      router.replace("/dashboard");
       router.refresh();
     } catch (err) {
       setState("error");
