@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>TBR AI Studio — Agent Team｜部署在你環境裡的 AI 團隊</title>
+<title>TBR AI Studio — Agent Team｜部署在你環境的 AI Agent 團隊平台</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root{
@@ -111,9 +111,85 @@
   .hero h1 em{font-style:normal;color:var(--green)}
   .hero-sub{color:var(--body);font-size:clamp(16px,2vw,18.5px);max-width:37em;margin-top:20px}
   .hero-sub b{color:var(--text);font-weight:700}
-  .hero-cta{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
+  .hero-cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
   .hero-note{font-size:13px;color:var(--faint);margin-top:14px}
   .hero-note b{color:var(--muted);font-weight:600}
+  .hero-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+  .hchip{
+    display:inline-flex;align-items:center;gap:7px;
+    border:1px solid var(--line);background:var(--card);border-radius:999px;
+    padding:6px 14px;font-size:13px;color:var(--body);font-weight:500;
+  }
+  .hchip::before{content:"✓";color:var(--green);font-weight:800;font-size:11px}
+
+  /* ── 平台功能（迷你介面模型） ── */
+  .plat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
+  @media(max-width:860px){.plat-grid{grid-template-columns:1fr}}
+  .plat-card h3{font-size:16px;color:var(--text);margin-top:14px}
+  .plat-card>p{font-size:13.5px;color:var(--muted);margin-top:7px;line-height:1.7}
+  .mock{
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    background:var(--bg);
+  }
+  .mock-bar{display:flex;gap:5px;padding:9px 11px;border-bottom:1px solid var(--line)}
+  .mock-bar span{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .mock-body{height:128px;padding:10px;display:flex;gap:8px}
+  .m-side{width:52px;flex:none;display:grid;gap:6px;align-content:start}
+  .m-side i{display:block;height:8px;border-radius:3px;background:var(--line)}
+  .m-side i:first-child{background:var(--green);opacity:.5}
+  .m-office{
+    flex:1;border-radius:6px;position:relative;
+    background-color:#F3EDE3;
+    background-image:linear-gradient(rgba(140,120,90,.09) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(140,120,90,.09) 1px,transparent 1px);
+    background-size:18px 18px;
+  }
+  .m-desk{position:absolute;width:22%;height:16%;border-radius:2px;background:#D9CBB4}
+  .m-agent{position:absolute;width:10px;height:10px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .m-bars{flex:1;display:flex;align-items:flex-end;gap:7px;padding:4px 6px}
+  .m-bars i{flex:1;border-radius:3px 3px 0 0;background:var(--green);opacity:.75}
+  .m-bars i.amb{background:#F59E0B}
+  .m-log{flex:1;display:grid;gap:8px;align-content:start}
+  .m-log .row{display:flex;align-items:center;gap:7px}
+  .m-log .dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex:none}
+  .m-log i{display:block;height:8px;border-radius:3px;background:var(--line);flex:1}
+  .m-log .pill{flex:none;width:34px;height:12px;border-radius:6px;background:var(--green-soft);border:1px solid rgba(6,199,85,.3)}
+  .plat-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
+  @media(max-width:860px){.plat-feats{grid-template-columns:1fr}}
+  .plat-feat h4{font-size:14.5px;color:var(--text);margin:0}
+  .plat-feat p{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.65}
+
+  /* ── 情境範例（分頁） ── */
+  .scn-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:36px}
+  .scn-tab{
+    border:1px solid var(--line);background:var(--card);color:var(--body);
+    border-radius:999px;padding:8px 18px;font-size:13.5px;font-weight:600;cursor:pointer;
+    font-family:var(--sans);transition:all .15s ease;
+  }
+  .scn-tab:hover{border-color:var(--green);color:var(--green)}
+  .scn-tab.on{background:var(--text);border-color:var(--text);color:var(--bg)}
+  .scn-panel{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-top:18px;animation:fadeUp .3s ease both}
+  @media(max-width:820px){.scn-panel{grid-template-columns:1fr}}
+  .tl-head{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--faint)}
+  .tl-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
+  .tl-row:last-child{border-bottom:0}
+  .tl-time{flex:none;width:50px;font-family:var(--mono);font-size:12px;color:var(--faint);padding-top:2px;font-variant-numeric:tabular-nums}
+  .tl-evt{flex:1;font-size:14px;color:var(--body);line-height:1.6}
+  .tl-agent{
+    flex:none;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;
+    margin-top:1px;white-space:nowrap;
+  }
+  .scn-side .mrow{display:flex;align-items:center;gap:9px;padding:7px 0}
+  .scn-side .mrow .mm{width:30px;height:30px;flex:none}
+  .scn-side .mrow .mm svg{width:100%;height:100%}
+  .scn-side .mrow .mn{font-size:13px;color:var(--body);font-weight:600}
+  .scn-side .mrow .mp{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+  .scn-total{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-top:1px solid var(--line);margin-top:8px;padding-top:12px;
+  }
+  .scn-total b{font-size:17px;color:var(--text);font-variant-numeric:tabular-nums}
+  .scn-total span{font-size:12px;color:var(--faint)}
 
   /* 辦公室即時場景：同後台 OfficeScene（rounded-3xl + 木質邊框） */
   .floor-frame{
@@ -512,7 +588,8 @@
       </span>
     </a>
     <div class="nav-links">
-      <a class="hide-m" href="#match">場景配對</a>
+      <a class="hide-m" href="#platform">平台功能</a>
+      <a class="hide-m" href="#scenarios">情境範例</a>
       <a class="hide-m" href="#roster">團隊成員</a>
       <a class="hide-m" href="#super">超級 Agent</a>
       <a class="hide-m" href="#pricing">聘僱條件</a>
@@ -525,11 +602,18 @@
 <header class="hero" id="top">
   <div class="wrap">
     <div class="eyebrow">業界獨家・經理人帶隊的 AI AGENT 模式</div>
-    <h1>晚上 11 點，<br>你的公司<em>還在上班</em>。</h1>
-    <p class="hero-sub">客訴有人回、訂單有人追、日報準時寄——上工的不是熬夜的員工，而是<b>部署在你自己環境裡</b>的 AI Agent 團隊。資料不出門，工作不打烊。</p>
+    <h1>一套會自己上班的<br><em>AI Agent 團隊平台</em>。</h1>
+    <p class="hero-sub">部署在<b>你自己的環境</b>，20 種職務的 AI Agent 在同一個平台裡分工、協作、留下紀錄——客訴有人回、訂單有人追、日報準時寄。晚上 11 點，你的公司還在上班。</p>
+    <div class="hero-chips">
+      <span class="hchip">20 種 Agent 職務</span>
+      <span class="hchip">部署在你的環境</span>
+      <span class="hchip">儀表板集中管理</span>
+      <span class="hchip">AI 成本透明</span>
+      <span class="hchip">真人經理人方案</span>
+    </div>
     <div class="hero-cta">
       <a class="btn btn-green" href="#match">30 秒配出你的團隊 →</a>
-      <a class="btn btn-ghost" href="#roster">看看 20 位團隊成員</a>
+      <a class="btn btn-ghost" href="#platform">先看看平台長什麼樣</a>
     </div>
     <p class="hero-note">部署費 <b>NT$10,000／次</b>（線上或到府）・Agent 按月訂閱・隨時可退</p>
 
@@ -551,6 +635,96 @@
     </div>
   </div>
 </header>
+
+<!-- ════════ 平台功能 ════════ -->
+<section id="platform">
+  <div class="wrap">
+    <div class="eyebrow">這是一套平台，不是一個聊天機器人</div>
+    <h2>一個後台，<br>管理你整支 AI 團隊。</h2>
+    <p class="lede">每位 Agent 的工位、每一次任務、每一塊錢 AI 成本，都在同一個儀表板裡。你隨時看得到誰在做什麼、做了多少、花了多少——像管理一個真的部門。</p>
+
+    <div class="plat-grid">
+      <div class="card plat-card">
+        <div class="mock" aria-hidden="true">
+          <div class="mock-bar"><span></span><span></span><span></span></div>
+          <div class="mock-body">
+            <div class="m-side"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="m-office">
+              <span class="m-desk" style="left:10%;top:16%"></span>
+              <span class="m-desk" style="left:42%;top:16%"></span>
+              <span class="m-desk" style="left:74%;top:16%"></span>
+              <span class="m-desk" style="left:10%;top:56%"></span>
+              <span class="m-desk" style="left:42%;top:56%"></span>
+              <span class="m-desk" style="left:74%;top:56%"></span>
+              <span class="m-agent" style="left:24%;top:38%;background:#EC4899"></span>
+              <span class="m-agent" style="left:56%;top:70%;background:#3B82F6"></span>
+              <span class="m-agent" style="left:80%;top:34%;background:#06C755"></span>
+            </div>
+          </div>
+        </div>
+        <h3>團隊總覽</h3>
+        <p>你的 AI 辦公室即時畫面：每位 Agent 有自己的工位與狀態，誰在值勤、誰在待命，一眼看完。</p>
+      </div>
+
+      <div class="card plat-card">
+        <div class="mock" aria-hidden="true">
+          <div class="mock-bar"><span></span><span></span><span></span></div>
+          <div class="mock-body">
+            <div class="m-bars">
+              <i style="height:34%"></i><i style="height:52%"></i><i style="height:41%"></i>
+              <i style="height:68%"></i><i style="height:57%"></i><i class="amb" style="height:88%"></i>
+              <i style="height:46%"></i>
+            </div>
+          </div>
+        </div>
+        <h3>AI 成本儀表板</h3>
+        <p>每個 Agent 花了多少 Token、多少錢，逐日逐項攤開。自帶 API Key 時帳目直通原廠，完全透明。</p>
+      </div>
+
+      <div class="card plat-card">
+        <div class="mock" aria-hidden="true">
+          <div class="mock-bar"><span></span><span></span><span></span></div>
+          <div class="mock-body">
+            <div class="m-log">
+              <div class="row"><span class="dot"></span><i style="max-width:72%"></i><span class="pill"></span></div>
+              <div class="row"><span class="dot"></span><i style="max-width:58%"></i><span class="pill"></span></div>
+              <div class="row"><span class="dot"></span><i style="max-width:80%"></i><span class="pill"></span></div>
+              <div class="row"><span class="dot"></span><i style="max-width:64%"></i><span class="pill"></span></div>
+            </div>
+          </div>
+        </div>
+        <h3>任務與活動紀錄</h3>
+        <p>回了哪則訊息、寄了哪份報表、通知了誰——每一件事都有時間戳與紀錄，可查、可稽核。</p>
+      </div>
+    </div>
+
+    <div class="plat-feats">
+      <div class="card plat-feat">
+        <h4>權限分級與稽核</h4>
+        <p>誰能看對話、誰能改設定，逐一授權；每次存取都有跡可循。</p>
+      </div>
+      <div class="card plat-feat">
+        <h4>隨時增聘、退訂</h4>
+        <p>像人事系統一樣管理編制：今天增聘一位、下月退訂一位，按月計費。</p>
+      </div>
+      <div class="card plat-feat">
+        <h4>超級 Agent 管理</h4>
+        <p>主理人的覆盤紀錄、團隊 KPI 與任務明細，都在同一個後台。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 情境範例 ════════ -->
+<section class="sec-band" id="scenarios">
+  <div class="wrap">
+    <div class="eyebrow">帶入你的情境</div>
+    <h2>你的行業，<br>Agent 團隊的一天長這樣。</h2>
+    <p class="lede">挑一個最接近你的行業，看看 Agent 團隊實際上一天做哪些事、建議聘哪幾位、大概花多少。看完可以一鍵帶入場景配對。</p>
+    <div class="scn-tabs" id="scnTabs"></div>
+    <div id="scnPanel"></div>
+  </div>
+</section>
 
 <!-- ════════ 場景配對（新） ════════ -->
 <section class="match" id="match">
@@ -1117,7 +1291,11 @@
     '廣告費越花越多，卻不知道成效好不好',
     '小公司沒人記帳，月底對帳對到崩潰',
     '常常忘記回覆履歷、排面試排到頭痛',
-    '怕 Google 評論出現負評沒人發現'
+    '怕 Google 評論出現負評沒人發現',
+    '診所預約提醒都靠櫃檯手動發',
+    '補教招生詢問一多就回不完',
+    '外銷詢價信要翻譯又要報價，來回好幾天',
+    '想認真經營 threads 卻沒時間發文'
   ];
   var chipsEl = document.getElementById('chips');
   EXAMPLES.forEach(function(t){
@@ -1222,6 +1400,87 @@
   }
   btn.addEventListener('click',runMatch);
   input.addEventListener('keydown',function(e){ if(e.key==='Enter') runMatch(); });
+
+  /* ══ 情境範例：六個行業的一天 ══ */
+  var SCENARIOS=[
+    {key:'ec',label:'電商品牌',input:'我經營品牌電商，半夜訊息回不完，廣告成效也沒人盯',
+     rows:[['23:12','客人問「訂單到哪了」，30 秒內回覆並附物流連結','CS-01'],
+           ['23:40','未結帳購物車提醒發送 18 筆，當晚回收 5 筆','CS-03'],
+           ['08:00','昨日營收＋廣告花費日報寄到你信箱','FN-03'],
+           ['14:20','Google 出現一則負評，第一時間通知並附建議回覆','IN-01']],
+     team:['CS-01','CS-03','FN-03','IN-01']},
+    {key:'course',label:'線上課程／自媒體',input:'我賣線上課程也經營自媒體，想自動通知訂單、回覆學員',
+     rows:[['09:00','今日 Threads／IG 貼文準時發佈','MK-02'],
+           ['10:30','新訂單入帳，金額與品項即時推播給你','CS-03'],
+           ['15:00','學員常見問題自動回覆，超出範圍轉真人','OP-03'],
+           ['20:00','依標籤分眾發送課程促銷 EDM','MK-05']],
+     team:['MK-02','CS-03','OP-03','MK-05']},
+    {key:'clinic',label:'診所／美容工作室',input:'我開診所，預約提醒都靠櫃檯手動發，回診率也想提高',
+     rows:[['08:30','今日預約名單提醒發送，減少爽約','OP-02'],
+           ['12:10','客人 LINE 詢問療程與價格，即時回覆','CS-01'],
+           ['18:00','療程後 D+3 回診關懷訊息發送','CS-04'],
+           ['21:00','Google 評論監控：新評論即時通知','IN-01']],
+     team:['OP-02','CS-01','CS-04','IN-01']},
+    {key:'edu',label:'補教機構',input:'我經營補習班，招生詢問回不完，繳費提醒也常漏',
+     rows:[['10:00','家長詢問課程與班表，即時回覆並留名單','CS-01'],
+           ['16:00','課堂異動通知分眾發送給家長','MK-05'],
+           ['20:00','本月未繳費名單提醒發送','FN-02'],
+           ['22:00','同區競品課程與價格動態週報','IN-02']],
+     team:['CS-01','MK-05','FN-02','IN-02']},
+    {key:'b2b',label:'B2B 製造／貿易',input:'我們做外銷，詢價信要翻譯又要對帳，行政吃掉業務時間',
+     rows:[['09:12','日文詢價信翻譯＋回覆草稿完成，待業務確認','OP-04'],
+           ['11:00','三張訂單交期倒數提醒發給負責業務','OP-02'],
+           ['17:00','金流對帳完成，1 筆金額不符標記待查','FN-01'],
+           ['18:00','本週出貨與應收彙整成一頁週報','FN-03']],
+     team:['OP-04','OP-02','FN-01','FN-03']},
+    {key:'food',label:'餐飲連鎖',input:'我開餐廳，訂位訊息回不完，外送平台評論也沒人看',
+     rows:[['11:30','LINE 訂位詢問即時回覆並寫入訂位表','CS-01'],
+           ['14:00','外送平台出現 2 星評論，即時通知店長','IN-01'],
+           ['17:00','明日訂位提醒發送，降低 no-show','OP-02'],
+           ['22:30','今日各分店營收彙整報表出爐','FN-03']],
+     team:['CS-01','IN-01','OP-02','FN-03']}
+  ];
+  var scnTabs=document.getElementById('scnTabs'),scnPanel=document.getElementById('scnPanel');
+  function findR(id){return ROSTER.find(function(a){return a.id===id})}
+  function renderScenario(key){
+    var s=SCENARIOS.find(function(x){return x.key===key});
+    scnTabs.querySelectorAll('.scn-tab').forEach(function(b){
+      b.classList.toggle('on',b.dataset.key===key);
+    });
+    var rows=s.rows.map(function(r){
+      var a=findR(r[2]);
+      return '<div class="tl-row"><span class="tl-time">'+r[0]+'</span>'+
+        '<span class="tl-evt">'+r[1]+'</span>'+
+        '<span class="tl-agent" style="background:'+a.color+'">'+a.name.replace(/ ?Agent$/,'')+'</span></div>';
+    }).join('');
+    var total=0;
+    var mrows=s.team.map(function(id){
+      var a=findR(id);total+=TIERS[a.tier].price;
+      return '<div class="mrow"><span class="mm">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>'+
+        '<span class="mn">'+a.name+'</span><span class="mp">'+fmt(TIERS[a.tier].price)+'／月</span></div>';
+    }).join('');
+    var byo=Math.round(total*0.6/100)*100;
+    scnPanel.innerHTML =
+      '<div class="scn-panel">'+
+        '<div class="card"><div class="tl-head">'+s.label+'・AGENT 團隊的一天</div>'+rows+'</div>'+
+        '<div class="card scn-side"><div class="tl-head">建議編制</div>'+mrows+
+          '<div class="scn-total"><span>預估月費<br><span style="font-size:11px">自帶 Token 約 '+fmt(byo)+'</span></span><b>'+fmt(total)+'</b></div>'+
+          '<a class="btn btn-green" style="width:100%;margin-top:14px" href="#match" data-scn="'+s.key+'" onclick="return window.__applyScn(this)">用這個情境去配對 →</a>'+
+        '</div>'+
+      '</div>';
+  }
+  SCENARIOS.forEach(function(s,i){
+    var b=document.createElement('button');
+    b.type='button';b.className='scn-tab'+(i===0?' on':'');b.dataset.key=s.key;b.textContent=s.label;
+    b.addEventListener('click',function(){renderScenario(s.key)});
+    scnTabs.appendChild(b);
+  });
+  renderScenario('ec');
+  window.__applyScn=function(el){
+    var s=SCENARIOS.find(function(x){return x.key===el.dataset.scn});
+    if(s){ input.value=s.input; runMatch(); }
+    return true; /* 讓 #match 錨點正常捲動 */
+  };
 
   /* ══ 辦公室場景動畫（走道座標同後台 WALK_PATHS） ══ */
   var floor=document.getElementById('floor');
