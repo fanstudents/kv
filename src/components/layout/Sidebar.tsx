@@ -16,7 +16,9 @@ import {
   X,
   Wallet,
 } from "lucide-react";
+import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
+import { SUPER_AGENTS } from "@/lib/super-agent-data";
 import Avatar from "@/components/agents/Avatar";
 import type { AgentMeta } from "@/lib/types";
 
@@ -151,6 +153,33 @@ export default function Sidebar() {
           <LayoutDashboard size={18} />
           團隊總覽
         </Link>
+
+        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">超級 Agent</p>
+        {SUPER_AGENTS.map((sa) => {
+          const href = `/super-agents/${sa.id}`;
+          return (
+            <Link
+              key={sa.id}
+              href={href}
+              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                isActive(href)
+                  ? "bg-[#06C755]/10 text-[#06C755]"
+                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              }`}
+            >
+              <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <Crown size={15} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{sa.shortTitle}超級 Agent</span>
+                <span className="block truncate text-xs font-normal text-neutral-400">
+                  {sa.principal ? `主理人 ${sa.principal.name}` : "主理人遴選中"}
+                </span>
+              </span>
+              {sa.status === "active" && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#06C755]" />}
+            </Link>
+          );
+        })}
 
         <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">行銷 Team</p>
         {AGENTS.filter((a) => agentTeam(a.slug) === "marketing").map(renderAgent)}

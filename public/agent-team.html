@@ -954,7 +954,17 @@
      dossier:[['實績','Threads 萬粉帳號操盤，多篇貼文破百萬曝光'],['專長','選題策略、人設經營、演算法節奏'],['帶隊','每週選題會議，親自校準內容方向與口吻']],
      team:[['bird','#8B5CF6','📣','社群'],['bird','#8B5CF6','✍️','文案'],['bird','#14B8A6','🔍','SEO'],['cat','#D946EF','🔭','競品']],
      desc:'選題、寫文、排程、互動數據覆盤，把 Threads 從隨緣發文變成穩定獲客管道。',
-     kw:['threads','脆','自媒體','個人品牌','粉絲','爆文','內容創作','kol','流量']}
+     kw:['threads','脆','自媒體','個人品牌','粉絲','爆文','內容創作','kol','流量']},
+    {id:'SUP-SEO', title:'SEO 超級 Agent', mgr:'遴選中', face:'？', mgrTitle:'主理人即將公布', prep:true,
+     dossier:[['範疇','關鍵字研究、內容產出、技術健檢、排名追蹤'],['交付','每週內容草稿與排名週報，每月策略檢視'],['帶隊','主理人遴選中——現由 TBR 內容團隊代管調教']],
+     team:[['bird','#14B8A6','🔍','SEO 內容'],['bird','#8B5CF6','✍️','文案'],['owl','#3B82F6','📊','報表'],['cat','#D946EF','🔭','競品']],
+     desc:'從關鍵字研究、內容產出到排名追蹤，把官網養成穩定的自然流量入口。',
+     kw:['seo','關鍵字','排名','搜尋','自然流量','部落格','google 搜尋','內容行銷']},
+    {id:'SUP-EM', title:'Email 行銷超級 Agent', mgr:'遴選中', face:'？', mgrTitle:'主理人即將公布', prep:true,
+     dossier:[['範疇','名單分眾、旅程設計、EDM 產出、成效歸因'],['交付','每週分眾發送與成效報告，每月旅程優化'],['帶隊','主理人遴選中——現由 TBR 行銷團隊代管調教']],
+     team:[['bird','#8B5CF6','📨','EDM'],['bird','#8B5CF6','✍️','文案'],['rabbit','#EC4899','💝','售後'],['owl','#3B82F6','📊','報表']],
+     desc:'名單分眾、旅程設計、開信與轉換數據覆盤，把名單變成穩定回購的通路。',
+     kw:['email','edm','電子報','開信','名單','再行銷','行銷自動化','會員信','發信']}
   ];
   var SUPER_STRONG = ['threads','脆','自媒體','個人品牌','電商','話術','轉單'];
 
@@ -1088,7 +1098,7 @@
       '<div class="team-block">'+
         '<div class="tb-label">團隊編制</div>'+
         '<div class="org-chart">'+
-          '<div class="org-mgr">'+mgrMini(s)+'<span>'+s.mgr+'</span></div>'+
+          '<div class="org-mgr">'+mgrMini(s)+'<span>'+(s.prep?'主理人':s.mgr)+'</span></div>'+
           '<div class="org-stem"></div>'+
           '<div class="org-row" style="--rail:'+(50/n).toFixed(1)+'%">'+nodes+'</div>'+
         '</div>'+
@@ -1178,7 +1188,8 @@
     var hintEl=document.getElementById('superHint');
     hintEl.innerHTML = best
       ? '<a class="super-hint" href="#super"><span class="lvl lvl-3">升級建議</span>'+
-        '這個場景很適合「'+best.s.title+'」——由 '+best.s.mgr+' 親自帶隊調教的 Agent Team'+
+        '這個場景很適合「'+best.s.title+'」——'+
+        (best.s.prep ? '主理人遴選中，現由 TBR 團隊代管調教' : '由 '+best.s.mgr+' 親自帶隊調教的 Agent Team')+
         '<span class="arrow">看詳情 →</span></a>'
       : '';
 
