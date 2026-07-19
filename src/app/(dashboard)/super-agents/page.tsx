@@ -35,7 +35,7 @@ export default function SuperAgentsPage() {
     <div>
       <PageHeader
         title="超級 Agent"
-        description={`${SUPER_AGENTS.length} 組由真人主理人帶隊的 Agent Team——業界獨家模式，點擊查看各團隊的編制、覆盤與任務紀錄`}
+        description={`${SUPER_AGENTS.length} 組由真人主理人帶隊的 Agent Team——依企業條件客製、獨立部署於各自環境，點擊查看團隊編制、覆盤與任務紀錄`}
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
