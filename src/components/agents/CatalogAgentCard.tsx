@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Target, ClipboardList } from "lucide-react";
 import Mascot from "./Mascot";
 import ExplainerFlow from "./ExplainerFlow";
 import { Badge } from "@/components/ui/Badge";
@@ -30,6 +30,23 @@ export default function CatalogAgentCard({ agent }: { agent: CatalogAgent }) {
         <div className="overflow-x-auto pb-1">
           <div className="min-w-[420px]">
             <ExplainerFlow steps={agent.flow} />
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 border-t border-neutral-100 pt-4 dark:border-neutral-800 sm:grid-cols-2">
+          <div className="flex gap-2">
+            <Target size={15} className="mt-0.5 shrink-0 text-[#06C755]" />
+            <div>
+              <p className="text-[11px] font-semibold tracking-wide text-neutral-400">適合情境</p>
+              <p className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-300">{agent.fit}</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <ClipboardList size={15} className="mt-0.5 shrink-0 text-[#06C755]" />
+            <div>
+              <p className="text-[11px] font-semibold tracking-wide text-neutral-400">導入前需要準備</p>
+              <p className="mt-0.5 text-xs text-neutral-600 dark:text-neutral-300">{agent.needs}</p>
+            </div>
           </div>
         </div>
 

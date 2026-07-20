@@ -54,6 +54,10 @@ export interface CatalogAgent {
   tier: CatalogTier;
   desc: string;
   flow: CatalogFlowStep[];
+  /** 什麼樣的公司／情境適合聘這位 Agent，一句話講清楚。 */
+  fit: string;
+  /** 導入前需要準備的權限或資料，一句話講清楚。 */
+  needs: string;
 }
 
 export const TIER_LABEL: Record<CatalogTier, string> = {
@@ -83,6 +87,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "CS-01", dept: "客服部", deptEn: "DEPT-CS", name: "LINE 客服 Agent",
     color: "#EC4899", species: SPECIES["客服部"], prop: "🎧", tier: 2,
     desc: "24 小時回覆 LINE OA 進線，聽得懂上下文，該轉真人時會轉。",
+    fit: "適合 LINE 詢問量大、常有半夜或假日訊息湧入的品牌。",
+    needs: "LINE OA 官方帳號、常見問題的知識庫內容。",
     flow: [
       { label: "接收 LINE 訊息", icon: MessageCircle },
       { label: "AI 理解意圖", icon: Sparkles },
@@ -95,6 +101,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "CS-02", dept: "客服部", deptEn: "DEPT-CS", name: "網站客服 Agent",
     color: "#EC4899", species: SPECIES["客服部"], prop: "💬", tier: 2,
     desc: "官網即時對話窗，用你的知識庫回答，不亂編。",
+    fit: "適合官網流量高、想在網站上直接留住詢問的品牌。",
+    needs: "官網嵌入對話視窗的權限、常見問題知識庫。",
     flow: [
       { label: "訪客提問", icon: Globe },
       { label: "比對知識庫", icon: Search },
@@ -107,6 +115,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "CS-03", dept: "客服部", deptEn: "DEPT-CS", name: "訂單追蹤 Agent",
     color: "#F59E0B", species: SPECIES["客服部"], prop: "📦", tier: 2,
     desc: "接收訂單 Webhook，主動通知出貨、到貨、逾期未取。",
+    fit: "適合訂單量穩定、客人常主動追問「到哪了」的電商。",
+    needs: "訂單系統或電商平台的 Webhook／API 串接。",
     flow: [
       { label: "接收訂單 Webhook", icon: Webhook },
       { label: "解析訂單狀態", icon: ShoppingCart },
@@ -119,6 +129,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "CS-04", dept: "客服部", deptEn: "DEPT-CS", name: "售後關懷 Agent",
     color: "#EC4899", species: SPECIES["客服部"], prop: "💝", tier: 1,
     desc: "購買後自動關懷、蒐集評價，把一次客變回頭客。",
+    fit: "適合想提高回購率、系統性蒐集評價的品牌。",
+    needs: "購買完成的觸發事件、關懷訊息或問卷內容。",
     flow: [
       { label: "偵測購買完成", icon: Eye },
       { label: "排程關懷時間", icon: CalendarDays },
@@ -132,6 +144,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "MK-01", dept: "行銷部", deptEn: "DEPT-MK", name: "文案 Agent",
     color: "#8B5CF6", species: SPECIES["行銷部"], prop: "✍️", tier: 2,
     desc: "照你的品牌口吻寫貼文、廣告、產品文案，一次出多版本。",
+    fit: "適合需要大量產出貼文、廣告文案，行銷人力常常不夠用的團隊。",
+    needs: "品牌口吻與過去文案範例，讓 AI 抓到你的調性。",
     flow: [
       { label: "讀取品牌口吻", icon: FileText },
       { label: "產出多版本文案", icon: Sparkles },
@@ -144,6 +158,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "MK-02", dept: "行銷部", deptEn: "DEPT-MK", name: "社群小編 Agent",
     color: "#8B5CF6", species: SPECIES["行銷部"], prop: "📣", tier: 2,
     desc: "排程發文、回留言、整理每週社群成效。",
+    fit: "適合想固定經營社群，但沒有專職小編的團隊。",
+    needs: "社群帳號管理權限、發文素材來源（照片／設計稿）。",
     flow: [
       { label: "發想主題", icon: Sparkles },
       { label: "產生圖文素材", icon: ImageIcon },
@@ -156,6 +172,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "MK-03", dept: "行銷部", deptEn: "DEPT-MK", name: "廣告成效 Agent",
     color: "#EF4444", species: SPECIES["行銷部"], prop: "📈", tier: 3,
     desc: "串接 Meta／Google 後台，每天固定時間把重點數字送到你面前。",
+    fit: "適合有在投放 Meta／Google 廣告，卻沒空天天盯後台的團隊。",
+    needs: "廣告帳號的檢視或管理權限。",
     flow: [
       { label: "串接廣告帳號", icon: Webhook },
       { label: "監控每日花費", icon: Eye },
@@ -168,6 +186,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "MK-04", dept: "行銷部", deptEn: "DEPT-MK", name: "SEO 內容 Agent",
     color: "#14B8A6", species: SPECIES["行銷部"], prop: "🔍", tier: 2,
     desc: "找關鍵字、擬大綱、產內容草稿，養你的自然流量。",
+    fit: "適合想長期經營自然流量、但沒有 SEO 專職人力的網站。",
+    needs: "Search Console 或網站分析工具的存取權限。",
     flow: [
       { label: "關鍵字研究", icon: Search },
       { label: "擬內容大綱", icon: FileText },
@@ -180,6 +200,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "MK-05", dept: "行銷部", deptEn: "DEPT-MK", name: "EDM／推播 Agent",
     color: "#8B5CF6", species: SPECIES["行銷部"], prop: "📨", tier: 1,
     desc: "依標籤分眾發送 LINE 推播與 Email，不再亂槍打鳥。",
+    fit: "適合已經有一定會員名單、想做分眾行銷的品牌。",
+    needs: "會員名單與分眾標籤、LINE OA 或 Email 發送權限。",
     flow: [
       { label: "名單分眾", icon: Tags },
       { label: "產生分眾內容", icon: Mail },
@@ -193,6 +215,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "OP-01", dept: "營運部", deptEn: "DEPT-OP", name: "會議記錄 Agent",
     color: "#F97316", species: SPECIES["營運部"], prop: "📝", tier: 2,
     desc: "錄音轉逐字稿、整理決議與待辦，散會五分鐘寄給所有人。",
+    fit: "適合會議多、常常沒人記錄或事後沒人整理待辦的團隊。",
+    needs: "會議錄音檔，或線上會議的錄音權限。",
     flow: [
       { label: "錄音上傳", icon: Mic },
       { label: "AI 轉逐字稿", icon: Sparkles },
@@ -205,6 +229,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "OP-02", dept: "營運部", deptEn: "DEPT-OP", name: "排程提醒 Agent",
     color: "#06C755", species: SPECIES["營運部"], prop: "⏰", tier: 1,
     desc: "盯專案節點、盯交期、盯續約日，該提醒的絕不漏。",
+    fit: "適合專案節點多、容易漏掉交期或續約日的團隊。",
+    needs: "專案時程表或需要追蹤的日期清單。",
     flow: [
       { label: "讀取專案節點", icon: CalendarDays },
       { label: "比對交期", icon: Search },
@@ -217,6 +243,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "OP-03", dept: "營運部", deptEn: "DEPT-OP", name: "知識庫 Agent",
     color: "#F97316", species: SPECIES["營運部"], prop: "📚", tier: 2,
     desc: "把公司 SOP、常見問題變成能被問的大腦，新人不用一直問老人。",
+    fit: "適合新人多、SOP 常常靠口耳相傳的團隊。",
+    needs: "現有的 SOP 文件、常見問題整理。",
     flow: [
       { label: "匯入 SOP 文件", icon: Archive },
       { label: "建立知識索引", icon: Database },
@@ -229,6 +257,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "OP-04", dept: "營運部", deptEn: "DEPT-OP", name: "翻譯在地化 Agent",
     color: "#F97316", species: SPECIES["營運部"], prop: "🌐", tier: 1,
     desc: "文件、商品頁、合約多語互譯，維持術語一致。",
+    fit: "適合有外銷、跨境業務，常需要多語文件的公司。",
+    needs: "需要翻譯的文件與慣用術語對照表。",
     flow: [
       { label: "接收原文", icon: Globe },
       { label: "AI 初譯", icon: Sparkles },
@@ -242,6 +272,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "FN-01", dept: "財務部", deptEn: "DEPT-FN", name: "對帳 Agent",
     color: "#3B82F6", species: SPECIES["財務部"], prop: "🧾", tier: 3,
     desc: "金流、訂單、發票三方核對，抓出對不上的那一筆。",
+    fit: "適合金流、訂單、發票分散在不同系統，人工對帳很花時間的公司。",
+    needs: "金流、訂單、發票三方的資料存取權限。",
     flow: [
       { label: "匯入金流／訂單／發票", icon: Database },
       { label: "三方比對", icon: Search },
@@ -254,6 +286,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "FN-02", dept: "財務部", deptEn: "DEPT-FN", name: "請款發票 Agent",
     color: "#3B82F6", species: SPECIES["財務部"], prop: "💳", tier: 2,
     desc: "整理請款單據、開立通知、追蹤未付款項。",
+    fit: "適合供應商或合作對象多，請款容易漏追蹤的公司。",
+    needs: "請款項目清單、發票開立流程。",
     flow: [
       { label: "彙整待請款項目", icon: ListChecks },
       { label: "開立通知", icon: Receipt },
@@ -266,6 +300,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "FN-03", dept: "財務部", deptEn: "DEPT-FN", name: "營運報表 Agent",
     color: "#3B82F6", species: SPECIES["財務部"], prop: "📊", tier: 3,
     desc: "每日／每週自動彙整營收、成本、廣告花費成一頁報表。",
+    fit: "適合營收、成本、廣告花費散落在不同後台，想要一頁看懂的公司。",
+    needs: "各項數據來源（金流、廣告、營運系統）的存取權限。",
     flow: [
       { label: "串接各項數據源", icon: Database },
       { label: "彙整營收成本", icon: BarChart3 },
@@ -279,6 +315,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "HR-01", dept: "人資部", deptEn: "DEPT-HR", name: "履歷篩選 Agent",
     color: "#0EA5E9", species: SPECIES["人資部"], prop: "🗂️", tier: 1,
     desc: "依你的條件初篩履歷、標重點，附上追問建議。",
+    fit: "適合徵才量大、履歷常常來不及一一細看的團隊。",
+    needs: "職缺條件與篩選標準、履歷來源（Email 或求職平台）。",
     flow: [
       { label: "接收履歷", icon: Users },
       { label: "AI 比對條件", icon: Sparkles },
@@ -291,6 +329,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "HR-02", dept: "人資部", deptEn: "DEPT-HR", name: "面試排程 Agent",
     color: "#0EA5E9", species: SPECIES["人資部"], prop: "🤝", tier: 1,
     desc: "和候選人來回喬時間、發通知、前一天提醒雙方。",
+    fit: "適合面試場次多、來回喬時間很耗人力的團隊。",
+    needs: "面試官的行事曆存取權限。",
     flow: [
       { label: "接收候選人時段", icon: CalendarDays },
       { label: "比對面試官行事曆", icon: Search },
@@ -304,6 +344,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "IN-01", dept: "情報部", deptEn: "DEPT-IN", name: "輿情監控 Agent",
     color: "#D946EF", species: SPECIES["情報部"], prop: "📡", tier: 2,
     desc: "盯著社群與評論區，負評出現第一時間通知你。",
+    fit: "適合品牌聲量重要、怕負評沒被即時發現的公司。",
+    needs: "要監測的品牌關鍵字、社群或評論來源。",
     flow: [
       { label: "監測社群／評論來源", icon: Globe },
       { label: "AI 情緒判讀", icon: Sparkles },
@@ -316,6 +358,8 @@ export const AGENT_CATALOG: CatalogAgent[] = [
     id: "IN-02", dept: "情報部", deptEn: "DEPT-IN", name: "競品追蹤 Agent",
     color: "#D946EF", species: SPECIES["情報部"], prop: "🔭", tier: 2,
     desc: "追蹤對手的價格、新品與活動，每週給你一份敵情摘要。",
+    fit: "適合競爭激烈、需要隨時掌握對手動態的產業。",
+    needs: "要追蹤的競品名單。",
     flow: [
       { label: "監測對手動態", icon: Globe },
       { label: "蒐集價格／活動資訊", icon: Search },

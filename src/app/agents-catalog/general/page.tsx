@@ -33,7 +33,7 @@ export default function GeneralCatalogPage() {
               <h2 className="text-base font-semibold text-neutral-900 dark:text-white">{dept}</h2>
               <span className="text-xs text-neutral-400">{deptItems.length} 位</span>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 items-start gap-3 md:grid-cols-2">
               {deptItems.map((a) => (
                 <CatalogAgentCard key={a.id} agent={a} />
               ))}
