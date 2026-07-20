@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth";
 
-// 這些路徑必須維持公開（外部服務或客戶會直接呼叫），不能被登入牆擋住：
+// 這些路徑必須維持公開（外部服務、客戶或潛在客戶會直接造訪），不能被登入牆擋住：
 // - LINE / Teachify 的 webhook（平台主動打進來）
 // - 約拜訪邀約信裡的時段確認連結（客戶點擊）
 // - 每日晨報排程端點（由 CRON_SECRET 自行保護）
 // - 登入頁與登入 API 本身
+// - Agent 目錄（銷售用，給潛在客戶瀏覽 Agent 陣容與流程說明）
 const PUBLIC_PREFIXES = [
   "/login",
   "/api/auth/",
@@ -14,6 +15,7 @@ const PUBLIC_PREFIXES = [
   "/api/webhooks/",
   "/api/agents/visit/respond",
   "/api/cron/",
+  "/agents-catalog",
 ];
 
 function isPublic(pathname: string): boolean {
