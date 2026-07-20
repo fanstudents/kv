@@ -31,14 +31,14 @@
   *{box-sizing:border-box}
   body{
     margin:0;background:var(--bg);color:var(--text);
-    font-family:var(--sans);font-size:16px;line-height:1.75;
+    font-family:var(--sans);font-size:17px;line-height:1.75;
     -webkit-font-smoothing:antialiased;
   }
   ::selection{background:var(--green);color:#fff}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
   a{color:inherit}
   p{margin:0}
-  h1{margin:0;font-size:clamp(24px,3.6vw,34px);line-height:1.4;font-weight:700;letter-spacing:.01em}
+  h1{margin:0;font-size:clamp(27px,4.2vw,40px);line-height:1.4;font-weight:700;letter-spacing:.01em}
 
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -76,7 +76,7 @@
     color:var(--faint);display:flex;align-items:center;gap:10px;margin-bottom:14px;
   }
   .eyebrow::before{content:"";width:22px;height:2px;border-radius:2px;background:var(--green);flex:none}
-  .lede{color:var(--muted);max-width:36em;margin-top:12px;font-size:15.5px}
+  .lede{color:var(--muted);max-width:36em;margin-top:12px;font-size:17.5px}
 
   main{padding:26px 0 72px}
 
@@ -99,7 +99,7 @@
     font-style:normal;font-size:11px;font-weight:800;flex:none;
     display:flex;align-items:center;justify-content:center;
   }
-  .cs-item{display:flex;align-items:center;gap:8px;border-radius:8px;padding:7px 9px;font-size:12.5px;color:var(--body);font-weight:600;line-height:1.35}
+  .cs-item{display:flex;align-items:center;gap:8px;border-radius:8px;padding:7px 9px;font-size:13.5px;color:var(--body);font-weight:600;line-height:1.35}
   .cs-item.fixed{color:var(--muted)}
   .cs-item .ci-ic{font-size:13px;width:16px;text-align:center;flex:none}
   .cs-label{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--faint);padding:12px 6px 4px;border-top:1px solid var(--line);margin-top:8px}
@@ -110,8 +110,8 @@
   @keyframes csIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
 
   .cfg-main{flex:1;min-width:0;padding:20px 22px;display:flex;flex-direction:column}
-  .cfg-main h2{margin:0;font-size:16px;color:var(--text);font-weight:700}
-  .cm-sub{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.65}
+  .cfg-main h2{margin:0;font-size:17.5px;color:var(--text);font-weight:700}
+  .cm-sub{font-size:14px;color:var(--muted);margin-top:5px;line-height:1.65}
   .cfg-picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:16px}
   .cfg-pick{
     display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;
@@ -122,8 +122,8 @@
   .cfg-pick.on{border-color:var(--green);background:var(--green-soft)}
   .cfg-pick .mini{width:28px;height:28px;flex:none}
   .cfg-pick .mini svg{width:100%;height:100%;display:block}
-  .cfg-pick b{font-size:12.5px;color:var(--text);display:block;line-height:1.35}
-  .cfg-pick small{font-size:10px;color:var(--faint);display:block;line-height:1.4}
+  .cfg-pick b{font-size:14px;color:var(--text);display:block;line-height:1.35}
+  .cfg-pick small{font-size:11px;color:var(--faint);display:block;line-height:1.4}
   .cfg-pick .ck{
     position:absolute;right:8px;top:50%;transform:translateY(-50%);
     width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;
@@ -132,7 +132,7 @@
   .cfg-pick.on .ck{display:flex}
   .cfg-foot{
     margin-top:auto;padding-top:16px;border-top:1px solid var(--line-soft);
-    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:14.5px;color:var(--muted);
   }
   .cfg-foot b{color:var(--text);font-variant-numeric:tabular-nums}
   .cfg-foot .btn{margin-left:auto}
@@ -161,8 +161,8 @@
     font-size:10px;font-weight:800;color:var(--muted);
   }
   @keyframes popIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
-  .cfg-bar .bar-sum{min-width:0;margin-left:12px;font-size:11.5px;color:var(--faint);line-height:1.4}
-  .cfg-bar .bar-sum b{display:block;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cfg-bar .bar-sum{min-width:0;margin-left:12px;font-size:12.5px;color:var(--faint);line-height:1.4}
+  .cfg-bar .bar-sum b{display:block;font-size:14.5px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
   .cfg-bar .btn{margin-left:auto;flex:none;padding:9px 14px;font-size:13px}
 
   @media(max-width:700px){
@@ -177,8 +177,8 @@
     .cfg-picks{grid-template-columns:1fr 1fr;gap:7px}
     .cfg-pick{padding:7px 22px 7px 8px;gap:6px}
     .cfg-pick .mini{width:24px;height:24px}
-    .cfg-pick b{font-size:11.5px}
-    .cfg-pick small{font-size:9px}
+    .cfg-pick b{font-size:12.5px}
+    .cfg-pick small{font-size:10px}
     .cfg-pick .ck{right:6px;width:14px;height:14px;font-size:8px}
   }
 

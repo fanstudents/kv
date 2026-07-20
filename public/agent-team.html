@@ -36,7 +36,7 @@
   html{scroll-behavior:smooth}
   body{
     margin:0;background:var(--bg);color:var(--text);
-    font-family:var(--sans);font-size:16px;line-height:1.75;
+    font-family:var(--sans);font-size:17px;line-height:1.75;
     -webkit-font-smoothing:antialiased;overflow-x:hidden;
   }
   ::selection{background:var(--green);color:#fff}
@@ -46,7 +46,7 @@
   @media(max-width:640px){section{padding:56px 0}}
 
   h1,h2,h3{margin:0;text-wrap:balance;font-weight:700;letter-spacing:.01em}
-  h2{font-size:clamp(24px,3.6vw,34px);line-height:1.4;color:var(--text)}
+  h2{font-size:clamp(27px,4.2vw,40px);line-height:1.4;color:var(--text)}
   p{margin:0}
   a{color:inherit}
 
@@ -55,7 +55,7 @@
     color:var(--faint);display:flex;align-items:center;gap:10px;margin-bottom:16px;
   }
   .eyebrow::before{content:"";width:22px;height:2px;border-radius:2px;background:var(--green);flex:none}
-  .lede{color:var(--muted);max-width:36em;margin-top:14px;font-size:16.5px}
+  .lede{color:var(--muted);max-width:36em;margin-top:14px;font-size:18px}
 
   /* ── 元件：同後台 Card / Badge ── */
   .card{
@@ -72,7 +72,7 @@
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;
     padding:12px 24px;border-radius:10px;text-decoration:none;cursor:pointer;
-    font-weight:600;font-size:15px;line-height:1.3;border:1px solid transparent;
+    font-weight:600;font-size:16px;line-height:1.3;border:1px solid transparent;
     transition:transform .15s ease,box-shadow .15s ease,background .15s ease;
     font-family:var(--sans);
   }
@@ -107,26 +107,26 @@
 
   /* ── hero ── */
   .hero{padding:64px 0 72px}
-  .hero h1{font-size:clamp(32px,5.4vw,52px);line-height:1.25;font-weight:800;color:var(--text)}
+  .hero h1{font-size:clamp(32px,6vw,58px);line-height:1.25;font-weight:800;color:var(--text)}
   .hero h1 em{font-style:normal;color:var(--green)}
-  .hero-sub{color:var(--body);font-size:clamp(16px,2vw,18.5px);max-width:37em;margin-top:20px}
+  .hero-sub{color:var(--body);font-size:clamp(17.5px,2.3vw,21px);max-width:37em;margin-top:20px}
   .hero-sub b{color:var(--text);font-weight:700}
   .hero-cta{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
-  .hero-note{font-size:13px;color:var(--faint);margin-top:14px}
+  .hero-note{font-size:14px;color:var(--faint);margin-top:14px}
   .hero-note b{color:var(--muted);font-weight:600}
   .hero-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
   .hchip{
     display:inline-flex;align-items:center;gap:7px;
     border:1px solid var(--line);background:var(--card);border-radius:999px;
-    padding:6px 14px;font-size:13px;color:var(--body);font-weight:500;
+    padding:7px 15px;font-size:14px;color:var(--body);font-weight:500;
   }
   .hchip::before{content:"✓";color:var(--green);font-weight:800;font-size:11px}
 
   /* ── 平台功能（迷你介面模型） ── */
   .plat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
   @media(max-width:860px){.plat-grid{grid-template-columns:1fr}}
-  .plat-card h3{font-size:16px;color:var(--text);margin-top:14px}
-  .plat-card>p{font-size:13.5px;color:var(--muted);margin-top:7px;line-height:1.7}
+  .plat-card h3{font-size:17.5px;color:var(--text);margin-top:14px}
+  .plat-card>p{font-size:14.5px;color:var(--muted);margin-top:7px;line-height:1.7}
   .mock{
     border:1px solid var(--line);border-radius:10px;overflow:hidden;
     background:var(--bg);
@@ -157,8 +157,8 @@
   .m-log .pill{flex:none;padding:1.5px 6px;border-radius:6px;background:var(--green-soft);border:1px solid rgba(6,199,85,.3);font-size:7px;font-weight:700;color:var(--green);white-space:nowrap}
   .plat-feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px}
   @media(max-width:860px){.plat-feats{grid-template-columns:1fr}}
-  .plat-feat h4{font-size:14.5px;color:var(--text);margin:0}
-  .plat-feat p{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.65}
+  .plat-feat h4{font-size:16px;color:var(--text);margin:0}
+  .plat-feat p{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.65}
 
   /* ── 情境範例（分頁） ── */
   .scn-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:36px}
@@ -175,7 +175,7 @@
   .tl-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line-soft)}
   .tl-row:last-child{border-bottom:0}
   .tl-time{flex:none;width:50px;font-family:var(--mono);font-size:12px;color:var(--faint);padding-top:2px;font-variant-numeric:tabular-nums}
-  .tl-evt{flex:1;font-size:14px;color:var(--body);line-height:1.6}
+  .tl-evt{flex:1;font-size:15px;color:var(--body);line-height:1.6}
   .tl-agent{
     flex:none;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;color:#fff;
     margin-top:1px;white-space:nowrap;
@@ -183,7 +183,7 @@
   .scn-side .mrow{display:flex;align-items:center;gap:9px;padding:7px 0}
   .scn-side .mrow .mm{width:30px;height:30px;flex:none}
   .scn-side .mrow .mm svg{width:100%;height:100%}
-  .scn-side .mrow .mn{font-size:13px;color:var(--body);font-weight:600}
+  .scn-side .mrow .mn{font-size:14px;color:var(--body);font-weight:600}
   .scn-side .mrow .mp{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
   .scn-total{
     display:flex;justify-content:space-between;align-items:baseline;
@@ -309,14 +309,14 @@
   /* stats：同後台 Card 統計卡 */
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
-  .stat span{font-size:12px;color:var(--faint)}
+  .stat span{font-size:13px;color:var(--faint)}
   .stat b{
     display:block;font-size:clamp(20px,2.6vw,28px);font-weight:600;color:var(--text);
     margin-top:4px;font-variant-numeric:tabular-nums;
   }
   @media(max-width:640px){.stats{gap:10px}.stat{padding:12px 14px}.stat span{font-size:10.5px}}
   .stat-ic .ic{font-size:24px;line-height:1;display:block}
-  .stat-ic b{font-size:16.5px;margin-top:10px}
+  .stat-ic b{font-size:18px;margin-top:10px}
   .stat-ic b+span{display:block;margin-top:3px}
   @media(max-width:640px){.stat-ic .ic{font-size:20px}.stat-ic b{font-size:13px;margin-top:8px}}
 
@@ -344,7 +344,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
   .chip{
     border:1px solid var(--line);background:var(--card);color:var(--body);
-    border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;
+    border-radius:999px;padding:7px 15px;font-size:14px;cursor:pointer;
     font-family:var(--sans);transition:all .15s ease;
   }
   .chip:hover{border-color:var(--green);color:var(--green);background:var(--green-soft)}
@@ -363,9 +363,9 @@
   .mcard-head{display:flex;align-items:center;gap:10px}
   .mcard .face{width:46px;height:46px;flex:none;display:block}
   .mcard .face svg{width:100%;height:100%;display:block}
-  .mcard h4{margin:0;font-size:15px;font-weight:700;color:var(--text)}
+  .mcard h4{margin:0;font-size:16px;font-weight:700;color:var(--text)}
   .mcard .role{font-size:11.5px;font-weight:600}
-  .mcard .why{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.65}
+  .mcard .why{font-size:13.5px;color:var(--muted);margin-top:10px;line-height:1.65}
   .mcard .why b{color:var(--text)}
   .mcard-foot{
     display:flex;justify-content:space-between;align-items:center;
@@ -379,7 +379,7 @@
   /* ── story ── */
   .story-grid{display:grid;grid-template-columns:5fr 4fr;gap:56px;align-items:start}
   @media(max-width:860px){.story-grid{grid-template-columns:1fr;gap:36px}}
-  .story-body{color:var(--body);font-size:16.5px;max-width:36em}
+  .story-body{color:var(--body);font-size:18px;max-width:36em}
   .story-body p+p{margin-top:1.1em}
   .story-body strong{color:var(--text)}
   .clockcard{padding:24px}
@@ -387,7 +387,7 @@
   .logrows{list-style:none;margin:16px 0 0;padding:0}
   .logrows li{
     display:flex;align-items:flex-start;gap:10px;padding:10px 0;
-    border-bottom:1px solid var(--line-soft);font-size:13.5px;color:var(--body);
+    border-bottom:1px solid var(--line-soft);font-size:14.5px;color:var(--body);
   }
   .logrows li:last-child{border-bottom:0}
   .logrows .ok{width:7px;height:7px;border-radius:50%;background:var(--green);flex:none;margin-top:7px}
@@ -401,8 +401,8 @@
   .sec-card{transition:box-shadow .2s ease}
   .sec-card:hover{box-shadow:var(--shadow-md)}
   .sec-card .code{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--green);letter-spacing:.18em}
-  .sec-card h3{font-size:15.5px;margin-top:10px;color:var(--text)}
-  .sec-card p{color:var(--muted);font-size:13.5px;margin-top:8px}
+  .sec-card h3{font-size:17px;margin-top:10px;color:var(--text)}
+  .sec-card p{color:var(--muted);font-size:14.5px;margin-top:8px}
   .sec-shared-label{margin-top:52px;font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--faint);display:flex;align-items:center;gap:10px}
   .sec-shared-label::before{content:"";width:22px;height:1px;background:var(--line)}
 
@@ -416,10 +416,10 @@
   }
   .deliver-card.hi{border-color:rgba(6,199,85,.4)}
   .dc-tag{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--faint)}
-  .dc-title{font-size:19px;color:var(--text);margin-top:8px;font-weight:700}
-  .dc-sub{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.7}
+  .dc-title{font-size:21px;color:var(--text);margin-top:8px;font-weight:700}
+  .dc-sub{font-size:14.5px;color:var(--muted);margin-top:6px;line-height:1.7}
   .dc-list{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:9px;flex:1}
-  .dc-list li{font-size:13.5px;color:var(--body);padding-left:22px;position:relative;line-height:1.65}
+  .dc-list li{font-size:15px;color:var(--body);padding-left:24px;position:relative;line-height:1.65}
   .dc-list li::before{
     content:"✓";position:absolute;left:0;top:1px;width:16px;height:16px;
     display:flex;align-items:center;justify-content:center;
@@ -428,7 +428,7 @@
   }
   .dc-fit{
     margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft);
-    font-size:12.5px;color:var(--faint);
+    font-size:13.5px;color:var(--faint);
   }
   .dc-fit b{color:var(--muted);font-weight:600}
   .deliver-both{
@@ -458,14 +458,14 @@
   .acard-head{display:flex;align-items:center;gap:9px}
   .acard .face{width:42px;height:42px;flex:none;display:block}
   .acard .face svg{width:100%;height:100%;display:block}
-  .acard h4{margin:0;font-size:14px;font-weight:700;color:var(--text);line-height:1.4}
+  .acard h4{margin:0;font-size:15.5px;font-weight:700;color:var(--text);line-height:1.4}
   .acard .id{font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--faint);font-family:var(--mono)}
-  .acard p{font-size:12.5px;color:var(--muted);margin-top:9px;line-height:1.65}
+  .acard p{font-size:14px;color:var(--muted);margin-top:9px;line-height:1.65}
   .acard .on{
     position:absolute;top:14px;right:13px;width:7px;height:7px;border-radius:50%;
     background:var(--green);animation:pulse 1.8s infinite;
   }
-  .roster-note{margin-top:32px;font-size:14px;color:var(--faint);text-align:center}
+  .roster-note{margin-top:32px;font-size:15.5px;color:var(--faint);text-align:center}
   .roster-note b{color:var(--muted)}
 
   /* ── 三種等級 ── */
@@ -476,9 +476,9 @@
   .acard .id .lvl{margin-left:6px;padding:1.5px 7px;font-size:9.5px;vertical-align:1px}
   .tier-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
   @media(max-width:760px){.tier-cards{grid-template-columns:1fr}}
-  .tier-card h3{font-size:16.5px;margin-top:12px;color:var(--text)}
-  .tier-card p{color:var(--muted);font-size:13.5px;margin-top:8px}
-  .tier-card .tc-price{margin-top:12px;font-size:13px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+  .tier-card h3{font-size:18px;margin-top:12px;color:var(--text)}
+  .tier-card p{color:var(--muted);font-size:15px;margin-top:8px}
+  .tier-card .tc-price{margin-top:12px;font-size:14.5px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
 
   /* ── Agent 配置體驗：動畫 CTA + 模擬後台（純前端示意） ── */
   .cfg-cta-wrap{text-align:center;margin-top:36px}
@@ -503,8 +503,8 @@
     display:grid;grid-template-columns:1fr 1fr;gap:20px;
   }
   @media(max-width:700px){.isolation-note{grid-template-columns:1fr}}
-  .isolation-note .in-item h4{font-size:13.5px;color:var(--text);margin:0}
-  .isolation-note .in-item p{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.7}
+  .isolation-note .in-item h4{font-size:15.5px;color:var(--text);margin:0}
+  .isolation-note .in-item p{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.7}
   .s-badge{
     display:inline-flex;align-items:center;gap:5px;margin-top:10px;
     font-size:10.5px;font-weight:700;color:var(--green);letter-spacing:.04em;
@@ -523,11 +523,11 @@
     padding:18px 20px;box-shadow:var(--shadow);
   }
   .vs-others .vs-card{flex:1}
-  .vs-name{font-size:15px;font-weight:700;color:var(--text)}
+  .vs-name{font-size:16.5px;font-weight:700;color:var(--text)}
   .vs-others .vs-name{color:var(--muted)}
-  .vs-sub{font-size:12px;color:var(--faint);margin-top:3px}
+  .vs-sub{font-size:13px;color:var(--faint);margin-top:3px}
   .vs-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:9px}
-  .vs-list li{position:relative;padding-left:24px;font-size:13px;color:var(--muted);line-height:1.7}
+  .vs-list li{position:relative;padding-left:25px;font-size:14.5px;color:var(--muted);line-height:1.7}
   .vs-list li::before{
     content:"✕";position:absolute;left:0;top:3px;width:16px;height:16px;
     display:flex;align-items:center;justify-content:center;border-radius:50%;
@@ -550,10 +550,10 @@
     font-size:11px;font-weight:800;letter-spacing:.06em;background:var(--green);color:#fff;
     margin-bottom:10px;
   }
-  .vs-ours .vs-name{font-size:19px}
-  .vs-ours .vs-sub{font-size:12.5px;color:var(--muted)}
-  .vs-ours .vs-list{gap:11px;margin-top:16px}
-  .vs-ours .vs-list li{font-size:13.5px;color:var(--body)}
+  .vs-ours .vs-name{font-size:22px}
+  .vs-ours .vs-sub{font-size:14px;color:var(--muted)}
+  .vs-ours .vs-list{gap:12px;margin-top:16px}
+  .vs-ours .vs-list li{font-size:15.5px;color:var(--body)}
   .vs-ours .vs-list li b{color:var(--text)}
   .vs-ours .vs-list li::before{content:"✓";background:var(--green);color:#fff}
   @media(prefers-color-scheme:dark){
@@ -585,22 +585,22 @@
     font-family:var(--serif);font-size:clamp(28px,4vw,38px);font-weight:700;
     color:var(--text);margin-top:8px;line-height:1.2;letter-spacing:.06em;
   }
-  .pf-role{font-size:14px;color:var(--muted);margin-top:6px}
-  .pf-desc{font-size:14.5px;color:var(--body);margin-top:14px;max-width:38em;line-height:1.8}
+  .pf-role{font-size:15.5px;color:var(--muted);margin-top:6px}
+  .pf-desc{font-size:16.5px;color:var(--body);margin-top:14px;max-width:38em;line-height:1.8}
   .dossier{margin:14px 0 0;display:grid;gap:8px}
   .drow{display:flex;gap:12px}
   .drow dt{
-    flex:none;width:34px;font-size:11px;font-weight:700;color:var(--faint);
+    flex:none;width:40px;font-size:12.5px;font-weight:700;color:var(--faint);
     padding-top:2px;letter-spacing:.08em;
   }
-  .drow dd{margin:0;font-size:12.5px;color:var(--body);line-height:1.65}
+  .drow dd{margin:0;font-size:14.5px;color:var(--body);line-height:1.65}
   .pf-team{margin-top:22px;border-top:1px solid var(--line-soft);padding-top:16px}
   .pf-team-label{font-size:10.5px;font-weight:700;letter-spacing:.18em;color:var(--faint)}
   .pf-team-row{display:flex;flex-wrap:wrap;gap:18px 20px;margin-top:12px}
   .pf-member{display:flex;flex-direction:column;align-items:center;gap:4px}
   .pf-member .mini{width:46px;height:46px;display:block}
   .pf-member .mini svg{width:100%;height:100%;display:block}
-  .pf-mname{font-size:11px;color:var(--muted);font-weight:600}
+  .pf-mname{font-size:12.5px;color:var(--muted);font-weight:600}
   .pf-foot{margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .pf-price{font-size:15px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
   .pf-price small{font-size:11px;font-weight:400;color:var(--faint)}
@@ -612,7 +612,7 @@
     .pf-team-row{gap:14px 16px}
     .pf-member .mini{width:40px;height:40px}
   }
-  .super-note{margin-top:28px;font-size:13px;color:var(--faint);text-align:center}
+  .super-note{margin-top:28px;font-size:14.5px;color:var(--faint);text-align:center}
   .super-note b{color:#D97706}
 
   /* 場景配對的超級 Agent 推薦 */
@@ -628,9 +628,9 @@
   /* ── steps ── */
   .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
   @media(max-width:760px){.steps{grid-template-columns:1fr}}
-  .step .day{font-size:11px;font-weight:700;letter-spacing:.18em;color:var(--green)}
-  .step h3{font-size:17px;margin-top:10px;color:var(--text)}
-  .step p{color:var(--muted);font-size:14px;margin-top:8px}
+  .step .day{font-size:12px;font-weight:700;letter-spacing:.18em;color:var(--green)}
+  .step h3{font-size:19px;margin-top:10px;color:var(--text)}
+  .step p{color:var(--muted);font-size:15.5px;margin-top:8px}
 
   /* ── pricing ── */
   .pay-grid{display:grid;grid-template-columns:4fr 6fr;gap:16px;margin-top:40px;align-items:stretch}
@@ -640,8 +640,8 @@
   .pay-tag{font-size:11px;font-weight:700;letter-spacing:.18em;color:var(--green)}
   .price{font-family:var(--mono);font-size:clamp(30px,3.6vw,40px);font-weight:600;color:var(--text);margin-top:12px;font-variant-numeric:tabular-nums}
   .price small{font-size:13px;color:var(--faint);font-family:var(--sans);font-weight:400}
-  .pay-card>p{color:var(--muted);font-size:14px;margin-top:10px}
-  .pay-list{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:9px;font-size:14px;color:var(--body)}
+  .pay-card>p{color:var(--muted);font-size:15px;margin-top:10px}
+  .pay-list{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:9px;font-size:15.5px;color:var(--body)}
   .pay-list li{padding-left:24px;position:relative}
   .pay-list li::before{
     content:"✓";position:absolute;left:0;top:1px;width:16px;height:16px;
@@ -654,14 +654,14 @@
     display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
     border:1px solid var(--line);border-radius:12px;padding:13px 16px;background:var(--bg);
   }
-  .tier .t-name{font-weight:700;font-size:14.5px;color:var(--text);white-space:nowrap}
-  .tier .t-desc{font-size:12px;color:var(--faint)}
+  .tier .t-name{font-weight:700;font-size:15.5px;color:var(--text);white-space:nowrap}
+  .tier .t-desc{font-size:13px;color:var(--faint)}
   .tier .t-price{font-family:var(--mono);color:var(--text);font-weight:600;font-size:15px;white-space:nowrap;font-variant-numeric:tabular-nums}
   .tier .t-price small{color:var(--faint);font-family:var(--sans);font-size:11px;font-weight:400}
   @media(max-width:560px){.tier{grid-template-columns:1fr auto}.tier .t-desc{grid-column:1/-1}}
   .byo{
     margin-top:16px;border:1px dashed rgba(6,199,85,.45);border-radius:12px;
-    background:var(--green-soft);padding:14px 16px;font-size:14px;color:var(--text);
+    background:var(--green-soft);padding:14px 16px;font-size:15px;color:var(--text);
   }
   .byo b{color:var(--green)}
   .pricing-note{font-size:12.5px;color:var(--faint);margin-top:18px}
@@ -670,16 +670,16 @@
   .quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
   @media(max-width:860px){.quotes{grid-template-columns:1fr}}
   .quote{margin:0;display:flex;flex-direction:column;gap:14px}
-  .quote p{font-size:14.5px;color:var(--body);line-height:1.85}
+  .quote p{font-size:16px;color:var(--body);line-height:1.85}
   .quote p::before{content:"「";color:var(--green);font-weight:700}
   .quote p::after{content:"」";color:var(--green);font-weight:700}
-  .quote footer{font-size:12px;color:var(--faint);margin-top:auto}
+  .quote footer{font-size:13px;color:var(--faint);margin-top:auto}
 
   /* ── faq ── */
   .faq-jump{display:flex;flex-wrap:wrap;gap:8px;margin-top:32px}
   .faq-jump a{
     border:1px solid var(--line);background:var(--card);color:var(--body);
-    border-radius:999px;padding:7px 15px;font-size:13px;font-weight:600;text-decoration:none;
+    border-radius:999px;padding:8px 16px;font-size:14px;font-weight:600;text-decoration:none;
     transition:all .15s ease;
   }
   .faq-jump a:hover{border-color:var(--green);color:var(--green)}
@@ -695,7 +695,7 @@
   details{border-bottom:1px solid var(--line)}
   summary{
     cursor:pointer;list-style:none;padding:18px 40px 18px 2px;
-    font-weight:600;font-size:15.5px;color:var(--text);position:relative;
+    font-weight:600;font-size:17px;color:var(--text);position:relative;
   }
   summary::-webkit-details-marker{display:none}
   summary::after{
@@ -703,7 +703,7 @@
     color:var(--green);font-size:20px;font-weight:400;transition:transform .2s ease;
   }
   details[open] summary::after{transform:translateY(-50%) rotate(45deg)}
-  details>p{padding:0 2px 20px;color:var(--muted);font-size:14px;line-height:1.75;max-width:46em}
+  details>p{padding:0 2px 20px;color:var(--muted);font-size:15.5px;line-height:1.8;max-width:46em}
 
   /* ── final cta ── */
   .final{
@@ -757,7 +757,7 @@
   <div class="wrap">
     <div class="eyebrow">業界獨家・經理人帶隊的 AI AGENT 模式</div>
     <h1>一套會自己上班的<br><em>AI Agent 團隊平台</em>。</h1>
-    <p class="hero-sub">不是要你重建一個辦公室，是讓<b>一整隊各司其職的 AI Agent</b> 加入你現有的團隊——部署在你自己的環境，分工、協作、留下紀錄。晚上 11 點，你的團隊還在上班，而不是只有你一個人在上班。</p>
+    <p class="hero-sub">讓<b>一整隊各司其職的 AI Agent</b> 加入你現有的團隊——部署在你的環境，分工、協作、留下紀錄。晚上 11 點，你的團隊還在上班，而不是只有你一個人。</p>
     <div class="hero-chips">
       <span class="hchip">客服到財務都有對應職務</span>
       <span class="hchip">部署在你的環境</span>
@@ -833,7 +833,7 @@
           </div>
         </div>
         <h3>團隊總覽</h3>
-        <p>你的 AI 辦公室即時畫面（實際後台縮圖）：每位 Agent 有自己的工位、真實姓名與狀態，誰在值勤、誰在待命，一眼看完。</p>
+        <p>每位 Agent 有自己的工位與名字，誰在值勤、誰在待命，一眼看完。</p>
       </div>
 
       <div class="card plat-card" id="costMockCard">
@@ -854,7 +854,7 @@
           </div>
         </div>
         <h3>AI 成本儀表板</h3>
-        <p id="costCaption">每個 Agent 花了多少 Token、多少錢，逐日逐項攤開。拖拉上方滑桿，試算你的月任務量對應的預估花費（僅供示意，正式報價以諮詢為準）。</p>
+        <p id="costCaption">每個 Agent 花多少錢，逐日攤開。拖拉滑桿，試算你的月任務量花費（示意）。</p>
       </div>
 
       <div class="card plat-card">
@@ -870,7 +870,7 @@
           </div>
         </div>
         <h3>任務與活動紀錄</h3>
-        <p>回了哪則訊息、寄了哪份報表、通知了誰——每一件事都有時間戳與紀錄，可查、可稽核。</p>
+        <p>每件事都有時間戳與紀錄，可查、可稽核。</p>
       </div>
     </div>
 
@@ -941,9 +941,9 @@
       <div class="eyebrow">你一定認得這個時刻</div>
       <h2>公司下班了，<br>老闆的手機沒有。</h2>
       <div class="story-body" style="margin-top:22px">
-        <p>晚上十一點，客人在 LINE 上問「訂單到哪了」。你放下碗筷回訊息，順手看了一眼今天的廣告成效——沒人整理，數字散在三個後台。明天早上還要開會，會議記錄大概又是你自己來。</p>
-        <p><strong>不是你的團隊不夠努力，是有一整類工作，本來就不該由人來熬。</strong>回覆、追單、對帳、整理報表、盯輿情——重複、瑣碎、24 小時發生。</p>
-        <p>所以我們不做「另一套要你學的軟體」，也不是要你重建一個辦公室。我們把 AI 隊友直接編進你現有的團隊：每個 Agent 有自己的職務，接上你現有的 LINE、官網、報表系統，<strong>當天就加入，當天就開始上班。</strong></p>
+        <p>晚上十一點，客人在 LINE 上問「訂單到哪了」。你放下碗筷回訊息，順手看了一眼沒人整理的廣告數字。明天的會議記錄，大概又是你自己來。</p>
+        <p><strong>不是團隊不夠努力，是有一整類工作本來就不該由人來熬</strong>——回覆、追單、對帳、報表、輿情，重複、瑣碎、24 小時發生。</p>
+        <p>所以我們把 AI 隊友直接編進你現有的團隊：接上你現有的 LINE、官網與報表系統，<strong>當天加入，當天上班。</strong></p>
       </div>
     </div>
     <aside class="card clockcard" aria-label="深夜任務紀錄">
@@ -972,7 +972,7 @@
         <div class="card-ic">☁️</div>
         <div class="dc-tag">MODE A・代管</div>
         <div class="dc-title">資料存在我們這裡</div>
-        <p class="dc-sub">部署在 TBR 受控的雲端環境，我們負責維運、備份與更新，你不用準備任何基礎設施。</p>
+        <p class="dc-sub">部署在 TBR 受控的雲端，維運、備份、更新我們包辦。</p>
         <ul class="dc-list">
           <li>免準備部署環境，最快當天開通</li>
           <li>系統維運、備份、版本更新由 TBR 全權處理</li>
@@ -985,7 +985,7 @@
         <div class="card-ic">🏢</div>
         <div class="dc-tag">MODE B・自建</div>
         <div class="dc-title">資料存在你那裡</div>
-        <p class="dc-sub">部署在你的地端主機、公司 NAS，或你自己申請的雲端帳號，系統跑在你的基礎設施上。</p>
+        <p class="dc-sub">部署在你的地端主機、NAS 或你自己的雲端帳號。</p>
         <ul class="dc-list">
           <li>對話紀錄、客戶名單、訂單資料全部落在你的資料庫</li>
           <li>不經過 TBR 伺服器存放，資料的鑰匙一直在你手上</li>
@@ -1002,22 +1002,22 @@
       <div class="card sec-card">
         <div class="card-ic">🔑</div>
         <h3>自帶 AI 金鑰更省</h3>
-        <p>可以直接使用你自己的 AI API Key（OpenAI／Anthropic／Gemini），AI 用量費直付原廠，月費更低、帳目透明。</p>
+        <p>用你自己的 API Key，AI 用量費直付原廠，月費更低、帳目透明。</p>
       </div>
       <div class="card sec-card">
         <div class="card-ic">🛡️</div>
         <h3>權限分級與稽核</h3>
-        <p>誰能看對話、誰能改設定，逐一授權。每一次 Agent 的動作都有紀錄可查，出事找得到源頭。</p>
+        <p>誰能看、誰能改，逐一授權；每個動作都有紀錄可查。</p>
       </div>
       <div class="card sec-card">
         <div class="card-ic">🔓</div>
         <h3>不綁架你的系統</h3>
-        <p>停用不需要資遣費：隨時退訂單一 Agent、隨時整套下線，資料原地留在你選擇的環境，帶得走也留得住。</p>
+        <p>隨時退訂、隨時下線，資料原地留在你的環境，帶得走。</p>
       </div>
       <div class="card sec-card">
         <div class="card-ic">🚐</div>
         <h3>線上或到府部署</h3>
-        <p>遠端連線部署，或工程師直接到你辦公室安裝、教育訓練，兩種方式同價：NT$10,000／次。</p>
+        <p>遠端或到府安裝＋教育訓練，同價 NT$10,000／次。</p>
       </div>
     </div>
   </div>
@@ -1035,21 +1035,21 @@
         <div class="card-ic">📦</div>
         <span class="lvl lvl-1">通用型</span>
         <h3>開箱即用</h3>
-        <p>單一明確職務，不需客製串接，部署完當天上工。適合第一次導入、先試水溫。</p>
+        <p>單一職務、不需串接，部署完當天上工。</p>
         <div class="tc-price">NT$1,500／Agent・月起</div>
       </div>
       <div class="card tier-card">
         <div class="card-ic">🔗</div>
         <span class="lvl lvl-2">專業型</span>
         <h3>接上你的系統</h3>
-        <p>串接 LINE OA、訂單、廣告後台與資料庫，執行多步驟流程，依你的 SOP 調教。</p>
+        <p>串接你的系統與資料庫，依你的 SOP 執行多步驟流程。</p>
         <div class="tc-price">NT$2,800–5,800／Agent・月</div>
       </div>
       <div class="card tier-card">
         <div class="card-ic">👔</div>
         <span class="lvl lvl-3">超級 Agent・業界獨家</span>
         <h3>真人經理人帶隊</h3>
-        <p>一整個 Agent Team，由實戰經理人親自帶領與每週調教——等於幫你的團隊多一組戰力，還帶一位顧問。</p>
+        <p>實戰經理人帶著一組 Agent Team 上任，每週覆盤調教。</p>
         <div class="tc-price">NT$30,000／月起・專案報價</div>
       </div>
     </div>
@@ -1064,7 +1064,7 @@
     </p>
 
     <div id="rosterMount"></div>
-    <p class="roster-note">名冊之外，還缺哪個職位？<b>我們可以為你的產業客製專屬 Agent。</b>想看每一位 Agent 詳細的運作流程，<a href="/agents-catalog" target="_blank" rel="noopener" style="color:var(--green);font-weight:600">前往完整 Agent 目錄 →</a></p>
+    <p class="roster-note">還缺哪個職位？<b>可為你的產業客製。</b>詳細運作流程見 <a href="/agents-catalog" target="_blank" rel="noopener" style="color:var(--green);font-weight:600">完整 Agent 目錄 →</a></p>
   </div>
 </section>
 
@@ -1073,16 +1073,16 @@
   <div class="wrap">
     <div class="eyebrow">業界獨家模式／超級 Agent</div>
     <h2 class="serif-h">別人賣工具。<br>我們給你一位帶著團隊上任的經理人。</h2>
-    <p class="lede">超級 Agent 是業界目前唯一把「真人專業經理人」編入 AI 服務的模式：經理人把多年方法論寫進 Agent 團隊，每週看數據覆盤、逐項調教。你聘到的不是軟體，是一位到任即戰的主理人，帶著他不休息的團隊直接加入你的陣容。</p>
+    <p class="lede">業界唯一把「真人經理人」編入 AI 服務的模式：經理人把方法論寫進 Agent 團隊，每週覆盤、逐項調教。你聘到的不是軟體，是一位帶著團隊上任的主理人。</p>
 
     <div class="isolation-note">
       <div class="in-item">
         <h4>🎯 依你的公司量身打造</h4>
-        <p>主理人會依你的產業限制、內部規範與資料條件設計團隊分工與話術，不是套版方案——每一組編制都是為單一企業打造。</p>
+        <p>依你的產業限制與資料條件設計分工與話術，每一組編制都是為單一企業打造。</p>
       </div>
       <div class="in-item">
         <h4>🔒 獨立部署，資訊不經他人之手</h4>
-        <p>每間公司的超級 Agent 團隊各自獨立運作在你的環境裡，不與其他客戶共用系統或資料庫，確保資訊安全。</p>
+        <p>每組團隊獨立運作在你的環境裡，不與其他客戶共用系統或資料庫。</p>
       </div>
     </div>
 
@@ -1144,19 +1144,19 @@
         <div class="day">DAY 1</div>
         <div class="card-ic" style="margin-top:10px">🔌</div>
         <h3>部署進你的環境</h3>
-        <p>線上或到府安裝主系統，串接你的 LINE OA、官網、訂單與報表來源。資料庫建在你指定的位置。</p>
+        <p>線上或到府安裝，串接你的 LINE、官網與訂單來源，資料庫建在你指定的位置。</p>
       </div>
       <div class="card step">
         <div class="day">DAY 2</div>
         <div class="card-ic" style="margin-top:10px">🧩</div>
         <h3>挑選團隊成員</h3>
-        <p>從名冊中按需要聘任，餵入你的品牌口吻、SOP 與知識庫，設定權限與值班規則。</p>
+        <p>按需要聘任，餵入品牌口吻與 SOP，設定權限與值班規則。</p>
       </div>
       <div class="card step">
         <div class="day">DAY 3</div>
         <div class="card-ic" style="margin-top:10px">🚀</div>
         <h3>上工，開始值勤</h3>
-        <p>Agent 正式上線，儀表板看得到每一次任務與 AI 成本。之後隨時增聘、退訂、調整職務。</p>
+        <p>正式上線，儀表板看得到每次任務與成本；隨時增聘、退訂。</p>
       </div>
     </div>
   </div>
@@ -1173,7 +1173,7 @@
       <div class="card pay-card hi">
         <div class="pay-tag">一次性・入職費</div>
         <div class="price">NT$10,000<small>／次</small></div>
-        <p>整套系統部署到你的環境，線上遠端或工程師到府皆同價。</p>
+        <p>整套系統部署到你的環境，線上或到府同價。</p>
         <ul class="pay-list">
           <li>主系統安裝＋資料庫建置（你的環境）</li>
           <li>LINE OA、官網、Webhook 等既有系統串接</li>
@@ -1201,8 +1201,8 @@
             <span class="t-price">NT$30,000 <small>／月起・專案報價</small></span>
           </div>
         </div>
-        <div class="byo"><b>自帶 AI Token 再降價：</b>通用型與專業型可使用你自己的 AI API Key，AI 用量費直付原廠，月費最低可再降 40%。</div>
-        <p class="pricing-note">＊實際月費依 Agent 職務與用量場景於諮詢時報價；可隨時增聘或退訂，按月計費、無綁約。超級 Agent 含經理人月度顧問，依編制專案報價。</p>
+        <div class="byo"><b>自帶 AI Token 再降價：</b>用自己的 API Key，AI 用量費直付原廠，月費最低再降 40%。</div>
+        <p class="pricing-note">＊實際月費於諮詢時報價；按月計費、無綁約。超級 Agent 依編制專案報價。</p>
       </div>
     </div>
   </div>
@@ -1406,7 +1406,7 @@
   <div class="wrap">
     <div class="eyebrow" style="justify-content:center">現在就讓團隊報到</div>
     <h2>你的團隊，<br>值得幾位不用睡覺的幫手。</h2>
-    <p class="lede">30 分鐘線上諮詢，我們依你的產業規劃第一批 Agent 編制與報價。部署一次 NT$10,000，三天後開始值勤。</p>
+    <p class="lede">30 分鐘線上諮詢，依你的產業規劃編制與報價。三天後開始值勤。</p>
     <div class="hero-cta" style="margin-top:32px">
       <a class="btn btn-green" href="mailto:service@tbr.digital?subject=預約 Agent Team 部署諮詢">預約部署諮詢 →</a>
       <a class="btn btn-ghost" href="/login">系統登入</a>
