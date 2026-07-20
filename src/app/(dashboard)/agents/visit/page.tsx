@@ -262,11 +262,16 @@ export default function VisitAgentPage() {
             </Field>
           </div>
 
-          <Toggle
-            checked={requireApproval}
-            onChange={setRequireApproval}
-            label="寄出邀約信前，先透過 LINE 讓我確認時段"
-          />
+          <div>
+            <Toggle
+              checked={requireApproval}
+              onChange={setRequireApproval}
+              label="寄出邀約信前，先透過 LINE 讓我確認名片資訊與信件內容"
+            />
+            <p className="mt-1.5 text-xs text-neutral-400">
+              開啟後：辨識完名片會先讓您確認或修正欄位，回覆「要」之後會先亮出完整邀約信草稿，回覆「寄出」才會真的送出——中途也可以直接說要怎麼修改。關閉的話，回覆「要」後會直接寄出，跟現在後台看到的預設行為不同，請謹慎關閉。
+            </p>
+          </div>
 
           <Field label="邀約信主旨" hint="可使用變數 {{myName}}、{{meetingType}}">
             <TextInput value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />

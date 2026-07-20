@@ -133,3 +133,115 @@ export async function draftInviteEmail(params: {
     body: parsed.body ?? "",
   };
 }
+
+export type CardReplyIntent =
+  | { type: "confirm" }
+  | { type: "cancel" }
+  | { type: "correction"; field: keyof ParsedCard; value: string }
+  | { type: "other" };
+
+/**
+ * 判斷使用者針對「名片辨識結果」的回覆，是要確認送出、取消，還是在修正某個欄位
+ * （例如「email 打錯了，應該是 abc@xyz.com」「他不是經理，是協理」）。
+ * 比純關鍵字比對更能處理自然語句，且明確要求模型只能回傳看得懂的意圖，
+ * 看不懂就回傳 other，交由呼叫端提示使用者換句話說，而不是硬猜。
+ */
+export async function interpretCardReply(params: {
+  currentCard: ParsedCard;
+  userText: string;
+}): Promise<CardReplyIntent> {
+  const data = await chatCompletion({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content:
+          "使用者剛收到一張名片辨識結果，你要判斷他這句回覆的意圖，只能是下面四種之一：\n" +
+          '1. confirm：明確表示資訊正確、可以繼續（例如「要」「對」「沒問題」「可以寄了」）\n' +
+          '2. cancel：明確表示不要繼續（例如「不要」「先不用」「算了」）\n' +
+          '3. correction：在指出某個欄位錯了並提供正確值（欄位只能是 name/company/title/email/phone 其中之一）\n' +
+          '4. other：看不懂、答非所問、或同時講了不相關的事\n' +
+          "只回傳 JSON：confirm 回 {\"type\":\"confirm\"}；cancel 回 {\"type\":\"cancel\"}；" +
+          'correction 回 {"type":"correction","field":"email","value":"正確的值"}；' +
+          '其餘一律回 {"type":"other"}。field 必須是 name/company/title/email/phone 其中一個英文字。',
+      },
+      {
+        role: "user",
+        content: `目前辨識結果：${JSON.stringify(params.currentCard)}\n使用者回覆：「${params.userText}」`,
+      },
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0,
+  }, { operation: "名片回覆意圖判斷", agentSlug: "visit" });
+
+  const content = data.choices?.[0]?.message?.content ?? "{}";
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.type === "confirm") return { type: "confirm" };
+    if (parsed.type === "cancel") return { type: "cancel" };
+    if (
+      parsed.type === "correction" &&
+      ["name", "company", "title", "email", "phone"].includes(parsed.field) &&
+      typeof parsed.value === "string" &&
+      parsed.value.trim()
+    ) {
+      return { type: "correction", field: parsed.field, value: parsed.value.trim() };
+    }
+  } catch {
+    // fall through to other
+  }
+  return { type: "other" };
+}
+
+/**
+ * 使用者對草稿信件提出修改要求（例如「語氣再正式一點」「不要提咖啡，改約吃飯」），
+ * 依指示重新產出主旨與內文，維持跟原本 draftInviteEmail 一致的結構限制。
+ */
+export async function reviseInviteEmail(params: {
+  contactName: string;
+  contactTitle?: string;
+  company?: string;
+  meetingType: string;
+  senderName: string;
+  previousSubject: string;
+  previousBody: string;
+  instruction: string;
+}): Promise<{ subject: string; body: string }> {
+  const data = await chatCompletion({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content:
+          "你是一位很懂人情世故、文筆自然的商務人士，正要修改一封已經寫好的邀約信草稿。" +
+          "請依照使用者的修改要求調整開頭問候與內文，維持繁體中文、真誠自然、避免罐頭用語的風格。" +
+          "信件下方會另外附上可點選的時段按鈕與結尾署名（由系統自動產生），內文不需要條列時段、不需要提到地點、也不需要自己加上結尾署名。" +
+          "只回傳 JSON 物件，欄位為 subject 與 body。",
+      },
+      {
+        role: "user",
+        content:
+          `寄件人：${params.senderName}\n收件人：${params.contactName}${
+            params.contactTitle ? `，職稱：${params.contactTitle}` : ""
+          }${params.company ? `，任職於 ${params.company}` : ""}\n邀約性質：${params.meetingType}\n\n` +
+          `目前草稿主旨：${params.previousSubject}\n目前草稿內文：${params.previousBody}\n\n` +
+          `使用者的修改要求：「${params.instruction}」\n請依照這個要求重新撰寫。`,
+      },
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.8,
+  }, { operation: "邀約信修改", agentSlug: "visit" });
+
+  const content = data.choices?.[0]?.message?.content ?? "{}";
+  let parsed: Partial<{ subject: string; body: string }> = {};
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    // leave parsed as {}
+  }
+
+  return {
+    subject: parsed.subject || params.previousSubject,
+    body: parsed.body || params.previousBody,
+  };
+}
