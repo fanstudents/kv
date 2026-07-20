@@ -23,6 +23,9 @@ const SCENES = [
 // 每位成員所在的場景（未列出者預設在辦公區）
 const AGENT_SCENE: Record<string, (typeof SCENES)[number]["id"]> = {
   teamlead: "execoffice",
+  notify: "warroom",
+  report: "warroom",
+  competitor: "warroom",
 };
 
 // 走動路徑：沿著各場景的走道（座標為該場景畫面的百分比位置）
@@ -34,15 +37,27 @@ const WALK_PATHS: Record<string, { frames: string; duration: number; delay: numb
     duration: 34,
     delay: -8,
   },
-  notify: {
+  // 辦公區找不到專屬路徑的成員，預設走這條（沿用舊版 notify 的路徑，避免搬動 notify 後跟著跑位）
+  officeDefault: {
     frames: "0%{left:18%;top:36%}25%{left:50%;top:36%}50%{left:50%;top:63%}75%{left:18%;top:63%}100%{left:18%;top:36%}",
     duration: 28,
     delay: 0,
   },
+  // 資訊戰情室三張監控桌，各自小範圍待機（不橫越整個房間）
+  notify: {
+    frames: "0%{left:23%;top:60%}50%{left:26%;top:64%}100%{left:23%;top:60%}",
+    duration: 5,
+    delay: 0,
+  },
   report: {
-    frames: "0%{left:68%;top:36%}25%{left:31%;top:36%}50%{left:31%;top:63%}75%{left:68%;top:63%}100%{left:68%;top:36%}",
-    duration: 34,
-    delay: -8,
+    frames: "0%{left:49%;top:58%}50%{left:52%;top:62%}100%{left:49%;top:58%}",
+    duration: 5.6,
+    delay: -2,
+  },
+  competitor: {
+    frames: "0%{left:75%;top:60%}50%{left:78%;top:64%}100%{left:75%;top:60%}",
+    duration: 6.2,
+    delay: -3.5,
   },
   schedule: {
     frames: "0%{left:50%;top:13%}25%{left:79%;top:13%}50%{left:79%;top:63%}75%{left:50%;top:63%}100%{left:50%;top:13%}",
@@ -61,7 +76,7 @@ const WALK_PATHS: Record<string, { frames: string; duration: number; delay: numb
   },
 };
 
-const FALLBACK_WALK = WALK_PATHS.notify;
+const FALLBACK_WALK = WALK_PATHS.officeDefault;
 
 // 暫停中的座位（喝咖啡）：右上角圓桌會議區
 const COFFEE_SPOTS = [{ left: "88.5%", top: "22%" }];
@@ -134,7 +149,7 @@ function Person({
 
   const spotIndex = AGENTS.filter((a) => a.status === agent.status).findIndex((a) => a.slug === agent.slug);
   const positionStyle: React.CSSProperties = walking
-    ? { animation: `walk-${agent.slug in WALK_PATHS ? agent.slug : "notify"} ${walk.duration}s ease-in-out ${walk.delay}s infinite` }
+    ? { animation: `walk-${agent.slug in WALK_PATHS ? agent.slug : "officeDefault"} ${walk.duration}s ease-in-out ${walk.delay}s infinite` }
     : agent.status === "paused"
       ? COFFEE_SPOTS[spotIndex % COFFEE_SPOTS.length]
       : SLEEP_SPOTS[spotIndex % SLEEP_SPOTS.length];

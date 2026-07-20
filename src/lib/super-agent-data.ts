@@ -1,6 +1,8 @@
 // 超級 Agent：由真人專業經理人（主理人）帶領的 Agent Team。
 // 注意：kpis / weekly / activity 目前為「示意資料」，正式接數據前請保留示意標記。
 
+import { avatarUrl } from "./agent-data";
+
 export type MascotSpecies = "rabbit" | "bird" | "bear" | "owl" | "dog" | "cat";
 
 export interface SuperPrincipal {
@@ -234,4 +236,12 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
 
 export function getSuperAgent(id: string): SuperAgentMeta | undefined {
   return SUPER_AGENTS.find((s) => s.id === id);
+}
+
+// 主理人頭像：有真實照片就用照片；還沒有照片（含尚未定案的主理人）
+// 一律用生成頭像頂著，不留空白，也不會誤植成真實人物的臉。
+export function principalAvatar(sa: SuperAgentMeta): string {
+  if (sa.principal?.photo) return sa.principal.photo;
+  const seed = sa.principal?.name ?? sa.code;
+  return avatarUrl(seed, "94A3B8");
 }

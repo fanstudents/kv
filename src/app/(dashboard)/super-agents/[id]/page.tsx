@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -6,7 +5,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import Mascot from "@/components/agents/Mascot";
-import { SUPER_AGENTS, getSuperAgent } from "@/lib/super-agent-data";
+import { SUPER_AGENTS, getSuperAgent, principalAvatar } from "@/lib/super-agent-data";
 
 export function generateStaticParams() {
   return SUPER_AGENTS.map((sa) => ({ id: sa.id }));
@@ -41,19 +40,12 @@ export default async function SuperAgentDetailPage({ params }: { params: Promise
           <Card className="border-t-2 border-t-neutral-900 dark:border-t-neutral-100">
             <p className="text-[10px] font-bold tracking-[0.24em] text-neutral-400">主理人・PRINCIPAL</p>
             <div className="mt-4 flex gap-4">
-              {sa.principal?.photo ? (
-                <Image
-                  src={sa.principal.photo}
-                  alt={sa.principal.name}
-                  width={88}
-                  height={106}
-                  className="h-[106px] w-[88px] shrink-0 rounded border border-neutral-200 bg-[#EDE7DC] object-cover object-top dark:border-neutral-700"
-                />
-              ) : (
-                <div className="flex h-[106px] w-[88px] shrink-0 items-center justify-center rounded border border-neutral-200 bg-[#EDE7DC] font-serif text-2xl font-semibold text-[#8A7B63] dark:border-neutral-700">
-                  {sa.principal?.initials ?? "？"}
-                </div>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={principalAvatar(sa)}
+                alt={sa.principal?.name ?? sa.shortTitle}
+                className="h-[106px] w-[88px] shrink-0 rounded border border-neutral-200 bg-[#EDE7DC] object-cover object-top dark:border-neutral-700"
+              />
               <div className="min-w-0">
                 <p className="font-serif text-2xl font-semibold tracking-wide text-neutral-900 dark:text-white">
                   {sa.principal?.name ?? "遴選中"}

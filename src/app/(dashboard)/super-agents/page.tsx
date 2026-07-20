@@ -1,32 +1,20 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import Mascot from "@/components/agents/Mascot";
-import { SUPER_AGENTS } from "@/lib/super-agent-data";
+import { SUPER_AGENTS, principalAvatar } from "@/lib/super-agent-data";
 
 function PrincipalFace({ sa, size = 48 }: { sa: (typeof SUPER_AGENTS)[number]; size?: number }) {
-  if (sa.principal?.photo) {
-    return (
-      <Image
-        src={sa.principal.photo}
-        alt={sa.principal.name}
-        width={size}
-        height={size}
-        className="shrink-0 rounded-full border border-neutral-200 object-cover object-top dark:border-neutral-700"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
   return (
-    <div
-      className="flex shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-[#EDE7DC] font-semibold text-[#8A7B63] dark:border-neutral-700"
-      style={{ width: size, height: size, fontSize: size / 3.2 }}
-    >
-      {sa.principal?.initials ?? "？"}
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={principalAvatar(sa)}
+      alt={sa.principal?.name ?? sa.shortTitle}
+      className="shrink-0 rounded-full border border-neutral-200 object-cover object-top dark:border-neutral-700"
+      style={{ width: size, height: size }}
+    />
   );
 }
 

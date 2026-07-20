@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
-import { SUPER_AGENTS } from "@/lib/super-agent-data";
+import { SUPER_AGENTS, principalAvatar } from "@/lib/super-agent-data";
 import Avatar from "@/components/agents/Avatar";
 import type { AgentMeta } from "@/lib/types";
 
@@ -167,8 +167,16 @@ export default function Sidebar() {
                   : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
               }`}
             >
-              <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                <Crown size={15} />
+              <span className="relative flex h-[30px] w-[30px] shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={principalAvatar(sa)}
+                  alt={sa.principal?.name ?? sa.shortTitle}
+                  className="h-[30px] w-[30px] rounded-full object-cover object-top ring-2 ring-amber-400/60"
+                />
+                <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-500 text-white ring-2 ring-white dark:ring-neutral-900">
+                  <Crown size={8} />
+                </span>
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{sa.shortTitle}超級 Agent</span>
