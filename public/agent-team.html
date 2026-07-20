@@ -273,6 +273,39 @@
     .scene-tab{padding:7px 12px;font-size:12.5px}
   }
 
+  /* 值勤名單：桌機浮貼在場景左上，列出正在執勤的 Agent 職務與名字 */
+  .duty-panel{
+    position:absolute;left:14px;top:14px;z-index:20;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(5px);
+    border-radius:14px;padding:10px 14px 12px;color:#fff;
+    display:flex;flex-direction:column;gap:6px;min-width:116px;
+  }
+  .duty-title{
+    font-size:10px;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.75);
+    display:flex;align-items:center;gap:6px;margin-bottom:2px;
+  }
+  .duty-title .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+  .duty-row{display:flex;align-items:center;gap:7px;font-size:11.5px;line-height:1.35}
+  .duty-row .d-dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .duty-row .d-role{font-weight:700}
+  .duty-row .d-name{color:rgba(255,255,255,.72);font-size:10.5px}
+  .duty-strip{display:none}
+  @media(max-width:640px){
+    .duty-panel{display:none}
+    .duty-strip{
+      display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:4px;
+      -webkit-overflow-scrolling:touch;scrollbar-width:none;
+    }
+    .duty-strip::-webkit-scrollbar{display:none}
+    .duty-chip{
+      flex:none;display:inline-flex;align-items:center;gap:6px;
+      border:1px solid var(--line);background:var(--card);border-radius:999px;
+      padding:5px 11px;font-size:11.5px;color:var(--body);font-weight:600;white-space:nowrap;
+    }
+    .duty-chip .d-dot{width:6px;height:6px;border-radius:50%;flex:none}
+    .duty-chip small{color:var(--faint);font-weight:500;font-size:10.5px}
+  }
+
   /* stats：同後台 Card 統計卡 */
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
@@ -434,6 +467,90 @@
   .tier-card p{color:var(--muted);font-size:13.5px;margin-top:8px}
   .tier-card .tc-price{margin-top:12px;font-size:13px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
 
+  /* ── Agent 配置體驗：動畫 CTA + 模擬後台（純前端示意） ── */
+  .cfg-cta-wrap{text-align:center;margin-top:36px}
+  .btn-config{
+    position:relative;overflow:hidden;padding:14px 30px;font-size:16px;
+    animation:cfgPulse 2.2s ease-in-out infinite;
+  }
+  .btn-config::after{
+    content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+    background:linear-gradient(105deg,transparent,rgba(255,255,255,.45),transparent);
+    animation:cfgShine 2.8s ease-in-out infinite;
+  }
+  @keyframes cfgPulse{0%,100%{box-shadow:0 0 0 0 rgba(6,199,85,.45)}50%{box-shadow:0 0 0 14px rgba(6,199,85,0)}}
+  @keyframes cfgShine{0%{left:-60%}55%,100%{left:120%}}
+  .cfg-cta-note{font-size:12.5px;color:var(--faint);margin-top:12px}
+  .cfg-demo{display:none;margin-top:24px;scroll-margin-top:76px}
+  .cfg-demo.open{display:block;animation:fadeUp .45s ease both}
+  .cfg-window{
+    border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    background:var(--card);box-shadow:var(--shadow-md);
+  }
+  .cfg-body{display:flex;min-height:400px}
+  .cfg-side{
+    width:200px;flex:none;border-right:1px solid var(--line);
+    padding:14px 12px;background:var(--band);
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .cs-brand{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text);padding:2px 6px 10px}
+  .cs-brand i{
+    width:22px;height:22px;border-radius:7px;background:var(--green);color:#fff;
+    font-style:normal;font-size:11px;font-weight:800;flex:none;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .cs-item{display:flex;align-items:center;gap:8px;border-radius:8px;padding:7px 9px;font-size:12.5px;color:var(--body);font-weight:600;line-height:1.35}
+  .cs-item.fixed{color:var(--muted)}
+  .cs-item .ci-ic{font-size:13px;width:16px;text-align:center;flex:none}
+  .cs-label{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--faint);padding:12px 6px 4px;border-top:1px solid var(--line);margin-top:8px}
+  .cs-empty{font-size:11.5px;color:var(--faint);padding:4px 9px;line-height:1.65}
+  .cs-agent{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--text);animation:csIn .35s ease both;margin-top:4px}
+  .cs-agent .mini{width:22px;height:22px;flex:none}
+  .cs-agent .mini svg{width:100%;height:100%;display:block}
+  @keyframes csIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+  .cfg-main{flex:1;min-width:0;padding:18px 20px;display:flex;flex-direction:column}
+  .cfg-main h4{margin:0;font-size:15.5px;color:var(--text)}
+  .cm-sub{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.65}
+  .cfg-picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;margin-top:14px}
+  .cfg-pick{
+    display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;
+    background:var(--bg);padding:8px 26px 8px 10px;cursor:pointer;text-align:left;
+    font-family:var(--sans);position:relative;transition:all .15s ease;
+  }
+  .cfg-pick:hover{border-color:var(--green)}
+  .cfg-pick.on{border-color:var(--green);background:var(--green-soft)}
+  .cfg-pick .mini{width:26px;height:26px;flex:none}
+  .cfg-pick .mini svg{width:100%;height:100%;display:block}
+  .cfg-pick b{font-size:12px;color:var(--text);display:block;line-height:1.35}
+  .cfg-pick small{font-size:10px;color:var(--faint);display:block;line-height:1.4}
+  .cfg-pick .ck{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;
+    font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;
+  }
+  .cfg-pick.on .ck{display:flex}
+  .cfg-foot{
+    margin-top:auto;padding-top:14px;border-top:1px solid var(--line-soft);
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);
+  }
+  .cfg-foot b{color:var(--text);font-variant-numeric:tabular-nums}
+  .cfg-demo-note{font-size:11.5px;color:var(--faint);text-align:center;margin-top:10px}
+  @media(max-width:700px){
+    .cfg-side{width:118px;padding:10px 7px}
+    .cs-item{font-size:10.5px;padding:6px 6px;gap:5px}
+    .cs-brand{font-size:10.5px;gap:6px}
+    .cs-empty{font-size:10px;padding:4px 6px}
+    .cs-agent .mini{width:18px;height:18px}
+    .cfg-main{padding:12px 10px}
+    .cm-sub{font-size:11.5px}
+    .cfg-picks{grid-template-columns:1fr;gap:6px}
+    .cfg-pick{padding:7px 24px 7px 8px}
+    .cfg-pick b{font-size:11.5px}
+    .cfg-pick small{font-size:9.5px}
+    .cfg-foot{font-size:12px}
+    .cfg-foot .btn{margin-left:0!important;width:100%}
+  }
+
   /* ── 超級 Agent：主理人檔案（dossier 編輯風） ── */
   .serif-h{font-family:var(--serif);letter-spacing:.04em;font-weight:700}
   .isolation-note{
@@ -449,53 +566,83 @@
     font-size:10.5px;font-weight:700;color:var(--green);letter-spacing:.04em;
   }
   .s-badge::before{content:"◆";font-size:8px}
-  .mode-table-wrap{margin-top:28px;overflow-x:auto}
-  .mode-table{
-    width:100%;min-width:640px;border-collapse:collapse;
-    font-size:13px;line-height:1.6;
+  /* 比較：左邊「其他選擇」灰調 ✕ 清單，右邊超級 Agent 綠框 ✓ 清單，中間 VS */
+  .vs-wrap{
+    display:grid;grid-template-columns:1fr 56px 1.15fr;gap:0 6px;
+    margin-top:32px;align-items:stretch;
   }
-  .mode-table th,.mode-table td{
-    padding:12px 16px;text-align:left;vertical-align:top;
-    border-bottom:1px solid var(--line);
+  .vs-others{display:flex;flex-direction:column;gap:14px}
+  .vs-ours{display:flex;flex-direction:column}
+  .vs-col-label{font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--faint);margin-bottom:10px}
+  .vs-card{
+    border:1px solid var(--line);border-radius:14px;background:var(--card);
+    padding:18px 20px;box-shadow:var(--shadow);
   }
-  .mode-table thead th{
-    font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--faint);
-    border-bottom:2px solid var(--text);padding-bottom:10px;white-space:nowrap;
+  .vs-others .vs-card{flex:1}
+  .vs-name{font-size:15px;font-weight:700;color:var(--text)}
+  .vs-others .vs-name{color:var(--muted)}
+  .vs-sub{font-size:12px;color:var(--faint);margin-top:3px}
+  .vs-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:9px}
+  .vs-list li{position:relative;padding-left:24px;font-size:13px;color:var(--muted);line-height:1.7}
+  .vs-list li::before{
+    content:"✕";position:absolute;left:0;top:3px;width:16px;height:16px;
+    display:flex;align-items:center;justify-content:center;border-radius:50%;
+    background:rgba(220,38,38,.1);color:#DC2626;font-size:9px;font-weight:800;
   }
-  .mode-table td:first-child,.mode-table th:first-child{
-    font-weight:700;color:var(--text);white-space:nowrap;width:96px;padding-left:0;
+  .vs-divider{display:flex;align-items:center;justify-content:center}
+  .vs-divider span{
+    width:40px;height:40px;border-radius:50%;background:var(--text);color:var(--bg);
+    font-weight:800;font-size:12px;letter-spacing:.04em;
+    display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-md);
   }
-  .mode-table td{color:var(--muted)}
-  .mode-table .hi{background:var(--card);color:var(--body)}
-  .mode-table thead .hi{color:var(--text)}
-  .mode-table .hi-tag{
-    display:inline-block;margin-left:6px;font-size:9.5px;font-weight:800;
-    letter-spacing:.1em;color:var(--green);vertical-align:1px;
+  .vs-ours .vs-card{
+    flex:1;border-color:rgba(6,199,85,.45);
+    background:linear-gradient(180deg,var(--green-soft),transparent 45%),var(--card);
+    box-shadow:var(--shadow-md);display:flex;flex-direction:column;justify-content:center;
+    padding-block:24px;
   }
-  .super-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
-  @media(max-width:900px){.super-grid{grid-template-columns:1fr}}
-  .scard{
-    position:relative;border-radius:4px;padding:26px 24px;
-    background:var(--card);border:1px solid var(--line);border-top:3px solid var(--text);
-    box-shadow:var(--shadow);display:flex;flex-direction:column;
+  .vs-tag{
+    display:inline-flex;align-self:flex-start;border-radius:999px;padding:3px 12px;
+    font-size:11px;font-weight:800;letter-spacing:.06em;background:var(--green);color:#fff;
+    margin-bottom:10px;
   }
-  .s-kicker{font-size:10.5px;font-weight:700;letter-spacing:.22em;color:var(--faint)}
-  .scard .s-title{font-size:17px;color:var(--text);line-height:1.45;margin-top:8px}
-  .scard .s-desc{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.75}
-  .scard .mgr{
-    display:flex;gap:16px;margin-top:18px;
-    border-top:1px solid var(--line-soft);padding-top:18px;
+  .vs-ours .vs-name{font-size:19px}
+  .vs-ours .vs-sub{font-size:12.5px;color:var(--muted)}
+  .vs-ours .vs-list{gap:11px;margin-top:16px}
+  .vs-ours .vs-list li{font-size:13.5px;color:var(--body)}
+  .vs-ours .vs-list li b{color:var(--text)}
+  .vs-ours .vs-list li::before{content:"✓";background:var(--green);color:#fff}
+  @media(prefers-color-scheme:dark){
+    .vs-list li::before{background:rgba(248,113,113,.16);color:#F87171}
+    .vs-ours .vs-list li::before{background:var(--green);color:#fff}
   }
-  .mgr-photo{
-    width:88px;height:106px;border-radius:3px;flex:none;overflow:hidden;
+  @media(max-width:820px){
+    .vs-wrap{grid-template-columns:1fr;gap:14px}
+    .vs-divider{padding:2px 0}
+    .vs-others .vs-card,.vs-ours .vs-card{flex:none}
+  }
+  /* 主理人特寫：大幅人像 + 大字姓名 + 帶隊團隊，一人一整排（編輯特稿風） */
+  .principal-list{margin-top:44px}
+  .pf{
+    display:grid;grid-template-columns:220px 1fr;gap:36px;
+    padding:40px 0;border-top:1px solid var(--line);
+  }
+  .pf:last-of-type{border-bottom:1px solid var(--line)}
+  .pf-photo{
+    aspect-ratio:4/5;border-radius:6px;overflow:hidden;flex:none;
     background:#EDE7DC;border:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;
   }
-  .mgr-photo img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
-  .mgr-photo .init{font-family:var(--serif);font-weight:700;font-size:26px;color:#8A7B63}
-  .mgr-kicker{font-size:10px;font-weight:700;letter-spacing:.26em;color:var(--faint)}
-  .mgr-name{font-family:var(--serif);font-size:23px;font-weight:700;color:var(--text);margin-top:5px;line-height:1.25;letter-spacing:.06em}
-  .mgr-title{font-size:12px;color:var(--muted);margin-top:4px}
+  .pf-photo img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+  .pf-photo .init{font-family:var(--serif);font-weight:700;font-size:34px;color:#8A7B63}
+  .pf-plate{margin-top:10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.26em;color:var(--faint)}
+  .pf-kicker{font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--green)}
+  .pf-name{
+    font-family:var(--serif);font-size:clamp(28px,4vw,38px);font-weight:700;
+    color:var(--text);margin-top:8px;line-height:1.2;letter-spacing:.06em;
+  }
+  .pf-role{font-size:14px;color:var(--muted);margin-top:6px}
+  .pf-desc{font-size:14.5px;color:var(--body);margin-top:14px;max-width:38em;line-height:1.8}
   .dossier{margin:14px 0 0;display:grid;gap:8px}
   .drow{display:flex;gap:12px}
   .drow dt{
@@ -503,35 +650,24 @@
     padding-top:2px;letter-spacing:.08em;
   }
   .drow dd{margin:0;font-size:12.5px;color:var(--body);line-height:1.65}
-  /* 團隊組織圖：經理人 → 各 Agent */
-  .team-block{margin-top:16px;border-top:1px solid var(--line-soft);padding-top:14px}
-  .team-block .tb-label{font-size:10.5px;font-weight:700;letter-spacing:.18em;color:var(--faint)}
-  .org-chart{display:flex;flex-direction:column;align-items:center;margin-top:10px}
-  .org-mgr{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text)}
-  .org-mgr .mgr-face{
-    width:34px;height:34px;border-radius:50%;flex:none;overflow:hidden;
-    background:#EDE7DC;color:#8A7B63;font-size:12px;font-weight:700;
-    display:flex;align-items:center;justify-content:center;
-    border:1px solid var(--line);
+  .pf-team{margin-top:22px;border-top:1px solid var(--line-soft);padding-top:16px}
+  .pf-team-label{font-size:10.5px;font-weight:700;letter-spacing:.18em;color:var(--faint)}
+  .pf-team-row{display:flex;flex-wrap:wrap;gap:18px 20px;margin-top:12px}
+  .pf-member{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .pf-member .mini{width:46px;height:46px;display:block}
+  .pf-member .mini svg{width:100%;height:100%;display:block}
+  .pf-mname{font-size:11px;color:var(--muted);font-weight:600}
+  .pf-foot{margin-top:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .pf-price{font-size:15px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+  .pf-price small{font-size:11px;font-weight:400;color:var(--faint)}
+  @media(max-width:760px){
+    .pf{grid-template-columns:1fr;gap:20px;padding:30px 0}
+    .pf-photo-col{display:flex;align-items:flex-end;gap:14px}
+    .pf-photo{width:112px}
+    .pf-plate{margin:0 0 6px;text-align:left;letter-spacing:.18em}
+    .pf-team-row{gap:14px 16px}
+    .pf-member .mini{width:40px;height:40px}
   }
-  .org-mgr .mgr-face img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
-  .org-stem{width:2px;height:13px;background:var(--line)}
-  .org-row{position:relative;display:flex;justify-content:space-around;width:100%}
-  .org-row::before{
-    content:"";position:absolute;top:0;height:2px;background:var(--line);
-    left:var(--rail,12%);right:var(--rail,12%);
-  }
-  .org-node{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px}
-  .org-stub{width:2px;height:10px;background:var(--line)}
-  .org-node .mini{width:32px;height:32px}
-  .org-node .mini svg{width:100%;height:100%;display:block}
-  .org-name{font-size:10.5px;color:var(--muted);font-weight:600}
-  .scard-foot{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    border-top:1px solid var(--line-soft);margin-top:16px;padding-top:14px;
-  }
-  .scard-foot .s-price{font-size:15px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
-  .scard-foot .s-price small{font-size:11px;font-weight:400;color:var(--faint)}
   .super-note{margin-top:28px;font-size:13px;color:var(--faint);text-align:center}
   .super-note b{color:#D97706}
 
@@ -710,6 +846,7 @@
         </div>
       </div>
     </div>
+    <div class="duty-strip" id="dutyStrip" aria-label="值勤中的 Agent"></div>
     <p class="hero-note" style="margin-top:10px">切換上方分頁看看不同場景——辦公區、資訊戰情室、主管辦公室</p>
 
     <div class="stats">
@@ -965,6 +1102,38 @@
       </div>
     </div>
 
+    <div class="cfg-cta-wrap">
+      <button type="button" id="cfgBtn" class="btn btn-green btn-config">🎛️ 進入後台，親手配置你的 Agent 團隊 →</button>
+      <p class="cfg-cta-note">免註冊——點一下就能體驗：你聘任誰，後台選單就多出誰。</p>
+    </div>
+
+    <div class="cfg-demo" id="cfgDemo" aria-hidden="true">
+      <div class="cfg-window">
+        <div class="mock-bar"><span></span><span></span><span></span></div>
+        <div class="cfg-body">
+          <aside class="cfg-side" aria-label="模擬後台選單">
+            <div class="cs-brand"><i>T</i>Agent 後台</div>
+            <div class="cs-item fixed"><span class="ci-ic">🏠</span>團隊總覽</div>
+            <div class="cs-item fixed"><span class="ci-ic">📋</span>任務紀錄</div>
+            <div class="cs-item fixed"><span class="ci-ic">💰</span>AI 成本</div>
+            <div class="cs-label">我的 AGENT</div>
+            <div id="cfgSideList"></div>
+            <div class="cs-empty" id="cfgEmpty">還沒有隊友——點右側名片聘任，這裡就會多出他的功能入口。</div>
+          </aside>
+          <div class="cfg-main">
+            <h4>挑選要聘任的 Agent</h4>
+            <p class="cm-sub">點名片即可聘任／退訂，左側選單會即時多出（或收起）該 Agent 的入口——實際後台就是這種感覺。</p>
+            <div class="cfg-picks" id="cfgPicks"></div>
+            <div class="cfg-foot">
+              <span>已聘任 <b id="cfgCount">0</b> 位・預估月費 <b id="cfgTotal">NT$0</b></span>
+              <a class="btn btn-green btn-sm" href="#cta" style="margin-left:auto">帶著這份配置預約諮詢 →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="cfg-demo-note">＊此為前端示意，實際後台功能以部署版本為準。</p>
+    </div>
+
     <p style="text-align:center;margin-top:28px">
       <a class="btn btn-ghost" href="/agents-catalog" target="_blank" rel="noopener">查看完整 Agent 目錄與運作流程節點 →</a>
     </p>
@@ -992,30 +1161,51 @@
       </div>
     </div>
 
-    <div class="mode-table-wrap">
-      <table class="mode-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>訂閱 AI 工具</th>
-            <th>聘請顧問</th>
-            <th class="hi">超級 Agent<span class="hi-tag">獨家</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>執行者</td><td>你和同事自己操作</td><td>顧問給建議，執行還是靠你</td><td class="hi">經理人帶著 AI 團隊直接執行</td></tr>
-          <tr><td>方法論</td><td>沒有，自己摸索</td><td>有，但留在簡報裡</td><td class="hi">寫進 Agent，每天都在跑</td></tr>
-          <tr><td>客製程度</td><td>統一功能，人人相同</td><td>依專案給建議，不涉及執行</td><td class="hi">依你的限制與條件量身打造</td></tr>
-          <tr><td>持續優化</td><td>無</td><td>合約期內</td><td class="hi">每週覆盤、逐項調教</td></tr>
-          <tr><td>資料位置</td><td>供應商的雲端，多租戶共用</td><td>—</td><td class="hi">你的環境，獨立部署不經他人之手</td></tr>
-          <tr><td>每月成本</td><td>數千元</td><td>常見十萬起</td><td class="hi">NT$30,000 起</td></tr>
-        </tbody>
-      </table>
+    <div class="vs-wrap">
+      <div class="vs-others">
+        <div class="vs-col-label">市場上的其他選擇</div>
+        <div class="vs-card">
+          <div class="vs-name">訂閱 AI 工具</div>
+          <div class="vs-sub">每月數千元</div>
+          <ul class="vs-list">
+            <li>工具不會自己動——<b>操作的還是你和同事</b></li>
+            <li>沒有方法論，成效靠自己摸索</li>
+            <li>統一功能人人相同，沒有人幫你優化</li>
+            <li>資料放在供應商雲端，多租戶共用</li>
+          </ul>
+        </div>
+        <div class="vs-card">
+          <div class="vs-name">聘請顧問</div>
+          <div class="vs-sub">常見每月十萬起</div>
+          <ul class="vs-list">
+            <li>顧問給建議——<b>執行還是靠你的團隊</b></li>
+            <li>方法論留在簡報裡，散會就停</li>
+            <li>優化只持續到合約結束</li>
+            <li>不進系統、不碰執行，成效難歸因</li>
+          </ul>
+        </div>
+      </div>
+      <div class="vs-divider" aria-hidden="true"><span>VS</span></div>
+      <div class="vs-ours">
+        <div class="vs-col-label">我們的做法</div>
+        <div class="vs-card">
+          <span class="vs-tag">業界獨家</span>
+          <div class="vs-name">超級 Agent＝真人經理人＋AI 團隊</div>
+          <div class="vs-sub">NT$30,000 起／月——顧問等級的介入，接近工具的價格</div>
+          <ul class="vs-list">
+            <li><b>經理人帶著 AI 團隊直接執行</b>，不是丟建議給你</li>
+            <li><b>方法論寫進 Agent</b>，24 小時天天在跑，不是留在簡報裡</li>
+            <li><b>依你的產業與限制量身打造</b>，不是套版功能</li>
+            <li><b>每週覆盤、逐項調教</b>，成效有人具名負責</li>
+            <li><b>獨立部署在你的環境</b>，資料不經他人之手</li>
+          </ul>
+        </div>
+      </div>
     </div>
 
-    <div class="super-grid" id="superMount"></div>
+    <div class="principal-list" id="superMount"></div>
     <p class="super-note"><b>名額制</b>——每位經理人同時帶領的客戶數有上限，依產業與檔期排程。每組團隊獨立部署，不因客戶數增加而共用資源。</p>
-    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--faint)">想了解服務時程？<a href="/agents-catalog/super" target="_blank" rel="noopener" style="color:var(--green);font-weight:600">查看超級 Agent 服務模式（3 個月真人帶隊，可轉交內部主管）→</a></p>
+    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--faint)">另有客服業務、SEO、Email 行銷等超級 Agent 編制。<a href="/agents-catalog/super" target="_blank" rel="noopener" style="color:var(--green);font-weight:600">查看超級 Agent 服務模式（3 個月真人帶隊，可轉交內部主管）→</a></p>
   </div>
 </section>
 
@@ -1502,60 +1692,98 @@
     mount.appendChild(sec);
   });
 
-  /* ══ 超級 Agent 渲染 ══ */
+  /* ══ Agent 配置體驗：點名片聘任，後台左側選單即時長出入口（純前端示意） ══ */
+  (function(){
+    var cfgBtn=document.getElementById('cfgBtn'),
+        cfgDemo=document.getElementById('cfgDemo');
+    if(!cfgBtn||!cfgDemo) return;
+    var picksEl=document.getElementById('cfgPicks'),
+        sideList=document.getElementById('cfgSideList'),
+        emptyEl=document.getElementById('cfgEmpty'),
+        countEl=document.getElementById('cfgCount'),
+        totalEl=document.getElementById('cfgTotal');
+    var picked={};
+    function shortName(a){return a.name.replace(/ ?Agent$/,'')}
+    function refresh(){
+      var ids=Object.keys(picked);
+      emptyEl.style.display=ids.length?'none':'block';
+      countEl.textContent=ids.length;
+      totalEl.textContent=fmt(ids.reduce(function(s,id){return s+TIERS[picked[id].tier].price},0));
+    }
+    ROSTER.forEach(function(a){
+      var b=document.createElement('button');
+      b.type='button';b.className='cfg-pick';
+      b.innerHTML='<span class="mini">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>'+
+        '<span style="min-width:0"><b>'+shortName(a)+'</b><small>'+a.dept+'・'+TIERS[a.tier].label+'</small></span>'+
+        '<span class="ck">✓</span>';
+      b.addEventListener('click',function(){
+        if(picked[a.id]){
+          delete picked[a.id];
+          b.classList.remove('on');
+          var el=sideList.querySelector('[data-id="'+a.id+'"]');
+          if(el) el.remove();
+        }else{
+          picked[a.id]=a;
+          b.classList.add('on');
+          var el=document.createElement('div');
+          el.className='cs-item cs-agent';
+          el.dataset.id=a.id;
+          el.innerHTML='<span class="mini">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>'+shortName(a);
+          sideList.appendChild(el);
+        }
+        refresh();
+      });
+      picksEl.appendChild(b);
+    });
+    cfgBtn.addEventListener('click',function(){
+      cfgDemo.classList.add('open');
+      cfgDemo.setAttribute('aria-hidden','false');
+      cfgBtn.parentElement.style.display='none';
+      setTimeout(function(){
+        cfgDemo.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
+      },60);
+    });
+  })();
+
+  /* ══ 超級 Agent 渲染：只特寫兩位主理人，人 + 帶隊團隊 ══ */
   var superMount=document.getElementById('superMount');
-  function mgrPhoto(s){
-    var photo=MGR_PHOTO[s.mgr];
-    if(photo && photo.indexOf('data:')===0){
-      return '<span class="mgr-photo"><img src="'+photo+'" alt="'+s.mgr+'"></span>';
-    }
-    return '<span class="mgr-photo"><span class="init">'+s.face+'</span></span>';
-  }
-  function mgrMini(s){
-    var photo=MGR_PHOTO[s.mgr];
-    if(photo && photo.indexOf('data:')===0){
-      return '<span class="mgr-face"><img src="'+photo+'" alt="'+s.mgr+'"></span>';
-    }
-    return '<span class="mgr-face">'+s.face+'</span>';
-  }
-  SUPER.forEach(function(s){
-    var n=s.team.length;
-    var nodes=s.team.map(function(t){
-      return '<div class="org-node"><span class="org-stub"></span>'+
-        '<span class="mini">'+mascotSVG(t[0],t[1],t[2])+'</span>'+
-        '<span class="org-name">'+t[3]+'</span></div>';
+  var FEATURED=['SUP-EC','SUP-TH'];
+  FEATURED.forEach(function(id){
+    var s=SUPER.find(function(x){return x.id===id});
+    if(!s) return;
+    var photo=MGR_PHOTO[s.mgr]
+      ? '<img src="'+MGR_PHOTO[s.mgr]+'" alt="'+s.mgr+'">'
+      : '<span class="init">'+s.face+'</span>';
+    var members=s.team.map(function(t){
+      return '<div class="pf-member"><span class="mini">'+mascotSVG(t[0],t[1],t[2])+'</span>'+
+        '<span class="pf-mname">'+t[3]+'</span></div>';
     }).join('');
-    var card=document.createElement('div');
-    card.className='scard';
-    card.innerHTML =
-      '<div class="s-kicker">SUPER AGENT・'+s.id+'</div>'+
-      '<h3 class="s-title">'+s.title+'</h3>'+
-      '<p class="s-desc">'+s.desc+'</p>'+
-      '<div class="s-badge">依貴公司條件客製・獨立部署於您的環境</div>'+
-      '<div class="mgr">'+
-        mgrPhoto(s)+
-        '<div style="min-width:0">'+
-          '<div class="mgr-kicker">主理人・PRINCIPAL</div>'+
-          '<div class="mgr-name">'+s.mgr+'</div>'+
-          '<div class="mgr-title">'+s.mgrTitle+'</div>'+
-        '</div>'+
+    var row=document.createElement('article');
+    row.className='pf';
+    row.innerHTML =
+      '<div class="pf-photo-col">'+
+        '<div class="pf-photo">'+photo+'</div>'+
+        '<div class="pf-plate">主理人・PRINCIPAL</div>'+
       '</div>'+
-      '<dl class="dossier">'+s.dossier.map(function(d){
-        return '<div class="drow"><dt>'+d[0]+'</dt><dd>'+d[1]+'</dd></div>';
-      }).join('')+'</dl>'+
-      '<div class="team-block">'+
-        '<div class="tb-label">團隊編制</div>'+
-        '<div class="org-chart">'+
-          '<div class="org-mgr">'+mgrMini(s)+'<span>'+(s.prep?'主理人':s.mgr)+'</span></div>'+
-          '<div class="org-stem"></div>'+
-          '<div class="org-row" style="--rail:'+(50/n).toFixed(1)+'%">'+nodes+'</div>'+
+      '<div class="pf-body">'+
+        '<div class="pf-kicker">'+s.title+'・'+s.id+'・名額制</div>'+
+        '<h3 class="pf-name">'+s.mgr+'</h3>'+
+        '<div class="pf-role">'+s.mgrTitle+'</div>'+
+        '<p class="pf-desc">'+s.desc+'</p>'+
+        '<dl class="dossier">'+s.dossier.map(function(d){
+          return '<div class="drow"><dt>'+d[0]+'</dt><dd>'+d[1]+'</dd></div>';
+        }).join('')+'</dl>'+
+        '<div class="s-badge">依貴公司條件客製・獨立部署於您的環境</div>'+
+        '<div class="pf-team">'+
+          '<div class="pf-team-label">帶隊出戰的 AI 團隊・24 小時不休息</div>'+
+          '<div class="pf-team-row">'+members+'</div>'+
         '</div>'+
-      '</div>'+
-      '<div class="scard-foot">'+
-        '<span class="s-price">NT$30,000<small>／月起・專案報價</small></span>'+
-        '<a class="btn btn-ghost btn-sm" href="#cta">洽詢名額</a>'+
+        '<div class="pf-foot">'+
+          '<span class="pf-price">NT$30,000<small>／月起・專案報價</small></span>'+
+          '<a class="btn btn-ghost btn-sm" href="#cta">洽詢名額</a>'+
+        '</div>'+
       '</div>';
-    superMount.appendChild(card);
+    superMount.appendChild(row);
   });
 
   /* ══ 場景配對 ══ */
@@ -1774,13 +2002,29 @@
   /* ══ 辦公室場景動畫（走道座標同後台 WALK_PATHS） ══ */
   var floor=document.getElementById('floorOffice');
   var agents=[
-    {tag:'客服', sp:'rabbit', prop:'🎧', color:'#EC4899', path:[[18,36],[50,36],[50,63],[18,63],[18,36]], speed:.028},
-    {tag:'訂單', sp:'rabbit', prop:'📦', color:'#F59E0B', path:[[68,36],[31,36],[31,63],[68,63],[68,36]], speed:.022},
-    {tag:'報表', sp:'owl',    prop:'📊', color:'#3B82F6', path:[[50,13],[79,13],[79,63],[50,63],[50,13]], speed:.025},
-    {tag:'社群', sp:'bird',   prop:'📣', color:'#8B5CF6', path:[[31,87],[68,87],[68,63],[31,63],[31,87]], speed:.032},
-    {tag:'輿情', sp:'cat',    prop:'📡', color:'#D946EF', path:[[10,36],[10,87],[50,87],[50,36],[10,36]], speed:.02},
-    {tag:'排程', sp:'bear',   prop:'⏰', color:'#06C755', path:[[60,13],[82,16],[88,30],[70,36],[60,13]], speed:.017}
+    {tag:'客服', name:'Nana', sp:'rabbit', prop:'🎧', color:'#EC4899', path:[[18,36],[50,36],[50,63],[18,63],[18,36]], speed:.028},
+    {tag:'訂單', name:'Ray',  sp:'rabbit', prop:'📦', color:'#F59E0B', path:[[68,36],[31,36],[31,63],[68,63],[68,36]], speed:.022},
+    {tag:'報表', name:'Ivy',  sp:'owl',    prop:'📊', color:'#3B82F6', path:[[50,13],[79,13],[79,63],[50,63],[50,13]], speed:.025},
+    {tag:'社群', name:'Suki', sp:'bird',   prop:'📣', color:'#8B5CF6', path:[[31,87],[68,87],[68,63],[31,63],[31,87]], speed:.032},
+    {tag:'輿情', name:'Nico', sp:'cat',    prop:'📡', color:'#D946EF', path:[[10,36],[10,87],[50,87],[50,36],[10,36]], speed:.02},
+    {tag:'排程', name:'Milo', sp:'bear',   prop:'⏰', color:'#06C755', path:[[60,13],[82,16],[88,30],[70,36],[60,13]], speed:.017}
   ];
+  /* 值勤名單：桌機浮在場景左上；手機改成圖下橫向膠囊列 */
+  var dutyPanel=document.createElement('div');
+  dutyPanel.className='duty-panel';
+  dutyPanel.innerHTML='<div class="duty-title"><span class="live-dot"></span>正在值勤</div>'+
+    agents.map(function(a){
+      return '<div class="duty-row"><span class="d-dot" style="background:'+a.color+'"></span>'+
+        '<span class="d-role">'+a.tag+' Agent</span><span class="d-name">'+a.name+'</span></div>';
+    }).join('');
+  floor.appendChild(dutyPanel);
+  var dutyStrip=document.getElementById('dutyStrip');
+  if(dutyStrip){
+    dutyStrip.innerHTML=agents.map(function(a){
+      return '<span class="duty-chip"><span class="d-dot" style="background:'+a.color+'"></span>'+
+        a.tag+'<small>'+a.name+'</small></span>';
+    }).join('');
+  }
   agents.forEach(function(a){
     var el=document.createElement('div');
     el.className='agent';
