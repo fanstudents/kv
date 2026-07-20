@@ -1,0 +1,402 @@
+<meta charset="utf-8">
+<title>配置你的 Agent 團隊 — TBR AI Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#ffffff;
+    --band:#fafafa;
+    --card:#ffffff;
+    --line:#e5e5e5;
+    --line-soft:#f5f5f5;
+    --text:#171717;
+    --body:#525252;
+    --muted:#737373;
+    --faint:#a3a3a3;
+    --green:#06C755;
+    --green-soft:rgba(6,199,85,.10);
+    --sans:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,Arial,sans-serif;
+    --maxw:1152px;
+    --shadow:0 1px 2px rgba(0,0,0,.05);
+    --shadow-md:0 4px 12px rgba(0,0,0,.08);
+    color-scheme:light dark;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#0a0a0a;--band:#111111;--card:#171717;
+      --line:#262626;--line-soft:#1f1f1f;
+      --text:#ffffff;--body:#d4d4d4;--muted:#a3a3a3;--faint:#737373;
+      --shadow:0 1px 2px rgba(0,0,0,.4);--shadow-md:0 4px 12px rgba(0,0,0,.5);
+    }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--sans);font-size:16px;line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--green);color:#fff}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  a{color:inherit}
+  p{margin:0}
+  h1{margin:0;font-size:clamp(24px,3.6vw,34px);line-height:1.4;font-weight:700;letter-spacing:.01em}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:12px 24px;border-radius:10px;text-decoration:none;cursor:pointer;
+    font-weight:600;font-size:15px;line-height:1.3;border:1px solid transparent;
+    transition:transform .15s ease,box-shadow .15s ease;font-family:var(--sans);
+  }
+  .btn:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+  .btn-green{background:var(--green);color:#fff}
+  .btn-green:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(6,199,85,.3)}
+  .btn-sm{padding:8px 16px;font-size:13.5px;border-radius:8px}
+
+  nav.top{
+    position:sticky;top:0;z-index:50;
+    background:color-mix(in srgb,var(--bg) 90%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  }
+  .nav-in{
+    max-width:var(--maxw);margin:0 auto;padding:12px 24px;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+  }
+  .logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .logo-mark{
+    width:34px;height:34px;border-radius:10px;background:var(--green);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;
+  }
+  .logo-name{font-size:14px;font-weight:600;color:var(--text);line-height:1.3}
+  .logo-sub{font-size:11px;color:var(--faint);line-height:1.2}
+  .back-link{font-size:13.5px;font-weight:500;color:var(--body);text-decoration:none}
+  .back-link:hover{color:var(--green)}
+
+  header.page{padding:40px 0 8px}
+  .eyebrow{
+    font-size:12px;font-weight:700;letter-spacing:.14em;
+    color:var(--faint);display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  }
+  .eyebrow::before{content:"";width:22px;height:2px;border-radius:2px;background:var(--green);flex:none}
+  .lede{color:var(--muted);max-width:36em;margin-top:12px;font-size:15.5px}
+
+  main{padding:26px 0 72px}
+
+  /* ── 模擬後台視窗 ── */
+  .cfg-window{
+    border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    background:var(--card);box-shadow:var(--shadow-md);
+  }
+  .mock-bar{display:flex;gap:5px;padding:9px 11px;border-bottom:1px solid var(--line)}
+  .mock-bar span{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .cfg-body{display:flex;min-height:460px}
+  .cfg-side{
+    width:210px;flex:none;border-right:1px solid var(--line);
+    padding:14px 12px;background:var(--band);
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .cs-brand{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text);padding:2px 6px 10px}
+  .cs-brand i{
+    width:22px;height:22px;border-radius:7px;background:var(--green);color:#fff;
+    font-style:normal;font-size:11px;font-weight:800;flex:none;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .cs-item{display:flex;align-items:center;gap:8px;border-radius:8px;padding:7px 9px;font-size:12.5px;color:var(--body);font-weight:600;line-height:1.35}
+  .cs-item.fixed{color:var(--muted)}
+  .cs-item .ci-ic{font-size:13px;width:16px;text-align:center;flex:none}
+  .cs-label{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--faint);padding:12px 6px 4px;border-top:1px solid var(--line);margin-top:8px}
+  .cs-empty{font-size:11.5px;color:var(--faint);padding:4px 9px;line-height:1.65}
+  .cs-agent{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--text);animation:csIn .35s ease both;margin-top:4px}
+  .cs-agent .mini{width:22px;height:22px;flex:none}
+  .cs-agent .mini svg{width:100%;height:100%;display:block}
+  @keyframes csIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+
+  .cfg-main{flex:1;min-width:0;padding:20px 22px;display:flex;flex-direction:column}
+  .cfg-main h2{margin:0;font-size:16px;color:var(--text);font-weight:700}
+  .cm-sub{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.65}
+  .cfg-picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:16px}
+  .cfg-pick{
+    display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;
+    background:var(--bg);padding:8px 26px 8px 10px;cursor:pointer;text-align:left;
+    font-family:var(--sans);position:relative;transition:all .15s ease;
+  }
+  .cfg-pick:hover{border-color:var(--green)}
+  .cfg-pick.on{border-color:var(--green);background:var(--green-soft)}
+  .cfg-pick .mini{width:28px;height:28px;flex:none}
+  .cfg-pick .mini svg{width:100%;height:100%;display:block}
+  .cfg-pick b{font-size:12.5px;color:var(--text);display:block;line-height:1.35}
+  .cfg-pick small{font-size:10px;color:var(--faint);display:block;line-height:1.4}
+  .cfg-pick .ck{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;
+    font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;
+  }
+  .cfg-pick.on .ck{display:flex}
+  .cfg-foot{
+    margin-top:auto;padding-top:16px;border-top:1px solid var(--line-soft);
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);
+  }
+  .cfg-foot b{color:var(--text);font-variant-numeric:tabular-nums}
+  .cfg-foot .btn{margin-left:auto}
+  .page-note{font-size:11.5px;color:var(--faint);text-align:center;margin-top:14px}
+
+  /* ── 手機版：名片牆全寬 + 底部固定聘任列（像購物車） ── */
+  .cfg-bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;
+    background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+  .cfg-bar .bar-faces{display:flex;align-items:center;flex:none}
+  .cfg-bar .bar-face{
+    width:32px;height:32px;border-radius:50%;overflow:hidden;flex:none;
+    background:var(--card);border:1.5px solid var(--line);margin-left:-9px;
+    display:flex;align-items:center;justify-content:center;
+    animation:popIn .25s ease both;
+  }
+  .cfg-bar .bar-face:first-child{margin-left:0}
+  .cfg-bar .bar-face svg{width:80%;height:80%;display:block}
+  .cfg-bar .bar-more{
+    width:32px;height:32px;border-radius:50%;flex:none;margin-left:-9px;
+    background:var(--band);border:1.5px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:10px;font-weight:800;color:var(--muted);
+  }
+  @keyframes popIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+  .cfg-bar .bar-sum{min-width:0;margin-left:12px;font-size:11.5px;color:var(--faint);line-height:1.4}
+  .cfg-bar .bar-sum b{display:block;font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cfg-bar .btn{margin-left:auto;flex:none;padding:9px 14px;font-size:13px}
+
+  @media(max-width:700px){
+    header.page{padding:28px 0 4px}
+    main{padding:20px 0 40px}
+    body{padding-bottom:76px}
+    .cfg-side{display:none}
+    .cfg-foot{display:none}
+    .cfg-bar{display:flex;align-items:center}
+    .cfg-body{min-height:0}
+    .cfg-main{padding:14px 12px}
+    .cfg-picks{grid-template-columns:1fr 1fr;gap:7px}
+    .cfg-pick{padding:7px 22px 7px 8px;gap:6px}
+    .cfg-pick .mini{width:24px;height:24px}
+    .cfg-pick b{font-size:11.5px}
+    .cfg-pick small{font-size:9px}
+    .cfg-pick .ck{right:6px;width:14px;height:14px;font-size:8px}
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+
+<nav class="top">
+  <div class="nav-in">
+    <a class="logo" href="/agent-team.html">
+      <span class="logo-mark">T</span>
+      <span>
+        <span class="logo-name">TBR AI Studio</span><br>
+        <span class="logo-sub">Agent Team</span>
+      </span>
+    </a>
+    <a class="back-link" href="/agent-team.html">← 回介紹頁</a>
+  </div>
+</nav>
+
+<header class="page">
+  <div class="wrap">
+    <div class="eyebrow">互動示意・免註冊</div>
+    <h1>親手配置你的 Agent 團隊</h1>
+    <p class="lede">點名片聘任或退訂——你聘任誰，後台就多出誰。</p>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="cfg-window">
+      <div class="mock-bar"><span></span><span></span><span></span></div>
+      <div class="cfg-body">
+        <aside class="cfg-side" aria-label="模擬後台選單">
+          <div class="cs-brand"><i>T</i>Agent 後台</div>
+          <div class="cs-item fixed"><span class="ci-ic">🏠</span>團隊總覽</div>
+          <div class="cs-item fixed"><span class="ci-ic">📋</span>任務紀錄</div>
+          <div class="cs-item fixed"><span class="ci-ic">💰</span>AI 成本</div>
+          <div class="cs-label">我的 AGENT</div>
+          <div id="cfgSideList"></div>
+          <div class="cs-empty" id="cfgEmpty">還沒有隊友——點右側名片聘任，這裡就會多出他的功能入口。</div>
+        </aside>
+        <div class="cfg-main">
+          <h2>挑選要聘任的 Agent</h2>
+          <p class="cm-sub">一位起聘，隨時退訂。點一下聘任，再點一下收回。</p>
+          <div class="cfg-picks" id="cfgPicks"></div>
+          <div class="cfg-foot">
+            <span>已聘任 <b id="cfgCount">0</b> 位・預估月費 <b id="cfgTotal">NT$0</b></span>
+            <a class="btn btn-green btn-sm" id="cfgCta" href="mailto:service@tbr.digital?subject=預約 Agent Team 部署諮詢">帶著這份配置預約諮詢 →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="page-note">＊此為前端示意，實際後台功能以部署版本為準。</p>
+  </div>
+</main>
+
+<!-- 手機版底部聘任列：聘了誰，頭像就彈進來 -->
+<div class="cfg-bar" aria-live="polite">
+  <div class="bar-faces" id="barFaces"></div>
+  <div class="bar-sum" id="barSum">點名片試聘看看<b>NT$0／月</b></div>
+  <a class="btn btn-green" id="barCta" href="mailto:service@tbr.digital?subject=預約 Agent Team 部署諮詢">預約諮詢</a>
+</div>
+
+<script>
+(function(){
+  /* ══ Agent 名冊（同介紹頁） ══ */
+  var ROSTER = [
+    {id:'CS-01', dept:'客服部', name:'LINE 客服 Agent', color:'#EC4899', tier:2},
+    {id:'CS-02', dept:'客服部', name:'網站客服 Agent', color:'#EC4899', tier:2},
+    {id:'CS-03', dept:'客服部', name:'訂單追蹤 Agent', color:'#F59E0B', tier:2},
+    {id:'CS-04', dept:'客服部', name:'售後關懷 Agent', color:'#EC4899', tier:1},
+    {id:'MK-01', dept:'行銷部', name:'文案 Agent', color:'#8B5CF6', tier:2},
+    {id:'MK-02', dept:'行銷部', name:'社群小編 Agent', color:'#8B5CF6', tier:2},
+    {id:'MK-03', dept:'行銷部', name:'廣告成效 Agent', color:'#EF4444', tier:3},
+    {id:'MK-04', dept:'行銷部', name:'SEO 內容 Agent', color:'#14B8A6', tier:2},
+    {id:'MK-05', dept:'行銷部', name:'EDM／推播 Agent', color:'#8B5CF6', tier:1},
+    {id:'OP-01', dept:'營運部', name:'會議記錄 Agent', color:'#F97316', tier:2},
+    {id:'OP-02', dept:'營運部', name:'排程提醒 Agent', color:'#06C755', tier:1},
+    {id:'OP-03', dept:'營運部', name:'知識庫 Agent', color:'#F97316', tier:2},
+    {id:'OP-04', dept:'營運部', name:'翻譯在地化 Agent', color:'#F97316', tier:1},
+    {id:'FN-01', dept:'財務部', name:'對帳 Agent', color:'#3B82F6', tier:3},
+    {id:'FN-02', dept:'財務部', name:'請款發票 Agent', color:'#3B82F6', tier:2},
+    {id:'FN-03', dept:'財務部', name:'營運報表 Agent', color:'#3B82F6', tier:3},
+    {id:'HR-01', dept:'人資部', name:'履歷篩選 Agent', color:'#0EA5E9', tier:1},
+    {id:'HR-02', dept:'人資部', name:'面試排程 Agent', color:'#0EA5E9', tier:1},
+    {id:'IN-01', dept:'情報部', name:'輿情監控 Agent', color:'#D946EF', tier:2},
+    {id:'IN-02', dept:'情報部', name:'競品追蹤 Agent', color:'#D946EF', tier:2}
+  ];
+  var TIERS = {
+    1:{label:'通用型',price:1500},
+    2:{label:'專業型',price:2800},
+    3:{label:'專業型・重度',price:5800}
+  };
+  var SPECIES = {'客服部':'rabbit','行銷部':'bird','營運部':'bear','財務部':'owl','人資部':'dog','情報部':'cat'};
+  var PROPS = {
+    'CS-01':'🎧','CS-02':'💬','CS-03':'📦','CS-04':'💝',
+    'MK-01':'✍️','MK-02':'📣','MK-03':'📈','MK-04':'🔍','MK-05':'📨',
+    'OP-01':'📝','OP-02':'⏰','OP-03':'📚','OP-04':'🌐',
+    'FN-01':'🧾','FN-02':'💳','FN-03':'📊',
+    'HR-01':'🗂️','HR-02':'🤝',
+    'IN-01':'📡','IN-02':'🔭'
+  };
+  var INK='#402E32';
+  function mascotSVG(species,color,prop){
+    var back='',front='';
+    if(species==='rabbit'){
+      back='<ellipse cx="25" cy="15" rx="5.2" ry="11.5" fill="'+color+'" transform="rotate(-9 25 15)"/>'+
+           '<ellipse cx="39" cy="15" rx="5.2" ry="11.5" fill="'+color+'" transform="rotate(9 39 15)"/>'+
+           '<ellipse cx="25" cy="16.5" rx="2.4" ry="7" fill="rgba(255,255,255,.4)" transform="rotate(-9 25 16.5)"/>'+
+           '<ellipse cx="39" cy="16.5" rx="2.4" ry="7" fill="rgba(255,255,255,.4)" transform="rotate(9 39 16.5)"/>';
+    }else if(species==='bird'){
+      back='<circle cx="26.5" cy="17" r="2.6" fill="'+color+'"/><circle cx="32" cy="14.5" r="3" fill="'+color+'"/><circle cx="37.5" cy="17" r="2.6" fill="'+color+'"/>';
+    }else if(species==='bear'){
+      back='<circle cx="19" cy="23" r="6.8" fill="'+color+'"/><circle cx="45" cy="23" r="6.8" fill="'+color+'"/>'+
+           '<circle cx="19" cy="23" r="3.1" fill="rgba(255,255,255,.35)"/><circle cx="45" cy="23" r="3.1" fill="rgba(255,255,255,.35)"/>';
+    }else if(species==='owl'){
+      back='<polygon points="17,25 21,12 27,22" fill="'+color+'"/><polygon points="47,25 43,12 37,22" fill="'+color+'"/>';
+    }else if(species==='dog'){
+      back='<ellipse cx="17" cy="27" rx="4.6" ry="9.5" fill="'+color+'" transform="rotate(24 17 27)"/>'+
+           '<ellipse cx="47" cy="27" rx="4.6" ry="9.5" fill="'+color+'" transform="rotate(-24 47 27)"/>'+
+           '<ellipse cx="17" cy="27" rx="4.6" ry="9.5" fill="rgba(0,0,0,.18)" transform="rotate(24 17 27)"/>'+
+           '<ellipse cx="47" cy="27" rx="4.6" ry="9.5" fill="rgba(0,0,0,.18)" transform="rotate(-24 47 27)"/>';
+    }else if(species==='cat'){
+      back='<polygon points="17,27 20,12 29,20" fill="'+color+'"/><polygon points="47,27 44,12 35,20" fill="'+color+'"/>'+
+           '<polygon points="19.5,24 21,15.5 26.5,20.5" fill="rgba(255,255,255,.4)"/><polygon points="44.5,24 43,15.5 37.5,20.5" fill="rgba(255,255,255,.4)"/>';
+    }
+    var face='<circle cx="32" cy="38" r="19" fill="'+color+'"/>'+
+      '<ellipse cx="21.5" cy="43.5" rx="3" ry="1.9" fill="rgba(255,255,255,.4)"/>'+
+      '<ellipse cx="42.5" cy="43.5" rx="3" ry="1.9" fill="rgba(255,255,255,.4)"/>';
+    if(species==='owl'){
+      face+='<circle cx="25" cy="37" r="5.2" fill="rgba(255,255,255,.88)"/><circle cx="39" cy="37" r="5.2" fill="rgba(255,255,255,.88)"/>';
+    }
+    face+='<circle cx="25" cy="37" r="2.6" fill="'+INK+'"/><circle cx="39" cy="37" r="2.6" fill="'+INK+'"/>'+
+      '<circle cx="25.9" cy="36.1" r=".85" fill="#fff"/><circle cx="39.9" cy="36.1" r=".85" fill="#fff"/>';
+    if(species==='bird'||species==='owl'){
+      face+='<polygon points="29,42 35,42 32,46.5" fill="#F6A623"/>';
+    }else{
+      face+='<path d="M29 42.5 q3 2.8 6 0" stroke="'+INK+'" stroke-width="1.6" fill="none" stroke-linecap="round"/>';
+    }
+    if(species==='cat'){
+      front='<g stroke="rgba(64,46,50,.5)" stroke-width="1.1" stroke-linecap="round">'+
+        '<line x1="9" y1="37" x2="16" y2="38"/><line x1="9.5" y1="42" x2="16.5" y2="41.5"/>'+
+        '<line x1="55" y1="37" x2="48" y2="38"/><line x1="54.5" y1="42" x2="47.5" y2="41.5"/></g>';
+    }
+    var bubble='<circle cx="49" cy="51" r="8.8" fill="#fff" stroke="#e5e5e5"/>'+
+      '<text x="49" y="54.6" font-size="9.5" text-anchor="middle">'+(prop||'⭐')+'</text>';
+    return '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+back+face+front+bubble+'</svg>';
+  }
+
+  /* ══ 配置互動 ══ */
+  var picksEl=document.getElementById('cfgPicks'),
+      sideList=document.getElementById('cfgSideList'),
+      emptyEl=document.getElementById('cfgEmpty'),
+      countEl=document.getElementById('cfgCount'),
+      totalEl=document.getElementById('cfgTotal'),
+      barFaces=document.getElementById('barFaces'),
+      barSum=document.getElementById('barSum'),
+      cfgCta=document.getElementById('cfgCta'),
+      barCta=document.getElementById('barCta');
+  var picked={}, order=[];
+  var MAX_FACES=5;
+  function shortName(a){return a.name.replace(/[ ／]?Agent$/,'').replace(/ $/,'')}
+  function fmt(n){return 'NT$'+n.toLocaleString('en-US')}
+  function total(){return order.reduce(function(s,id){return s+TIERS[picked[id].tier].price},0)}
+  function mailHref(){
+    var subject='預約 Agent Team 部署諮詢';
+    var body='';
+    if(order.length){
+      body='我想聘任：'+order.map(function(id){return shortName(picked[id])}).join('、')+
+        '（共 '+order.length+' 位，預估月費 '+fmt(total())+'）';
+    }
+    return 'mailto:service@tbr.digital?subject='+encodeURIComponent(subject)+
+      (body?'&body='+encodeURIComponent(body):'');
+  }
+  function refresh(){
+    var n=order.length,t=total();
+    emptyEl.style.display=n?'none':'block';
+    countEl.textContent=n;
+    totalEl.textContent=fmt(t);
+    /* 手機底部聘任列 */
+    barFaces.innerHTML=order.slice(0,MAX_FACES).map(function(id){
+      var a=picked[id];
+      return '<span class="bar-face">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>';
+    }).join('')+(n>MAX_FACES?'<span class="bar-more">+'+(n-MAX_FACES)+'</span>':'');
+    barSum.innerHTML=n
+      ? '已聘任 '+n+' 位<b>'+fmt(t)+'／月</b>'
+      : '點名片試聘看看<b>NT$0／月</b>';
+    var href=mailHref();
+    cfgCta.href=href;barCta.href=href;
+  }
+  ROSTER.forEach(function(a){
+    var b=document.createElement('button');
+    b.type='button';b.className='cfg-pick';
+    b.innerHTML='<span class="mini">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>'+
+      '<span style="min-width:0"><b>'+shortName(a)+'</b><small>'+a.dept+'・'+TIERS[a.tier].label+'</small></span>'+
+      '<span class="ck">✓</span>';
+    b.addEventListener('click',function(){
+      if(picked[a.id]){
+        delete picked[a.id];
+        order=order.filter(function(id){return id!==a.id});
+        b.classList.remove('on');
+        var el=sideList.querySelector('[data-id="'+a.id+'"]');
+        if(el) el.remove();
+      }else{
+        picked[a.id]=a;order.push(a.id);
+        b.classList.add('on');
+        var el=document.createElement('div');
+        el.className='cs-item cs-agent';
+        el.dataset.id=a.id;
+        el.innerHTML='<span class="mini">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>'+shortName(a);
+        sideList.appendChild(el);
+      }
+      refresh();
+    });
+    picksEl.appendChild(b);
+  });
+  refresh();
+})();
+</script>

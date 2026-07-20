@@ -494,75 +494,6 @@
   @keyframes cfgPulse{0%,100%{box-shadow:0 0 0 0 rgba(6,199,85,.45)}50%{box-shadow:0 0 0 14px rgba(6,199,85,0)}}
   @keyframes cfgShine{0%{left:-60%}55%,100%{left:120%}}
   .cfg-cta-note{font-size:12.5px;color:var(--faint);margin-top:12px}
-  .cfg-demo{display:none;margin-top:24px;scroll-margin-top:76px}
-  .cfg-demo.open{display:block;animation:fadeUp .45s ease both}
-  .cfg-window{
-    border:1px solid var(--line);border-radius:16px;overflow:hidden;
-    background:var(--card);box-shadow:var(--shadow-md);
-  }
-  .cfg-body{display:flex;min-height:400px}
-  .cfg-side{
-    width:200px;flex:none;border-right:1px solid var(--line);
-    padding:14px 12px;background:var(--band);
-    display:flex;flex-direction:column;gap:4px;
-  }
-  .cs-brand{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text);padding:2px 6px 10px}
-  .cs-brand i{
-    width:22px;height:22px;border-radius:7px;background:var(--green);color:#fff;
-    font-style:normal;font-size:11px;font-weight:800;flex:none;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .cs-item{display:flex;align-items:center;gap:8px;border-radius:8px;padding:7px 9px;font-size:12.5px;color:var(--body);font-weight:600;line-height:1.35}
-  .cs-item.fixed{color:var(--muted)}
-  .cs-item .ci-ic{font-size:13px;width:16px;text-align:center;flex:none}
-  .cs-label{font-size:10px;font-weight:800;letter-spacing:.14em;color:var(--faint);padding:12px 6px 4px;border-top:1px solid var(--line);margin-top:8px}
-  .cs-empty{font-size:11.5px;color:var(--faint);padding:4px 9px;line-height:1.65}
-  .cs-agent{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--text);animation:csIn .35s ease both;margin-top:4px}
-  .cs-agent .mini{width:22px;height:22px;flex:none}
-  .cs-agent .mini svg{width:100%;height:100%;display:block}
-  @keyframes csIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
-  .cfg-main{flex:1;min-width:0;padding:18px 20px;display:flex;flex-direction:column}
-  .cfg-main h4{margin:0;font-size:15.5px;color:var(--text)}
-  .cm-sub{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.65}
-  .cfg-picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;margin-top:14px}
-  .cfg-pick{
-    display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;
-    background:var(--bg);padding:8px 26px 8px 10px;cursor:pointer;text-align:left;
-    font-family:var(--sans);position:relative;transition:all .15s ease;
-  }
-  .cfg-pick:hover{border-color:var(--green)}
-  .cfg-pick.on{border-color:var(--green);background:var(--green-soft)}
-  .cfg-pick .mini{width:26px;height:26px;flex:none}
-  .cfg-pick .mini svg{width:100%;height:100%;display:block}
-  .cfg-pick b{font-size:12px;color:var(--text);display:block;line-height:1.35}
-  .cfg-pick small{font-size:10px;color:var(--faint);display:block;line-height:1.4}
-  .cfg-pick .ck{
-    position:absolute;right:8px;top:50%;transform:translateY(-50%);
-    width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;
-    font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;
-  }
-  .cfg-pick.on .ck{display:flex}
-  .cfg-foot{
-    margin-top:auto;padding-top:14px;border-top:1px solid var(--line-soft);
-    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);
-  }
-  .cfg-foot b{color:var(--text);font-variant-numeric:tabular-nums}
-  .cfg-demo-note{font-size:11.5px;color:var(--faint);text-align:center;margin-top:10px}
-  @media(max-width:700px){
-    .cfg-side{width:118px;padding:10px 7px}
-    .cs-item{font-size:10.5px;padding:6px 6px;gap:5px}
-    .cs-brand{font-size:10.5px;gap:6px}
-    .cs-empty{font-size:10px;padding:4px 6px}
-    .cs-agent .mini{width:18px;height:18px}
-    .cfg-main{padding:12px 10px}
-    .cm-sub{font-size:11.5px}
-    .cfg-picks{grid-template-columns:1fr;gap:6px}
-    .cfg-pick{padding:7px 24px 7px 8px}
-    .cfg-pick b{font-size:11.5px}
-    .cfg-pick small{font-size:9.5px}
-    .cfg-foot{font-size:12px}
-    .cfg-foot .btn{margin-left:0!important;width:100%}
-  }
 
   /* ── 超級 Agent：主理人檔案（dossier 編輯風） ── */
   .serif-h{font-family:var(--serif);letter-spacing:.04em;font-weight:700}
@@ -1124,35 +1055,8 @@
     </div>
 
     <div class="cfg-cta-wrap">
-      <button type="button" id="cfgBtn" class="btn btn-green btn-config">🎛️ 進入後台，親手配置你的 Agent 團隊 →</button>
-      <p class="cfg-cta-note">免註冊——點一下就能體驗：你聘任誰，後台選單就多出誰。</p>
-    </div>
-
-    <div class="cfg-demo" id="cfgDemo" aria-hidden="true">
-      <div class="cfg-window">
-        <div class="mock-bar"><span></span><span></span><span></span></div>
-        <div class="cfg-body">
-          <aside class="cfg-side" aria-label="模擬後台選單">
-            <div class="cs-brand"><i>T</i>Agent 後台</div>
-            <div class="cs-item fixed"><span class="ci-ic">🏠</span>團隊總覽</div>
-            <div class="cs-item fixed"><span class="ci-ic">📋</span>任務紀錄</div>
-            <div class="cs-item fixed"><span class="ci-ic">💰</span>AI 成本</div>
-            <div class="cs-label">我的 AGENT</div>
-            <div id="cfgSideList"></div>
-            <div class="cs-empty" id="cfgEmpty">還沒有隊友——點右側名片聘任，這裡就會多出他的功能入口。</div>
-          </aside>
-          <div class="cfg-main">
-            <h4>挑選要聘任的 Agent</h4>
-            <p class="cm-sub">點名片即可聘任／退訂，左側選單會即時多出（或收起）該 Agent 的入口——實際後台就是這種感覺。</p>
-            <div class="cfg-picks" id="cfgPicks"></div>
-            <div class="cfg-foot">
-              <span>已聘任 <b id="cfgCount">0</b> 位・預估月費 <b id="cfgTotal">NT$0</b></span>
-              <a class="btn btn-green btn-sm" href="#cta" style="margin-left:auto">帶著這份配置預約諮詢 →</a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <p class="cfg-demo-note">＊此為前端示意，實際後台功能以部署版本為準。</p>
+      <a id="cfgBtn" class="btn btn-green btn-config" href="/agent-config.html">🎛️ 進入後台，親手配置你的 Agent 團隊 →</a>
+      <p class="cfg-cta-note">免註冊——你聘任誰，後台就多出誰。</p>
     </div>
 
     <p style="text-align:center;margin-top:28px">
@@ -1715,59 +1619,6 @@
     sec.appendChild(grid);
     mount.appendChild(sec);
   });
-
-  /* ══ Agent 配置體驗：點名片聘任，後台左側選單即時長出入口（純前端示意） ══ */
-  (function(){
-    var cfgBtn=document.getElementById('cfgBtn'),
-        cfgDemo=document.getElementById('cfgDemo');
-    if(!cfgBtn||!cfgDemo) return;
-    var picksEl=document.getElementById('cfgPicks'),
-        sideList=document.getElementById('cfgSideList'),
-        emptyEl=document.getElementById('cfgEmpty'),
-        countEl=document.getElementById('cfgCount'),
-        totalEl=document.getElementById('cfgTotal');
-    var picked={};
-    function shortName(a){return a.name.replace(/ ?Agent$/,'')}
-    function refresh(){
-      var ids=Object.keys(picked);
-      emptyEl.style.display=ids.length?'none':'block';
-      countEl.textContent=ids.length;
-      totalEl.textContent=fmt(ids.reduce(function(s,id){return s+TIERS[picked[id].tier].price},0));
-    }
-    ROSTER.forEach(function(a){
-      var b=document.createElement('button');
-      b.type='button';b.className='cfg-pick';
-      b.innerHTML='<span class="mini">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>'+
-        '<span style="min-width:0"><b>'+shortName(a)+'</b><small>'+a.dept+'・'+TIERS[a.tier].label+'</small></span>'+
-        '<span class="ck">✓</span>';
-      b.addEventListener('click',function(){
-        if(picked[a.id]){
-          delete picked[a.id];
-          b.classList.remove('on');
-          var el=sideList.querySelector('[data-id="'+a.id+'"]');
-          if(el) el.remove();
-        }else{
-          picked[a.id]=a;
-          b.classList.add('on');
-          var el=document.createElement('div');
-          el.className='cs-item cs-agent';
-          el.dataset.id=a.id;
-          el.innerHTML='<span class="mini">'+mascotSVG(SPECIES[a.dept],a.color,PROPS[a.id])+'</span>'+shortName(a);
-          sideList.appendChild(el);
-        }
-        refresh();
-      });
-      picksEl.appendChild(b);
-    });
-    cfgBtn.addEventListener('click',function(){
-      cfgDemo.classList.add('open');
-      cfgDemo.setAttribute('aria-hidden','false');
-      cfgBtn.parentElement.style.display='none';
-      setTimeout(function(){
-        cfgDemo.scrollIntoView({behavior:reduced?'auto':'smooth',block:'start'});
-      },60);
-    });
-  })();
 
   /* ══ 超級 Agent 渲染：只特寫兩位主理人，人 + 帶隊團隊 ══ */
   var superMount=document.getElementById('superMount');
