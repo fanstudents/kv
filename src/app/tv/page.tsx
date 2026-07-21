@@ -1,18 +1,30 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Maximize2,
   Minimize2,
   Pause,
   Play,
+  X,
+  XCircle,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
-import { AGENTS } from "@/lib/agent-data";
-import type { AgentSlug } from "@/lib/types";
+import { ACTIVITY_LOGS, AGENTS } from "@/lib/agent-data";
+import type { AgentActivity, AgentSlug } from "@/lib/types";
+
+type Agent = (typeof AGENTS)[number];
+
+const LOG_ICON: Record<AgentActivity["status"], React.ReactNode> = {
+  success: <CheckCircle2 size={15} className="text-[#06C755]" />,
+  failed: <XCircle size={15} className="text-red-400" />,
+  pending: <Clock size={15} className="text-amber-400" />,
+};
 
 interface ActivityRow {
   agent_slug: string | null;
@@ -70,20 +82,24 @@ export default function TvModePage() {
   const [autoplay, setAutoplay] = useState(true);
   const [spot, setSpot] = useState(0);
   const [isFull, setIsFull] = useState(false);
+  const [openAgent, setOpenAgent] = useState<AgentSlug | null>(null);
 
   const activeAgents = useMemo(() => AGENTS.filter((a) => a.status === "active"), []);
   const activeCount = activeAgents.length;
   const recipients = useMemo(() => AGENTS.reduce((sum, a) => sum + a.recipients, 0), []);
 
-  // 自動輪播場景（可暫停）；手動切換也會重置計時
+  const openDetail = useCallback((slug: AgentSlug) => setOpenAgent(slug), []);
+  const closeDetail = useCallback(() => setOpenAgent(null), []);
+
+  // 自動輪播場景（可暫停；展開細節時也暫停）
   useEffect(() => {
-    if (!autoplay) return;
+    if (!autoplay || openAgent) return;
     const t = setInterval(() => {
       setDir(1);
       setScene((i) => (i + 1) % N);
     }, AUTOPLAY_MS);
     return () => clearInterval(t);
-  }, [autoplay, scene]);
+  }, [autoplay, scene, openAgent]);
 
   // 聚光場景：每 5 秒輪流放大一位值勤 Agent
   useEffect(() => {
@@ -99,9 +115,13 @@ export default function TvModePage() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  // 鍵盤操作：← → 切換場景、空白鍵切換自動輪播
+  // 鍵盤操作：展開細節時 Esc 關閉；否則 ← → 切換場景、空白鍵切換自動輪播
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (openAgent) {
+        if (e.key === "Escape") setOpenAgent(null);
+        return;
+      }
       if (e.key === "ArrowRight") {
         setDir(1);
         setScene((i) => (i + 1) % N);
@@ -115,7 +135,7 @@ export default function TvModePage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [openAgent]);
 
   const go = (delta: number) => {
     setDir(delta > 0 ? 1 : -1);
@@ -179,16 +199,22 @@ export default function TvModePage() {
           {scene === 1 && (
             <SceneOverview activeCount={activeCount} total={AGENTS.length} recipients={recipients} />
           )}
-          {scene === 2 && <SceneTeam agents={activeAgents} />}
+          {scene === 2 && <SceneTeam agents={activeAgents} onOpen={openDetail} />}
           {scene === 3 && activeCount > 0 && (
             <SceneSpotlight
               agent={activeAgents[spot % activeCount]}
               index={spot % activeCount}
               total={activeCount}
+              onOpen={openDetail}
             />
           )}
         </div>
       </div>
+
+      {/* 點擊 Agent → 劇院式細節（正在做什麼、做過什麼） */}
+      {openAgent && (
+        <AgentDetail agent={AGENTS.find((a) => a.slug === openAgent) as Agent} onClose={closeDetail} />
+      )}
 
       {/* 底部頻道切換 */}
       <div className="absolute bottom-7 left-1/2 z-20 flex -translate-x-1/2 items-center gap-5">
@@ -330,18 +356,27 @@ function BigStat({
   );
 }
 
-/* ── 場景三：值勤團隊（寬鬆的頭像牆） ── */
-const SceneTeam = memo(function SceneTeam({ agents }: { agents: typeof AGENTS }) {
+/* ── 場景三：值勤團隊（寬鬆的頭像牆，可點擊展開） ── */
+const SceneTeam = memo(function SceneTeam({
+  agents,
+  onOpen,
+}: {
+  agents: typeof AGENTS;
+  onOpen: (slug: AgentSlug) => void;
+}) {
   return (
     <div>
-      <p className="mb-12 text-center text-xs tracking-[0.35em] text-white/40">
+      <p className="text-center text-xs tracking-[0.35em] text-white/40">
         值 勤 中 的 隊 友 · {agents.length}
       </p>
+      <p className="mb-11 mt-2 text-center text-[11px] text-white/25">點任一位，看看他正在做什麼、做過什麼</p>
       <div className="mx-auto grid max-w-[1160px] grid-cols-3 gap-x-6 gap-y-12 sm:grid-cols-5">
         {agents.map((agent, i) => (
-          <div
+          <button
             key={agent.slug}
-            className="tv-in flex flex-col items-center gap-3 text-center"
+            type="button"
+            onClick={() => onOpen(agent.slug)}
+            className="tv-in flex flex-col items-center gap-3 text-center transition-transform duration-300 hover:-translate-y-1 focus:outline-none"
             style={{ animationDelay: `${i * 50}ms` }}
           >
             <div className="relative">
@@ -355,26 +390,33 @@ const SceneTeam = memo(function SceneTeam({ agents }: { agents: typeof AGENTS })
               <p className="text-base font-medium leading-tight">{agent.personEn}</p>
               <p className="mt-0.5 text-xs text-white/40">{agent.shortName}</p>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>
   );
 });
 
-/* ── 場景四:現正聚光（單一 Agent 放大） ── */
+/* ── 場景四:現正聚光（單一 Agent 放大，可點擊展開） ── */
 const SceneSpotlight = memo(function SceneSpotlight({
   agent,
   index,
   total,
+  onOpen,
 }: {
   agent: (typeof AGENTS)[number];
   index: number;
   total: number;
+  onOpen: (slug: AgentSlug) => void;
 }) {
   return (
     <div key={agent.slug} className="tv-pop flex flex-col items-center text-center">
-      <div className="relative">
+      <button
+        type="button"
+        onClick={() => onOpen(agent.slug)}
+        className="relative transition-transform duration-300 hover:scale-105 focus:outline-none"
+        title="點擊查看近期紀錄"
+      >
         <span
           className="absolute -inset-4 rounded-full blur-2xl"
           style={{ background: `radial-gradient(circle, ${agent.color}55, transparent 70%)` }}
@@ -386,7 +428,7 @@ const SceneSpotlight = memo(function SceneSpotlight({
             style={{ boxShadow: "0 0 14px 3px rgba(6,199,85,0.7)" }}
           />
         </div>
-      </div>
+      </button>
 
       <p className="mt-9 text-4xl font-light sm:text-5xl">
         {agent.personEn}
@@ -401,9 +443,102 @@ const SceneSpotlight = memo(function SceneSpotlight({
         {DOING[agent.slug]}
       </p>
 
-      <p className="mt-6 font-mono text-xs tracking-widest text-white/30">
+      <button
+        type="button"
+        onClick={() => onOpen(agent.slug)}
+        className="mt-7 rounded-full border border-white/12 bg-white/5 px-4 py-1.5 text-xs text-white/55 backdrop-blur transition-colors hover:bg-white/10 hover:text-white"
+      >
+        查看近期紀錄
+      </button>
+
+      <p className="mt-5 font-mono text-xs tracking-widest text-white/30">
         {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
       </p>
     </div>
   );
 });
+
+/* ── 劇院式細節：一位 Agent 正在做什麼、做過什麼 ── */
+function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) {
+  const logs = ACTIVITY_LOGS[agent.slug] ?? [];
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6">
+      <button
+        type="button"
+        aria-label="關閉"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-md"
+      />
+      <div className="tv-pop relative z-10 max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0d12]/95 p-7 shadow-2xl sm:p-10">
+        <button
+          type="button"
+          onClick={onClose}
+          title="關閉"
+          className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="flex flex-col gap-8 sm:flex-row sm:gap-10">
+          {/* 身分 */}
+          <div className="flex shrink-0 flex-col items-center text-center sm:w-56">
+            <div className="relative">
+              <span
+                className="absolute -inset-3 rounded-full blur-2xl"
+                style={{ background: `radial-gradient(circle, ${agent.color}55, transparent 70%)` }}
+              />
+              <div className="relative">
+                <Avatar personEn={agent.personEn} color={agent.color} size={124} />
+                <span
+                  className="tv-breathe absolute bottom-1.5 right-1.5 h-5 w-5 rounded-full border-4 border-[#0b0d12] bg-[#06C755]"
+                  style={{ boxShadow: "0 0 12px 2px rgba(6,199,85,0.7)" }}
+                />
+              </div>
+            </div>
+            <p className="mt-5 text-2xl font-light text-white">
+              {agent.personEn}
+              <span className="ml-1.5 text-white/40">{agent.personZh}</span>
+            </p>
+            <p className="mt-1 text-sm" style={{ color: agent.color }}>
+              {agent.role}
+            </p>
+            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#06C755]/15 px-3 py-1 text-xs font-medium text-[#06C755]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+              值勤中
+            </span>
+          </div>
+
+          {/* 正在做什麼 + 做過什麼 */}
+          <div className="min-w-0 flex-1">
+            <div className="rounded-2xl border border-[#06C755]/25 bg-[#06C755]/[0.06] p-4">
+              <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] text-[#06C755]">
+                <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+                正在做什麼
+              </p>
+              <p className="mt-2 text-base text-white/90">{DOING[agent.slug]}</p>
+            </div>
+
+            <p className="mb-1 mt-7 text-[11px] font-semibold tracking-[0.2em] text-white/40">
+              做過什麼 · 近期紀錄
+            </p>
+            {logs.length === 0 ? (
+              <p className="mt-3 text-sm text-white/40">尚無執行紀錄。</p>
+            ) : (
+              <ul className="mt-4 space-y-4">
+                {logs.map((item: AgentActivity) => (
+                  <li key={item.id} className="flex gap-3">
+                    <span className="mt-0.5 shrink-0">{LOG_ICON[item.status]}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm leading-snug text-white/85">{item.summary}</p>
+                      <p className="mt-0.5 font-mono text-xs text-white/35">{item.timestamp}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
