@@ -365,3 +365,78 @@ export async function replyAsAgent(params: {
 
   return (data.choices?.[0]?.message?.content ?? "").trim();
 }
+
+/**
+ * 會議室語音轉文字：用 OpenAI 的語音辨識模型（比瀏覽器內建的 Web Speech API
+ * 準確得多，尤其是中文口語、專有名詞）。promptHint 可帶入會議情境／同事姓名，
+ * 幫模型偏向辨識這些詞彙，降低誤判。gpt-4o-transcribe 失敗時退回 whisper-1，
+ * 確保正式 demo 時不會因單一模型問題而整段語音辨識失敗。
+ */
+export async function transcribeAudio(params: { file: Blob; promptHint?: string }): Promise<string> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+
+  async function callModel(model: string): Promise<string> {
+    const form = new FormData();
+    form.append("file", params.file, "utterance.webm");
+    form.append("model", model);
+    form.append("language", "zh");
+    if (params.promptHint) form.append("prompt", params.promptHint);
+
+    const res = await fetch(`${OPENAI_API_BASE}/audio/transcriptions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`OpenAI transcription failed (${res.status}): ${text}`);
+    }
+    const data = await res.json();
+    return (typeof data.text === "string" ? data.text : "").trim();
+  }
+
+  try {
+    return await callModel("gpt-4o-transcribe");
+  } catch {
+    return await callModel("whisper-1");
+  }
+}
+
+/**
+ * 會議室 Agent 語音回覆：用 OpenAI TTS 朗讀，比瀏覽器內建 speechSynthesis
+ * 自然得多。gpt-4o-mini-tts 失敗時退回 tts-1。回傳 mp3 的原始位元組。
+ */
+export async function synthesizeSpeech(params: {
+  text: string;
+  voice: string;
+  instructions?: string;
+}): Promise<ArrayBuffer> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+
+  async function callModel(model: string): Promise<ArrayBuffer> {
+    const res = await fetch(`${OPENAI_API_BASE}/audio/speech`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        voice: params.voice,
+        input: params.text,
+        response_format: "mp3",
+        ...(model === "gpt-4o-mini-tts" && params.instructions ? { instructions: params.instructions } : {}),
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`OpenAI speech synthesis failed (${res.status}): ${text}`);
+    }
+    return res.arrayBuffer();
+  }
+
+  try {
+    return await callModel("gpt-4o-mini-tts");
+  } catch {
+    return await callModel("tts-1");
+  }
+}
