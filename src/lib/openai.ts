@@ -324,3 +324,44 @@ export async function runMeetingRound(params: {
     teamlead: (parsed.teamlead ?? "").trim() || "我先幫大家對齊重點，稍後彙整成待辦回報給您。",
   };
 }
+
+/**
+ * 一對一輪流模式：老闆在會議中單獨對「一位」Agent 說話，該 Agent 用第一人稱口語回覆。
+ * 若對象是 Team Lead，會請他順帶統整團隊分工。回傳純文字（供畫面顯示與語音朗讀）。
+ */
+export async function replyAsAgent(params: {
+  agent: MeetingAgentInput;
+  command: string;
+  history?: string;
+  isTeamLead?: boolean;
+}): Promise<string> {
+  const { agent } = params;
+  const data = await chatCompletion(
+    {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            `你是 ${agent.name}，職務是「${agent.role}」。你的職掌：${agent.description}。\n` +
+            "老闆正在視訊會議上單獨對你說話。請用第一人稱、口語、專業又有個性的方式簡短回覆（2～4 句）：" +
+            "說明你會怎麼承接這件事、負責哪一塊、下一步做什麼、預計何時回報。" +
+            (params.isTeamLead
+              ? "你是 Team Lead 大總管，請同時幫忙統整團隊目前的分工與下一步。"
+              : "") +
+            "全部用繁體中文，語氣自然像真人開會，不要條列、不要罐頭客套開場白。只回覆你要說的話本身。",
+        },
+        {
+          role: "user",
+          content:
+            (params.history ? `會議脈絡：\n${params.history}\n\n` : "") +
+            `老闆對你說（語音轉文字，可能有口語或辨識誤差，請合理理解）：\n「${params.command}」`,
+        },
+      ],
+      temperature: 0.7,
+    },
+    { operation: "會議一對一回應", agentSlug: agent.slug }
+  );
+
+  return (data.choices?.[0]?.message?.content ?? "").trim();
+}

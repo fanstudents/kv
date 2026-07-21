@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runMeetingRound, type MeetingAgentInput } from "@/lib/openai";
+import { runMeetingRound, replyAsAgent, type MeetingAgentInput } from "@/lib/openai";
 import { appendTurns, getRecentHistory } from "@/lib/meeting-store";
 import { AGENTS } from "@/lib/agent-data";
 
@@ -15,10 +15,12 @@ function toInput(a: (typeof AGENTS)[number]): MeetingAgentInput {
 }
 
 // 老闆下了一句語音指令 → 相關 Agent 各自回覆、Team Lead 統整，並寫進會議紀錄。
+// 帶 targetSlug 時＝一對一輪流模式：只讓「目前這位」Agent 回覆（並語音朗讀）。
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const meetingId = typeof body.meetingId === "string" ? body.meetingId : "";
   const command = typeof body.command === "string" ? body.command.trim() : "";
+  const targetSlug = typeof body.targetSlug === "string" ? body.targetSlug : "";
   if (!meetingId || !command) {
     return NextResponse.json({ error: "缺少 meetingId 或 command" }, { status: 400 });
   }
@@ -32,6 +34,40 @@ export async function POST(req: NextRequest) {
     history = await getRecentHistory(meetingId);
   } catch {
     // 脈絡取不到不影響回應
+  }
+
+  // ── 一對一輪流：只讓目前這位 Agent 回覆 ──
+  if (targetSlug) {
+    const target = AGENTS.find((a) => a.slug === targetSlug && a.status === "active");
+    if (!target) return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });
+    let text: string;
+    try {
+      text = await replyAsAgent({
+        agent: toInput(target),
+        command,
+        history,
+        isTeamLead: target.slug === TEAM_LEAD_SLUG,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "會議回應失敗";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+    const name = `${target.personEn} ${target.personZh}`;
+    if (!text) text = "收到，我馬上處理，稍後回報進度給您。";
+    try {
+      await appendTurns(meetingId, [
+        { role: "boss", speaker: "老闆", content: command },
+        {
+          role: target.slug === TEAM_LEAD_SLUG ? "teamlead" : "agent",
+          agentSlug: target.slug,
+          speaker: name,
+          content: text,
+        },
+      ]);
+    } catch {
+      // 紀錄寫入失敗不影響當下演出
+    }
+    return NextResponse.json({ reply: { slug: target.slug, name, text } });
   }
 
   let result: Awaited<ReturnType<typeof runMeetingRound>>;
