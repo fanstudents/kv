@@ -5,8 +5,8 @@ import { synthesizeSpeech } from "@/lib/openai";
 // 聽起來自然許多，且每位 Agent 可配到不同、聽起來像真人的嗓音）。
 // 預設語音風格：明快俐落的會議節奏（gpt-4o-mini-tts 靠 instructions 控制語速與語氣）
 const DEFAULT_INSTRUCTIONS =
-  "用明快、俐落、稍快的語速說話，像幹練的專業同事在會議上簡潔回報，語氣自然有精神，帶台灣口音的繁體中文。";
-const DEFAULT_SPEED = 1.15;
+  "語速明顯偏快（比正常快三成）、不拖尾音、句與句之間不停頓太久。像幹練的專業同事在會議上簡潔回報，語氣自然有精神，說台灣腔繁體中文。";
+const DEFAULT_SPEED = 1.2;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));

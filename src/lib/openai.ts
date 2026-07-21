@@ -405,6 +405,16 @@ export async function transcribeAudio(params: { file: Blob; promptHint?: string 
   }
 }
 
+// coral / sage / ash / ballad / verse 只有 gpt-4o-mini-tts 支援；
+// 退回 tts-1 時對應到性別相同的傳統嗓音，避免退路直接 400 導致整個啞掉。
+const TTS1_VOICE_FALLBACK: Record<string, string> = {
+  coral: "nova",
+  sage: "shimmer",
+  ash: "onyx",
+  ballad: "echo",
+  verse: "echo",
+};
+
 /**
  * 會議室 Agent 語音回覆：用 OpenAI TTS 朗讀，比瀏覽器內建 speechSynthesis
  * 自然得多。gpt-4o-mini-tts 失敗時退回 tts-1。回傳 mp3 的原始位元組。
@@ -420,12 +430,15 @@ export async function synthesizeSpeech(params: {
   if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
 
   async function callModel(model: string): Promise<ArrayBuffer> {
+    const voice = model.startsWith("tts-1")
+      ? (TTS1_VOICE_FALLBACK[params.voice] ?? params.voice)
+      : params.voice;
     const res = await fetch(`${OPENAI_API_BASE}/audio/speech`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
-        voice: params.voice,
+        voice,
         input: params.text,
         response_format: "mp3",
         ...(model === "gpt-4o-mini-tts" && params.instructions ? { instructions: params.instructions } : {}),

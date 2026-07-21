@@ -55,26 +55,36 @@ function fetchWithTimeout(input: RequestInfo, init: RequestInit, ms = FETCH_TIME
   return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(id));
 }
 
-// 每位 Agent 依「人設性別」固定配一種 OpenAI 嗓音：
-// 女聲 → nova / shimmer / alloy；男聲 → echo / onyx / fable。
-// 女性成員：Vivian、Ivy、Sunny、Coco、Dana、Amber；男性成員：Kevin、Milo、Leo、Jay、Morgan、Ray。
-const AGENT_VOICE: Record<string, string> = {
-  teamlead: "nova", // Vivian（女）
-  report: "shimmer", // Ivy（女）
-  card: "alloy", // Sunny（女）
-  visit: "nova", // Coco（女）
-  today: "shimmer", // Dana（女）
-  support: "alloy", // Amber（女）
-  notify: "echo", // Kevin（男）
-  schedule: "fable", // Milo（男）
-  expense: "onyx", // Leo（男）
-  competitor: "echo", // Jay（男）
-  operations: "onyx", // Morgan（男）
-  orders: "fable", // Ray（男）
+// 每位 Agent 依「人設性別」固定配 OpenAI 嗓音＋聲線指示。
+// 教訓：alloy / fable 其實偏中性～男聲，之前配給女生會聽起來性別不對。
+// 女聲只用 nova / shimmer / coral / sage；男聲用 echo / onyx / ash / ballad。
+// coral / sage / ash / ballad 是 gpt-4o-mini-tts 專屬（後端退路已做同性別對應），
+// 且 gpt-4o-mini-tts 會遵循 instructions 的聲線描述——這是性別最保險的一道鎖。
+const AGENT_TTS: Record<string, { voice: string; style: string }> = {
+  teamlead: { voice: "nova", style: "成熟穩重的台灣女性" }, // Vivian
+  report: { voice: "shimmer", style: "聰明幹練的年輕女性" }, // Ivy
+  card: { voice: "coral", style: "活潑開朗的年輕女性" }, // Sunny
+  visit: { voice: "sage", style: "溫暖親切的台灣女性" }, // Coco
+  today: { voice: "nova", style: "自信俐落的女性" }, // Dana
+  support: { voice: "shimmer", style: "溫柔有耐心的女性" }, // Amber
+  notify: { voice: "echo", style: "沉穩可靠的台灣男性" }, // Kevin
+  schedule: { voice: "ballad", style: "年輕有活力的男性" }, // Milo
+  expense: { voice: "onyx", style: "聲音低沉專業的男性" }, // Leo
+  competitor: { voice: "ash", style: "機警幹練的男性" }, // Jay
+  operations: { voice: "onyx", style: "資深穩重的男性" }, // Morgan
+  orders: { voice: "echo", style: "謹慎細心的男性" }, // Ray
 };
-function voiceForSlug(slug: string): string {
-  return AGENT_VOICE[slug] ?? "alloy";
+function ttsForSlug(slug: string): { voice: string; instructions: string } {
+  const cfg = AGENT_TTS[slug] ?? { voice: "nova", style: "專業的台灣女性" };
+  return {
+    voice: cfg.voice,
+    instructions:
+      `你是${cfg.style}。語速明顯偏快（比正常快三成）、不拖尾音、句與句之間不停頓。` +
+      "像會議上簡潔回報的幹練同事，語氣自然有精神，說台灣腔繁體中文。",
+  };
 }
+// 客戶端播放加速：不論後端用哪個 TTS 模型都保證生效（模型端的語速指示時靈時不靈）
+const TTS_PLAYBACK_RATE = 1.2;
 
 function pickAudioMime(): string {
   if (typeof MediaRecorder === "undefined") return "";
@@ -259,17 +269,46 @@ export default function MeetingPage() {
     sendTextRef.current(text);
   }, []);
 
-  const routeText = useCallback((text: string) => {
-    if (!autoRespondRef.current) {
-      setDraft((prev) => (prev ? `${prev} ${text}` : text));
-      return;
-    }
-    if (thinkingRef.current || agentSpeakingRef.current) {
-      pendingRef.current = pendingRef.current ? `${pendingRef.current} ${text}` : text;
-      return;
-    }
-    sendTextRef.current(text);
-  }, []);
+  /* ── 語音點名：句子裡叫到誰的名字，就換誰上場。
+   * 「Vivian 你覺得如何？」→ Vivian 接手並回答；「換下一位」→ 純換人不送指令。 ── */
+  const goToAgentRef = useRef<(idx: number) => void>(() => {});
+  const detectNamedAgent = useCallback(
+    (text: string): number | null => {
+      const lower = text.toLowerCase();
+      for (let i = 0; i < roster.length; i++) {
+        const a = roster[i];
+        if (lower.includes(a.personEn.toLowerCase()) || text.includes(a.personZh)) return i;
+      }
+      return null;
+    },
+    [roster]
+  );
+
+  const routeText = useCallback(
+    (text: string) => {
+      // 純換人口令（不含實質指令內容）
+      if (/^(換人|換下一位|下一位|下一個|換一個)[吧喔哦。！!？?\s]*$/.test(text.trim())) {
+        nextAgentRef.current();
+        return;
+      }
+      // 點名：叫到別人的名字 → 那位立刻上場，指令交給他回答
+      const named = detectNamedAgent(text);
+      if (named !== null && named !== currentIndexRef.current) {
+        goToAgentRef.current(named);
+        flashGesture(`點名 ${roster[named].personEn} ${roster[named].personZh} 上場`);
+      }
+      if (!autoRespondRef.current) {
+        setDraft((prev) => (prev ? `${prev} ${text}` : text));
+        return;
+      }
+      if (thinkingRef.current || agentSpeakingRef.current) {
+        pendingRef.current = pendingRef.current ? `${pendingRef.current} ${text}` : text;
+        return;
+      }
+      sendTextRef.current(text);
+    },
+    [detectNamedAgent, flashGesture, roster]
+  );
 
   const transcribeBlob = useCallback(
     (blob: Blob) => {
@@ -440,7 +479,9 @@ export default function MeetingPage() {
     stopAgentAudioRef.current = stopAgentAudio;
   }, [stopAgentAudio]);
 
-  // Agent 語音回覆：呼叫 OpenAI TTS，每位 Agent 固定一種嗓音。播放期間暫停麥克風偵測避免自我循環。
+  // Agent 語音回覆：呼叫 OpenAI TTS，每位 Agent 依性別固定嗓音＋聲線指示。
+  // 播放期間暫停麥克風偵測避免自我循環；播放加掛看門狗——就算結束事件沒觸發
+  //（少數瀏覽器／音訊裝置異常），超時也會強制恢復聆聽，不讓會議卡死。
   const speak = useCallback(
     (text: string, slug: string) => {
       if (!text) return;
@@ -455,18 +496,24 @@ export default function MeetingPage() {
       }
       agentSpeakingRef.current = true;
       setAgentTalking(true);
+      const tts = ttsForSlug(slug);
       fetchWithTimeout("/api/meeting/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: voiceForSlug(slug) }),
+        body: JSON.stringify({ text, voice: tts.voice, instructions: tts.instructions }),
       })
         .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("語音合成失敗"))))
         .then((blob) => {
           if (!agentSpeakingRef.current) return; // 已被使用者跳過
           const url = URL.createObjectURL(blob);
           const audio = new Audio(url);
+          audio.playbackRate = TTS_PLAYBACK_RATE;
           currentAudioRef.current = audio;
+          // 看門狗：依文字長度估播放上限（加速後每字 ~180ms，再加 6 秒緩衝）
+          const guardMs = Math.max(10_000, text.length * 180 + 6_000);
+          const guard = setTimeout(() => done(), guardMs);
           const done = () => {
+            clearTimeout(guard);
             URL.revokeObjectURL(url);
             if (currentAudioRef.current === audio) currentAudioRef.current = null;
             finishAgentSpeech();
@@ -500,6 +547,9 @@ export default function MeetingPage() {
   useEffect(() => {
     nextAgentRef.current = nextAgent;
   }, [nextAgent]);
+  useEffect(() => {
+    goToAgentRef.current = goToAgent;
+  }, [goToAgent]);
 
   // 揮手偵測：對鏡頭畫面做前後幀差分，偵測大幅度動作 → 換下一位（含冷卻，避免連續誤觸）
   const detectGesture = useCallback(() => {
@@ -532,10 +582,16 @@ export default function MeetingPage() {
     }
   }, [flashGesture]);
 
-  // 計時器
+  // 計時器 + 引擎心跳（顯示距離上次聽到語音多久，卡住時能立刻看出是哪一段沒動）
+  const [lastVoiceAgo, setLastVoiceAgo] = useState<number | null>(null);
   useEffect(() => {
     if (phase !== "live") return;
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startTsRef.current) / 1000)), 1000);
+    const t = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startTsRef.current) / 1000));
+      setLastVoiceAgo(
+        lastVoiceTsRef.current ? Math.round((Date.now() - lastVoiceTsRef.current) / 1000) : null
+      );
+    }, 1000);
     return () => clearInterval(t);
   }, [phase]);
 
@@ -899,7 +955,8 @@ export default function MeetingPage() {
               <p className="mx-auto mt-4 max-w-lg text-white/50">
                 開鏡頭與麥克風，和 AI 團隊一對一輪流開會：由 Team Lead{" "}
                 <span className="text-white/70">{teamLead.personEn} {teamLead.personZh}</span> 打頭陣，
-                你說話、對方即時語音回覆；<span className="text-white/70">對鏡頭揮手</span>就換下一位上場。
+                你說話、對方即時語音回覆；<span className="text-white/70">對鏡頭揮手</span>換下一位，
+                或直接<span className="text-white/70">叫名字點名</span>（「Coco 你覺得如何？」）換人上場。
                 全程自動錄音存檔。
               </p>
 
@@ -1044,6 +1101,9 @@ export default function MeetingPage() {
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="hidden truncate text-xs text-white/35 sm:inline">
                       {autoRespond ? "說完停頓約 1 秒即自動送出" : "口述完點送出，或 ⌘/Ctrl + Enter"}
+                      {lastVoiceAgo !== null && (
+                        <span className="ml-2 text-white/25">· 上次聽到語音 {lastVoiceAgo}s 前</span>
+                      )}
                     </span>
                     <button
                       type="button"
