@@ -168,11 +168,9 @@ body {
 }
 @keyframes tv-in {
   from {
-    opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(16px);
   }
   to {
-    opacity: 1;
     transform: none;
   }
 }
@@ -210,12 +208,49 @@ body {
 .tv-breathe {
   animation: tv-breathe 3s ease-in-out infinite;
 }
+@keyframes tv-slide-r {
+  from {
+    transform: translateX(52px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes tv-slide-l {
+  from {
+    transform: translateX(-52px);
+  }
+  to {
+    transform: none;
+  }
+}
+.tv-slide-r {
+  animation: tv-slide-r 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.tv-slide-l {
+  animation: tv-slide-l 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* 只動 transform、不動 opacity —— 即使動畫時間軸被凍結，元素仍完整可見 */
+@keyframes tv-pop {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+.tv-pop {
+  animation: tv-pop 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
 @media (prefers-reduced-motion: reduce) {
   .tv-blob-a,
   .tv-blob-b,
   .tv-in,
   .tv-fade,
-  .tv-breathe {
+  .tv-breathe,
+  .tv-slide-r,
+  .tv-slide-l,
+  .tv-pop {
     animation: none;
   }
 }
