@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
-import LiveTask from "@/components/tv/LiveTask";
+import LiveTask, { type LiveInfo } from "@/components/tv/LiveTask";
 import { AGENTS } from "@/lib/agent-data";
 import { AGENT_BRIEFINGS, AGENT_LIVE_TASKS, type OutputKind } from "@/lib/agent-briefings";
 import type { AgentSlug } from "@/lib/types";
@@ -500,6 +500,25 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
   const fullReport = `${brief.greeting}${brief.report}`;
   const { shown, done, skip } = useTypewriter(fullReport);
 
+  // 真實現正處理：每 1.5 秒輪詢；有真實任務就用真圖 + 真進度取代示意動畫
+  const [live, setLive] = useState<LiveInfo | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch(`/api/live-task?agent=${agent.slug}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (alive) setLive(d && d.active ? (d as LiveInfo) : null);
+        })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 1500);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [agent.slug]);
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6">
       <button
@@ -573,9 +592,11 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
             {/* 現正處理：道具 + 階段流水線（電影感） */}
             <div className="mb-6">
               <LiveTask
+                agentSlug={agent.slug}
                 prop={AGENT_LIVE_TASKS[agent.slug].prop}
                 steps={AGENT_LIVE_TASKS[agent.slug].steps}
                 color={agent.color}
+                live={live}
               />
             </div>
 

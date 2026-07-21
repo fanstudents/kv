@@ -153,21 +153,41 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
   );
 }
 
+export interface LiveInfo {
+  active: boolean;
+  step: number;
+  status: "active" | "done";
+  caption: string | null;
+  hasImage: boolean;
+  imageVersion: number;
+}
+
 export default function LiveTask({
+  agentSlug,
   prop,
   steps,
   color,
+  live,
 }: {
+  agentSlug: string;
   prop: PropKind;
   steps: string[];
   color: string;
+  live?: LiveInfo | null;
 }) {
-  const step = useStepCycle(steps.length);
+  const loopStep = useStepCycle(steps.length);
+  const isLive = Boolean(live?.active);
+  const step = isLive ? live!.step : loopStep;
+  const imageUrl =
+    isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
 
   return (
     <div>
       {/* 場景螢幕 */}
-      <div className="relative h-40 overflow-hidden rounded-2xl border border-white/10 bg-[#06090d]">
+      <div
+        className="relative h-40 overflow-hidden rounded-2xl border bg-[#06090d]"
+        style={{ borderColor: isLive ? `${color}66` : "rgba(255,255,255,0.1)" }}
+      >
         {/* 細格線 */}
         <div
           className="absolute inset-0 opacity-40"
@@ -182,14 +202,35 @@ export default function LiveTask({
           className="live-scan absolute inset-x-0 top-0 h-12"
           style={{ background: `linear-gradient(180deg, transparent, ${color}22 60%, ${color}44)` }}
         />
-        {/* 道具 */}
+        {/* 道具 or 真實圖片 */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <PropGraphic kind={prop} color={color} />
+          {imageUrl ? (
+            <div className="relative">
+              <div className="pointer-events-none absolute -inset-4">
+                {[
+                  "left-0 top-0 border-l-2 border-t-2",
+                  "right-0 top-0 border-r-2 border-t-2",
+                  "left-0 bottom-0 border-b-2 border-l-2",
+                  "right-0 bottom-0 border-b-2 border-r-2",
+                ].map((pos) => (
+                  <span key={pos} className={`absolute h-3.5 w-3.5 ${pos}`} style={{ borderColor: color }} />
+                ))}
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt="現正處理的圖片"
+                className="max-h-28 w-auto rounded-md object-contain shadow-xl"
+              />
+            </div>
+          ) : (
+            <PropGraphic kind={prop} color={color} />
+          )}
         </div>
         {/* LIVE 標記 */}
-        <span className="absolute left-3 top-3 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.18em] text-white/45">
+        <span className="absolute left-3 top-3 flex max-w-[90%] items-center gap-1.5 truncate text-[10px] font-semibold tracking-[0.18em] text-white/45">
           <span className="tv-breathe h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-          LIVE · 現正處理
+          {isLive ? `真實處理・${live!.caption ?? "現正處理"}` : "LIVE · 現正處理"}
         </span>
       </div>
 
