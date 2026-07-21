@@ -138,6 +138,80 @@ export async function sendGmail(params: { to: string; subject: string; body: str
   });
 }
 
+export interface WeekOverview {
+  /** 未來七天，每天的行程數（index 0 = 今天，台北時間） */
+  dayCounts: number[];
+  /** 接下來幾筆行程（台北時間標籤 + 標題） */
+  upcoming: { label: string; title: string }[];
+  /** 注意事項（衝突、行程過密等） */
+  warnings: string[];
+}
+
+/** 行程助理待命場景用：讀取主行事曆未來七天的真實行程總覽。 */
+export async function listWeekOverview(): Promise<WeekOverview> {
+  const calendar = google.calendar({ version: "v3", auth: getOAuthClient() });
+  const now = new Date();
+  const todayParts = toTaipeiParts(now);
+  const rangeStart = taipeiWallToUtc(todayParts.year, todayParts.month, todayParts.date, 0, 0);
+  const rangeEnd = new Date(rangeStart.getTime() + 7 * 86400000);
+
+  const { data } = await calendar.events.list({
+    calendarId: "primary",
+    timeMin: now.toISOString(),
+    timeMax: rangeEnd.toISOString(),
+    singleEvents: true,
+    orderBy: "startTime",
+    maxResults: 50,
+  });
+
+  const events = (data.items ?? [])
+    .map((e) => {
+      const startIso = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T00:00:00+08:00` : null);
+      const endIso = e.end?.dateTime ?? (e.end?.date ? `${e.end.date}T00:00:00+08:00` : null);
+      if (!startIso) return null;
+      return {
+        title: e.summary || "（未命名行程）",
+        allDay: !e.start?.dateTime,
+        start: new Date(startIso),
+        end: endIso ? new Date(endIso) : new Date(startIso),
+      };
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+
+  const dayCounts = Array.from({ length: 7 }, (_, i) => {
+    const dayParts = toTaipeiParts(new Date(rangeStart.getTime() + (i + 0.5) * 86400000));
+    return events.filter((e) => {
+      const p = toTaipeiParts(e.start);
+      return p.year === dayParts.year && p.month === dayParts.month && p.date === dayParts.date;
+    }).length;
+  });
+
+  const upcoming = events
+    .filter((e) => !e.allDay)
+    .slice(0, 3)
+    .map((e) => ({ label: formatTaipeiLabel(e.start), title: e.title }));
+
+  // 注意事項：同日兩場行程相隔 < 30 分（或重疊）
+  const warnings: string[] = [];
+  const timed = events.filter((e) => !e.allDay).sort((a, b) => a.start.getTime() - b.start.getTime());
+  for (let i = 1; i < timed.length && warnings.length < 2; i++) {
+    const prev = timed[i - 1];
+    const cur = timed[i];
+    const sameDay =
+      toTaipeiParts(prev.start).date === toTaipeiParts(cur.start).date &&
+      toTaipeiParts(prev.start).month === toTaipeiParts(cur.start).month;
+    if (!sameDay) continue;
+    const gapMin = Math.round((cur.start.getTime() - prev.end.getTime()) / 60000);
+    if (gapMin < 0) {
+      warnings.push(`${formatTaipeiLabel(cur.start)}「${cur.title}」與前一場時間重疊`);
+    } else if (gapMin < 30) {
+      warnings.push(`${formatTaipeiLabel(cur.start)} 兩場行程僅相隔 ${gapMin} 分`);
+    }
+  }
+
+  return { dayCounts, upcoming, warnings };
+}
+
 export async function createCalendarEvent(params: {
   summary: string;
   description?: string;

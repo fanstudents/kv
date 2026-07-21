@@ -2,7 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, Mail, Plug, Star } from "lucide-react";
+import { AGENTS } from "@/lib/agent-data";
 import type { AgentSlug } from "@/lib/types";
+
+/** 抓某位 Agent 待命場景的真實資料；失敗回 null（前端退回示意資料） */
+function useIdleData<T>(agent: string): T | null {
+  const [data, setData] = useState<T | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(`/api/tv/idle?agent=${agent}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d?.ok && d.data) setData(d.data as T);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [agent]);
+  return data;
+}
 
 // 待命場景：每位 Agent 待命時「桌上擺的東西」都不一樣——
 // 成效分析擺著標好重點的報表、行程助理攤開未來七天的行事曆、約拜訪等著名片……
@@ -32,19 +51,38 @@ function Panel({ children, className = "" }: { children: React.ReactNode; classN
   );
 }
 
-/* Vivian 總管：晨報整備中 */
+/* Vivian 總管：晨報整備中（接真實 24 小時團隊動態，取不到退回示意） */
+interface TeamleadData {
+  total: number;
+  failed: number;
+  top: { slug: string; count: number }[];
+}
 function TeamleadScene({ color }: { color: string }) {
-  const items = [
-    { label: "廣告成效", done: true },
-    { label: "客服進線", done: true },
-    { label: "訂單出貨", done: false },
-  ];
+  const real = useIdleData<TeamleadData>("teamlead");
+  const nameOf = (slug: string) => {
+    const a = AGENTS.find((x) => x.slug === slug);
+    return a ? `${a.personEn} · ${a.shortName}` : slug;
+  };
+  const items =
+    real && real.top.length > 0
+      ? real.top.map((t) => ({ label: nameOf(t.slug), meta: `24 小時 ${t.count} 項`, done: true }))
+      : [
+          { label: "廣告成效", meta: "已彙整", done: true },
+          { label: "客服進線", meta: "已彙整", done: true },
+          { label: "訂單出貨", meta: "彙整中…", done: false },
+        ];
   return (
     <Panel>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-medium text-white/85">今日晨報整備</p>
         <Chip tone="dim">明早 09:00 送出</Chip>
       </div>
+      {real && (
+        <p className="mb-2.5 text-xs text-white/50">
+          過去 24 小時全隊共 <span style={{ color }}>{real.total}</span> 項動態
+          {real.failed > 0 && <span className="text-amber-300">，{real.failed} 項異常已列入晨報</span>}
+        </p>
+      )}
       <ul className="space-y-2.5">
         {items.map((it) => (
           <li key={it.label} className="flex items-center gap-2.5 text-sm">
@@ -63,7 +101,7 @@ function TeamleadScene({ color }: { color: string }) {
             )}
             <span className={it.done ? "text-white/70" : "text-white/90"}>
               {it.label}
-              <span className="ml-2 text-xs text-white/35">{it.done ? "已彙整" : "彙整中…"}</span>
+              <span className="ml-2 text-xs text-white/35">{it.meta}</span>
             </span>
           </li>
         ))}
@@ -155,19 +193,35 @@ function ReportScene({ color }: { color: string }) {
   );
 }
 
-/* Milo 行程：未來七天行事曆 + 注意事項 */
+/* Milo 行程：未來七天行事曆 + 注意事項（接真實 Google 行事曆，取不到退回示意） */
+interface ScheduleData {
+  dayCounts: number[];
+  upcoming: { label: string; title: string }[];
+  warnings: string[];
+}
 function ScheduleScene({ color }: { color: string }) {
   const [today, setToday] = useState<Date | null>(null);
   useEffect(() => {
     const kick = requestAnimationFrame(() => setToday(new Date()));
     return () => cancelAnimationFrame(kick);
   }, []);
-  const eventDots = [2, 1, 0, 3, 1, 0, 1]; // 各日行程數（示意）
-  const notes = [
-    { text: "週五 14:00 王小明 諮詢（已確認）", warn: false },
-    { text: "下週二 兩場會議僅相隔 15 分", warn: true },
-    { text: "週日 訂閱續約日，前一天提醒", warn: false },
-  ];
+  const real = useIdleData<ScheduleData>("schedule");
+  const eventDots = real?.dayCounts ?? [2, 1, 0, 3, 1, 0, 1];
+  const realNotes = real
+    ? [
+        ...real.upcoming.slice(0, 2).map((u) => ({ text: `${u.label} ${u.title}`, warn: false })),
+        ...real.warnings.map((w) => ({ text: w, warn: true })),
+      ].slice(0, 3)
+    : null;
+  const notes = realNotes
+    ? realNotes.length > 0
+      ? realNotes
+      : [{ text: "接下來七天行程淨空，適合安排拜訪", warn: false }]
+    : [
+        { text: "週五 14:00 王小明 諮詢（已確認）", warn: false },
+        { text: "下週二 兩場會議僅相隔 15 分", warn: true },
+        { text: "週日 訂閱續約日，前一天提醒", warn: false },
+      ];
   return (
     <Panel>
       <p className="mb-3 flex items-center gap-1.5 text-sm font-medium text-white/85">
@@ -279,8 +333,10 @@ function ExpenseScene({ color }: { color: string }) {
   );
 }
 
-/* Coco 約拜訪：名片取景框（等待上傳） */
+/* Coco 約拜訪：名片取景框（等待上傳）＋真實可用標籤 */
 function VisitScene({ color }: { color: string }) {
+  const real = useIdleData<{ tags: string[] }>("visit");
+  const tags = real?.tags?.length ? real.tags.slice(0, 6) : ["潛在客戶", "合作夥伴", "VIP", "同業"];
   return (
     <div className="flex flex-col items-center gap-4">
       <div
@@ -292,8 +348,8 @@ function VisitScene({ color }: { color: string }) {
           <p className="mt-2 text-[11px] text-white/40">LINE 傳名片照片給我</p>
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-1.5">
-        {["潛在客戶", "合作夥伴", "VIP", "同業"].map((t) => (
+      <div className="flex max-w-md flex-wrap items-center justify-center gap-1.5">
+        {tags.map((t) => (
           <span key={t} className="rounded-full bg-white/[0.06] px-2.5 py-1 text-[10px] text-white/45">
             {t}
           </span>
