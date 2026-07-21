@@ -17,9 +17,9 @@ export interface Integration {
   link: string;
   status: "connected" | "disconnected";
   note?: string;
-  /** lucide 圖標鍵（頁面內對照表解析，未知鍵 fallback 為 Blocks） */
+  /** 品牌標誌鍵（BrandLogo 對照真實 logo，未知鍵以品牌色字首色塊呈現） */
   icon: string;
-  /** 品牌色，用於圖標底座 */
+  /** 品牌色，用於未收錄品牌的字首色塊 */
   color: string;
   uses: IntegrationUse[];
   /** 內建種子服務：可編輯連結與功能，但不可移除 */
@@ -37,7 +37,8 @@ export const INTEGRATION_CATEGORIES = [
   "其他",
 ] as const;
 
-export const INTEGRATIONS_STORAGE_KEY = "kv-integrations-v1";
+// v2：品牌標誌鍵改版（gmail/line/… 取代舊 lucide 鍵），提高版號讓舊快取重新載入種子
+export const INTEGRATIONS_STORAGE_KEY = "kv-integrations-v2";
 
 export const INTEGRATION_SEEDS: Integration[] = [
   {
@@ -47,7 +48,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "郵件",
     link: "https://mail.google.com",
     status: "connected",
-    icon: "Mail",
+    icon: "gmail",
     color: "#EA4335",
     uses: [
       { agent: "visit", feature: "寄送拜訪邀約與時段確認信" },
@@ -62,7 +63,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "行事曆",
     link: "https://calendar.google.com",
     status: "connected",
-    icon: "Calendar",
+    icon: "google-calendar",
     color: "#4285F4",
     uses: [
       { agent: "visit", feature: "查詢雙方空檔、建立拜訪行程" },
@@ -77,7 +78,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "通訊",
     link: "https://developers.line.biz/console/",
     status: "connected",
-    icon: "MessageCircle",
+    icon: "line",
     color: "#06C755",
     uses: [
       { agent: "teamlead", feature: "每日 09:00 團隊晨報推播" },
@@ -94,7 +95,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "通訊",
     link: "https://developers.line.biz/console/",
     status: "connected",
-    icon: "Headset",
+    icon: "line",
     color: "#06C755",
     uses: [{ agent: "support", feature: "24 小時自動回覆進線訊息" }],
     builtin: true,
@@ -106,7 +107,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "電商",
     link: "https://teachify.tw",
     status: "connected",
-    icon: "ShoppingBag",
+    icon: "teachify",
     color: "#F59E0B",
     uses: [{ agent: "orders", feature: "接收新訂單 Webhook" }],
     builtin: true,
@@ -118,7 +119,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "資料庫",
     link: "https://supabase.com/dashboard",
     status: "connected",
-    icon: "Database",
+    icon: "supabase",
     color: "#3ECF8E",
     uses: [
       { agent: "teamlead", feature: "彙整全團隊活動紀錄" },
@@ -133,7 +134,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "AI 模型",
     link: "https://platform.openai.com",
     status: "connected",
-    icon: "Sparkles",
+    icon: "openai",
     color: "#10A37F",
     uses: [
       { agent: "report", feature: "報表洞察與行動建議生成" },
@@ -149,7 +150,7 @@ export const INTEGRATION_SEEDS: Integration[] = [
     link: "https://business.facebook.com",
     status: "disconnected",
     note: "尚未授權，連線後由廣告 Agent 接手成效抓取",
-    icon: "Megaphone",
+    icon: "meta",
     color: "#1877F2",
     uses: [{ agent: "today", feature: "廣告成效每日抓取（待連線）" }],
     builtin: true,

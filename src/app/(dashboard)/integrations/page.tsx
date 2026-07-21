@@ -1,30 +1,14 @@
 "use client";
 
-import { createElement, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  Blocks,
-  Calendar,
-  Database,
-  ExternalLink,
-  Headset,
-  Link2,
-  Mail,
-  Megaphone,
-  MessageCircle,
-  Pencil,
-  Plus,
-  ShoppingBag,
-  Sparkles,
-  Trash2,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ExternalLink, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import Avatar from "@/components/agents/Avatar";
+import BrandLogo from "@/components/integrations/BrandLogo";
 import { AGENTS, getAgent } from "@/lib/agent-data";
 import {
   INTEGRATION_CATEGORIES,
@@ -33,22 +17,6 @@ import {
   type Integration,
 } from "@/lib/integrations-data";
 import type { AgentSlug } from "@/lib/types";
-
-const ICONS: Record<string, LucideIcon> = {
-  Mail,
-  Calendar,
-  MessageCircle,
-  Headset,
-  ShoppingBag,
-  Database,
-  Sparkles,
-  Megaphone,
-  Blocks,
-};
-
-function integrationIcon(item: Integration, size: number) {
-  return createElement(ICONS[item.icon] ?? Blocks, { size });
-}
 
 /* ── 單一服務卡片 ── */
 function IntegrationCard({
@@ -87,14 +55,9 @@ function IntegrationCard({
 
   return (
     <Card className={highlightAgent && !agentsUsing.includes(highlightAgent) ? "opacity-40" : ""}>
-      {/* 標頭：圖標、名稱、狀態 */}
+      {/* 標頭：品牌標誌、名稱、狀態 */}
       <div className="flex items-start gap-3">
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-          style={{ backgroundColor: `${item.color}1A`, color: item.color }}
-        >
-          {integrationIcon(item, 22)}
-        </div>
+        <BrandLogo brand={item.icon} name={item.name} color={item.color} size={44} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">{item.name}</h2>
@@ -310,7 +273,7 @@ export default function IntegrationsPage() {
         category: newCategory,
         link: newLink.trim() || "https://",
         status: "connected",
-        icon: "Blocks",
+        icon: "custom",
         color: "#737373",
         uses: [],
       },
