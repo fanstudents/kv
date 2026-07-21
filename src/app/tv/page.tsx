@@ -20,8 +20,9 @@ import {
   X,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
+import LiveTask from "@/components/tv/LiveTask";
 import { AGENTS } from "@/lib/agent-data";
-import { AGENT_BRIEFINGS, type OutputKind } from "@/lib/agent-briefings";
+import { AGENT_BRIEFINGS, AGENT_LIVE_TASKS, type OutputKind } from "@/lib/agent-briefings";
 import type { AgentSlug } from "@/lib/types";
 
 type Agent = (typeof AGENTS)[number];
@@ -569,6 +570,15 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
 
           {/* 彙報內容 */}
           <div className="min-w-0 flex-1">
+            {/* 現正處理：道具 + 階段流水線（電影感） */}
+            <div className="mb-6">
+              <LiveTask
+                prop={AGENT_LIVE_TASKS[agent.slug].prop}
+                steps={AGENT_LIVE_TASKS[agent.slug].steps}
+                color={agent.color}
+              />
+            </div>
+
             {/* 最近七天彙報（打字機） */}
             <button
               type="button"

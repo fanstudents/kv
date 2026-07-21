@@ -13,6 +13,31 @@ export type OutputKind =
   | "message"
   | "alert";
 
+// 劇院式「現正處理」場景：每位 Agent 操作的道具視覺 + 逐步推進的階段
+export type PropKind = "card" | "chart" | "chat" | "radar" | "calendar" | "compose" | "doc";
+
+export interface LiveTask {
+  /** 場景道具（決定畫面上演出的東西） */
+  prop: PropKind;
+  /** 階段動詞（進行中會顯示「XX中…」，完成打勾） */
+  steps: string[];
+}
+
+export const AGENT_LIVE_TASKS: Record<AgentSlug, LiveTask> = {
+  teamlead: { prop: "doc", steps: ["彙整", "掃描", "撰寫", "寄送"] },
+  notify: { prop: "chat", steps: ["偵測", "判斷", "組裝", "推播"] },
+  report: { prop: "chart", steps: ["彙整", "計算", "產出", "洞察"] },
+  schedule: { prop: "calendar", steps: ["讀取", "比對", "提醒", "發送"] },
+  card: { prop: "compose", steps: ["發想", "撰寫", "排程", "發佈"] },
+  expense: { prop: "radar", steps: ["爬取", "分析", "排名", "產出"] },
+  visit: { prop: "card", steps: ["辨識", "寫入", "比對", "邀約"] },
+  today: { prop: "chart", steps: ["連線", "抓取", "計算", "標記"] },
+  competitor: { prop: "radar", steps: ["監看", "偵測", "彙整", "摘要"] },
+  operations: { prop: "doc", steps: ["盤點", "更新", "標記", "同步"] },
+  support: { prop: "chat", steps: ["接收", "理解", "組裝", "回覆"] },
+  orders: { prop: "doc", steps: ["接收", "核對", "通知", "追蹤"] },
+};
+
 export interface AgentBriefing {
   /** 第一人稱開場（會與 report 一起打字呈現） */
   greeting: string;

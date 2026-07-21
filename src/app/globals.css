@@ -270,6 +270,39 @@ body {
 .tv-ping {
   animation: tv-ping 1.6s ease-out infinite;
 }
+/* 現正處理場景：掃描線、長條、雷達掃描 */
+@keyframes live-scan {
+  0% {
+    transform: translateY(-140%);
+  }
+  100% {
+    transform: translateY(760%);
+  }
+}
+.live-scan {
+  animation: live-scan 2.4s linear infinite;
+}
+@keyframes live-bar {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.live-bar {
+  transform-origin: bottom;
+  animation: live-bar 1.5s ease-in-out infinite;
+}
+@keyframes live-radar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.live-radar {
+  animation: live-radar 2.6s linear infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .tv-blob-a,
   .tv-blob-b,
@@ -280,7 +313,10 @@ body {
   .tv-slide-l,
   .tv-pop,
   .tv-wave,
-  .tv-ping {
+  .tv-ping,
+  .live-scan,
+  .live-bar,
+  .live-radar {
     animation: none;
   }
 }
