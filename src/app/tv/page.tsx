@@ -494,6 +494,32 @@ const SceneSpotlight = memo(function SceneSpotlight({
   );
 });
 
+interface HistoryItem {
+  name: string;
+  company: string | null;
+  outcome: string;
+  at: string;
+}
+
+const OUTCOME_TONE: Record<string, string> = {
+  已寄邀約: "text-[#06C755] bg-[#06C755]/12",
+  已確認: "text-[#06C755] bg-[#06C755]/12",
+  待核准: "text-amber-300 bg-amber-400/12",
+  待回覆: "text-amber-300 bg-amber-400/12",
+  未安排: "text-white/45 bg-white/[0.08]",
+  已辨識: "text-sky-300 bg-sky-400/12",
+};
+
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "剛剛";
+  if (m < 60) return `${m} 分鐘前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小時前`;
+  return `${Math.floor(h / 24)} 天前`;
+}
+
 /* ── 劇院式細節：一位 Agent 像真人同事跟你彙報最近七天 ── */
 function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) {
   const brief = AGENT_BRIEFINGS[agent.slug];
@@ -513,6 +539,25 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
         .catch(() => {});
     load();
     const id = setInterval(load, 1500);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [agent.slug]);
+
+  // 近期處理過的名片（真實歷史）
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch(`/api/live-task/history?agent=${agent.slug}`)
+        .then((r) => (r.ok ? r.json() : { items: [] }))
+        .then((d) => {
+          if (alive) setHistory(Array.isArray(d.items) ? d.items : []);
+        })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 10_000);
     return () => {
       alive = false;
       clearInterval(id);
@@ -600,6 +645,36 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
                 live={live}
               />
             </div>
+
+            {/* 近期處理過的名片（真實歷史） */}
+            {history.length > 0 && (
+              <div className="mb-6">
+                <p className="mb-3 text-[11px] font-semibold tracking-[0.2em] text-white/40">近期處理的名片</p>
+                <ul className="space-y-2">
+                  {history.map((h, i) => (
+                    <li
+                      key={`${h.name}-${i}`}
+                      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-3.5 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-white/90">
+                          {h.name}
+                          {h.company && <span className="text-white/40"> · {h.company}</span>}
+                        </p>
+                        <p className="text-xs text-white/35">{relTime(h.at)}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          OUTCOME_TONE[h.outcome] ?? "text-white/45 bg-white/[0.08]"
+                        }`}
+                      >
+                        {h.outcome}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* 最近七天彙報（打字機） */}
             <button

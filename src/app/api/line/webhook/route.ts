@@ -94,10 +94,10 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     return;
   }
 
-  // 辨識成功 → 寫入聯絡人（辨識✓ 寫入✓），下一步等你確認才比對行事曆
+  // 辨識成功 → 寫入聯絡人（辨識✓ 寫入✓），暫停等你回覆「要／不要」
   await setLiveTask(VISIT_AGENT, {
     step: 2,
-    status: "active",
+    status: "waiting",
     caption: `${contact.name || "名片"}${contact.company ? ` · ${contact.company}` : ""}`,
   });
 
@@ -197,6 +197,11 @@ async function handleVisitOfferReply(
       .from("visit_offers")
       .update({ status: "declined", resolved_at: new Date().toISOString() })
       .eq("id", offer.id);
+    await setLiveTask(VISIT_AGENT, {
+      step: 2,
+      status: "done",
+      caption: `已依您的指示，這次不安排（${contact.name}）`,
+    });
     await replyLineMessage(event.replyToken, "好的，這次先不安排，需要的話再傳名片給我一次即可。");
     await releaseLock(supabase, userId, VISIT_AGENT);
     return true;

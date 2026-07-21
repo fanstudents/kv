@@ -6,17 +6,19 @@ import { getSupabase } from "./supabase";
 
 const TTL_MS = 120_000; // 兩分鐘沒更新就視為結束，畫面回到「待命中」
 
+export type LiveStatus = "active" | "waiting" | "done";
+
 export interface LiveTaskState {
   agentSlug: string;
   step: number;
-  status: "active" | "done";
+  status: LiveStatus;
   caption: string | null;
   hasImage: boolean;
   imageVersion: number;
   updatedAt: number;
 }
 
-type Patch = { step?: number; status?: "active" | "done"; caption?: string; image?: string };
+type Patch = { step?: number; status?: LiveStatus; caption?: string; image?: string };
 
 /** 寫入／更新某 Agent 的即時狀態（缺省欄位沿用上一筆）。best-effort，永不丟例外。 */
 export async function setLiveTask(agentSlug: string, patch: Patch): Promise<void> {
@@ -61,7 +63,7 @@ export async function getLiveTaskState(agentSlug: string): Promise<LiveTaskState
     return {
       agentSlug,
       step: data.step ?? 0,
-      status: data.status === "done" ? "done" : "active",
+      status: data.status === "done" ? "done" : data.status === "waiting" ? "waiting" : "active",
       caption: data.caption ?? null,
       hasImage: (data.image_version ?? 0) > 0,
       imageVersion: data.image_version ?? 0,

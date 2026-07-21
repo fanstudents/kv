@@ -120,7 +120,7 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
 export interface LiveInfo {
   active: boolean;
   step: number;
-  status: "active" | "done";
+  status: "active" | "waiting" | "done";
   caption: string | null;
   hasImage: boolean;
   imageVersion: number;
@@ -157,6 +157,9 @@ export default function LiveTask({
   live?: LiveInfo | null;
 }) {
   const isLive = Boolean(live?.active);
+  const status = live?.status;
+  const isWaiting = isLive && status === "waiting";
+  const isProcessing = isLive && status === "active";
   const step = isLive ? live!.step : -1; // -1 = 待命，沒有階段在跑
   const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
 
@@ -200,8 +203,11 @@ export default function LiveTask({
               )}
             </div>
             <span className="absolute left-4 top-4 flex max-w-[92%] items-center gap-2 truncate text-xs font-semibold tracking-[0.18em] text-white/60">
-              <span className="tv-breathe h-2 w-2 rounded-full" style={{ background: color }} />
-              真實處理・{live!.caption ?? "現正處理"}
+              <span
+                className="tv-breathe h-2 w-2 rounded-full"
+                style={{ background: isWaiting ? "#F59E0B" : color }}
+              />
+              {isWaiting ? "等待指示" : "真實處理"}・{live!.caption ?? "現正處理"}
             </span>
           </>
         ) : (
@@ -223,11 +229,14 @@ export default function LiveTask({
         )}
       </div>
 
-      {/* 階段流水線：待命時全部灰底、不亮；真實處理時依 step 逐步亮起 */}
+      {/* 階段流水線：待命全暗；處理中依 step 亮起；等待指示時把當前節點放大並轉琥珀 */}
       <div className="mt-5 flex items-center gap-2">
         {steps.map((label, i) => {
           const done = isLive && i < step;
-          const active = isLive && i === step;
+          const active = isProcessing && i === step;
+          const waiting = isWaiting && i === step;
+          const current = active || waiting;
+          const dot = waiting ? "#F59E0B" : color;
           return (
             <div key={label} className="flex flex-1 items-center gap-2">
               {i > 0 && (
@@ -237,27 +246,40 @@ export default function LiveTask({
                 />
               )}
               <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${active ? "tv-breathe" : ""}`}
+                className={`flex shrink-0 items-center justify-center rounded-full border-2 transition-all ${current ? "tv-breathe" : ""}`}
                 style={{
-                  borderColor: done || active ? color : "rgba(255,255,255,0.16)",
-                  background: done ? color : active ? `${color}33` : "transparent",
+                  width: current ? 30 : 20,
+                  height: current ? 30 : 20,
+                  borderColor: done ? color : current ? dot : "rgba(255,255,255,0.16)",
+                  background: done ? color : active ? `${color}33` : waiting ? "rgba(245,158,11,0.22)" : "transparent",
+                  boxShadow: current ? `0 0 16px -2px ${dot}` : "none",
                 }}
               >
                 {done && <Check size={12} className="text-[#05060a]" strokeWidth={3} />}
-                {active && <span className="h-2 w-2 rounded-full" style={{ background: color }} />}
+                {current && <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />}
               </span>
               <span
-                className={`whitespace-nowrap text-sm ${
-                  active ? "font-medium" : done ? "text-white/55" : "text-white/25"
+                className={`whitespace-nowrap ${current ? "text-[15px] font-semibold" : "text-sm"} ${
+                  done ? "text-white/55" : !current ? "text-white/25" : ""
                 }`}
-                style={active ? { color } : undefined}
+                style={current ? { color: dot } : undefined}
               >
-                {active ? `${label}中…` : label}
+                {waiting ? "等待指示" : active ? `${label}中…` : label}
               </span>
             </div>
           );
         })}
       </div>
+
+      {/* 等待指示時：明確告訴觀眾在等下一步 */}
+      {isWaiting && (
+        <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3">
+          <span className="tv-breathe h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
+          <span className="text-sm text-amber-100/90">
+            等待您的下一步指示 —— 請在 LINE 回覆「要」或「不要」
+          </span>
+        </div>
+      )}
     </div>
   );
 }

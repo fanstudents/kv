@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!agent) return NextResponse.json({ error: "missing agent" }, { status: 400 });
   await setLiveTask(agent, {
     step: typeof body.step === "number" ? body.step : 0,
-    status: body.status === "done" ? "done" : "active",
+    status: body.status === "done" ? "done" : body.status === "waiting" ? "waiting" : "active",
     caption: typeof body.caption === "string" ? body.caption : undefined,
     image: typeof body.image === "string" ? body.image : undefined,
   });
