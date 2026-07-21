@@ -16,28 +16,247 @@ export type OutputKind =
 // 劇院式「現正處理」場景：每位 Agent 操作的道具視覺 + 逐步推進的階段
 export type PropKind = "card" | "chart" | "chat" | "radar" | "calendar" | "compose" | "doc";
 
-export interface LiveTask {
-  /** 場景道具（決定畫面上演出的東西） */
-  prop: PropKind;
-  /** 階段動詞（進行中會顯示「XX中…」，完成打勾） */
-  steps: string[];
-  /** 待命時顯示的等待提示（沒有真實任務在跑時） */
-  idle: string;
+/** 流程圖節點。每位 Agent 的工作流程是「多欄」構成：一欄一個節點是主幹，一欄多個節點是分支（擇一走）。 */
+export interface FlowNode {
+  id: string;
+  /** 節點名稱 */
+  label: string;
+  /** 分支條件（顯示在節點上方的小標，例如「要」「先不要」「異常」） */
+  branch?: string;
+  /** 對應真實 live 進度的鍵：`${step}` 或 `${step}:${status}`（例如 "2:waiting"） */
+  live?: string[];
+  /** 分支欄中「主幹會繼續走」的那個節點（用來推斷已完成路徑） */
+  main?: boolean;
+  /** 流程終點（走到這裡代表本次流程結束） */
+  terminal?: boolean;
 }
 
-export const AGENT_LIVE_TASKS: Record<AgentSlug, LiveTask> = {
-  teamlead: { prop: "doc", steps: ["彙整", "掃描", "撰寫", "寄送"], idle: "待命中・下次彙報前待命" },
-  notify: { prop: "chat", steps: ["偵測", "判斷", "組裝", "推播"], idle: "監控中・等待指標觸發" },
-  report: { prop: "chart", steps: ["彙整", "計算", "產出", "洞察"], idle: "待命中・等待數據更新" },
-  schedule: { prop: "calendar", steps: ["讀取", "比對", "提醒", "發送"], idle: "待命中・等待行程異動" },
-  card: { prop: "compose", steps: ["發想", "撰寫", "排程", "發佈"], idle: "待命中・等待排程時間" },
-  expense: { prop: "radar", steps: ["爬取", "分析", "排名", "產出"], idle: "監看中・持續追蹤排名" },
-  visit: { prop: "card", steps: ["辨識", "寫入", "比對", "邀約"], idle: "待命中・等待名片上傳" },
-  today: { prop: "chart", steps: ["連線", "抓取", "計算", "標記"], idle: "待命中・等待投放數據" },
-  competitor: { prop: "radar", steps: ["監看", "偵測", "彙整", "摘要"], idle: "監看中・盯著評論與競品" },
-  operations: { prop: "doc", steps: ["盤點", "更新", "標記", "同步"], idle: "待命中・等待營運異動" },
-  support: { prop: "chat", steps: ["接收", "理解", "組裝", "回覆"], idle: "待命中・等待訊息進線" },
-  orders: { prop: "doc", steps: ["接收", "核對", "通知", "追蹤"], idle: "待命中・等待新訂單" },
+export interface FlowColumn {
+  nodes: FlowNode[];
+}
+
+export interface AgentLiveDef {
+  /** 場景道具（真實任務進行、但沒有實照可放時演出用） */
+  prop: PropKind;
+  /** 完整工作流程（含分支），展示在細節卡的流程圖 */
+  flow: FlowColumn[];
+  /** 待命時的狀態標題 */
+  idle: string;
+  /** 待命時輪播的「正在做的小事」，讓 Agent 看起來活著 */
+  ticker: string[];
+}
+
+export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
+  teamlead: {
+    prop: "doc",
+    flow: [
+      { nodes: [{ id: "collect", label: "彙整成員動態" }] },
+      { nodes: [{ id: "scan", label: "掃描異常" }] },
+      {
+        nodes: [
+          { id: "write", label: "撰寫晨報", branch: "正常", main: true },
+          { id: "flag", label: "標記＋通報", branch: "有異常" },
+        ],
+      },
+      { nodes: [{ id: "send", label: "寄送 LINE" }] },
+      { nodes: [{ id: "archive", label: "歸檔追蹤", terminal: true }] },
+    ],
+    idle: "待命中・下次晨報前整備",
+    ticker: ["整理 10 位成員今日進度…", "下一份晨報 明早 09:00 準時送出", "追蹤中事項 3 件，皆在掌握"],
+  },
+  notify: {
+    prop: "chat",
+    flow: [
+      { nodes: [{ id: "watch", label: "監測指標" }] },
+      { nodes: [{ id: "judge", label: "門檻判斷" }] },
+      {
+        nodes: [
+          { id: "build", label: "組裝訊息", branch: "觸發", main: true },
+          { id: "loop", label: "繼續監測", branch: "未觸發", terminal: true },
+        ],
+      },
+      { nodes: [{ id: "push", label: "推播 LINE" }] },
+      { nodes: [{ id: "log", label: "記錄回執", terminal: true }] },
+    ],
+    idle: "監控中・等待指標觸發",
+    ticker: ["盯著 6 個指標門檻…", "LINE 推播通道正常", "上次觸發 今早 09:12"],
+  },
+  report: {
+    prop: "chart",
+    flow: [
+      { nodes: [{ id: "fetch", label: "抓取數據" }] },
+      { nodes: [{ id: "clean", label: "清洗彙整" }] },
+      { nodes: [{ id: "calc", label: "計算指標" }] },
+      {
+        nodes: [
+          { id: "produce", label: "產出報表", branch: "正常", main: true },
+          { id: "note", label: "標注低谷原因", branch: "有異常" },
+        ],
+      },
+      { nodes: [{ id: "send", label: "寄送摘要", terminal: true }] },
+    ],
+    idle: "待命中・等待數據更新",
+    ticker: ["昨日報表已寄出 ✓", "盯著轉換率變化…", "下次產出 明早 08:00"],
+  },
+  schedule: {
+    prop: "calendar",
+    flow: [
+      { nodes: [{ id: "read", label: "讀取行事曆" }] },
+      { nodes: [{ id: "scan", label: "掃描未來 7 天" }] },
+      {
+        nodes: [
+          { id: "remind", label: "產生提醒", branch: "正常", main: true },
+          { id: "resolve", label: "擬改期選項", branch: "衝突" },
+        ],
+      },
+      { nodes: [{ id: "send", label: "發送 LINE" }] },
+      { nodes: [{ id: "confirm", label: "確認回覆", terminal: true }] },
+    ],
+    idle: "待命中・盯著未來七天",
+    ticker: ["掃描未來 7 天行程…", "距離下次提醒 42 分", "目前沒有時段衝突"],
+  },
+  card: {
+    prop: "compose",
+    flow: [
+      { nodes: [{ id: "ideate", label: "選題發想" }] },
+      { nodes: [{ id: "draft", label: "撰寫草稿" }] },
+      {
+        nodes: [
+          { id: "auto", label: "自動排程", branch: "定稿", main: true },
+          { id: "pick", label: "等你挑版本", branch: "多版草稿" },
+        ],
+      },
+      { nodes: [{ id: "publish", label: "定時發佈" }] },
+      { nodes: [{ id: "reply", label: "回覆留言", terminal: true }] },
+    ],
+    idle: "待命中・等待排程時間",
+    ticker: ["3 版草稿等你挑選", "下次發文 明日 12:00", "留言區目前安靜"],
+  },
+  expense: {
+    prop: "radar",
+    flow: [
+      { nodes: [{ id: "crawl", label: "爬取排名" }] },
+      { nodes: [{ id: "diff", label: "對比變化" }] },
+      {
+        nodes: [
+          { id: "opportunity", label: "整理機會清單", branch: "上升", main: true },
+          { id: "fix", label: "擬修正建議", branch: "下滑" },
+        ],
+      },
+      { nodes: [{ id: "weekly", label: "產出週報" }] },
+      { nodes: [{ id: "topics", label: "選題入庫", terminal: true }] },
+    ],
+    idle: "監看中・持續追蹤排名",
+    ticker: ["排名快照 每日 06:00", "3 組關鍵字進前十 ▲", "技術健檢一切正常"],
+  },
+  visit: {
+    prop: "card",
+    flow: [
+      { nodes: [{ id: "scan", label: "辨識名片", live: ["0"] }] },
+      { nodes: [{ id: "write", label: "寫入聯絡人", live: ["1"] }] },
+      { nodes: [{ id: "confirm", label: "確認資訊（可修正）", live: ["2:waiting"] }] },
+      {
+        nodes: [
+          { id: "match", label: "比對行事曆空檔", branch: "要", live: ["2:active"], main: true },
+          { id: "tag", label: "標註客戶標籤", branch: "先不要", live: ["2:done"], terminal: true },
+        ],
+      },
+      { nodes: [{ id: "draft", label: "草擬邀約信", live: ["3"] }] },
+      { nodes: [{ id: "sent", label: "寄出＆追蹤回覆", live: ["4"], terminal: true }] },
+    ],
+    idle: "待命中・等待名片上傳",
+    ticker: ["名片一傳來就開工", "2 位客戶回覆較慢，已排跟進", "邀約信模板已就緒"],
+  },
+  today: {
+    prop: "chart",
+    flow: [
+      { nodes: [{ id: "connect", label: "連線廣告平台" }] },
+      { nodes: [{ id: "fetch", label: "抓取成效" }] },
+      { nodes: [{ id: "calc", label: "計算 CPA / ROAS" }] },
+      {
+        nodes: [
+          { id: "mark", label: "標記加碼機會", branch: "正常", main: true },
+          { id: "alert", label: "即時警示", branch: "超標" },
+        ],
+      },
+      { nodes: [{ id: "daily", label: "產出日報", terminal: true }] },
+    ],
+    idle: "待命中・等待投放數據",
+    ticker: ["下次抓取 明早 06:30", "CPA 門檻監控中…", "加碼機會清單 12 筆"],
+  },
+  competitor: {
+    prop: "radar",
+    flow: [
+      { nodes: [{ id: "watch", label: "監看評論與社群" }] },
+      { nodes: [{ id: "detect", label: "偵測新內容" }] },
+      {
+        nodes: [
+          { id: "digest", label: "納入彙整", branch: "一般", main: true },
+          { id: "escalate", label: "立即通報＋建議回覆", branch: "負評" },
+        ],
+      },
+      { nodes: [{ id: "intel", label: "競品敵情彙整" }] },
+      { nodes: [{ id: "weekly", label: "聲量週摘要", terminal: true }] },
+    ],
+    idle: "監看中・盯著評論與競品",
+    ticker: ["掃描評論區…", "競品動態監看中", "本週聲量 +8%"],
+  },
+  operations: {
+    prop: "doc",
+    flow: [
+      { nodes: [{ id: "audit", label: "盤點各線數據" }] },
+      { nodes: [{ id: "dashboard", label: "更新儀表板" }] },
+      {
+        nodes: [
+          { id: "kb", label: "更新知識庫", branch: "正常", main: true },
+          { id: "blocker", label: "標記卡點待辦", branch: "卡點" },
+        ],
+      },
+      { nodes: [{ id: "sync", label: "同步團隊" }] },
+      { nodes: [{ id: "archive", label: "歸檔", terminal: true }] },
+    ],
+    idle: "待命中・等待營運異動",
+    ticker: ["儀表板已同步 ✓", "知識庫本週 +6 條", "1 個流程卡點待處理"],
+  },
+  support: {
+    prop: "chat",
+    flow: [
+      { nodes: [{ id: "receive", label: "接收進線" }] },
+      { nodes: [{ id: "understand", label: "理解意圖" }] },
+      {
+        nodes: [
+          { id: "script", label: "話術回覆", branch: "常見題", main: true },
+          { id: "human", label: "轉真人＋附摘要", branch: "複雜題" },
+        ],
+      },
+      { nodes: [{ id: "send", label: "送出回覆" }] },
+      { nodes: [{ id: "log", label: "記錄對話", terminal: true }] },
+    ],
+    idle: "整備中・等待帳號金鑰",
+    ticker: ["等待 Channel 金鑰接入…", "客服話術庫已就緒", "隨時可以上線值班"],
+  },
+  orders: {
+    prop: "doc",
+    flow: [
+      { nodes: [{ id: "receive", label: "接收新訂單" }] },
+      { nodes: [{ id: "verify", label: "核對付款" }] },
+      {
+        nodes: [
+          { id: "ship", label: "通知出貨", branch: "正常", main: true },
+          { id: "escalate", label: "通報異常給你", branch: "異常" },
+        ],
+      },
+      { nodes: [{ id: "track", label: "追蹤到貨" }] },
+      {
+        nodes: [
+          { id: "done", label: "完成歸檔", branch: "已取貨", main: true, terminal: true },
+          { id: "overdue", label: "逾期提醒取貨", branch: "逾期", terminal: true },
+        ],
+      },
+    ],
+    idle: "整備中・等待 Webhook",
+    ticker: ["等待 Teachify Webhook 接通…", "出貨／到貨通知模板就緒", "逾期未取追蹤已設定"],
+  },
 };
 
 export interface AgentBriefing {

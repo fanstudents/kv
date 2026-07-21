@@ -650,12 +650,10 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
             {/* 大舞台：現正處理的照片 + 階段流水線 */}
             <LiveTask
               agentSlug={agent.slug}
-              prop={AGENT_LIVE_TASKS[agent.slug].prop}
-              steps={AGENT_LIVE_TASKS[agent.slug].steps}
-              idle={AGENT_LIVE_TASKS[agent.slug].idle}
+              def={AGENT_LIVE_TASKS[agent.slug]}
               color={agent.color}
               live={live}
-              screenHeight="h-[46vh] lg:h-[56vh]"
+              screenHeight="h-[42vh] lg:h-[50vh]"
             />
           </div>
 

@@ -1,9 +1,12 @@
 "use client";
 
-import { Check } from "lucide-react";
-import type { PropKind } from "@/lib/agent-briefings";
+import { useEffect, useState } from "react";
+import type { AgentLiveDef, PropKind } from "@/lib/agent-briefings";
+import type { AgentSlug } from "@/lib/types";
+import FlowGraph from "./FlowGraph";
+import IdleScene from "./IdleScene";
 
-/* 各職務的道具視覺（有真實任務時才演出；保持穩定可見，動畫凍結時仍看得到） */
+/* 各職務的道具視覺（真實任務進行中、但沒有實照可放時演出用） */
 function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
   if (kind === "chart") {
     const bars = [0.5, 0.82, 0.4, 1, 0.66, 0.55];
@@ -141,30 +144,39 @@ function Brackets({ color }: { color: string }) {
   );
 }
 
+/* 待命跑馬燈：輪播「正在做的小事」，讓 Agent 看起來一直活著 */
+function Ticker({ lines, color }: { lines: string[]; color: string }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (lines.length <= 1) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % lines.length), 3800);
+    return () => clearInterval(t);
+  }, [lines.length]);
+  if (lines.length === 0) return null;
+  return (
+    <span key={idx} className="tv-in flex items-center gap-1.5 text-xs text-white/45">
+      <span className="h-1 w-1 rounded-full" style={{ background: color }} />
+      {lines[idx]}
+    </span>
+  );
+}
+
 export default function LiveTask({
   agentSlug,
-  prop,
-  steps,
+  def,
   color,
-  idle,
   live,
   screenHeight = "h-80 sm:h-[26rem]",
 }: {
-  agentSlug: string;
-  prop: PropKind;
-  steps: string[];
+  agentSlug: AgentSlug;
+  def: AgentLiveDef;
   color: string;
-  idle: string;
   live?: LiveInfo | null;
-  /** 舞台（場景螢幕）高度，可由外層放大。用百分比讓內部圖片自動跟著縮放。 */
+  /** 舞台（場景螢幕）高度，可由外層放大 */
   screenHeight?: string;
 }) {
   const isLive = Boolean(live?.active);
-  const status = live?.status;
-  const isWaiting = isLive && status === "waiting";
-  const isProcessing = isLive && status === "active";
-  const isDone = isLive && status === "done";
-  const step = isLive ? live!.step : -1; // -1 = 待命，沒有階段在跑
+  const isWaiting = isLive && live!.status === "waiting";
   const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
 
   return (
@@ -203,7 +215,7 @@ export default function LiveTask({
                   />
                 </div>
               ) : (
-                <PropGraphic kind={prop} color={color} />
+                <PropGraphic kind={def.prop} color={color} />
               )}
             </div>
             <span className="absolute left-4 top-4 flex max-w-[92%] items-center gap-2 truncate text-xs font-semibold tracking-[0.18em] text-white/60">
@@ -216,67 +228,25 @@ export default function LiveTask({
           </>
         ) : (
           <>
-            {/* 待命：空的取景框在等輸入，沒有掃描、沒有跑流程 */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-              <div
-                className="tv-breathe flex h-36 w-60 items-center justify-center rounded-xl border-2 border-dashed sm:h-44 sm:w-72"
-                style={{ borderColor: `${color}55` }}
-              >
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: `${color}aa` }} />
-              </div>
+            {/* 待命：每位 Agent 桌上擺著自己的工作場景（報表、行事曆、監控盤……） */}
+            <div className="absolute inset-x-0 bottom-12 top-12 flex items-center justify-center overflow-y-auto px-5">
+              <IdleScene slug={agentSlug} color={color} />
             </div>
             <span className="absolute left-4 top-4 flex max-w-[92%] items-center gap-2 truncate text-xs font-semibold tracking-[0.18em] text-white/45">
               <span className="tv-breathe h-2 w-2 rounded-full bg-amber-400" />
-              {idle}
+              {def.idle}
             </span>
+            <div className="absolute bottom-3.5 left-4 right-4">
+              <Ticker lines={def.ticker} color={color} />
+            </div>
           </>
         )}
       </div>
 
-      {/* 階段流水線：待命全暗；處理中依 step 亮起；等待指示時把當前節點放大並轉琥珀 */}
-      <div className="mt-5 flex items-center gap-2">
-        {steps.map((label, i) => {
-          const done = isLive && i < step;
-          const active = isProcessing && i === step;
-          const waiting = isWaiting && i === step;
-          // 流程在此節點收尾（例如回覆「不要」→ 這次不安排）。不是「進行中」，
-          // 要有明確的結束樣式，否則節點會停在半空看起來像卡住。
-          const ended = isDone && i === step;
-          const current = active || waiting;
-          const dot = waiting ? "#F59E0B" : color;
-          return (
-            <div key={label} className="flex flex-1 items-center gap-2">
-              {i > 0 && (
-                <span
-                  className="h-px flex-1 rounded"
-                  style={{ background: isLive && i <= step ? color : "rgba(255,255,255,0.1)" }}
-                />
-              )}
-              <span
-                className={`flex shrink-0 items-center justify-center rounded-full border-2 transition-all ${current ? "tv-breathe" : ""}`}
-                style={{
-                  width: current ? 30 : 20,
-                  height: current ? 30 : 20,
-                  borderColor: done ? color : current ? dot : ended ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.16)",
-                  background: done ? color : active ? `${color}33` : waiting ? "rgba(245,158,11,0.22)" : ended ? "rgba(255,255,255,0.32)" : "transparent",
-                  boxShadow: current ? `0 0 16px -2px ${dot}` : "none",
-                }}
-              >
-                {done && <Check size={12} className="text-[#05060a]" strokeWidth={3} />}
-                {current && <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />}
-                {ended && <span className="h-2 w-2 rounded-full bg-[#05060a]" />}
-              </span>
-              <span
-                className={`whitespace-nowrap ${current ? "text-[15px] font-semibold" : "text-sm"} ${
-                  done || ended ? "text-white/55" : !current ? "text-white/25" : ""
-                }`}
-                style={current ? { color: dot } : undefined}
-              >
-                {ended ? "已結束" : waiting ? "等待指示" : active ? `${label}中…` : label}
-              </span>
-            </div>
-          );
-        })}
+      {/* 工作流程圖：完整節點＋分支。待命時展示全貌；真實任務時亮出走過的路徑 */}
+      <div className="mt-5">
+        <p className="mb-2.5 text-[10px] font-semibold tracking-[0.2em] text-white/35">工作流程</p>
+        <FlowGraph flow={def.flow} color={color} live={live} />
       </div>
 
       {/* 等待指示時：明確告訴觀眾在等下一步 */}
