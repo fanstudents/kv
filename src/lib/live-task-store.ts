@@ -1,47 +1,88 @@
 import "server-only";
+import { getSupabase } from "./supabase";
 
-// 劇院模式「真實現正處理」的即時狀態。
-// 存在單一 Node 程序的記憶體裡：webhook 寫入、/tv 讀取（同一 Zeabur 容器共用）。
-// 這是 demo 取向——重啟即清空、僅單一實例有效；要多實例可換 Supabase/Redis。
+// 劇院模式「真實現正處理」的即時狀態，持久化在 Supabase（agent_live_task 表）。
+// webhook 於名片流程各里程碑寫入，/tv 讀取。重啟、多實例都不受影響。
+
+const TTL_MS = 120_000; // 兩分鐘沒更新就視為結束，畫面回到「待命中」
 
 export interface LiveTaskState {
   agentSlug: string;
-  /** 目前進行到第幾個階段（= 已完成階段數；等於階段總數時代表全部完成） */
   step: number;
   status: "active" | "done";
-  caption?: string;
-  /** 名片等實際圖片（data URL），只保留最新一張 */
-  image?: string;
-  /** 圖片版本（換圖才變，供前端 <img> 快取失效） */
+  caption: string | null;
+  hasImage: boolean;
   imageVersion: number;
   updatedAt: number;
 }
 
-const store = new Map<string, LiveTaskState>();
-const TTL_MS = 120_000; // 兩分鐘沒更新就視為結束，畫面回到示意動畫
+type Patch = { step?: number; status?: "active" | "done"; caption?: string; image?: string };
 
-type Patch = Partial<Pick<LiveTaskState, "step" | "status" | "caption" | "image">>;
+/** 寫入／更新某 Agent 的即時狀態（缺省欄位沿用上一筆）。best-effort，永不丟例外。 */
+export async function setLiveTask(agentSlug: string, patch: Patch): Promise<void> {
+  try {
+    const supabase = getSupabase();
+    const { data: prev } = await supabase
+      .from("agent_live_task")
+      .select("step,status,caption,image,image_version")
+      .eq("agent_slug", agentSlug)
+      .maybeSingle();
 
-export function setLiveTask(agentSlug: string, patch: Patch) {
-  const prev = store.get(agentSlug);
-  const imageChanged = patch.image !== undefined && patch.image !== prev?.image;
-  store.set(agentSlug, {
-    agentSlug,
-    step: patch.step ?? prev?.step ?? 0,
-    status: patch.status ?? prev?.status ?? "active",
-    caption: patch.caption ?? prev?.caption,
-    image: patch.image ?? prev?.image,
-    imageVersion: imageChanged ? Date.now() : (prev?.imageVersion ?? 0),
-    updatedAt: Date.now(),
-  });
+    const imageChanged = patch.image !== undefined && patch.image !== prev?.image;
+    await supabase.from("agent_live_task").upsert(
+      {
+        agent_slug: agentSlug,
+        step: patch.step ?? prev?.step ?? 0,
+        status: patch.status ?? prev?.status ?? "active",
+        caption: patch.caption ?? prev?.caption ?? null,
+        image: patch.image ?? prev?.image ?? null,
+        image_version: imageChanged ? Date.now() : (prev?.image_version ?? 0),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "agent_slug" }
+    );
+  } catch {
+    // UI 狀態寫入失敗不應影響主流程（名片辨識、寄信等照常）
+  }
 }
 
-export function getLiveTask(agentSlug: string): LiveTaskState | null {
-  const t = store.get(agentSlug);
-  if (!t) return null;
-  if (Date.now() - t.updatedAt > TTL_MS) {
-    store.delete(agentSlug);
+/** 讀取狀態（不含圖片本體）；超過 TTL 未更新視為「待命中」回傳 null。 */
+export async function getLiveTaskState(agentSlug: string): Promise<LiveTaskState | null> {
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("agent_live_task")
+      .select("step,status,caption,image_version,updated_at")
+      .eq("agent_slug", agentSlug)
+      .maybeSingle();
+    if (!data) return null;
+    const updatedAt = new Date(data.updated_at).getTime();
+    if (Date.now() - updatedAt > TTL_MS) return null;
+    return {
+      agentSlug,
+      step: data.step ?? 0,
+      status: data.status === "done" ? "done" : "active",
+      caption: data.caption ?? null,
+      hasImage: (data.image_version ?? 0) > 0,
+      imageVersion: data.image_version ?? 0,
+      updatedAt,
+    };
+  } catch {
     return null;
   }
-  return t;
+}
+
+/** 讀取目前處理中的實際圖片（data URL）。 */
+export async function getLiveImage(agentSlug: string): Promise<string | null> {
+  try {
+    const supabase = getSupabase();
+    const { data } = await supabase
+      .from("agent_live_task")
+      .select("image")
+      .eq("agent_slug", agentSlug)
+      .maybeSingle();
+    return (data?.image as string | null) ?? null;
+  } catch {
+    return null;
+  }
 }

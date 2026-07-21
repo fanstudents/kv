@@ -595,6 +595,7 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
                 agentSlug={agent.slug}
                 prop={AGENT_LIVE_TASKS[agent.slug].prop}
                 steps={AGENT_LIVE_TASKS[agent.slug].steps}
+                idle={AGENT_LIVE_TASKS[agent.slug].idle}
                 color={agent.color}
                 live={live}
               />

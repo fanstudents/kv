@@ -1,57 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import type { PropKind } from "@/lib/agent-briefings";
 
-// 階段循環：0..steps（含全數完成的一拍）不斷輪播，像同事持續在做這件事。
-// 以「經過時間」推進，計時器被節流時也能正確跳到當下該有的階段。
-function useStepCycle(count: number, ms = 1150) {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    const start = performance.now();
-    const id = setInterval(() => {
-      setStep(Math.floor((performance.now() - start) / ms) % (count + 1));
-    }, 120);
-    return () => clearInterval(id);
-  }, [count, ms]);
-  return step;
-}
-
-/* 各職務的道具視覺（保持穩定可見，動畫凍結時仍看得到） */
+/* 各職務的道具視覺（有真實任務時才演出；保持穩定可見，動畫凍結時仍看得到） */
 function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
-  if (kind === "card") {
-    return (
-      <div className="relative">
-        {/* 取景框四角 */}
-        <div className="pointer-events-none absolute -inset-4">
-          {[
-            "left-0 top-0 border-l-2 border-t-2",
-            "right-0 top-0 border-r-2 border-t-2",
-            "left-0 bottom-0 border-b-2 border-l-2",
-            "right-0 bottom-0 border-b-2 border-r-2",
-          ].map((pos) => (
-            <span key={pos} className={`absolute h-3.5 w-3.5 ${pos}`} style={{ borderColor: color }} />
-          ))}
-        </div>
-        {/* 名片 */}
-        <div className="w-44 -rotate-3 rounded-md bg-neutral-100 p-3 shadow-xl">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="h-2.5 w-16 rounded-sm bg-neutral-800" />
-              <div className="mt-1.5 h-1.5 w-10 rounded-sm bg-neutral-400" />
-            </div>
-            <span className="h-5 w-5 rounded-full" style={{ background: color }} />
-          </div>
-          <div className="mt-3 space-y-1.5">
-            <div className="h-1 w-24 rounded-sm bg-neutral-300" />
-            <div className="h-1 w-16 rounded-sm bg-neutral-300" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (kind === "chart") {
     const bars = [0.5, 0.82, 0.4, 1, 0.66, 0.55];
     return (
@@ -66,7 +19,6 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
       </div>
     );
   }
-
   if (kind === "chat") {
     return (
       <div className="w-52 space-y-2">
@@ -84,7 +36,6 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
       </div>
     );
   }
-
   if (kind === "radar") {
     return (
       <div className="relative h-24 w-24 rounded-full border border-white/15">
@@ -95,11 +46,9 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
           style={{ background: `conic-gradient(from 0deg, transparent 296deg, ${color}66 358deg)` }}
         />
         <span className="absolute h-1.5 w-1.5 rounded-full" style={{ background: color, top: "28%", left: "62%" }} />
-        <span className="absolute h-1 w-1 rounded-full bg-white/70" style={{ top: "60%", left: "40%" }} />
       </div>
     );
   }
-
   if (kind === "calendar") {
     return (
       <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
@@ -120,7 +69,6 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
       </div>
     );
   }
-
   if (kind === "compose") {
     return (
       <div className="w-52 rounded-lg border border-white/10 bg-white/[0.03] p-3.5">
@@ -136,7 +84,23 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
       </div>
     );
   }
-
+  if (kind === "card") {
+    return (
+      <div className="w-44 -rotate-3 rounded-md bg-neutral-100 p-3 shadow-xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="h-2.5 w-16 rounded-sm bg-neutral-800" />
+            <div className="mt-1.5 h-1.5 w-10 rounded-sm bg-neutral-400" />
+          </div>
+          <span className="h-5 w-5 rounded-full" style={{ background: color }} />
+        </div>
+        <div className="mt-3 space-y-1.5">
+          <div className="h-1 w-24 rounded-sm bg-neutral-300" />
+          <div className="h-1 w-16 rounded-sm bg-neutral-300" />
+        </div>
+      </div>
+    );
+  }
   // doc
   return (
     <div className="w-48 rounded-lg border border-white/10 bg-white/[0.03] p-3.5">
@@ -162,31 +126,46 @@ export interface LiveInfo {
   imageVersion: number;
 }
 
+function Brackets({ color }: { color: string }) {
+  return (
+    <div className="pointer-events-none absolute -inset-4">
+      {[
+        "left-0 top-0 border-l-2 border-t-2",
+        "right-0 top-0 border-r-2 border-t-2",
+        "left-0 bottom-0 border-b-2 border-l-2",
+        "right-0 bottom-0 border-b-2 border-r-2",
+      ].map((pos) => (
+        <span key={pos} className={`absolute h-3.5 w-3.5 ${pos}`} style={{ borderColor: color }} />
+      ))}
+    </div>
+  );
+}
+
 export default function LiveTask({
   agentSlug,
   prop,
   steps,
   color,
+  idle,
   live,
 }: {
   agentSlug: string;
   prop: PropKind;
   steps: string[];
   color: string;
+  idle: string;
   live?: LiveInfo | null;
 }) {
-  const loopStep = useStepCycle(steps.length);
   const isLive = Boolean(live?.active);
-  const step = isLive ? live!.step : loopStep;
-  const imageUrl =
-    isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
+  const step = isLive ? live!.step : -1; // -1 = 待命，沒有階段在跑
+  const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
 
   return (
     <div>
       {/* 場景螢幕 */}
       <div
         className="relative h-40 overflow-hidden rounded-2xl border bg-[#06090d]"
-        style={{ borderColor: isLive ? `${color}66` : "rgba(255,255,255,0.1)" }}
+        style={{ borderColor: isLive ? `${color}66` : "rgba(255,255,255,0.08)" }}
       >
         {/* 細格線 */}
         <div
@@ -197,62 +176,70 @@ export default function LiveTask({
             backgroundSize: "22px 22px",
           }}
         />
-        {/* 掃描線 */}
-        <div
-          className="live-scan absolute inset-x-0 top-0 h-12"
-          style={{ background: `linear-gradient(180deg, transparent, ${color}22 60%, ${color}44)` }}
-        />
-        {/* 道具 or 真實圖片 */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          {imageUrl ? (
-            <div className="relative">
-              <div className="pointer-events-none absolute -inset-4">
-                {[
-                  "left-0 top-0 border-l-2 border-t-2",
-                  "right-0 top-0 border-r-2 border-t-2",
-                  "left-0 bottom-0 border-b-2 border-l-2",
-                  "right-0 bottom-0 border-b-2 border-r-2",
-                ].map((pos) => (
-                  <span key={pos} className={`absolute h-3.5 w-3.5 ${pos}`} style={{ borderColor: color }} />
-                ))}
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt="現正處理的圖片"
-                className="max-h-28 w-auto rounded-md object-contain shadow-xl"
-              />
+
+        {isLive ? (
+          <>
+            {/* 掃描線（只有真的在處理時才掃） */}
+            <div
+              className="live-scan absolute inset-x-0 top-0 h-12"
+              style={{ background: `linear-gradient(180deg, transparent, ${color}22 60%, ${color}44)` }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              {imageUrl ? (
+                <div className="relative">
+                  <Brackets color={color} />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt="現正處理的圖片"
+                    className="max-h-28 w-auto rounded-md object-contain shadow-xl"
+                  />
+                </div>
+              ) : (
+                <PropGraphic kind={prop} color={color} />
+              )}
             </div>
-          ) : (
-            <PropGraphic kind={prop} color={color} />
-          )}
-        </div>
-        {/* LIVE 標記 */}
-        <span className="absolute left-3 top-3 flex max-w-[90%] items-center gap-1.5 truncate text-[10px] font-semibold tracking-[0.18em] text-white/45">
-          <span className="tv-breathe h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-          {isLive ? `真實處理・${live!.caption ?? "現正處理"}` : "LIVE · 現正處理"}
-        </span>
+            <span className="absolute left-3 top-3 flex max-w-[92%] items-center gap-1.5 truncate text-[10px] font-semibold tracking-[0.18em] text-white/50">
+              <span className="tv-breathe h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+              真實處理・{live!.caption ?? "現正處理"}
+            </span>
+          </>
+        ) : (
+          <>
+            {/* 待命：空的取景框在等輸入，沒有掃描、沒有跑流程 */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+              <div
+                className="tv-breathe flex h-16 w-24 items-center justify-center rounded-lg border-2 border-dashed"
+                style={{ borderColor: `${color}55` }}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ background: `${color}aa` }} />
+              </div>
+            </div>
+            <span className="absolute left-3 top-3 flex max-w-[92%] items-center gap-1.5 truncate text-[10px] font-semibold tracking-[0.18em] text-white/40">
+              <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-amber-400" />
+              {idle}
+            </span>
+          </>
+        )}
       </div>
 
-      {/* 階段流水線：辨識中 → 寫入中 → 比對中 → 邀約中 */}
+      {/* 階段流水線：待命時全部灰底、不亮；真實處理時依 step 逐步亮起 */}
       <div className="mt-3.5 flex items-center gap-1.5">
         {steps.map((label, i) => {
-          const done = i < step;
-          const active = i === step;
+          const done = isLive && i < step;
+          const active = isLive && i === step;
           return (
             <div key={label} className="flex flex-1 items-center gap-1.5">
               {i > 0 && (
                 <span
                   className="h-px flex-1 rounded"
-                  style={{ background: i <= step ? color : "rgba(255,255,255,0.12)" }}
+                  style={{ background: isLive && i <= step ? color : "rgba(255,255,255,0.1)" }}
                 />
               )}
               <span
-                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                  active ? "tv-breathe" : ""
-                }`}
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${active ? "tv-breathe" : ""}`}
                 style={{
-                  borderColor: done || active ? color : "rgba(255,255,255,0.2)",
+                  borderColor: done || active ? color : "rgba(255,255,255,0.16)",
                   background: done ? color : active ? `${color}33` : "transparent",
                 }}
               >
@@ -261,7 +248,7 @@ export default function LiveTask({
               </span>
               <span
                 className={`whitespace-nowrap text-xs ${
-                  active ? "font-medium" : done ? "text-white/55" : "text-white/30"
+                  active ? "font-medium" : done ? "text-white/55" : "text-white/25"
                 }`}
                 style={active ? { color } : undefined}
               >

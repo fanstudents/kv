@@ -21,21 +21,23 @@ export interface LiveTask {
   prop: PropKind;
   /** 階段動詞（進行中會顯示「XX中…」，完成打勾） */
   steps: string[];
+  /** 待命時顯示的等待提示（沒有真實任務在跑時） */
+  idle: string;
 }
 
 export const AGENT_LIVE_TASKS: Record<AgentSlug, LiveTask> = {
-  teamlead: { prop: "doc", steps: ["彙整", "掃描", "撰寫", "寄送"] },
-  notify: { prop: "chat", steps: ["偵測", "判斷", "組裝", "推播"] },
-  report: { prop: "chart", steps: ["彙整", "計算", "產出", "洞察"] },
-  schedule: { prop: "calendar", steps: ["讀取", "比對", "提醒", "發送"] },
-  card: { prop: "compose", steps: ["發想", "撰寫", "排程", "發佈"] },
-  expense: { prop: "radar", steps: ["爬取", "分析", "排名", "產出"] },
-  visit: { prop: "card", steps: ["辨識", "寫入", "比對", "邀約"] },
-  today: { prop: "chart", steps: ["連線", "抓取", "計算", "標記"] },
-  competitor: { prop: "radar", steps: ["監看", "偵測", "彙整", "摘要"] },
-  operations: { prop: "doc", steps: ["盤點", "更新", "標記", "同步"] },
-  support: { prop: "chat", steps: ["接收", "理解", "組裝", "回覆"] },
-  orders: { prop: "doc", steps: ["接收", "核對", "通知", "追蹤"] },
+  teamlead: { prop: "doc", steps: ["彙整", "掃描", "撰寫", "寄送"], idle: "待命中・下次彙報前待命" },
+  notify: { prop: "chat", steps: ["偵測", "判斷", "組裝", "推播"], idle: "監控中・等待指標觸發" },
+  report: { prop: "chart", steps: ["彙整", "計算", "產出", "洞察"], idle: "待命中・等待數據更新" },
+  schedule: { prop: "calendar", steps: ["讀取", "比對", "提醒", "發送"], idle: "待命中・等待行程異動" },
+  card: { prop: "compose", steps: ["發想", "撰寫", "排程", "發佈"], idle: "待命中・等待排程時間" },
+  expense: { prop: "radar", steps: ["爬取", "分析", "排名", "產出"], idle: "監看中・持續追蹤排名" },
+  visit: { prop: "card", steps: ["辨識", "寫入", "比對", "邀約"], idle: "待命中・等待名片上傳" },
+  today: { prop: "chart", steps: ["連線", "抓取", "計算", "標記"], idle: "待命中・等待投放數據" },
+  competitor: { prop: "radar", steps: ["監看", "偵測", "彙整", "摘要"], idle: "監看中・盯著評論與競品" },
+  operations: { prop: "doc", steps: ["盤點", "更新", "標記", "同步"], idle: "待命中・等待營運異動" },
+  support: { prop: "chat", steps: ["接收", "理解", "組裝", "回覆"], idle: "待命中・等待訊息進線" },
+  orders: { prop: "doc", steps: ["接收", "核對", "通知", "追蹤"], idle: "待命中・等待新訂單" },
 };
 
 export interface AgentBriefing {

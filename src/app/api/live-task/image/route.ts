@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLiveTask } from "@/lib/live-task-store";
+import { getLiveImage } from "@/lib/live-task-store";
 
 // 回傳目前這位 Agent 正在處理的實際圖片（例如剛上傳的名片照）位元組
 export async function GET(req: NextRequest) {
   const agent = req.nextUrl.searchParams.get("agent") ?? "";
-  const t = getLiveTask(agent);
-  if (!t?.image) return new NextResponse(null, { status: 404 });
+  const image = await getLiveImage(agent);
+  if (!image) return new NextResponse(null, { status: 404 });
 
-  const match = /^data:([^;]+);base64,([\s\S]*)$/.exec(t.image);
+  const match = /^data:([^;]+);base64,([\s\S]*)$/.exec(image);
   if (!match) return new NextResponse(null, { status: 404 });
 
   const [, contentType, b64] = match;
