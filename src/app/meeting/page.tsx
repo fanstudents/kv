@@ -55,12 +55,25 @@ function fetchWithTimeout(input: RequestInfo, init: RequestInit, ms = FETCH_TIME
   return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(id));
 }
 
-// 每位 Agent 固定配到 OpenAI TTS 的其中一種嗓音，聽起來像不同人、且比瀏覽器
-// 內建的 speechSynthesis 自然許多。
-const OPENAI_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
+// 每位 Agent 依「人設性別」固定配一種 OpenAI 嗓音：
+// 女聲 → nova / shimmer / alloy；男聲 → echo / onyx / fable。
+// 女性成員：Vivian、Ivy、Sunny、Coco、Dana、Amber；男性成員：Kevin、Milo、Leo、Jay、Morgan、Ray。
+const AGENT_VOICE: Record<string, string> = {
+  teamlead: "nova", // Vivian（女）
+  report: "shimmer", // Ivy（女）
+  card: "alloy", // Sunny（女）
+  visit: "nova", // Coco（女）
+  today: "shimmer", // Dana（女）
+  support: "alloy", // Amber（女）
+  notify: "echo", // Kevin（男）
+  schedule: "fable", // Milo（男）
+  expense: "onyx", // Leo（男）
+  competitor: "echo", // Jay（男）
+  operations: "onyx", // Morgan（男）
+  orders: "fable", // Ray（男）
+};
 function voiceForSlug(slug: string): string {
-  const h = Array.from(slug).reduce((a, c) => a + c.charCodeAt(0), 0);
-  return OPENAI_VOICES[h % OPENAI_VOICES.length];
+  return AGENT_VOICE[slug] ?? "alloy";
 }
 
 function pickAudioMime(): string {

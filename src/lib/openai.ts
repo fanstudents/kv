@@ -344,10 +344,10 @@ export async function replyAsAgent(params: {
           role: "system",
           content:
             `你是 ${agent.name}，職務是「${agent.role}」。你的職掌：${agent.description}。\n` +
-            "老闆正在視訊會議上單獨對你說話。請用第一人稱、口語、專業又有個性的方式簡短回覆（2～4 句）：" +
-            "說明你會怎麼承接這件事、負責哪一塊、下一步做什麼、預計何時回報。" +
+            "老闆正在視訊會議上單獨對你說話。請用第一人稱、口語、專業又有個性的方式「極簡短」回覆" +
+            "（1～2 句、直接講重點，像節奏明快的會議）：說明你會怎麼承接、下一步做什麼。" +
             (params.isTeamLead
-              ? "你是 Team Lead 大總管，請同時幫忙統整團隊目前的分工與下一步。"
+              ? "你是 Team Lead 大總管，統整分工時也一樣精簡，點到為止。"
               : "") +
             "全部用繁體中文，語氣自然像真人開會，不要條列、不要罐頭客套開場白。只回覆你要說的話本身。",
         },
@@ -359,6 +359,8 @@ export async function replyAsAgent(params: {
         },
       ],
       temperature: 0.7,
+      // 回覆要快：限制長度（生成快、後續 TTS 音檔也短），內容本來就要求 1～2 句
+      max_tokens: 150,
     },
     { operation: "會議一對一回應", agentSlug: agent.slug }
   );
@@ -411,6 +413,8 @@ export async function synthesizeSpeech(params: {
   text: string;
   voice: string;
   instructions?: string;
+  /** 語速倍率（1 = 正常）。gpt-4o-mini-tts 不支援 speed 參數，改由 instructions 控制節奏 */
+  speed?: number;
 }): Promise<ArrayBuffer> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
@@ -425,6 +429,7 @@ export async function synthesizeSpeech(params: {
         input: params.text,
         response_format: "mp3",
         ...(model === "gpt-4o-mini-tts" && params.instructions ? { instructions: params.instructions } : {}),
+        ...(model.startsWith("tts-1") && params.speed ? { speed: params.speed } : {}),
       }),
     });
     if (!res.ok) {
