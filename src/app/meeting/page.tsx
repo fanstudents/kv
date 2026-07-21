@@ -17,6 +17,7 @@ import {
   VolumeX,
   Hand,
   WifiOff,
+  SkipForward,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import { AGENTS } from "@/lib/agent-data";
@@ -32,15 +33,27 @@ interface Reply {
 
 const TEAM_LEAD_SLUG: AgentSlug = "teamlead";
 // 停頓多久（毫秒）就視為「講完一段」，切一段語音去辨識、自動送給團隊回應。
-const SILENCE_MS = 1600;
+const SILENCE_MS = 1100;
 // 音量偵測 tick 間隔（毫秒）
 const VAD_TICK_MS = 100;
-// RMS 音量門檻（0~1），超過視為「有人在說話」。可依實際麥克風增益微調。
-const VAD_THRESHOLD = 0.035;
-// 太短／太小的錄音片段（多半是雜音或誤觸），不送去辨識
-const MIN_UTTERANCE_BYTES = 3000;
+// 自適應音量門檻：門檻 = clamp(環境噪音底 × 3, MIN, MAX)，會隨現場噪音自動調整。
+// 不用單一固定值——固定值在不同麥克風增益下常「講話偵測不到」或「安靜卻一直誤觸」。
+const VAD_MIN_THRESHOLD = 0.012;
+const VAD_MAX_THRESHOLD = 0.08;
+// 一段話至少要有這麼多毫秒的有效人聲才送辨識（過濾咳嗽、鍵盤聲、開關門）
+const MIN_VOICED_MS = 400;
+// 閒置太久就重啟切段錄音器：每段永遠是「從頭開始、含檔頭的完整檔案」，且檔案保持短小
+const IDLE_RECYCLE_MS = 15000;
 // 麥克風軌道健康檢查間隔（毫秒）——偵測到斷線就自動重新取得麥克風
 const MIC_WATCHDOG_MS = 2000;
+// 對外部 API 的單次請求逾時：任何一支卡住都不能讓整場會議跟著卡死
+const FETCH_TIMEOUT_MS = 20000;
+
+function fetchWithTimeout(input: RequestInfo, init: RequestInit, ms = FETCH_TIMEOUT_MS): Promise<Response> {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(id));
+}
 
 // 每位 Agent 固定配到 OpenAI TTS 的其中一種嗓音，聽起來像不同人、且比瀏覽器
 // 內建的 speechSynthesis 自然許多。
@@ -95,6 +108,7 @@ export default function MeetingPage() {
   const [micLevel, setMicLevel] = useState(0); // 0~1，即時音量，用於畫面上的音量條
   const [transcribing, setTranscribing] = useState(false); // 語音辨識中（講完到文字回來的空檔）
   const [thinking, setThinking] = useState(false);
+  const [agentTalking, setAgentTalking] = useState(false); // Agent 正在語音回覆（此時暫停聆聽，說完自動恢復）
   const [micOn, setMicOn] = useState(false);
   const [micNotice, setMicNotice] = useState<string | null>(null); // 麥克風斷線／恢復的提示
   const [autoRespond, setAutoRespond] = useState(true); // 停頓即自動送出（即時對話感）
@@ -122,13 +136,16 @@ export default function MeetingPage() {
   // 音量偵測（VAD）與逐段語音辨識
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const micWatchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const utteranceRecorderRef = useRef<MediaRecorder | null>(null);
   const utteranceChunksRef = useRef<Blob[]>([]);
-  const hasSpeechRef = useRef(false);
+  const uttHasSpeechRef = useRef(false); // 這段錄音裡是否偵測到有效人聲
+  const uttStartTsRef = useRef(0); // 這段錄音器的啟動時間（閒置回收用）
+  const voicedMsRef = useRef(0); // 這段錄音中累積的有效人聲毫秒數
+  const onsetCountRef = useRef(0); // 連續超過門檻的 tick 數（去抖動，避免單一雜訊誤觸）
+  const noiseFloorRef = useRef(0.008); // 環境噪音底（滾動平均），自適應門檻的基準
   const lastVoiceTsRef = useRef(0);
   const recoveringMicRef = useRef(false);
+  const pendingRef = useRef(""); // Agent 回應期間你又說的話，先排隊、回應完自動接續送出
 
   // 即時鏡像 ref（供計時器 / callback 讀取最新值，避免閉包過期）
   const thinkingRef = useRef(false);
@@ -156,12 +173,9 @@ export default function MeetingPage() {
   useEffect(() => {
     transcribeHintRef.current = transcribeHint;
   }, [transcribeHint]);
+  const stopAgentAudioRef = useRef<() => void>(() => {});
   useEffect(() => {
-    if (!voiceOn && currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-      agentSpeakingRef.current = false;
-    }
+    if (!voiceOn) stopAgentAudioRef.current();
   }, [voiceOn]);
   useEffect(() => {
     currentIndexRef.current = currentIndex;
@@ -195,63 +209,107 @@ export default function MeetingPage() {
     source.connect(analyser);
     audioCtxRef.current = ctx;
     analyserRef.current = analyser;
+    ctx.resume().catch(() => {});
   }, []);
 
-  /* ── 逐段錄音：獨立於整場錄音，專門切一段一段送去辨識 ── */
-  const setupUtteranceRecorder = useCallback((stream: MediaStream) => {
-    try {
-      utteranceRecorderRef.current?.stop();
-    } catch {
-      /* ignore */
-    }
+  /* ── 開一個「全新的」切段錄音器。
+   * 關鍵：WebM/Opus 只有第一塊資料帶檔頭，所以每段話都必須用一顆全新的
+   * MediaRecorder 從頭錄——舊做法（一顆錄到底、切段只清陣列）切出來的第二段
+   * 起全是無檔頭殘片，辨識必失敗，正是「講幾句就靜音」的元兇。 ── */
+  const armUtterance = useCallback(() => {
+    const stream = micStreamRef.current;
+    if (!stream || stream.getAudioTracks()[0]?.readyState !== "live") return;
     utteranceChunksRef.current = [];
+    uttHasSpeechRef.current = false;
+    voicedMsRef.current = 0;
+    onsetCountRef.current = 0;
+    uttStartTsRef.current = Date.now();
     const mime = pickAudioMime();
     try {
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
       rec.ondataavailable = (ev) => {
         if (ev.data.size > 0) utteranceChunksRef.current.push(ev.data);
       };
-      rec.start(250); // 每 250ms 累積一塊，供「講完停頓」時就地切段
+      rec.start(250);
       utteranceRecorderRef.current = rec;
     } catch {
       utteranceRecorderRef.current = null;
     }
   }, []);
 
-  /* ── 一段話講完（停頓偵測到）：切出這段錄音，送去辨識，依模式自動送出或填入指令列 ── */
-  const cutUtterance = useCallback(() => {
-    const chunks = utteranceChunksRef.current;
-    utteranceChunksRef.current = [];
-    if (chunks.length === 0) return;
-    const mimeType = chunks[0]?.type || "audio/webm";
-    const blob = new Blob(chunks, { type: mimeType });
-    if (blob.size < MIN_UTTERANCE_BYTES) return; // 太短，多半是雜音誤觸
-
-    setTranscribing(true);
-    const form = new FormData();
-    form.append("audio", blob, `utterance.${audioExt(mimeType)}`);
-    form.append("promptHint", transcribeHintRef.current);
-
-    fetch("/api/meeting/transcribe", { method: "POST", body: form })
-      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
-      .then(({ ok, d }) => {
-        if (!ok) throw new Error(d.error || "語音辨識失敗");
-        const text = (d.text || "").trim();
-        if (!text) return;
-        fullTranscriptRef.current += (fullTranscriptRef.current ? " " : "") + text;
-        if (autoRespondRef.current && !thinkingRef.current) {
-          sendTextRef.current(text);
-        } else {
-          setDraft((prev) => (prev ? `${prev} ${text}` : text));
-        }
-      })
-      .catch(() => {
-        // 單次辨識失敗不中斷會議，安靜略過即可（音訊仍完整錄在整場錄音中）
-      })
-      .finally(() => setTranscribing(false));
+  /* ── 排隊機制：Agent 思考／播音期間你說的話先存起來，空下來立刻接續送出 ── */
+  const drainPending = useCallback(() => {
+    if (thinkingRef.current || agentSpeakingRef.current) return;
+    const text = pendingRef.current.trim();
+    if (!text) return;
+    pendingRef.current = "";
+    sendTextRef.current(text);
   }, []);
 
-  /* ── VAD tick：每 100ms 讀一次音量，判斷「正在說話」或「已停頓」 ── */
+  const routeText = useCallback((text: string) => {
+    if (!autoRespondRef.current) {
+      setDraft((prev) => (prev ? `${prev} ${text}` : text));
+      return;
+    }
+    if (thinkingRef.current || agentSpeakingRef.current) {
+      pendingRef.current = pendingRef.current ? `${pendingRef.current} ${text}` : text;
+      return;
+    }
+    sendTextRef.current(text);
+  }, []);
+
+  const transcribeBlob = useCallback(
+    (blob: Blob) => {
+      setTranscribing(true);
+      const form = new FormData();
+      form.append("audio", blob, `utterance.${audioExt(blob.type || "audio/webm")}`);
+      form.append("promptHint", transcribeHintRef.current);
+      fetchWithTimeout("/api/meeting/transcribe", { method: "POST", body: form })
+        .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+          if (!ok) throw new Error(d.error || "語音辨識失敗");
+          const text = (d.text || "").trim();
+          if (!text) return;
+          fullTranscriptRef.current += (fullTranscriptRef.current ? " " : "") + text;
+          routeText(text);
+        })
+        .catch(() => {
+          // 單次辨識失敗不中斷會議（音訊仍完整錄在整場錄音中）
+        })
+        .finally(() => setTranscribing(false));
+    },
+    [routeText]
+  );
+
+  /* ── 收尾這段錄音：stop() 會先 flush 完最後一塊再觸發 onstop，
+   * 所以 onstop 裡拿到的一定是「含檔頭的完整檔案」；接著立刻開新的一段。 ── */
+  const finishUtterance = useCallback(
+    (send: boolean) => {
+      const rec = utteranceRecorderRef.current;
+      utteranceRecorderRef.current = null;
+      const voicedMs = voicedMsRef.current;
+      if (!rec || rec.state === "inactive") {
+        armUtterance();
+        return;
+      }
+      rec.onstop = () => {
+        const chunks = utteranceChunksRef.current;
+        utteranceChunksRef.current = [];
+        if (send && voicedMs >= MIN_VOICED_MS && chunks.length > 0) {
+          transcribeBlob(new Blob(chunks, { type: chunks[0]?.type || "audio/webm" }));
+        }
+        armUtterance();
+      };
+      try {
+        rec.stop();
+      } catch {
+        armUtterance();
+      }
+    },
+    [armUtterance, transcribeBlob]
+  );
+
+  /* ── VAD tick：每 100ms 讀一次音量，自適應門檻判斷「正在說話」或「已停頓」 ── */
   const vadTick = useCallback(() => {
     const analyser = analyserRef.current;
     if (!analyser) return;
@@ -267,28 +325,45 @@ export default function MeetingPage() {
 
     if (agentSpeakingRef.current) return; // Agent 正在講話，忽略麥克風，避免把喇叭聲當新指令
 
-    if (rms > VAD_THRESHOLD) {
-      hasSpeechRef.current = true;
-      lastVoiceTsRef.current = Date.now();
-      setIsSpeakingUI((prev) => (prev ? prev : true));
-    } else if (hasSpeechRef.current && Date.now() - lastVoiceTsRef.current > SILENCE_MS) {
-      hasSpeechRef.current = false;
-      setIsSpeakingUI(false);
-      cutUtterance();
+    const threshold = Math.min(VAD_MAX_THRESHOLD, Math.max(VAD_MIN_THRESHOLD, noiseFloorRef.current * 3));
+    if (rms > threshold) {
+      onsetCountRef.current += 1;
+      // 連續兩個 tick 以上才算開口（單一 tick 常是雜訊、關門聲）
+      if (onsetCountRef.current >= 2) {
+        uttHasSpeechRef.current = true;
+        voicedMsRef.current += VAD_TICK_MS;
+        lastVoiceTsRef.current = Date.now();
+        setIsSpeakingUI(true);
+      }
+    } else {
+      onsetCountRef.current = 0;
+      // 安靜時滾動更新噪音底，讓門檻貼著現場環境走
+      noiseFloorRef.current = noiseFloorRef.current * 0.95 + rms * 0.05;
+      if (uttHasSpeechRef.current) {
+        if (Date.now() - lastVoiceTsRef.current > SILENCE_MS) {
+          setIsSpeakingUI(false);
+          finishUtterance(true);
+        }
+      } else if (Date.now() - uttStartTsRef.current > IDLE_RECYCLE_MS) {
+        finishUtterance(false); // 一直沒人講話：丟棄並重開，讓錄音段保持短小新鮮
+      }
     }
-  }, [cutUtterance]);
+  }, [finishUtterance]);
 
-  /* ── 麥克風健康檢查：軌道意外斷線（裝置睡眠、藍牙耳機斷開…）就自動重新取得 ── */
+  /* ── 麥克風健康檢查：軌道意外斷線（裝置睡眠、藍牙耳機斷開…）就自動重新取得；
+   * AudioContext 被瀏覽器暫停也在這裡喚醒（這是「開一陣子突然沒反應」的另一元兇） ── */
   const recoverMic = useCallback(async () => {
     if (recoveringMicRef.current) return;
     recoveringMicRef.current = true;
     setMicOn(false);
     flashMicNotice("麥克風中斷，重新連接中…", 6000);
     try {
-      const fresh = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const fresh = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       micStreamRef.current = fresh;
       setupAnalyser(fresh);
-      setupUtteranceRecorder(fresh);
+      armUtterance();
 
       // 整場錄音也一併換源，避免後半段整段沒聲音
       try {
@@ -311,53 +386,91 @@ export default function MeetingPage() {
     } finally {
       recoveringMicRef.current = false;
     }
-  }, [flashMicNotice, setupAnalyser, setupUtteranceRecorder]);
+  }, [flashMicNotice, setupAnalyser, armUtterance]);
 
   const micWatchdog = useCallback(() => {
+    const ctx = audioCtxRef.current;
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
     const track = micStreamRef.current?.getAudioTracks()[0];
     if (!track) return;
     if (track.readyState !== "live" && !recoveringMicRef.current) {
       recoverMic();
     }
-  }, [recoverMic]);
+    // 切段錄音器意外死掉（少數瀏覽器在裝置切換時會發生）也自動重開
+    if (track.readyState === "live" && !utteranceRecorderRef.current && !recoveringMicRef.current) {
+      armUtterance();
+    }
+  }, [recoverMic, armUtterance]);
 
-  // Agent 語音回覆：呼叫 OpenAI TTS，每位 Agent 固定一種嗓音。播放期間暫停麥克風偵測避免自我循環。
-  const speak = useCallback((text: string, slug: string) => {
-    if (!text) return;
-    if (currentAudioRef.current) {
+  /* ── Agent 說完話（或被跳過）的統一收尾：恢復聆聽、丟棄播音期間錄到的喇叭聲、送出排隊中的話 ── */
+  const finishAgentSpeech = useCallback(() => {
+    if (!agentSpeakingRef.current) return;
+    agentSpeakingRef.current = false;
+    setAgentTalking(false);
+    finishUtterance(false); // 播音期間錄到的段落含喇叭聲，直接丟棄、重新乾淨聆聽
+    drainPending();
+  }, [finishUtterance, drainPending]);
+
+  const stopAgentAudio = useCallback(() => {
+    const audio = currentAudioRef.current;
+    currentAudioRef.current = null;
+    if (audio) {
       try {
-        currentAudioRef.current.pause();
+        audio.pause();
       } catch {
         /* ignore */
       }
-      currentAudioRef.current = null;
     }
-    agentSpeakingRef.current = true;
-    fetch("/api/meeting/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, voice: voiceForSlug(slug) }),
-    })
-      .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("語音合成失敗"))))
-      .then((blob) => {
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
-        currentAudioRef.current = audio;
-        const cleanup = () => {
-          agentSpeakingRef.current = false;
-          URL.revokeObjectURL(url);
-          if (currentAudioRef.current === audio) currentAudioRef.current = null;
-        };
-        audio.onended = cleanup;
-        audio.onerror = cleanup;
-        audio.play().catch(cleanup);
-      })
-      .catch(() => {
-        agentSpeakingRef.current = false;
-      });
-  }, []);
+    finishAgentSpeech();
+  }, [finishAgentSpeech]);
+  useEffect(() => {
+    stopAgentAudioRef.current = stopAgentAudio;
+  }, [stopAgentAudio]);
 
-  // 換人：把「發言權」交給下一位（揮手 / 按鈕 / →鍵 都會呼叫）
+  // Agent 語音回覆：呼叫 OpenAI TTS，每位 Agent 固定一種嗓音。播放期間暫停麥克風偵測避免自我循環。
+  const speak = useCallback(
+    (text: string, slug: string) => {
+      if (!text) return;
+      const prev = currentAudioRef.current;
+      currentAudioRef.current = null;
+      if (prev) {
+        try {
+          prev.pause();
+        } catch {
+          /* ignore */
+        }
+      }
+      agentSpeakingRef.current = true;
+      setAgentTalking(true);
+      fetchWithTimeout("/api/meeting/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: voiceForSlug(slug) }),
+      })
+        .then((r) => (r.ok ? r.blob() : Promise.reject(new Error("語音合成失敗"))))
+        .then((blob) => {
+          if (!agentSpeakingRef.current) return; // 已被使用者跳過
+          const url = URL.createObjectURL(blob);
+          const audio = new Audio(url);
+          currentAudioRef.current = audio;
+          const done = () => {
+            URL.revokeObjectURL(url);
+            if (currentAudioRef.current === audio) currentAudioRef.current = null;
+            finishAgentSpeech();
+          };
+          audio.onended = done;
+          audio.onerror = done;
+          audio.play().catch(done);
+        })
+        .catch(() => {
+          finishAgentSpeech();
+        });
+    },
+    [finishAgentSpeech]
+  );
+
+  // 換人：把「發言權」交給下一位（揮手 / 按鈕 / →鍵 都會呼叫）。
+  // 若上一位還在播音會直接跳過；你排隊中的話會轉給新上場的這位。
   const goToAgent = useCallback(
     (idx: number) => {
       const n = roster.length;
@@ -366,17 +479,9 @@ export default function MeetingPage() {
       currentIndexRef.current = next;
       setCurrentIndex(next);
       setReply(null);
-      if (currentAudioRef.current) {
-        try {
-          currentAudioRef.current.pause();
-        } catch {
-          /* ignore */
-        }
-        currentAudioRef.current = null;
-      }
-      agentSpeakingRef.current = false;
+      stopAgentAudio();
     },
-    [roster.length]
+    [roster.length, stopAgentAudio]
   );
   const nextAgent = useCallback(() => goToAgent(currentIndexRef.current + 1), [goToAgent]);
   useEffect(() => {
@@ -440,8 +545,6 @@ export default function MeetingPage() {
     const gestureId = setInterval(() => detectGesture(), 120);
     const vadId = setInterval(() => vadTick(), VAD_TICK_MS);
     const watchdogId = setInterval(() => micWatchdog(), MIC_WATCHDOG_MS);
-    vadIntervalRef.current = vadId;
-    micWatchdogRef.current = watchdogId;
     return () => {
       clearInterval(gestureId);
       clearInterval(vadId);
@@ -474,12 +577,19 @@ export default function MeetingPage() {
       currentAudioRef.current = null;
     }
     agentSpeakingRef.current = false;
-    try {
-      utteranceRecorderRef.current?.stop();
-    } catch {
-      /* ignore */
-    }
+    setAgentTalking(false);
+    pendingRef.current = "";
+    const uttRec = utteranceRecorderRef.current;
     utteranceRecorderRef.current = null;
+    if (uttRec) {
+      uttRec.onstop = null; // 收尾時不要觸發「再開一段」
+      uttRec.ondataavailable = null;
+      try {
+        uttRec.stop();
+      } catch {
+        /* ignore */
+      }
+    }
     try {
       audioCtxRef.current?.close().catch(() => {});
     } catch {
@@ -509,10 +619,10 @@ export default function MeetingPage() {
       if (!res.ok || !data.id) throw new Error(data.error || "無法建立會議");
       setMeetingId(data.id);
 
-      // 2) 開鏡頭 + 麥克風
+      // 2) 開鏡頭 + 麥克風（開回音消除／降噪：Agent 用喇叭講話時不會殘留進你的麥克風）
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
-        audio: true,
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -539,10 +649,11 @@ export default function MeetingPage() {
 
       // 4) 音量偵測 + 逐段語音辨識（取代瀏覽器內建、不夠準確又容易斷線的 Web Speech API）
       setupAnalyser(micStream);
-      setupUtteranceRecorder(micStream);
+      armUtterance();
       setMicOn(true);
 
       fullTranscriptRef.current = "";
+      pendingRef.current = "";
       startTsRef.current = Date.now();
       setElapsed(0);
       setPhase("live");
@@ -557,7 +668,7 @@ export default function MeetingPage() {
     } finally {
       setStarting(false);
     }
-  }, [setupAnalyser, setupUtteranceRecorder, stopEverything]);
+  }, [setupAnalyser, armUtterance, stopEverything]);
 
   const sendCommandText = useCallback(
     async (raw: string) => {
@@ -588,9 +699,11 @@ export default function MeetingPage() {
       } finally {
         thinkingRef.current = false;
         setThinking(false);
+        // 沒有進入播音（語音關閉或合成失敗）就直接接續排隊中的話；有播音則等播完再接
+        if (!agentSpeakingRef.current) drainPending();
       }
     },
-    [meetingId, roster, speak, voiceOn]
+    [meetingId, roster, speak, voiceOn, drainPending]
   );
   useEffect(() => {
     sendTextRef.current = sendCommandText;
@@ -612,13 +725,20 @@ export default function MeetingPage() {
       currentAudioRef.current = null;
     }
     agentSpeakingRef.current = false;
+    setAgentTalking(false);
+    pendingRef.current = "";
 
-    try {
-      utteranceRecorderRef.current?.stop();
-    } catch {
-      /* ignore */
-    }
+    const uttRec = utteranceRecorderRef.current;
     utteranceRecorderRef.current = null;
+    if (uttRec) {
+      uttRec.onstop = null; // 收尾時不要觸發「再開一段」
+      uttRec.ondataavailable = null;
+      try {
+        uttRec.stop();
+      } catch {
+        /* ignore */
+      }
+    }
     try {
       audioCtxRef.current?.close().catch(() => {});
     } catch {
@@ -700,14 +820,20 @@ export default function MeetingPage() {
                 className={`hidden items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium sm:flex ${
                   thinking
                     ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
-                    : transcribing
-                      ? "border-sky-400/30 bg-sky-400/10 text-sky-200"
-                      : "border-[#06C755]/30 bg-[#06C755]/10 text-[#06C755]"
+                    : agentTalking
+                      ? "border-violet-400/30 bg-violet-400/10 text-violet-200"
+                      : transcribing
+                        ? "border-sky-400/30 bg-sky-400/10 text-sky-200"
+                        : "border-[#06C755]/30 bg-[#06C755]/10 text-[#06C755]"
                 }`}
               >
                 {thinking ? (
                   <>
-                    <Loader2 size={13} className="animate-spin" /> 團隊回應中
+                    <Loader2 size={13} className="animate-spin" /> 思考中
+                  </>
+                ) : agentTalking ? (
+                  <>
+                    <Volume2 size={13} /> 回覆中
                   </>
                 ) : transcribing ? (
                   <>
@@ -853,17 +979,19 @@ export default function MeetingPage() {
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-4 pt-12">
                   <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold tracking-[0.2em] text-[#06C755]/90">
                     <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />
-                    {isSpeakingUI ? "偵測到語音" : transcribing ? "語音辨識中" : "即時對話"}
+                    {isSpeakingUI ? "偵測到語音" : transcribing ? "語音辨識中" : agentTalking ? "語音回覆中" : "即時對話"}
                   </p>
                   {draft ? (
                     <p className="text-xl font-medium leading-snug text-white sm:text-2xl">{draft}</p>
                   ) : (
                     <p className="text-lg leading-snug text-white/35">
                       {thinking
-                        ? `${currentAgent.personEn} 正在回應您的指示…`
-                        : transcribing
-                          ? "正在辨識您剛剛說的話…"
-                          : `請對 ${currentAgent.personEn} ${currentAgent.personZh} 說出您的指示；揮手換下一位。`}
+                        ? `${currentAgent.personEn} 正在思考回應…`
+                        : agentTalking
+                          ? `${currentAgent.personEn} 語音回覆中，說完會自動繼續聽您說；想直接接話可點「跳過」`
+                          : transcribing
+                            ? "正在辨識您剛剛說的話…"
+                            : `請對 ${currentAgent.personEn} ${currentAgent.personZh} 說出您的指示；揮手換下一位。`}
                     </p>
                   )}
                 </div>
@@ -902,7 +1030,7 @@ export default function MeetingPage() {
                   </button>
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="hidden truncate text-xs text-white/35 sm:inline">
-                      {autoRespond ? "說完停頓約 1.6 秒即自動送出" : "口述完點送出，或 ⌘/Ctrl + Enter"}
+                      {autoRespond ? "說完停頓約 1 秒即自動送出" : "口述完點送出，或 ⌘/Ctrl + Enter"}
                     </span>
                     <button
                       type="button"
@@ -967,10 +1095,19 @@ export default function MeetingPage() {
                 ) : reply ? (
                   <div className="tv-in">
                     <p className="text-[15px] leading-relaxed text-white/90">{reply.text}</p>
-                    {voiceOn && (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs text-white/40">
-                        <Volume2 size={13} className="text-[#06C755]" /> 語音回覆中
-                      </p>
+                    {agentTalking && (
+                      <div className="mt-2.5 flex items-center gap-3">
+                        <p className="flex items-center gap-1.5 text-xs text-white/40">
+                          <Volume2 size={13} className="text-[#06C755]" /> 語音回覆中
+                        </p>
+                        <button
+                          type="button"
+                          onClick={stopAgentAudio}
+                          className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/5 px-2.5 py-1 text-[11px] text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                          <SkipForward size={11} /> 跳過，直接接話
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -1011,9 +1148,11 @@ export default function MeetingPage() {
                 className={`mb-4 flex items-center justify-center gap-2.5 rounded-2xl border px-4 py-2.5 text-sm font-medium transition-colors ${
                   thinking
                     ? "border-amber-400/25 bg-amber-400/[0.07] text-amber-100/90"
-                    : transcribing
-                      ? "border-sky-400/25 bg-sky-400/[0.07] text-sky-200"
-                      : "border-[#06C755]/25 bg-[#06C755]/[0.07] text-[#06C755]"
+                    : agentTalking
+                      ? "border-violet-400/25 bg-violet-400/[0.07] text-violet-200"
+                      : transcribing
+                        ? "border-sky-400/25 bg-sky-400/[0.07] text-sky-200"
+                        : "border-[#06C755]/25 bg-[#06C755]/[0.07] text-[#06C755]"
                 }`}
               >
                 {thinking ? (
@@ -1027,7 +1166,12 @@ export default function MeetingPage() {
                         />
                       ))}
                     </span>
-                    團隊正在回應您的指示…
+                    {currentAgent.personEn} 正在思考回應…
+                  </>
+                ) : agentTalking ? (
+                  <>
+                    <Volume2 size={14} className="text-violet-300" />
+                    <span className="text-violet-200">{currentAgent.personEn} 語音回覆中 · 說完自動繼續聆聽</span>
                   </>
                 ) : transcribing ? (
                   <>
