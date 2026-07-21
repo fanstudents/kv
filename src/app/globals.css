@@ -242,6 +242,34 @@ body {
 .tv-pop {
   animation: tv-pop 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
+/* 彙報中的聲波（scaleY，凍結時停在短棒也可見） */
+@keyframes tv-wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.tv-wave {
+  transform-origin: bottom;
+  animation: tv-wave 0.9s ease-in-out infinite;
+}
+/* 說話中的外擴光環 */
+@keyframes tv-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+.tv-ping {
+  animation: tv-ping 1.6s ease-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .tv-blob-a,
   .tv-blob-b,
@@ -250,7 +278,9 @@ body {
   .tv-breathe,
   .tv-slide-r,
   .tv-slide-l,
-  .tv-pop {
+  .tv-pop,
+  .tv-wave,
+  .tv-ping {
     animation: none;
   }
 }

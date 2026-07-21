@@ -3,28 +3,63 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  CheckCircle2,
+  BarChart3,
+  Bell,
+  Calendar,
   ChevronLeft,
   ChevronRight,
-  Clock,
+  FileBarChart,
+  FileText,
+  Mail,
   Maximize2,
+  Megaphone,
+  MessageSquare,
   Minimize2,
   Pause,
   Play,
   X,
-  XCircle,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
-import { ACTIVITY_LOGS, AGENTS } from "@/lib/agent-data";
-import type { AgentActivity, AgentSlug } from "@/lib/types";
+import { AGENTS } from "@/lib/agent-data";
+import { AGENT_BRIEFINGS, type OutputKind } from "@/lib/agent-briefings";
+import type { AgentSlug } from "@/lib/types";
 
 type Agent = (typeof AGENTS)[number];
 
-const LOG_ICON: Record<AgentActivity["status"], React.ReactNode> = {
-  success: <CheckCircle2 size={15} className="text-[#06C755]" />,
-  failed: <XCircle size={15} className="text-red-400" />,
-  pending: <Clock size={15} className="text-amber-400" />,
+const OUTPUT_ICON: Record<OutputKind, React.ReactNode> = {
+  report: <FileBarChart size={15} />,
+  chart: <BarChart3 size={15} />,
+  doc: <FileText size={15} />,
+  mail: <Mail size={15} />,
+  calendar: <Calendar size={15} />,
+  post: <Megaphone size={15} />,
+  message: <MessageSquare size={15} />,
+  alert: <Bell size={15} />,
 };
+
+// 打字機：像真人一邊講一邊出字；點一下可略過。以「經過時間」推進，
+// 讓總時長固定（不受計時器被節流影響）。
+function useTypewriter(text: string, msPerChar = 22) {
+  const [len, setLen] = useState(0);
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const kick = requestAnimationFrame(() => setLen(text.length));
+      return () => cancelAnimationFrame(kick);
+    }
+    const start = performance.now();
+    const id = setInterval(() => {
+      const n = Math.floor((performance.now() - start) / msPerChar);
+      if (n >= text.length) {
+        setLen(text.length);
+        clearInterval(id);
+      } else {
+        setLen(n);
+      }
+    }, 16);
+    return () => clearInterval(id);
+  }, [text, msPerChar]);
+  return { shown: text.slice(0, len), done: len >= text.length, skip: () => setLen(text.length) };
+}
 
 interface ActivityRow {
   agent_slug: string | null;
@@ -458,37 +493,46 @@ const SceneSpotlight = memo(function SceneSpotlight({
   );
 });
 
-/* ── 劇院式細節：一位 Agent 正在做什麼、做過什麼 ── */
+/* ── 劇院式細節：一位 Agent 像真人同事跟你彙報最近七天 ── */
 function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) {
-  const logs = ACTIVITY_LOGS[agent.slug] ?? [];
+  const brief = AGENT_BRIEFINGS[agent.slug];
+  const fullReport = `${brief.greeting}${brief.report}`;
+  const { shown, done, skip } = useTypewriter(fullReport);
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6">
       <button
         type="button"
         aria-label="關閉"
         onClick={onClose}
-        className="absolute inset-0 cursor-default bg-black/70 backdrop-blur-md"
+        className="absolute inset-0 cursor-default bg-black/72 backdrop-blur-md"
       />
-      <div className="tv-pop relative z-10 max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0d12]/95 p-7 shadow-2xl sm:p-10">
+      <div className="tv-pop relative z-10 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0d12]/95 p-6 shadow-2xl sm:p-9">
         <button
           type="button"
           onClick={onClose}
           title="關閉"
-          className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
         >
           <X size={16} />
         </button>
 
-        <div className="flex flex-col gap-8 sm:flex-row sm:gap-10">
-          {/* 身分 */}
-          <div className="flex shrink-0 flex-col items-center text-center sm:w-56">
+        <div className="flex flex-col gap-7 sm:flex-row sm:gap-9">
+          {/* 身分 + 彙報狀態 */}
+          <div className="flex shrink-0 flex-col items-center text-center sm:w-52">
             <div className="relative">
               <span
                 className="absolute -inset-3 rounded-full blur-2xl"
                 style={{ background: `radial-gradient(circle, ${agent.color}55, transparent 70%)` }}
               />
+              {!done && (
+                <span
+                  className="tv-ping absolute -inset-1.5 rounded-full border-2"
+                  style={{ borderColor: agent.color }}
+                />
+              )}
               <div className="relative">
-                <Avatar personEn={agent.personEn} color={agent.color} size={124} />
+                <Avatar personEn={agent.personEn} color={agent.color} size={120} />
                 <span
                   className="tv-breathe absolute bottom-1.5 right-1.5 h-5 w-5 rounded-full border-4 border-[#0b0d12] bg-[#06C755]"
                   style={{ boxShadow: "0 0 12px 2px rgba(6,199,85,0.7)" }}
@@ -502,39 +546,101 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
             <p className="mt-1 text-sm" style={{ color: agent.color }}>
               {agent.role}
             </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#06C755]/15 px-3 py-1 text-xs font-medium text-[#06C755]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#06C755]" />
-              值勤中
-            </span>
+            {done ? (
+              <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#06C755]/15 px-3 py-1 text-xs font-medium text-[#06C755]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+                值勤中
+              </span>
+            ) : (
+              <span className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-[#06C755]">
+                <span className="flex h-3 items-end gap-[3px]">
+                  {[0, 120, 240, 360].map((d) => (
+                    <i
+                      key={d}
+                      className="tv-wave block w-[3px] rounded-full bg-[#06C755]"
+                      style={{ height: "100%", animationDelay: `${d}ms` }}
+                    />
+                  ))}
+                </span>
+                彙報中…
+              </span>
+            )}
           </div>
 
-          {/* 正在做什麼 + 做過什麼 */}
+          {/* 彙報內容 */}
           <div className="min-w-0 flex-1">
-            <div className="rounded-2xl border border-[#06C755]/25 bg-[#06C755]/[0.06] p-4">
-              <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] text-[#06C755]">
+            {/* 最近七天彙報（打字機） */}
+            <button
+              type="button"
+              onClick={skip}
+              className="w-full cursor-default rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left"
+            >
+              <p className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-[0.2em] text-white/40">
                 <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />
-                正在做什麼
+                最近七天彙報
               </p>
-              <p className="mt-2 text-base text-white/90">{DOING[agent.slug]}</p>
-            </div>
+              <p className="min-h-[3.5em] text-[15px] leading-relaxed text-white/90">
+                {shown}
+                {!done && <span className="office-blink ml-0.5 text-[#06C755]">▍</span>}
+              </p>
+            </button>
 
-            <p className="mb-1 mt-7 text-[11px] font-semibold tracking-[0.2em] text-white/40">
-              做過什麼 · 近期紀錄
-            </p>
-            {logs.length === 0 ? (
-              <p className="mt-3 text-sm text-white/40">尚無執行紀錄。</p>
-            ) : (
-              <ul className="mt-4 space-y-4">
-                {logs.map((item: AgentActivity) => (
-                  <li key={item.id} className="flex gap-3">
-                    <span className="mt-0.5 shrink-0">{LOG_ICON[item.status]}</span>
-                    <div className="min-w-0">
-                      <p className="text-sm leading-snug text-white/85">{item.summary}</p>
-                      <p className="mt-0.5 font-mono text-xs text-white/35">{item.timestamp}</p>
+            {/* 彙報完才揭曉：數字、任務重點、產出（滑入） */}
+            {done && (
+              <div className="mt-6 space-y-6">
+                <div className="tv-in grid grid-cols-3 gap-3">
+                  {brief.weekStats.map((s) => (
+                    <div
+                      key={s.label}
+                      className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2.5 text-center"
+                    >
+                      <p className="font-mono text-xl font-light text-white">
+                        {s.value}
+                        {s.delta && <span className="ml-1 text-xs text-[#06C755]">{s.delta}</span>}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-white/40">{s.label}</p>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </div>
+
+                <div className="tv-in" style={{ animationDelay: "80ms" }}>
+                  <p className="mb-3 text-[11px] font-semibold tracking-[0.2em] text-white/40">目前任務重點</p>
+                  <ul className="space-y-2">
+                    {brief.focus.map((f) => (
+                      <li key={f} className="flex items-start gap-2.5 text-sm text-white/80">
+                        <span
+                          className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                          style={{ background: agent.color }}
+                        />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="tv-in" style={{ animationDelay: "160ms" }}>
+                  <p className="mb-3 text-[11px] font-semibold tracking-[0.2em] text-white/40">最近的產出</p>
+                  <ul className="space-y-2.5">
+                    {brief.outputs.map((o) => (
+                      <li
+                        key={o.label}
+                        className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-3.5 py-2.5"
+                      >
+                        <span
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                          style={{ background: `${agent.color}1f`, color: agent.color }}
+                        >
+                          {OUTPUT_ICON[o.kind]}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm text-white/90">{o.label}</p>
+                          <p className="truncate text-xs text-white/40">{o.meta}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             )}
           </div>
         </div>
