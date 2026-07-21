@@ -527,7 +527,7 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
         onClick={onClose}
         className="absolute inset-0 cursor-default bg-black/72 backdrop-blur-md"
       />
-      <div className="tv-pop relative z-10 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0d12]/95 p-6 shadow-2xl sm:p-9">
+      <div className="tv-pop relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0d12]/95 p-6 shadow-2xl sm:p-10">
         <button
           type="button"
           onClick={onClose}

@@ -128,14 +128,14 @@ export interface LiveInfo {
 
 function Brackets({ color }: { color: string }) {
   return (
-    <div className="pointer-events-none absolute -inset-4">
+    <div className="pointer-events-none absolute -inset-6">
       {[
         "left-0 top-0 border-l-2 border-t-2",
         "right-0 top-0 border-r-2 border-t-2",
         "left-0 bottom-0 border-b-2 border-l-2",
         "right-0 bottom-0 border-b-2 border-r-2",
       ].map((pos) => (
-        <span key={pos} className={`absolute h-3.5 w-3.5 ${pos}`} style={{ borderColor: color }} />
+        <span key={pos} className={`absolute h-6 w-6 ${pos}`} style={{ borderColor: color }} />
       ))}
     </div>
   );
@@ -164,7 +164,7 @@ export default function LiveTask({
     <div>
       {/* 場景螢幕 */}
       <div
-        className="relative h-40 overflow-hidden rounded-2xl border bg-[#06090d]"
+        className="relative h-60 overflow-hidden rounded-2xl border bg-[#06090d] sm:h-64"
         style={{ borderColor: isLive ? `${color}66` : "rgba(255,255,255,0.08)" }}
       >
         {/* 細格線 */}
@@ -192,15 +192,15 @@ export default function LiveTask({
                   <img
                     src={imageUrl}
                     alt="現正處理的圖片"
-                    className="max-h-28 w-auto rounded-md object-contain shadow-xl"
+                    className="max-h-48 w-auto rounded-lg object-contain shadow-2xl sm:max-h-52"
                   />
                 </div>
               ) : (
                 <PropGraphic kind={prop} color={color} />
               )}
             </div>
-            <span className="absolute left-3 top-3 flex max-w-[92%] items-center gap-1.5 truncate text-[10px] font-semibold tracking-[0.18em] text-white/50">
-              <span className="tv-breathe h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+            <span className="absolute left-4 top-4 flex max-w-[92%] items-center gap-2 truncate text-xs font-semibold tracking-[0.18em] text-white/60">
+              <span className="tv-breathe h-2 w-2 rounded-full" style={{ background: color }} />
               真實處理・{live!.caption ?? "現正處理"}
             </span>
           </>
@@ -209,14 +209,14 @@ export default function LiveTask({
             {/* 待命：空的取景框在等輸入，沒有掃描、沒有跑流程 */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
               <div
-                className="tv-breathe flex h-16 w-24 items-center justify-center rounded-lg border-2 border-dashed"
+                className="tv-breathe flex h-28 w-44 items-center justify-center rounded-xl border-2 border-dashed"
                 style={{ borderColor: `${color}55` }}
               >
-                <span className="h-2 w-2 rounded-full" style={{ background: `${color}aa` }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: `${color}aa` }} />
               </div>
             </div>
-            <span className="absolute left-3 top-3 flex max-w-[92%] items-center gap-1.5 truncate text-[10px] font-semibold tracking-[0.18em] text-white/40">
-              <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-amber-400" />
+            <span className="absolute left-4 top-4 flex max-w-[92%] items-center gap-2 truncate text-xs font-semibold tracking-[0.18em] text-white/45">
+              <span className="tv-breathe h-2 w-2 rounded-full bg-amber-400" />
               {idle}
             </span>
           </>
@@ -224,12 +224,12 @@ export default function LiveTask({
       </div>
 
       {/* 階段流水線：待命時全部灰底、不亮；真實處理時依 step 逐步亮起 */}
-      <div className="mt-3.5 flex items-center gap-1.5">
+      <div className="mt-5 flex items-center gap-2">
         {steps.map((label, i) => {
           const done = isLive && i < step;
           const active = isLive && i === step;
           return (
-            <div key={label} className="flex flex-1 items-center gap-1.5">
+            <div key={label} className="flex flex-1 items-center gap-2">
               {i > 0 && (
                 <span
                   className="h-px flex-1 rounded"
@@ -237,17 +237,17 @@ export default function LiveTask({
                 />
               )}
               <span
-                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${active ? "tv-breathe" : ""}`}
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${active ? "tv-breathe" : ""}`}
                 style={{
                   borderColor: done || active ? color : "rgba(255,255,255,0.16)",
                   background: done ? color : active ? `${color}33` : "transparent",
                 }}
               >
-                {done && <Check size={10} className="text-[#05060a]" strokeWidth={3} />}
-                {active && <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />}
+                {done && <Check size={12} className="text-[#05060a]" strokeWidth={3} />}
+                {active && <span className="h-2 w-2 rounded-full" style={{ background: color }} />}
               </span>
               <span
-                className={`whitespace-nowrap text-xs ${
+                className={`whitespace-nowrap text-sm ${
                   active ? "font-medium" : done ? "text-white/55" : "text-white/25"
                 }`}
                 style={active ? { color } : undefined}
