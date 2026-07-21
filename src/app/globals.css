@@ -146,3 +146,76 @@ body {
 .office-blink {
   animation: office-blink 1.2s steps(1) infinite;
 }
+
+/* ---- 劇場模式（TV / Ambient 環境顯示）---- */
+@keyframes tv-drift-a {
+  0%,
+  100% {
+    transform: translate(-8%, -6%) scale(1);
+  }
+  50% {
+    transform: translate(9%, 6%) scale(1.18);
+  }
+}
+@keyframes tv-drift-b {
+  0%,
+  100% {
+    transform: translate(8%, 8%) scale(1.12);
+  }
+  50% {
+    transform: translate(-7%, -5%) scale(1);
+  }
+}
+@keyframes tv-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes tv-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes tv-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.tv-blob-a {
+  animation: tv-drift-a 22s ease-in-out infinite;
+}
+.tv-blob-b {
+  animation: tv-drift-b 26s ease-in-out infinite;
+}
+.tv-in {
+  animation: tv-in 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.tv-fade {
+  animation: tv-fade 0.6s ease both;
+}
+.tv-breathe {
+  animation: tv-breathe 3s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tv-blob-a,
+  .tv-blob-b,
+  .tv-in,
+  .tv-fade,
+  .tv-breathe {
+    animation: none;
+  }
+}

@@ -16,6 +16,7 @@ import {
   X,
   Wallet,
   Plug,
+  MonitorPlay,
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
@@ -153,6 +154,14 @@ export default function Sidebar() {
         >
           <LayoutDashboard size={18} />
           團隊總覽
+        </Link>
+        <Link
+          href="/tv"
+          className="mt-1 flex items-center gap-3 rounded-lg border border-neutral-200 bg-gradient-to-r from-[#06C755]/10 to-transparent px-3 py-2 text-sm font-medium text-neutral-700 transition-colors hover:border-[#06C755]/40 hover:text-[#06C755] dark:border-neutral-800 dark:text-neutral-200"
+        >
+          <MonitorPlay size={18} />
+          劇場模式
+          <span className="ml-auto text-[10px] font-normal text-neutral-400">全螢幕</span>
         </Link>
 
         <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">超級 Agent</p>
