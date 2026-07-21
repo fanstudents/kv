@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import LiveTask, { type LiveInfo } from "@/components/tv/LiveTask";
-import { AGENTS } from "@/lib/agent-data";
+import { AGENTS, avatarUrl } from "@/lib/agent-data";
 import { AGENT_BRIEFINGS, AGENT_LIVE_TASKS, type OutputKind } from "@/lib/agent-briefings";
 import type { AgentSlug } from "@/lib/types";
 
@@ -67,6 +67,51 @@ interface ActivityRow {
   agent_slug: string | null;
   occurred_at: string;
   status: "success" | "failed" | "pending";
+  summary?: string | null;
+}
+
+/** 真實動態流：底部 LIVE 跑馬燈與「今日快報」場景共用，每 60 秒更新一次 */
+function useActivityFeed(limit = 30): ActivityRow[] {
+  const [rows, setRows] = useState<ActivityRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch(`/api/activity?limit=${limit}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((d) => {
+          if (alive && Array.isArray(d)) setRows(d as ActivityRow[]);
+        })
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [limit]);
+  return rows;
+}
+
+/** 數字滾動：場景亮相時從 0 衝到目標值（Netflix 數據大屏的儀式感） */
+function useCountUp(target: number, durationMs = 1100): number {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const kick = requestAnimationFrame(() => setValue(target));
+      return () => cancelAnimationFrame(kick);
+    }
+    const start = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(target * eased));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs]);
+  return value;
 }
 
 // 每位 Agent 目前正在做的事（聚光場景用，示意）
@@ -85,10 +130,11 @@ const DOING: Record<AgentSlug, string> = {
   orders: "待命，監看新訂單 Webhook",
 };
 
-const SCENES = ["此刻", "戰情總覽", "值勤團隊", "現正聚光"] as const;
+const SCENES = ["此刻", "戰情總覽", "值勤團隊", "現正聚光", "今日快報"] as const;
 const N = SCENES.length;
 const AUTOPLAY_MS = 12_000;
-const SPOTLIGHT_MS = 5_000;
+const SPOTLIGHT_MS = 6_000;
+const POSTER_FOCUS_MS = 3_200;
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
 // 時鐘 hook：只驅動自己所在的葉節點更新，不牽動整個頁面（避免場景動畫被重播）
@@ -115,28 +161,34 @@ function clockParts(t: Date | null) {
 
 export default function TvModePage() {
   const [scene, setScene] = useState(0);
-  const [dir, setDir] = useState(1);
   const [autoplay, setAutoplay] = useState(true);
   const [spot, setSpot] = useState(0);
   const [isFull, setIsFull] = useState(false);
   const [openAgent, setOpenAgent] = useState<AgentSlug | null>(null);
+  const [introDone, setIntroDone] = useState(false);
 
   const activeAgents = useMemo(() => AGENTS.filter((a) => a.status === "active"), []);
   const activeCount = activeAgents.length;
   const recipients = useMemo(() => AGENTS.reduce((sum, a) => sum + a.recipients, 0), []);
+  const feed = useActivityFeed(30);
 
   const openDetail = useCallback((slug: AgentSlug) => setOpenAgent(slug), []);
   const closeDetail = useCallback(() => setOpenAgent(null), []);
 
-  // 自動輪播場景（可暫停；展開細節時也暫停）
+  // 片頭播完才開始自動輪播（可暫停；展開細節時也暫停）
   useEffect(() => {
-    if (!autoplay || openAgent) return;
+    if (!introDone || !autoplay || openAgent) return;
     const t = setInterval(() => {
-      setDir(1);
       setScene((i) => (i + 1) % N);
     }, AUTOPLAY_MS);
     return () => clearInterval(t);
-  }, [autoplay, scene, openAgent]);
+  }, [introDone, autoplay, scene, openAgent]);
+
+  // 片頭自動收場（點擊也可提前略過）
+  useEffect(() => {
+    const t = setTimeout(() => setIntroDone(true), 3400);
+    return () => clearTimeout(t);
+  }, []);
 
   // 聚光場景：每 5 秒輪流放大一位值勤 Agent
   useEffect(() => {
@@ -160,10 +212,8 @@ export default function TvModePage() {
         return;
       }
       if (e.key === "ArrowRight") {
-        setDir(1);
         setScene((i) => (i + 1) % N);
       } else if (e.key === "ArrowLeft") {
-        setDir(-1);
         setScene((i) => (i - 1 + N) % N);
       } else if (e.key === " ") {
         e.preventDefault();
@@ -174,29 +224,25 @@ export default function TvModePage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [openAgent]);
 
-  const go = (delta: number) => {
-    setDir(delta > 0 ? 1 : -1);
-    setScene((i) => (i + delta + N) % N);
-  };
-  const jump = (i: number) => {
-    setDir(i > scene ? 1 : -1);
-    setScene(i);
-  };
+  const go = (delta: number) => setScene((i) => (i + delta + N) % N);
+  const jump = (i: number) => setScene(i);
   const toggleFull = () => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
-  const slideClass = dir > 0 ? "tv-slide-r" : "tv-slide-l";
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#05060a] text-white">
-      {/* 環境光暈 */}
+      {/* 環境光暈 + 電影質感（顆粒與暗角） */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="tv-blob-a absolute -left-[10%] -top-[15%] h-[70vh] w-[70vh] rounded-full bg-[radial-gradient(circle,rgba(6,199,85,0.2),transparent_65%)] blur-3xl" />
         <div className="tv-blob-b absolute -bottom-[20%] -right-[10%] h-[75vh] w-[75vh] rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.15),transparent_65%)] blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.6))]" />
+        <FilmGrain />
       </div>
+
+      {/* 片頭（進場一次，點擊可略過） */}
+      {!introDone && <CinematicIntro onSkip={() => setIntroDone(true)} activeCount={activeCount} />}
 
       {/* 常駐迷你時鐘（非「此刻」場景時顯示） */}
       {scene !== 0 && <MiniClock />}
@@ -237,12 +283,17 @@ export default function TvModePage() {
         </Link>
       </div>
 
-      {/* 場景舞台（一次只專注一件事） */}
-      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 py-28">
-        <div key={scene} className={`${slideClass} w-full max-w-[1320px]`}>
+      {/* 場景舞台（一次只專注一件事；電影級縮放淡入轉場） */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-6 pb-32 pt-24">
+        <div key={scene} className="tv-scene-in w-full max-w-[1320px]">
           {scene === 0 && <SceneNow activeCount={activeCount} />}
           {scene === 1 && (
-            <SceneOverview activeCount={activeCount} total={AGENTS.length} recipients={recipients} />
+            <SceneOverview
+              activeCount={activeCount}
+              total={AGENTS.length}
+              recipients={recipients}
+              visible={introDone}
+            />
           )}
           {scene === 2 && <SceneTeam agents={activeAgents} onOpen={openDetail} />}
           {scene === 3 && activeCount > 0 && (
@@ -253,16 +304,20 @@ export default function TvModePage() {
               onOpen={openDetail}
             />
           )}
+          {scene === 4 && <SceneHighlights feed={feed} onOpen={openDetail} />}
         </div>
       </div>
+
+      {/* 底部 LIVE 跑馬燈：真實動態不停歇（新聞台 chyron 質感） */}
+      <Chyron feed={feed} />
 
       {/* 點擊 Agent → 劇院式細節（正在做什麼、做過什麼） */}
       {openAgent && (
         <AgentDetail agent={AGENTS.find((a) => a.slug === openAgent) as Agent} onClose={closeDetail} />
       )}
 
-      {/* 底部頻道切換 */}
-      <div className="absolute bottom-7 left-1/2 z-20 flex -translate-x-1/2 items-center gap-5">
+      {/* 底部頻道切換（活躍場景上有自動輪播倒數進度條） */}
+      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 items-center gap-5">
         <button
           type="button"
           onClick={() => go(-1)}
@@ -282,10 +337,20 @@ export default function TvModePage() {
                 onClick={() => jump(i)}
                 title={s}
                 aria-label={s}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === scene ? "w-6 bg-[#06C755]" : "w-1.5 bg-white/25 hover:bg-white/50"
+                className={`relative h-1.5 overflow-hidden rounded-full transition-all ${
+                  i === scene ? "w-9 bg-white/20" : "w-1.5 bg-white/25 hover:bg-white/50"
                 }`}
-              />
+              >
+                {i === scene && (
+                  <span
+                    key={`${scene}-${autoplay}-${introDone}`}
+                    className={`absolute inset-0 rounded-full bg-[#06C755] ${
+                      autoplay && introDone && !openAgent ? "tv-progress" : ""
+                    }`}
+                    style={{ ["--progress-duration" as string]: `${AUTOPLAY_MS}ms` }}
+                  />
+                )}
+              </button>
             ))}
           </div>
         </div>
@@ -300,6 +365,93 @@ export default function TvModePage() {
         </button>
       </div>
     </main>
+  );
+}
+
+/* ── 電影顆粒（SVG 雜訊，內嵌 data URI，無外部資源） ── */
+function FilmGrain() {
+  return (
+    <div
+      className="absolute inset-0 opacity-[0.05] mix-blend-overlay"
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E")`,
+      }}
+    />
+  );
+}
+
+/* ── 片頭：黑幕 → 標題字距收攏亮起 → 光帶掃過 → 淡出（點擊可略過） ── */
+function CinematicIntro({ onSkip, activeCount }: { onSkip: () => void; activeCount: number }) {
+  return (
+    <button
+      type="button"
+      onClick={onSkip}
+      aria-label="略過片頭"
+      className="tv-intro-out fixed inset-0 z-50 flex cursor-default flex-col items-center justify-center bg-[#030407]"
+    >
+      <div className="relative overflow-hidden px-6 py-2">
+        <h1 className="tv-title-in text-[clamp(2rem,6vw,4.5rem)] font-extralight text-white">
+          AI AGENT 劇院
+        </h1>
+        {/* 光帶掃過 */}
+        <span className="tv-sheen pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+      </div>
+      <p className="tv-fade mt-6 text-sm tracking-[0.5em] text-white/40" style={{ animationDelay: "1.4s" }}>
+        {activeCount} 位 AI 同事 · 全天候值勤
+      </p>
+      <span
+        className="tv-fade absolute bottom-10 text-[11px] tracking-widest text-white/25"
+        style={{ animationDelay: "2s" }}
+      >
+        點擊任意處進入
+      </span>
+    </button>
+  );
+}
+
+/* ── 底部 LIVE 跑馬燈：真實團隊動態無縫循環（新聞台 chyron） ── */
+function Chyron({ feed }: { feed: ActivityRow[] }) {
+  const items = useMemo(() => {
+    const nameOf = (slug: string | null) => {
+      const a = AGENTS.find((x) => x.slug === slug);
+      return a ? a.personEn : "系統";
+    };
+    const rows = feed.slice(0, 14).map((r) => {
+      const t = new Date(r.occurred_at);
+      const hh = String(t.getHours()).padStart(2, "0");
+      const mm = String(t.getMinutes()).padStart(2, "0");
+      const mark = r.status === "failed" ? "⚠" : r.status === "pending" ? "…" : "✓";
+      return `${hh}:${mm}｜${nameOf(r.agent_slug)}｜${(r.summary ?? "").slice(0, 42)} ${mark}`;
+    });
+    return rows.length > 0
+      ? rows
+      : AGENTS.filter((a) => a.status === "active").map((a) => `${a.personEn}｜${AGENT_LIVE_TASKS[a.slug].idle}`);
+  }, [feed]);
+
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-20 flex h-9 items-center border-t border-white/8 bg-black/45 backdrop-blur">
+      <span className="flex h-full shrink-0 items-center gap-1.5 border-r border-white/8 bg-black/40 px-4 text-[11px] font-bold tracking-widest text-red-400">
+        <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-red-500" />
+        LIVE
+      </span>
+      <div className="relative h-full flex-1 overflow-hidden">
+        <div
+          className="tv-marquee absolute flex h-full w-max items-center"
+          style={{ ["--marquee-duration" as string]: `${Math.max(30, items.length * 7)}s` }}
+        >
+          {[0, 1].map((copy) => (
+            <span key={copy} className="flex h-full items-center">
+              {items.map((it, i) => (
+                <span key={`${copy}-${i}`} className="flex items-center whitespace-nowrap px-6 text-xs text-white/55">
+                  {it}
+                  <span className="ml-12 text-white/15">•</span>
+                </span>
+              ))}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -332,17 +484,20 @@ const SceneNow = memo(function SceneNow({ activeCount }: { activeCount: number }
   );
 });
 
-/* ── 場景二：戰情總覽（三個大數字） ── */
+/* ── 場景二：戰情總覽（數字滾動 + 過去 12 小時的真實脈搏） ── */
 const SceneOverview = memo(function SceneOverview({
   activeCount,
   total,
   recipients,
+  visible,
 }: {
   activeCount: number;
   total: number;
   recipients: number;
+  visible: boolean;
 }) {
   const [todayTasks, setTodayTasks] = useState(168);
+  const [pulse, setPulse] = useState<number[]>([]); // 過去 12 小時每小時成功數（真實）
 
   // 今日完成任務（近 24 小時成功數）；取不到就保留種子值
   useEffect(() => {
@@ -351,9 +506,18 @@ const SceneOverview = memo(function SceneOverview({
         .then((res) => (res.ok ? res.json() : []))
         .then((rows: ActivityRow[]) => {
           if (!Array.isArray(rows)) return;
-          const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+          const now = Date.now();
+          const cutoff = now - 24 * 60 * 60 * 1000;
           const count = rows.filter((r) => new Date(r.occurred_at).getTime() >= cutoff).length;
           if (count > 0) setTodayTasks(count);
+          // 依小時分桶：index 0 = 11 小時前，index 11 = 這一小時
+          const buckets = Array.from({ length: 12 }, () => 0);
+          rows.forEach((r) => {
+            const age = now - new Date(r.occurred_at).getTime();
+            const h = Math.floor(age / 3_600_000);
+            if (h >= 0 && h < 12) buckets[11 - h] += 1;
+          });
+          setPulse(buckets);
         })
         .catch(() => {});
     load();
@@ -361,14 +525,39 @@ const SceneOverview = memo(function SceneOverview({
     return () => clearInterval(t);
   }, []);
 
+  const maxPulse = Math.max(1, ...pulse);
+
   return (
     <div className="text-center">
-      <p className="mb-16 text-xs tracking-[0.35em] text-white/40">團 隊 戰 情</p>
+      <p className="mb-14 text-xs tracking-[0.35em] text-white/40">團 隊 戰 情</p>
       <div className="flex flex-col items-center justify-center gap-14 sm:flex-row sm:gap-24">
-        <BigStat value={activeCount} suffix={`/ ${total}`} label="上工中隊友" />
-        <BigStat value={todayTasks} label="今日完成任務" accent />
-        <BigStat value={recipients} label="涵蓋 LINE 對象" />
+        <BigStat value={visible ? activeCount : 0} suffix={`/ ${total}`} label="上工中隊友" />
+        <BigStat value={visible ? todayTasks : 0} label="今日完成任務" accent />
+        <BigStat value={visible ? recipients : 0} label="涵蓋 LINE 對象" />
       </div>
+
+      {/* 團隊脈搏：過去 12 小時每小時完成數（真實資料） */}
+      {pulse.some((v) => v > 0) && (
+        <div className="mx-auto mt-16 max-w-md">
+          <div className="flex h-14 items-end justify-center gap-2">
+            {pulse.map((v, i) => (
+              <div
+                key={i}
+                className="w-4 rounded-t-sm transition-all duration-700"
+                style={{
+                  height: `${Math.max(8, (v / maxPulse) * 100)}%`,
+                  background:
+                    i === pulse.length - 1
+                      ? "#06C755"
+                      : `rgba(6,199,85,${0.15 + (v / maxPulse) * 0.4})`,
+                  boxShadow: i === pulse.length - 1 ? "0 0 14px -2px rgba(6,199,85,0.8)" : "none",
+                }}
+              />
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] tracking-[0.2em] text-white/35">團隊脈搏 · 過去 12 小時</p>
+        </div>
+      )}
     </div>
   );
 });
@@ -384,6 +573,7 @@ function BigStat({
   label: string;
   accent?: boolean;
 }) {
+  const shown = useCountUp(value);
   return (
     <div className="flex flex-col items-center">
       <p className="flex items-baseline gap-2">
@@ -392,7 +582,7 @@ function BigStat({
             accent ? "text-[#06C755]" : "text-white"
           }`}
         >
-          {value.toLocaleString("en-US")}
+          {shown.toLocaleString("en-US")}
         </span>
         {suffix && <span className="text-xl font-light text-white/35 sm:text-3xl">{suffix}</span>}
       </p>
@@ -401,7 +591,7 @@ function BigStat({
   );
 }
 
-/* ── 場景三：值勤團隊（寬鬆的頭像牆，可點擊展開） ── */
+/* ── 場景三：值勤團隊（Netflix 式海報牆——聚焦卡放大發光、Ken Burns 緩推） ── */
 const SceneTeam = memo(function SceneTeam({
   agents,
   onOpen,
@@ -409,40 +599,85 @@ const SceneTeam = memo(function SceneTeam({
   agents: typeof AGENTS;
   onOpen: (slug: AgentSlug) => void;
 }) {
+  const [focus, setFocus] = useState(0);
+
+  // 聚焦每 3.2 秒輪到下一位（滑鼠移入任一張卡即改為手動聚焦）
+  const [hovering, setHovering] = useState(false);
+  useEffect(() => {
+    if (hovering || agents.length === 0) return;
+    const t = setInterval(() => setFocus((f) => (f + 1) % agents.length), POSTER_FOCUS_MS);
+    return () => clearInterval(t);
+  }, [hovering, agents.length]);
+
   return (
     <div>
       <p className="text-center text-xs tracking-[0.35em] text-white/40">
         值 勤 中 的 隊 友 · {agents.length}
       </p>
-      <p className="mb-11 mt-2 text-center text-[11px] text-white/25">點任一位，看看他正在做什麼、做過什麼</p>
-      <div className="mx-auto grid max-w-[1160px] grid-cols-3 gap-x-6 gap-y-12 sm:grid-cols-5">
-        {agents.map((agent, i) => (
-          <button
-            key={agent.slug}
-            type="button"
-            onClick={() => onOpen(agent.slug)}
-            className="tv-in flex flex-col items-center gap-3 text-center transition-transform duration-300 hover:-translate-y-1 focus:outline-none"
-            style={{ animationDelay: `${i * 50}ms` }}
-          >
-            <div className="relative">
-              <Avatar personEn={agent.personEn} color={agent.color} size={78} />
-              <span
-                className="tv-breathe absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-[3px] border-[#05060a] bg-[#06C755]"
-                style={{ boxShadow: "0 0 10px 2px rgba(6,199,85,0.6)" }}
+      <p className="mb-9 mt-2 text-center text-[11px] text-white/25">點任一位，看看他正在做什麼、做過什麼</p>
+      <div
+        className="mx-auto grid max-w-[1240px] grid-cols-5 gap-4"
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+      >
+        {agents.map((agent, i) => {
+          const focused = i === focus;
+          return (
+            <button
+              key={agent.slug}
+              type="button"
+              onClick={() => onOpen(agent.slug)}
+              onMouseEnter={() => setFocus(i)}
+              className={`group relative aspect-[3/4] overflow-hidden rounded-2xl text-left transition-all duration-500 focus:outline-none ${
+                focused ? "tv-focus-glow z-10 scale-[1.06]" : "scale-100 brightness-[0.55] saturate-[0.85]"
+              }`}
+              style={{ ["--glow-color" as string]: `${agent.color}99` }}
+            >
+              {/* 人像滿版（聚焦時 Ken Burns 緩推） */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={avatarUrl(agent.personEn, agent.color)}
+                alt={agent.personEn}
+                className={`absolute inset-0 h-full w-full object-cover ${focused ? "tv-kenburns" : ""}`}
               />
-            </div>
-            <div>
-              <p className="text-base font-medium leading-tight">{agent.personEn}</p>
-              <p className="mt-0.5 text-xs text-white/40">{agent.shortName}</p>
-            </div>
-          </button>
-        ))}
+              {/* 底部漸層 + 資訊 */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-3 pt-10">
+                <p className="text-[15px] font-semibold leading-tight text-white">
+                  {agent.personEn}
+                  <span className="ml-1 text-xs font-normal text-white/55">{agent.personZh}</span>
+                </p>
+                <p className="mt-0.5 truncate text-[11px]" style={{ color: agent.color }}>
+                  {agent.role}
+                </p>
+                <p
+                  className={`mt-1 truncate text-[10px] text-white/45 transition-opacity duration-500 ${
+                    focused ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  正在 {DOING[agent.slug]}
+                </p>
+              </div>
+              {/* 值勤燈 */}
+              <span className="absolute right-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-semibold tracking-wider text-[#06C755] backdrop-blur">
+                <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+                值勤中
+              </span>
+              {/* 聚焦色框 */}
+              <span
+                className={`pointer-events-none absolute inset-0 rounded-2xl border-2 transition-colors duration-500 ${
+                  focused ? "" : "border-transparent"
+                }`}
+                style={focused ? { borderColor: `${agent.color}cc` } : undefined}
+              />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 });
 
-/* ── 場景四:現正聚光（單一 Agent 放大，可點擊展開） ── */
+/* ── 場景四：現正聚光（Apple TV 電影頁——模糊人像大底 + 海報 + 巨型標題） ── */
 const SceneSpotlight = memo(function SceneSpotlight({
   agent,
   index,
@@ -454,51 +689,179 @@ const SceneSpotlight = memo(function SceneSpotlight({
   total: number;
   onOpen: (slug: AgentSlug) => void;
 }) {
+  const brief = AGENT_BRIEFINGS[agent.slug];
   return (
-    <div key={agent.slug} className="tv-pop flex flex-col items-center text-center">
+    <div
+      key={agent.slug}
+      className="tv-pop relative h-[62vh] min-h-[420px] w-full overflow-hidden rounded-3xl border border-white/10"
+    >
+      {/* 大底：同一張人像放大模糊，染出整片氛圍色 */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={avatarUrl(agent.personEn, agent.color)}
+        alt=""
+        aria-hidden
+        className="absolute inset-0 h-full w-full scale-125 object-cover opacity-45 blur-2xl"
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `linear-gradient(105deg, rgba(3,4,7,0.92) 30%, rgba(3,4,7,0.55) 60%, ${agent.color}22 100%)`,
+        }}
+      />
+      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent" />
+
+      {/* 左：巨型標題與資訊 */}
+      <div className="absolute inset-y-0 left-0 flex w-full flex-col justify-center p-8 sm:w-3/5 sm:p-14">
+        <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.3em] text-white/50">
+          <span className="tv-breathe h-2 w-2 rounded-full bg-[#06C755]" />
+          現 正 值 勤
+        </p>
+        <h2 className="mt-4 text-[clamp(2.6rem,6vw,5rem)] font-extralight leading-none text-white">
+          {agent.personEn}
+          <span className="ml-3 text-[0.45em] font-light text-white/45">{agent.personZh}</span>
+        </h2>
+        <p className="mt-3 text-lg font-medium" style={{ color: agent.color }}>
+          {agent.role} · {agent.name}
+        </p>
+        <p className="mt-6 max-w-lg text-base leading-relaxed text-white/60 sm:text-lg">
+          <span className="text-white/35">正在　</span>
+          {DOING[agent.slug]}
+        </p>
+        {/* 本週三個關鍵數字（真實人設數據） */}
+        <div className="mt-7 flex gap-8">
+          {brief.weekStats.slice(0, 3).map((s) => (
+            <div key={s.label}>
+              <p className="font-mono text-2xl font-light text-white">
+                {s.value}
+                {s.delta && <span className="ml-1 text-xs text-[#06C755]">{s.delta}</span>}
+              </p>
+              <p className="mt-0.5 text-[11px] text-white/40">{s.label}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onOpen(agent.slug)}
+            className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-transform hover:scale-105"
+          >
+            看他正在做什麼
+          </button>
+          <Link
+            href="/meeting"
+            className="rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm text-white/85 backdrop-blur transition-colors hover:bg-white/20"
+          >
+            找他開會
+          </Link>
+        </div>
+      </div>
+
+      {/* 右：清晰人像海報（Ken Burns 緩推） */}
       <button
         type="button"
         onClick={() => onOpen(agent.slug)}
-        className="relative transition-transform duration-300 hover:scale-105 focus:outline-none"
+        className="absolute bottom-10 right-10 top-10 hidden aspect-[3/4] overflow-hidden rounded-2xl shadow-2xl transition-transform hover:scale-[1.03] focus:outline-none sm:block"
+        style={{ boxShadow: `0 24px 70px -18px ${agent.color}66` }}
         title="點擊查看近期紀錄"
       >
-        <span
-          className="absolute -inset-4 rounded-full blur-2xl"
-          style={{ background: `radial-gradient(circle, ${agent.color}55, transparent 70%)` }}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarUrl(agent.personEn, agent.color)}
+          alt={agent.personEn}
+          className="tv-kenburns h-full w-full object-cover"
         />
-        <div className="relative">
-          <Avatar personEn={agent.personEn} color={agent.color} size={168} />
-          <span
-            className="tv-breathe absolute bottom-2 right-2 h-6 w-6 rounded-full border-4 border-[#05060a] bg-[#06C755]"
-            style={{ boxShadow: "0 0 14px 3px rgba(6,199,85,0.7)" }}
-          />
-        </div>
+        <span className="absolute right-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-[#06C755] backdrop-blur">
+          <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+          ON AIR
+        </span>
       </button>
 
-      <p className="mt-9 text-4xl font-light sm:text-5xl">
-        {agent.personEn}
-        <span className="ml-2 text-white/40">{agent.personZh}</span>
-      </p>
-      <p className="mt-2 text-lg" style={{ color: agent.color }}>
-        {agent.role} · {agent.name}
-      </p>
-
-      <p className="mt-9 max-w-xl text-lg text-white/55 sm:text-xl">
-        <span className="text-white/35">正在　</span>
-        {DOING[agent.slug]}
-      </p>
-
-      <button
-        type="button"
-        onClick={() => onOpen(agent.slug)}
-        className="mt-7 rounded-full border border-white/12 bg-white/5 px-4 py-1.5 text-xs text-white/55 backdrop-blur transition-colors hover:bg-white/10 hover:text-white"
-      >
-        查看近期紀錄
-      </button>
-
-      <p className="mt-5 font-mono text-xs tracking-widest text-white/30">
+      {/* 序號 */}
+      <p className="absolute bottom-5 right-6 font-mono text-xs tracking-widest text-white/35 sm:right-auto sm:left-14">
         {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
       </p>
+    </div>
+  );
+});
+
+/* ── 場景五：今日快報（Netflix Top 榜單——巨型數字 + 真實動態） ── */
+const SceneHighlights = memo(function SceneHighlights({
+  feed,
+  onOpen,
+}: {
+  feed: ActivityRow[];
+  onOpen: (slug: AgentSlug) => void;
+}) {
+  const top = useMemo(() => feed.filter((r) => r.summary).slice(0, 4), [feed]);
+  const agentOf = (slug: string | null) => AGENTS.find((a) => a.slug === slug);
+
+  return (
+    <div>
+      <p className="text-center text-xs tracking-[0.35em] text-white/40">今 日 快 報</p>
+      <p className="mb-10 mt-2 text-center text-[11px] text-white/25">團隊最新的真實動態，持續更新中</p>
+
+      {top.length === 0 ? (
+        <p className="text-center text-sm text-white/35">今天還沒有新動態——傳一張名片到 LINE，馬上就有第一條。</p>
+      ) : (
+        <div className="mx-auto grid max-w-[1240px] grid-cols-1 gap-x-2 gap-y-5 sm:grid-cols-2">
+          {top.map((row, i) => {
+            const agent = agentOf(row.agent_slug);
+            return (
+              <button
+                key={`${row.occurred_at}-${i}`}
+                type="button"
+                onClick={() => agent && onOpen(agent.slug)}
+                className="tv-in group flex items-center gap-1 text-left focus:outline-none"
+                style={{ animationDelay: `${i * 110}ms` }}
+              >
+                {/* 巨型排名數字（Netflix Top 10 的招牌） */}
+                <span
+                  className="shrink-0 select-none font-mono text-[7rem] font-bold leading-none tracking-tighter sm:text-[8.5rem]"
+                  style={{
+                    WebkitTextStroke: `3px ${agent?.color ?? "#3b82f6"}55`,
+                    color: "transparent",
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1 rounded-2xl border border-white/8 bg-white/[0.03] p-4 transition-colors duration-300 group-hover:border-white/20 group-hover:bg-white/[0.06]">
+                  <div className="flex items-center gap-3">
+                    {agent ? (
+                      <Avatar personEn={agent.personEn} color={agent.color} size={44} />
+                    ) : (
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10">
+                        <Bell size={17} className="text-white/50" />
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white">
+                        {agent ? `${agent.personEn} ${agent.personZh}` : "系統"}
+                        <span className="ml-2 text-xs font-normal text-white/35">{relTime(row.occurred_at)}</span>
+                      </p>
+                      <p className="text-[11px]" style={{ color: agent?.color ?? "rgba(255,255,255,0.4)" }}>
+                        {agent?.role ?? "通知"}
+                      </p>
+                    </div>
+                    <span
+                      className={`ml-auto shrink-0 rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                        row.status === "failed"
+                          ? "bg-red-400/12 text-red-300"
+                          : row.status === "pending"
+                            ? "bg-amber-400/12 text-amber-300"
+                            : "bg-[#06C755]/12 text-[#06C755]"
+                      }`}
+                    >
+                      {row.status === "failed" ? "需要留意" : row.status === "pending" ? "進行中" : "已完成"}
+                    </span>
+                  </div>
+                  <p className="mt-2.5 line-clamp-2 text-[13px] leading-relaxed text-white/70">{row.summary}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 });

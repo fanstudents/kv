@@ -303,6 +303,115 @@ body {
 .live-radar {
   animation: live-radar 2.6s linear infinite;
 }
+/* ---- 電影級升級（Apple TV / Netflix 質感）---- */
+/* 場景轉場：縮放 + 淡入（比左右滑動更像串流平台的換頁） */
+@keyframes tv-scene-in {
+  from {
+    opacity: 0;
+    transform: scale(1.035);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+.tv-scene-in {
+  animation: tv-scene-in 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* Ken Burns：人像海報的緩慢推移（Apple TV 螢幕保護的招牌手法） */
+@keyframes tv-kenburns {
+  from {
+    transform: scale(1.06) translate(1.5%, -1%);
+  }
+  to {
+    transform: scale(1.16) translate(-1.5%, 1.5%);
+  }
+}
+.tv-kenburns {
+  animation: tv-kenburns 16s ease-in-out infinite alternate;
+}
+/* 片頭：字距收攏 + 亮起 */
+@keyframes tv-title-in {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.9em;
+    filter: blur(10px);
+  }
+  60% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    letter-spacing: 0.32em;
+  }
+}
+.tv-title-in {
+  animation: tv-title-in 2s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+/* 片頭光帶掃過文字 */
+@keyframes tv-sheen {
+  from {
+    transform: translateX(-140%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(240%) skewX(-18deg);
+  }
+}
+.tv-sheen {
+  animation: tv-sheen 1.6s ease-in-out 1s both;
+}
+/* 片頭整體淡出 */
+@keyframes tv-intro-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+.tv-intro-out {
+  animation: tv-intro-out 0.7s ease 2.6s both;
+}
+/* 底部 LIVE 跑馬燈（內容重複兩份、平移 50% 形成無縫循環） */
+@keyframes tv-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.tv-marquee {
+  animation: tv-marquee var(--marquee-duration, 40s) linear infinite;
+}
+/* 自動輪播的進度條（配合場景停留時間） */
+@keyframes tv-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.tv-progress {
+  transform-origin: left;
+  animation: tv-progress var(--progress-duration, 12s) linear both;
+}
+/* 海報牆聚焦卡的光暈呼吸 */
+@keyframes tv-focus-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 34px -6px var(--glow-color, rgba(6, 199, 85, 0.55));
+  }
+  50% {
+    box-shadow: 0 0 52px -4px var(--glow-color, rgba(6, 199, 85, 0.8));
+  }
+}
+.tv-focus-glow {
+  animation: tv-focus-glow 2.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tv-blob-a,
   .tv-blob-b,
@@ -316,7 +425,18 @@ body {
   .tv-ping,
   .live-scan,
   .live-bar,
-  .live-radar {
+  .live-radar,
+  .tv-scene-in,
+  .tv-kenburns,
+  .tv-title-in,
+  .tv-sheen,
+  .tv-marquee,
+  .tv-progress,
+  .tv-focus-glow {
     animation: none;
+  }
+  .tv-intro-out {
+    animation-delay: 0s;
+    animation-duration: 0.01s;
   }
 }
