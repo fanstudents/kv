@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Wallet,
+  Plug,
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
@@ -250,6 +251,17 @@ export default function Sidebar() {
         >
           <ListChecks size={18} />
           待辦總覽
+        </Link>
+        <Link
+          href="/integrations"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/integrations")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <Plug size={18} />
+          串接服務
         </Link>
         <Link
           href="/settings"
