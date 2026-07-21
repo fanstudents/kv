@@ -110,6 +110,28 @@ export async function pushLineRawMessages(to: string, messages: unknown[], chann
   return res;
 }
 
+// 以 reply token 回覆任意格式訊息（Flex、快速回覆等），一次最多 5 則
+export async function replyLineRawMessages(replyToken: string, messages: unknown[], channel: LineChannel = "primary") {
+  const { token } = channelEnv(channel);
+  if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);
+
+  const res = await fetch(`${LINE_API_BASE}/message/reply`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ replyToken, messages }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`LINE reply(raw) failed (${res.status}): ${body}`);
+  }
+
+  return res;
+}
+
 export async function replyLineMessage(replyToken: string, text: string, channel: LineChannel = "primary") {
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);

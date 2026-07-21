@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   verifyLineSignature,
   replyLineMessage,
+  replyLineRawMessages,
   getLineMessageContentAsDataUrl,
 } from "@/lib/line";
+import { getAvailableTags, addContactTag } from "@/lib/contact-tags";
+import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { parseBusinessCard, draftInviteEmail, interpretCardReply, reviseInviteEmail, type ParsedCard } from "@/lib/openai";
 import { findFreeSlots, sendGmail } from "@/lib/google";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
@@ -22,6 +25,7 @@ interface LineEvent {
   replyToken?: string;
   source?: { userId?: string };
   message?: { id?: string; type: string; text?: string };
+  postback?: { data?: string };
 }
 
 const CONFIRM_WORDS = ["要", "確認", "確定", "好的", "好", "沒問題", "ok", "OK", "yes", "Yes"];
@@ -118,23 +122,72 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     .select()
     .single();
 
+  const availableTags = await getAvailableTags(supabase);
+
   if (!contact.email) {
-    replyTexts.push("這張名片沒有 Email，暫時無法幫您自動安排拜訪邀約，需要的話可以手動聯繫對方。");
-    await replyLineMessage(replyToken, replyTexts.join("\n\n"));
+    // 沒 Email → 不安排邀約，但仍可幫你標籤分類
+    const noEmailMsgs: unknown[] = [
+      { type: "text", text: `${replyTexts[0]}\n\n這張名片沒有 Email，暫時無法自動安排拜訪邀約，需要的話可以手動聯繫對方。` },
+    ];
+    if (contactRow?.id) noEmailMsgs.push(buildTagQuickReply({ contactId: contactRow.id, tags: availableTags }));
+    await replyLineRawMessages(replyToken, noEmailMsgs);
     await releaseLock(supabase, userId, VISIT_AGENT);
     return;
   }
 
-  await supabase.from("visit_offers").insert({
-    line_user_id: userId,
-    contact_id: contactRow?.id ?? null,
-    status: "pending",
-  });
+  const { data: offerRow } = await supabase
+    .from("visit_offers")
+    .insert({ line_user_id: userId, contact_id: contactRow?.id ?? null, status: "pending" })
+    .select()
+    .single();
 
-  replyTexts.push(
-    `如果有欄位看起來不對，直接回覆修正就好（例如「Email 應該是 abc@xyz.com」），我會更新後再讓您確認一次。\n\n資訊都正確的話，回覆「要」，我會查詢您近期的行事曆空檔，草擬一封邀約信給 ${contact.name}，並先讓您過目後再決定要不要寄出。`
-  );
-  await replyLineMessage(replyToken, replyTexts.join("\n\n"));
+  // 回覆：辨識資訊 + 「要／不要」卡片 + 標籤選單（可點擊，也仍可用文字回覆）
+  const messages: unknown[] = [
+    {
+      type: "text",
+      text: `${replyTexts[0]}\n\n有欄位不對就直接回覆修正（例如「Email 應該是 abc@xyz.com」），我會更新後再問一次。`,
+    },
+  ];
+  if (offerRow?.id) {
+    messages.push(buildDecisionCard({ offerId: offerRow.id, name: contact.name || "這位客戶", company: contact.company }));
+  }
+  if (contactRow?.id) {
+    messages.push(buildTagQuickReply({ contactId: contactRow.id, tags: availableTags }));
+  }
+  await replyLineRawMessages(replyToken, messages);
+}
+
+/** 使用者點了 Flex 卡片按鈕或標籤選單（postback）。 */
+async function handlePostback(event: LineEvent, userId: string, baseUrl: string) {
+  const supabase = getSupabase();
+  if (!event.replyToken) return;
+  const params = new URLSearchParams(event.postback?.data ?? "");
+  const action = params.get("action");
+
+  if (action === "confirm") {
+    await handleVisitOfferReply(event, userId, "要", baseUrl);
+    return;
+  }
+  if (action === "cancel") {
+    await handleVisitOfferReply(event, userId, "不要", baseUrl);
+    return;
+  }
+  if (action === "tag") {
+    const contactId = params.get("contact");
+    const value = params.get("value");
+    if (contactId && value) {
+      const tags = await addContactTag(supabase, contactId, value);
+      await replyLineMessage(
+        event.replyToken,
+        `已標上「${value}」✅${tags.length ? `\n目前標籤：${tags.join("、")}` : ""}`
+      );
+    }
+    return;
+  }
+  if (action === "tag_done") {
+    await replyLineMessage(event.replyToken, "好的，標籤完成 👍 有需要再傳名片給我。");
+    return;
+  }
 }
 
 /** 使用者針對「名片辨識結果」的回覆：確認 / 取消 / 修正欄位。 */
@@ -509,14 +562,18 @@ export async function POST(req: NextRequest) {
 
   await Promise.allSettled(
     events.map(async (event) => {
-      if (event.type !== "message" || !event.replyToken) return;
+      if (!event.replyToken) return;
       const userId = event.source?.userId ?? "未知使用者";
       if (event.source?.userId) await touchSubscriber(event.source.userId, "primary").catch(() => {});
 
-      if (event.message?.type === "image") {
-        await handleImageMessage(event, userId);
-      } else if (event.message?.type === "text") {
-        await handleTextMessage(event, userId, baseUrl);
+      if (event.type === "message") {
+        if (event.message?.type === "image") {
+          await handleImageMessage(event, userId);
+        } else if (event.message?.type === "text") {
+          await handleTextMessage(event, userId, baseUrl);
+        }
+      } else if (event.type === "postback") {
+        await handlePostback(event, userId, baseUrl);
       }
     })
   );
