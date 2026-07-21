@@ -17,6 +17,7 @@ import {
   Minimize2,
   Pause,
   Play,
+  Video,
   X,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
@@ -202,6 +203,14 @@ export default function TvModePage() {
 
       {/* 右上控制列 */}
       <div className="absolute right-6 top-6 z-20 flex items-center gap-2.5">
+        <Link
+          href="/meeting"
+          title="開一場視訊會議"
+          className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#06C755] px-4 py-2 text-sm font-semibold text-black shadow-[0_0_20px_-4px_rgba(6,199,85,0.7)] transition-transform hover:scale-105"
+        >
+          <Video size={15} />
+          開會
+        </Link>
         <button
           type="button"
           onClick={() => setAutoplay((a) => !a)}
@@ -565,117 +574,93 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
   }, [agent.slug]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-3 sm:p-5">
       <button
         type="button"
         aria-label="關閉"
         onClick={onClose}
         className="absolute inset-0 cursor-default bg-black/72 backdrop-blur-md"
       />
-      <div className="tv-pop relative z-10 max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0d12]/95 p-6 shadow-2xl sm:p-10">
+      <div className="tv-pop relative z-10 flex max-h-[94vh] w-full max-w-[1600px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d12]/95 shadow-2xl">
         <button
           type="button"
           onClick={onClose}
           title="關閉"
-          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+          className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/40 text-white/55 backdrop-blur transition-colors hover:bg-white/10 hover:text-white"
         >
           <X size={16} />
         </button>
 
-        <div className="flex flex-col gap-7 sm:flex-row sm:gap-9">
-          {/* 身分 + 彙報狀態 */}
-          <div className="flex shrink-0 flex-col items-center text-center sm:w-52">
-            <div className="relative">
-              <span
-                className="absolute -inset-3 rounded-full blur-2xl"
-                style={{ background: `radial-gradient(circle, ${agent.color}55, transparent 70%)` }}
-              />
-              {!done && (
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+          {/* 左：身分列 + 大舞台（照片佔據將近半個畫面） */}
+          <div className="flex shrink-0 flex-col gap-5 p-5 sm:p-7 lg:w-[58%] lg:overflow-y-auto">
+            {/* 身分列（橫向精簡） */}
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
                 <span
-                  className="tv-ping absolute -inset-1.5 rounded-full border-2"
-                  style={{ borderColor: agent.color }}
+                  className="absolute -inset-2 rounded-full blur-xl"
+                  style={{ background: `radial-gradient(circle, ${agent.color}55, transparent 70%)` }}
                 />
-              )}
-              <div className="relative">
-                <Avatar personEn={agent.personEn} color={agent.color} size={120} />
-                <span
-                  className="tv-breathe absolute bottom-1.5 right-1.5 h-5 w-5 rounded-full border-4 border-[#0b0d12] bg-[#06C755]"
-                  style={{ boxShadow: "0 0 12px 2px rgba(6,199,85,0.7)" }}
-                />
+                {!done && (
+                  <span
+                    className="tv-ping absolute -inset-1 rounded-full border-2"
+                    style={{ borderColor: agent.color }}
+                  />
+                )}
+                <div className="relative">
+                  <Avatar personEn={agent.personEn} color={agent.color} size={68} />
+                  <span
+                    className="tv-breathe absolute bottom-0.5 right-0.5 h-4 w-4 rounded-full border-[3px] border-[#0b0d12] bg-[#06C755]"
+                    style={{ boxShadow: "0 0 12px 2px rgba(6,199,85,0.7)" }}
+                  />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <p className="text-2xl font-light text-white">
+                  {agent.personEn}
+                  <span className="ml-1.5 text-white/40">{agent.personZh}</span>
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-sm" style={{ color: agent.color }}>
+                    {agent.role}
+                  </span>
+                  {done ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#06C755]/15 px-2.5 py-0.5 text-xs font-medium text-[#06C755]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+                      值勤中
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 text-xs font-medium text-[#06C755]">
+                      <span className="flex h-3 items-end gap-[3px]">
+                        {[0, 120, 240, 360].map((d) => (
+                          <i
+                            key={d}
+                            className="tv-wave block w-[3px] rounded-full bg-[#06C755]"
+                            style={{ height: "100%", animationDelay: `${d}ms` }}
+                          />
+                        ))}
+                      </span>
+                      彙報中…
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-            <p className="mt-5 text-2xl font-light text-white">
-              {agent.personEn}
-              <span className="ml-1.5 text-white/40">{agent.personZh}</span>
-            </p>
-            <p className="mt-1 text-sm" style={{ color: agent.color }}>
-              {agent.role}
-            </p>
-            {done ? (
-              <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#06C755]/15 px-3 py-1 text-xs font-medium text-[#06C755]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#06C755]" />
-                值勤中
-              </span>
-            ) : (
-              <span className="mt-4 inline-flex items-center gap-2 text-xs font-medium text-[#06C755]">
-                <span className="flex h-3 items-end gap-[3px]">
-                  {[0, 120, 240, 360].map((d) => (
-                    <i
-                      key={d}
-                      className="tv-wave block w-[3px] rounded-full bg-[#06C755]"
-                      style={{ height: "100%", animationDelay: `${d}ms` }}
-                    />
-                  ))}
-                </span>
-                彙報中…
-              </span>
-            )}
+
+            {/* 大舞台：現正處理的照片 + 階段流水線 */}
+            <LiveTask
+              agentSlug={agent.slug}
+              prop={AGENT_LIVE_TASKS[agent.slug].prop}
+              steps={AGENT_LIVE_TASKS[agent.slug].steps}
+              idle={AGENT_LIVE_TASKS[agent.slug].idle}
+              color={agent.color}
+              live={live}
+              screenHeight="h-[46vh] lg:h-[56vh]"
+            />
           </div>
 
-          {/* 彙報內容 */}
-          <div className="min-w-0 flex-1">
-            {/* 現正處理：道具 + 階段流水線（電影感） */}
-            <div className="mb-6">
-              <LiveTask
-                agentSlug={agent.slug}
-                prop={AGENT_LIVE_TASKS[agent.slug].prop}
-                steps={AGENT_LIVE_TASKS[agent.slug].steps}
-                idle={AGENT_LIVE_TASKS[agent.slug].idle}
-                color={agent.color}
-                live={live}
-              />
-            </div>
-
-            {/* 近期處理過的名片（真實歷史） */}
-            {history.length > 0 && (
-              <div className="mb-6">
-                <p className="mb-3 text-[11px] font-semibold tracking-[0.2em] text-white/40">近期處理的名片</p>
-                <ul className="space-y-2">
-                  {history.map((h, i) => (
-                    <li
-                      key={`${h.name}-${i}`}
-                      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-3.5 py-2.5"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-white/90">
-                          {h.name}
-                          {h.company && <span className="text-white/40"> · {h.company}</span>}
-                        </p>
-                        <p className="text-xs text-white/35">{relTime(h.at)}</p>
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-                          OUTCOME_TONE[h.outcome] ?? "text-white/45 bg-white/[0.08]"
-                        }`}
-                      >
-                        {h.outcome}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
+          {/* 右：彙報內容（可捲動） */}
+          <div className="flex min-h-0 flex-col gap-6 border-t border-white/8 p-5 sm:p-7 lg:flex-1 lg:overflow-y-auto lg:border-l lg:border-t-0">
             {/* 最近七天彙報（打字機） */}
             <button
               type="button"
@@ -694,7 +679,7 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
 
             {/* 彙報完才揭曉：數字、任務重點、產出（滑入） */}
             {done && (
-              <div className="mt-6 space-y-6">
+              <div className="space-y-6">
                 <div className="tv-in grid grid-cols-3 gap-3">
                   {brief.weekStats.map((s) => (
                     <div
@@ -747,6 +732,36 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
                     ))}
                   </ul>
                 </div>
+              </div>
+            )}
+
+            {/* 近期處理過的名片（真實歷史） */}
+            {history.length > 0 && (
+              <div>
+                <p className="mb-3 text-[11px] font-semibold tracking-[0.2em] text-white/40">近期處理的名片</p>
+                <ul className="space-y-2">
+                  {history.map((h, i) => (
+                    <li
+                      key={`${h.name}-${i}`}
+                      className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-3.5 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-white/90">
+                          {h.name}
+                          {h.company && <span className="text-white/40"> · {h.company}</span>}
+                        </p>
+                        <p className="text-xs text-white/35">{relTime(h.at)}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          OUTCOME_TONE[h.outcome] ?? "text-white/45 bg-white/[0.08]"
+                        }`}
+                      >
+                        {h.outcome}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>

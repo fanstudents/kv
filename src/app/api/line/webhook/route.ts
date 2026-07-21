@@ -122,10 +122,9 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     .select()
     .single();
 
-  const availableTags = await getAvailableTags(supabase);
-
   if (!contact.email) {
     // 沒 Email → 不安排邀約，但仍可幫你標籤分類
+    const availableTags = await getAvailableTags(supabase);
     const noEmailMsgs: unknown[] = [
       { type: "text", text: `${replyTexts[0]}\n\n這張名片沒有 Email，暫時無法自動安排拜訪邀約，需要的話可以手動聯繫對方。` },
     ];
@@ -141,7 +140,8 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     .select()
     .single();
 
-  // 回覆：辨識資訊 + 「要／不要」卡片 + 標籤選單（可點擊，也仍可用文字回覆）
+  // 回覆：辨識資訊 +「要／不要」卡片。標籤選單不在這裡一起跳出——避免兩張卡片
+  // 同時出現造成混淆；等使用者做完「要／不要」決定後，才接續出現標籤選單。
   const messages: unknown[] = [
     {
       type: "text",
@@ -150,9 +150,6 @@ async function handleImageMessage(event: LineEvent, userId: string) {
   ];
   if (offerRow?.id) {
     messages.push(buildDecisionCard({ offerId: offerRow.id, name: contact.name || "這位客戶", company: contact.company }));
-  }
-  if (contactRow?.id) {
-    messages.push(buildTagQuickReply({ contactId: contactRow.id, tags: availableTags }));
   }
   await replyLineRawMessages(replyToken, messages);
 }
@@ -255,7 +252,14 @@ async function handleVisitOfferReply(
       status: "done",
       caption: `已依您的指示，這次不安排（${contact.name}）`,
     });
-    await replyLineMessage(event.replyToken, "好的，這次先不安排，需要的話再傳名片給我一次即可。");
+    // 「要／不要」與「標籤選單」是一次跳出的兩張卡，使用者點了不要之後
+    // 標籤選單（quickReply）會跟著這則回覆消失，所以在這裡接續再帶一次，
+    // 讓使用者仍可順手替這位客戶分類。
+    const availableTags = await getAvailableTags(supabase);
+    await replyLineRawMessages(event.replyToken, [
+      { type: "text", text: "好的，這次先不安排，需要的話再傳名片給我一次即可。" },
+      buildTagQuickReply({ contactId: contact.id, tags: availableTags }),
+    ]);
     await releaseLock(supabase, userId, VISIT_AGENT);
     return true;
   }

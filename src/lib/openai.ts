@@ -245,3 +245,82 @@ export async function reviseInviteEmail(params: {
     body: parsed.body || params.previousBody,
   };
 }
+
+export interface MeetingAgentInput {
+  slug: string;
+  name: string; // 顯示名稱（英文＋中文，例如 "Kevin 凱文"）
+  role: string;
+  description: string;
+}
+
+export interface MeetingReply {
+  slug: string;
+  text: string;
+}
+
+/**
+ * 一場視訊會議中的「一輪」：老闆下了一句語音指令，讓相關的 AI 同事各自用第一人稱
+ * 簡短回應（要怎麼配合、負責哪一塊），最後由 Team Lead 統整成一段給老闆的結論。
+ * 一次 LLM 呼叫完成，回傳每位相關 Agent 的回覆與 Team Lead 的統整。
+ */
+export async function runMeetingRound(params: {
+  command: string;
+  teamLead: MeetingAgentInput;
+  agents: MeetingAgentInput[]; // 不含 Team Lead 的可回應同事
+  history?: string; // 先前幾輪的摘要，讓對話有連貫性（可選）
+}): Promise<{ replies: MeetingReply[]; teamlead: string }> {
+  const roster = params.agents
+    .map((a) => `- slug=${a.slug}｜${a.name}｜${a.role}｜職掌：${a.description}`)
+    .join("\n");
+
+  const data = await chatCompletion(
+    {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是一間公司 AI 代理團隊的『會議引擎』。老闆會在視訊會議上用口語下達一句指令，" +
+            "你要判斷哪些 AI 同事和這句指令相關，讓他們各自用第一人稱、口語、簡短（每人 1～2 句）、" +
+            "有個性且專業地回應——說明自己會怎麼承接、負責哪一塊、下一步做什麼。只挑真正相關的同事回應" +
+            "（最多 5 位，寧缺勿濫，不相關的不要硬湊）。" +
+            `最後由 Team Lead（${params.teamLead.name}，${params.teamLead.role}）統整成一段給老闆的結論（2～3 句）：` +
+            "點出誰負責什麼、彼此如何協作、下一步與預計回報時間。全部用繁體中文、語氣自然像真人開會。" +
+            '只回傳 JSON 物件，格式為 {"replies":[{"slug":"...","text":"..."}],"teamlead":"..."}。' +
+            "replies 的 slug 必須來自我提供的名單。",
+        },
+        {
+          role: "user",
+          content:
+            `可回應的同事名單：\n${roster}\n\n` +
+            (params.history ? `先前會議脈絡：\n${params.history}\n\n` : "") +
+            `老闆這次的指令（語音轉文字，可能有口語或辨識誤差，請合理理解）：\n「${params.command}」`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+    },
+    { operation: "會議室回應", agentSlug: "teamlead" }
+  );
+
+  const content = data.choices?.[0]?.message?.content ?? "{}";
+  let parsed: Partial<{ replies: MeetingReply[]; teamlead: string }> = {};
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    // leave parsed as {}
+  }
+
+  const allowed = new Set(params.agents.map((a) => a.slug));
+  const replies = Array.isArray(parsed.replies)
+    ? parsed.replies
+        .filter((r) => r && typeof r.text === "string" && allowed.has(r.slug))
+        .map((r) => ({ slug: r.slug, text: r.text.trim() }))
+        .filter((r) => r.text.length > 0)
+    : [];
+
+  return {
+    replies,
+    teamlead: (parsed.teamlead ?? "").trim() || "我先幫大家對齊重點，稍後彙整成待辦回報給您。",
+  };
+}

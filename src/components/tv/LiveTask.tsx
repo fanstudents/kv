@@ -148,6 +148,7 @@ export default function LiveTask({
   color,
   idle,
   live,
+  screenHeight = "h-80 sm:h-[26rem]",
 }: {
   agentSlug: string;
   prop: PropKind;
@@ -155,11 +156,14 @@ export default function LiveTask({
   color: string;
   idle: string;
   live?: LiveInfo | null;
+  /** 舞台（場景螢幕）高度，可由外層放大。用百分比讓內部圖片自動跟著縮放。 */
+  screenHeight?: string;
 }) {
   const isLive = Boolean(live?.active);
   const status = live?.status;
   const isWaiting = isLive && status === "waiting";
   const isProcessing = isLive && status === "active";
+  const isDone = isLive && status === "done";
   const step = isLive ? live!.step : -1; // -1 = 待命，沒有階段在跑
   const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
 
@@ -167,7 +171,7 @@ export default function LiveTask({
     <div>
       {/* 場景螢幕 */}
       <div
-        className="relative h-60 overflow-hidden rounded-2xl border bg-[#06090d] sm:h-64"
+        className={`relative ${screenHeight} overflow-hidden rounded-2xl border bg-[#06090d]`}
         style={{ borderColor: isLive ? `${color}66` : "rgba(255,255,255,0.08)" }}
       >
         {/* 細格線 */}
@@ -195,7 +199,7 @@ export default function LiveTask({
                   <img
                     src={imageUrl}
                     alt="現正處理的圖片"
-                    className="max-h-48 w-auto rounded-lg object-contain shadow-2xl sm:max-h-52"
+                    className="max-h-[86%] w-auto max-w-[92%] rounded-lg object-contain shadow-2xl"
                   />
                 </div>
               ) : (
@@ -215,7 +219,7 @@ export default function LiveTask({
             {/* 待命：空的取景框在等輸入，沒有掃描、沒有跑流程 */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
               <div
-                className="tv-breathe flex h-28 w-44 items-center justify-center rounded-xl border-2 border-dashed"
+                className="tv-breathe flex h-36 w-60 items-center justify-center rounded-xl border-2 border-dashed sm:h-44 sm:w-72"
                 style={{ borderColor: `${color}55` }}
               >
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: `${color}aa` }} />
@@ -235,6 +239,9 @@ export default function LiveTask({
           const done = isLive && i < step;
           const active = isProcessing && i === step;
           const waiting = isWaiting && i === step;
+          // 流程在此節點收尾（例如回覆「不要」→ 這次不安排）。不是「進行中」，
+          // 要有明確的結束樣式，否則節點會停在半空看起來像卡住。
+          const ended = isDone && i === step;
           const current = active || waiting;
           const dot = waiting ? "#F59E0B" : color;
           return (
@@ -250,21 +257,22 @@ export default function LiveTask({
                 style={{
                   width: current ? 30 : 20,
                   height: current ? 30 : 20,
-                  borderColor: done ? color : current ? dot : "rgba(255,255,255,0.16)",
-                  background: done ? color : active ? `${color}33` : waiting ? "rgba(245,158,11,0.22)" : "transparent",
+                  borderColor: done ? color : current ? dot : ended ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.16)",
+                  background: done ? color : active ? `${color}33` : waiting ? "rgba(245,158,11,0.22)" : ended ? "rgba(255,255,255,0.32)" : "transparent",
                   boxShadow: current ? `0 0 16px -2px ${dot}` : "none",
                 }}
               >
                 {done && <Check size={12} className="text-[#05060a]" strokeWidth={3} />}
                 {current && <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />}
+                {ended && <span className="h-2 w-2 rounded-full bg-[#05060a]" />}
               </span>
               <span
                 className={`whitespace-nowrap ${current ? "text-[15px] font-semibold" : "text-sm"} ${
-                  done ? "text-white/55" : !current ? "text-white/25" : ""
+                  done || ended ? "text-white/55" : !current ? "text-white/25" : ""
                 }`}
                 style={current ? { color: dot } : undefined}
               >
-                {waiting ? "等待指示" : active ? `${label}中…` : label}
+                {ended ? "已結束" : waiting ? "等待指示" : active ? `${label}中…` : label}
               </span>
             </div>
           );
