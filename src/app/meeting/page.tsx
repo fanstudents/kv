@@ -363,6 +363,14 @@ export default function MeetingPage() {
             agentSpeakingRef.current = false;
             setAgentTalking(false);
           },
+          onUsage: (usage) => {
+            // 成本記錄：跟對話本身無關，晚一點送到、送失敗都不影響會議進行
+            fetch("/api/meeting/log-usage", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ model: data.model, agentSlug: agent.slug, usage }),
+            }).catch(() => {});
+          },
           onFunctionCall: (name, argsJson, callId) => {
             if (myToken !== switchTokenRef.current) return;
             let args: Record<string, unknown> = {};
@@ -758,7 +766,7 @@ export default function MeetingPage() {
             className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/55 backdrop-blur transition-colors hover:bg-white/10 hover:text-white"
           >
             <ChevronLeft size={15} />
-            劇院
+            戰情看板
           </Link>
           <p className="flex items-center gap-2 text-sm font-medium tracking-[0.3em] text-white/50">
             團 隊 會 議 室

@@ -20,8 +20,23 @@ export interface RealtimeHandlers {
   onAssistantSpeechStop?: () => void;
   /** Agent 呼叫了工具（換人／把結果推上畫面）。argsJson 是未解析的 JSON 字串。 */
   onFunctionCall?: (name: string, argsJson: string, callId: string) => void;
+  /** 這一輪回覆結束後，OpenAI 回報的實際 token 用量（成本記錄用）。 */
+  onUsage?: (usage: RealtimeUsage) => void;
   onError?: (message: string) => void;
   onClose?: () => void;
+}
+
+export interface RealtimeUsage {
+  total_tokens?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  input_token_details?: {
+    text_tokens?: number;
+    audio_tokens?: number;
+    cached_tokens?: number;
+    cached_tokens_details?: { text_tokens?: number; audio_tokens?: number };
+  };
+  output_token_details?: { text_tokens?: number; audio_tokens?: number };
 }
 
 export class RealtimeVoiceSession {
@@ -126,6 +141,7 @@ export class RealtimeVoiceSession {
       error?: { message?: string };
       response?: {
         output?: Array<{ type?: string; name?: string; arguments?: string; call_id?: string }>;
+        usage?: RealtimeUsage;
       };
     };
     try {
@@ -158,6 +174,7 @@ export class RealtimeVoiceSession {
             this.handlers.onFunctionCall?.(item.name, item.arguments ?? "{}", item.call_id);
           }
         }
+        if (evt.response?.usage) this.handlers.onUsage?.(evt.response.usage);
         this.handlers.onAssistantSpeechStop?.();
         break;
       case "output_audio_buffer.stopped":
