@@ -466,7 +466,8 @@ export interface RealtimeSessionConfig {
   description: string;
   voice: string;
   isTeamLead?: boolean;
-  history?: string;
+  history?: string; // 這場會議自己的逐字稿脈絡
+  liveContext?: string; // 真實業務資料（名片記錄、行事曆、團隊動態…），見 meeting-context.ts
 }
 
 export interface RealtimeSession {
@@ -566,8 +567,11 @@ export async function mintRealtimeSession(cfg: RealtimeSessionConfig): Promise<R
     "顯示在畫面上，語音只需要簡短講重點，不用把畫面上每個字都唸出來。\n" +
     "如果老闆的話裡提到「別的同事的名字」（不是在跟你說話，而是要找別人），呼叫 switch_to_colleague 工具" +
     "（帶該同事代號），同時只需要極簡短交棒，像「好，交給他」（不超過一句話），絕對不要真的回答問題內容。\n" +
+    "重要：下面「真實業務資料」區塊裡的內容才是你實際可以引用的記錄。如果老闆問到的東西不在裡面，" +
+    "請老實說目前還沒有這筆真實資料、或還沒串接到對應系統，絕對不要編造數字、名字或記錄。\n" +
     (cfg.isTeamLead ? "你是 Team Lead 大總管，若老闆請你統整，簡短點出團隊分工即可，不要長篇。\n" : "") +
-    (cfg.history ? `先前會議脈絡（供你參考，不用主動複述）：\n${cfg.history}` : "");
+    (cfg.liveContext ? `\n【真實業務資料】\n${cfg.liveContext}\n` : "\n【真實業務資料】目前沒有可用的真實資料。\n") +
+    (cfg.history ? `\n先前會議脈絡（供你參考，不用主動複述）：\n${cfg.history}` : "");
 
   const res = await fetch(`${OPENAI_API_BASE}/realtime/client_secrets`, {
     method: "POST",

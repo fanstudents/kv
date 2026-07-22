@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mintRealtimeSession } from "@/lib/openai";
 import { getRecentHistory } from "@/lib/meeting-store";
+import { getAgentLiveContext } from "@/lib/meeting-context";
 import { AGENTS } from "@/lib/agent-data";
 
 const TEAM_LEAD_SLUG = "teamlead";
@@ -27,6 +28,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  let liveContext = "";
+  try {
+    liveContext = await getAgentLiveContext(agent.slug);
+  } catch {
+    // 真實資料抓不到就讓 Agent 老實說沒有資料，而不是讓整支路由失敗
+  }
+
   try {
     const session = await mintRealtimeSession({
       agentName: `${agent.personEn} ${agent.personZh}`,
@@ -35,6 +43,7 @@ export async function POST(req: NextRequest) {
       voice,
       isTeamLead: agent.slug === TEAM_LEAD_SLUG,
       history,
+      liveContext,
     });
     return NextResponse.json(session);
   } catch (err) {
