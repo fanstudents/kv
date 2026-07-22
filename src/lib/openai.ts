@@ -1,5 +1,6 @@
 import "server-only";
 import { logAiUsage } from "@/lib/ai-usage";
+import { AGENTS } from "@/lib/agent-data";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
 
@@ -477,6 +478,75 @@ export interface RealtimeSession {
 const REALTIME_MODEL = "gpt-realtime-2.1";
 
 /**
+ * 會議室的兩個工具：
+ * - switch_to_colleague：交給模型自己判斷「老闆是不是在點別人的名字」——模型直接
+ *   聽到原始語音，比我們拿一段可能有辨識誤差的逐字稿做字串比對準得多，這是修正
+ *   「叫不動人」問題的關鍵（純字串比對在會議中後段、口音/背景音變化時容易漏判）。
+ * - show_result：讓 Agent 在語音報告的同時，把負責項目的具體內容（表格、圖表、
+ *   數字卡、結論…）結構化地推上畫面，不用你自己從逐字稿裡腦補。
+ */
+function realtimeTools() {
+  const slugs = AGENTS.filter((a) => a.status === "active").map((a) => a.slug);
+  return [
+    {
+      type: "function",
+      name: "switch_to_colleague",
+      description:
+        "當老闆的話裡明確想找『另一位』同事講話時呼叫（提到別人的名字、或說「換下一位」「請 XXX 來」）。" +
+        "呼叫後你不用再回答問題內容，該同事會立刻接手對話。",
+      parameters: {
+        type: "object",
+        properties: {
+          target: { type: "string", enum: slugs, description: "要交棒的同事代號（slug）" },
+        },
+        required: ["target"],
+      },
+    },
+    {
+      type: "function",
+      name: "show_result",
+      description:
+        "當你要跟老闆報告具體內容（數字、清單、比較、結論）時呼叫，把內容用適合的形式顯示在畫面上；" +
+        "你仍用語音簡短講重點，不需要把畫面上每個字都唸出來。",
+      parameters: {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["table", "chart", "metrics", "text", "conclusion"] },
+          title: { type: "string", description: "這份內容的標題" },
+          text: { type: "string", description: "kind 為 text 或 conclusion 時的內容" },
+          table: {
+            type: "object",
+            properties: {
+              columns: { type: "array", items: { type: "string" } },
+              rows: { type: "array", items: { type: "array", items: { type: "string" } } },
+            },
+          },
+          chart: {
+            type: "array",
+            description: "kind 為 chart 時：一組 {label, value} 的長條圖資料",
+            items: {
+              type: "object",
+              properties: { label: { type: "string" }, value: { type: "number" } },
+              required: ["label", "value"],
+            },
+          },
+          metrics: {
+            type: "array",
+            description: "kind 為 metrics 時：一組重點數字卡",
+            items: {
+              type: "object",
+              properties: { label: { type: "string" }, value: { type: "string" } },
+              required: ["label", "value"],
+            },
+          },
+        },
+        required: ["kind", "title"],
+      },
+    },
+  ];
+}
+
+/**
  * 開一場「即時語音會議」的 ephemeral client secret：真正的語音進、語音出模型
  * （跟 ChatGPT 語音模式、Gemini Live 同一種架構），全程 WebRTC 雙向串流，
  * 不需要我們自己做「錄音→辨識→組句→合成」三段式等待，語音活動偵測也交給
@@ -492,9 +562,10 @@ export async function mintRealtimeSession(cfg: RealtimeSessionConfig): Promise<R
     "老闆正在視訊會議上跟你即時語音對話，你的回覆會直接用語音唸出來。請用第一人稱、口語、" +
     "簡短俐落地回應——像真人開會一來一回，通常 1～2 句就講完重點，絕對不要長篇大論、不要條列。" +
     "語氣自然有精神、語速正常偏快，說台灣腔繁體中文。\n" +
-    "重要：如果老闆的話裡提到「別的同事的名字」（不是在跟你說話，而是要找別人），" +
-    "你只需要極簡短交棒，像「好，交給他」「請他來說」（不超過一句話），絕對不要真的回答問題內容，" +
-    "老闆接下來會親自跟那位同事對話。\n" +
+    "如果老闆問到你負責範圍內的具體資料或成效（數字、清單、比較、結論），呼叫 show_result 工具把內容" +
+    "顯示在畫面上，語音只需要簡短講重點，不用把畫面上每個字都唸出來。\n" +
+    "如果老闆的話裡提到「別的同事的名字」（不是在跟你說話，而是要找別人），呼叫 switch_to_colleague 工具" +
+    "（帶該同事代號），同時只需要極簡短交棒，像「好，交給他」（不超過一句話），絕對不要真的回答問題內容。\n" +
     (cfg.isTeamLead ? "你是 Team Lead 大總管，若老闆請你統整，簡短點出團隊分工即可，不要長篇。\n" : "") +
     (cfg.history ? `先前會議脈絡（供你參考，不用主動複述）：\n${cfg.history}` : "");
 
@@ -513,6 +584,8 @@ export async function mintRealtimeSession(cfg: RealtimeSessionConfig): Promise<R
           output: { voice: cfg.voice },
         },
         instructions,
+        tools: realtimeTools(),
+        tool_choice: "auto",
       },
     }),
   });

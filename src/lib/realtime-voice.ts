@@ -18,6 +18,8 @@ export interface RealtimeHandlers {
   onAssistantTranscriptDone?: (text: string) => void; // Agent 這輪完整回覆
   onAssistantSpeechStart?: () => void;
   onAssistantSpeechStop?: () => void;
+  /** Agent 呼叫了工具（換人／把結果推上畫面）。argsJson 是未解析的 JSON 字串。 */
+  onFunctionCall?: (name: string, argsJson: string, callId: string) => void;
   onError?: (message: string) => void;
   onClose?: () => void;
 }
@@ -97,6 +99,19 @@ export class RealtimeVoiceSession {
     this.dc.send(JSON.stringify({ type: "response.cancel" }));
   }
 
+  /** 回覆 Agent 呼叫的工具結果。continueResponse=true 會接著要求 Agent 繼續講話
+   * （例如 show_result 之後讓它接著唸重點）；換人這種不需要它再開口的情境傳 false。 */
+  submitFunctionResult(callId: string, output: unknown, continueResponse: boolean): void {
+    if (!this.dc || this.dc.readyState !== "open") return;
+    this.dc.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: { type: "function_call_output", call_id: callId, output: JSON.stringify(output) },
+      })
+    );
+    if (continueResponse) this.dc.send(JSON.stringify({ type: "response.create" }));
+  }
+
   /** 麥克風軌道意外中斷、重新取得後換上新的軌道，不需要重新走一次 WebRTC 交握。 */
   async replaceMicTrack(newTrack: MediaStreamTrack): Promise<void> {
     const sender = this.pc?.getSenders().find((s) => s.track?.kind === "audio");
@@ -104,7 +119,15 @@ export class RealtimeVoiceSession {
   }
 
   private handleEvent(raw: string): void {
-    let evt: { type?: string; delta?: string; transcript?: string; error?: { message?: string } };
+    let evt: {
+      type?: string;
+      delta?: string;
+      transcript?: string;
+      error?: { message?: string };
+      response?: {
+        output?: Array<{ type?: string; name?: string; arguments?: string; call_id?: string }>;
+      };
+    };
     try {
       evt = JSON.parse(raw);
     } catch {
@@ -129,8 +152,15 @@ export class RealtimeVoiceSession {
       case "output_audio_buffer.started":
         this.handlers.onAssistantSpeechStart?.();
         break;
-      case "output_audio_buffer.stopped":
       case "response.done":
+        for (const item of evt.response?.output ?? []) {
+          if (item?.type === "function_call" && item.name && item.call_id) {
+            this.handlers.onFunctionCall?.(item.name, item.arguments ?? "{}", item.call_id);
+          }
+        }
+        this.handlers.onAssistantSpeechStop?.();
+        break;
+      case "output_audio_buffer.stopped":
         this.handlers.onAssistantSpeechStop?.();
         break;
       case "error":

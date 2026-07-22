@@ -19,6 +19,10 @@ import {
   WifiOff,
   SkipForward,
   Zap,
+  Table2,
+  BarChart3,
+  Quote,
+  X,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import { AGENTS } from "@/lib/agent-data";
@@ -26,6 +30,18 @@ import { RealtimeVoiceSession } from "@/lib/realtime-voice";
 import type { AgentSlug } from "@/lib/types";
 
 type Phase = "idle" | "live" | "ended";
+
+/** Agent 呼叫 show_result 工具推上畫面的內容——跟語音同步呈現，不用你自己從逐字稿腦補。 */
+interface SharedResult {
+  agentSlug: string;
+  color: string;
+  kind: "table" | "chart" | "metrics" | "text" | "conclusion";
+  title: string;
+  text?: string;
+  table?: { columns: string[]; rows: string[][] };
+  chart?: { label: string; value: number }[];
+  metrics?: { label: string; value: string }[];
+}
 
 const TEAM_LEAD_SLUG: AgentSlug = "teamlead";
 // 麥克風軌道健康檢查間隔——偵測到斷線就自動換軌（不必整個重連）
@@ -108,6 +124,7 @@ export default function MeetingPage() {
   const currentAgent = roster[currentIndex] ?? roster[0];
 
   const [reply, setReply] = useState<{ slug: string; name: string; text: string } | null>(null);
+  const [resultPanel, setResultPanel] = useState<SharedResult | null>(null); // Agent 推上畫面的報告內容
   const [log, setLog] = useState<{ command: string; speaker: string; text: string }[]>([]);
   const [gestureHint, setGestureHint] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -133,6 +150,7 @@ export default function MeetingPage() {
   const levelAnalyserRef = useRef<AnalyserNode | null>(null);
 
   const rtSessionRef = useRef<RealtimeVoiceSession | null>(null);
+  const connectedIndexRef = useRef(-1); // rtSessionRef 目前實際連到哪一位（currentIndexRef 是「意圖」，連線中會先跑在前面）
   const agentSpeakingRef = useRef(false);
   const lastVoiceTsRef = useRef(0);
   const switchTokenRef = useRef(0); // 切換序號：手速太快時，讓過期的連線結果自動失效
@@ -214,24 +232,35 @@ export default function MeetingPage() {
 
   /* ── 換人／點名：關掉舊的即時語音連線，向新 Agent 的人設換一組新的連線。
    * carryText：點名當下說的那句話，會直接轉交給新上場的 Agent 回答，不必你再說一次。 ── */
+  /**
+   * 換人／點名：先接上新 Agent 的連線，「確認連上了」才關掉舊的那條——
+   * 不要先斷後接。之前的版本是先關舊連線、才去換 token／建新連線，中間有一段
+   * （網路來回一趟的時間）完全沒有任何連線在聽你說話；會議進行到中後段、
+   * 你講話的當下如果剛好落在這個空窗，就會像「叫不動」。現在舊連線會一直
+   * 聽到新的確實連上為止，換人失敗也不會把整個會議弄啞（舊連線留著）。
+   */
   const connectAgent = useCallback(
     async (idx: number, opts?: { carryText?: string }) => {
       const n = roster.length;
       if (n === 0) return;
       const next = ((idx % n) + n) % n;
+
+      // 已經是現在這位：不必重連，若有帶話要接續就直接餵給現有連線
+      if (next === connectedIndexRef.current && rtSessionRef.current) {
+        if (opts?.carryText) {
+          lastUserTextRef.current = opts.carryText;
+          rtSessionRef.current.sendText(opts.carryText);
+        }
+        return;
+      }
+
       const myToken = ++switchTokenRef.current;
-
-      rtSessionRef.current?.close();
-      rtSessionRef.current = null;
-      agentSpeakingRef.current = false;
-      setAgentTalking(false);
-      setResponding(false);
-      setAssistantCaption("");
-      setReply(null);
-
+      const outgoing = rtSessionRef.current; // 先留著，等新的連上才關
+      setConnecting(true);
+      // 立刻更新「現正對談」讓畫面反映意圖（連線中疊層會顯示是誰）；
+      // 實際的 WebRTC 連線／舊連線收尾則等新連線確認就緒才切換
       currentIndexRef.current = next;
       setCurrentIndex(next);
-      setConnecting(true);
 
       const agent = roster[next];
       const micTrack = micStreamRef.current?.getAudioTracks()[0];
@@ -276,11 +305,13 @@ export default function MeetingPage() {
             setResponding(true);
           },
           onUserTranscript: (text) => {
-            if (!text) return;
+            if (!text || myToken !== switchTokenRef.current) return;
             lastVoiceTsRef.current = Date.now();
             lastUserTextRef.current = text;
             fullTranscriptRef.current += (fullTranscriptRef.current ? " " : "") + text;
             logTurn({ role: "boss", speaker: "老闆", content: text });
+            // 除錯用：換人一直失敗時，打開瀏覽器 devtools 看這行就知道逐字稿有沒有抓對名字
+            console.debug("[meeting] 老闆說：", text);
 
             const pureSwitch = /^(換人|換下一位|下一位|下一個|換一個)[吧喔哦。！!？?\s]*$/.test(text.trim());
             if (pureSwitch) {
@@ -288,6 +319,10 @@ export default function MeetingPage() {
               connectAgentRef.current(currentIndexRef.current + 1);
               return;
             }
+            // 快速路徑：逐字稿裡直接看到名字就先切；模型自己聽到原始語音後
+            // 也會透過 switch_to_colleague 工具再判斷一次（見 onFunctionCall），
+            // 兩條路徑互為備援——這正是修正「中後期叫不動」的關鍵，因為純文字
+            // 比對在辨識誤差、口音變化時會漏判，但模型直接聽聲音準得多。
             const named = detectNamedAgent(text);
             if (named !== null && named !== currentIndexRef.current) {
               flashGesture(`點名 ${roster[named].personEn} ${roster[named].personZh} 上場`);
@@ -328,6 +363,38 @@ export default function MeetingPage() {
             agentSpeakingRef.current = false;
             setAgentTalking(false);
           },
+          onFunctionCall: (name, argsJson, callId) => {
+            if (myToken !== switchTokenRef.current) return;
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(argsJson);
+            } catch {
+              /* ignore */
+            }
+            if (name === "switch_to_colleague") {
+              const target = typeof args.target === "string" ? args.target : "";
+              session.submitFunctionResult(callId, { ok: true }, false); // 準備關掉這條連線，不必再要求它繼續講
+              const targetIdx = roster.findIndex((a) => a.slug === target);
+              if (targetIdx !== -1 && targetIdx !== currentIndexRef.current) {
+                flashGesture(`${roster[targetIdx].personEn} ${roster[targetIdx].personZh} 接手回覆`);
+                connectAgentRef.current(targetIdx);
+              }
+              return;
+            }
+            if (name === "show_result") {
+              setResultPanel({
+                agentSlug: agent.slug,
+                color: agent.color,
+                kind: (args.kind as SharedResult["kind"]) || "text",
+                title: typeof args.title === "string" ? args.title : "",
+                text: typeof args.text === "string" ? args.text : undefined,
+                table: args.table as SharedResult["table"],
+                chart: args.chart as SharedResult["chart"],
+                metrics: args.metrics as SharedResult["metrics"],
+              });
+              session.submitFunctionResult(callId, { ok: true, shown: true }, true);
+            }
+          },
           onError: (msg) => {
             if (myToken !== switchTokenRef.current) return;
             flashMicNotice(msg, 5000);
@@ -344,9 +411,19 @@ export default function MeetingPage() {
           session.close();
           return;
         }
+
+        // 新連線確認就緒，這時才切換——中間沒有任何「完全聽不到」的空窗
+        outgoing?.close();
         rtSessionRef.current = session;
+        connectedIndexRef.current = next;
         setConnecting(false);
         setMicOn(true);
+        agentSpeakingRef.current = false;
+        setAgentTalking(false);
+        setResponding(false);
+        setAssistantCaption("");
+        setReply(null);
+        setResultPanel(null);
 
         if (opts?.carryText) {
           lastUserTextRef.current = opts.carryText;
@@ -356,6 +433,7 @@ export default function MeetingPage() {
         if (myToken !== switchTokenRef.current) return;
         setConnecting(false);
         flashMicNotice(err instanceof Error ? err.message : "無法建立即時語音連線", 6000);
+        // 換人失敗：舊連線完全沒動過，會議不會因此變啞
       }
     },
     [roster, detectNamedAgent, logTurn, flashGesture, flashMicNotice]
@@ -904,6 +982,9 @@ export default function MeetingPage() {
 
             {/* 右：現正對談的 Agent（聚光）+ 會議紀錄 */}
             <div className="flex min-h-0 flex-col gap-4">
+              {/* Agent 報告時同步推上畫面的內容（表格／圖表／數字／結論），跟語音同步呈現 */}
+              {resultPanel && <ResultPanelView result={resultPanel} onClose={() => setResultPanel(null)} />}
+
               <div
                 key={currentAgent.slug}
                 className="tv-pop rounded-2xl border p-5"
@@ -1145,6 +1226,7 @@ export default function MeetingPage() {
                     setPhase("idle");
                     setLog([]);
                     setReply(null);
+                    setResultPanel(null);
                     setCurrentIndex(0);
                     setSavedInfo(null);
                     setMeetingId(null);
@@ -1191,5 +1273,114 @@ function ThinkingLine({ label }: { label: string }) {
       </span>
       {label}
     </span>
+  );
+}
+
+/* ── Agent 呼叫 show_result 推上畫面的內容：表格／圖表／數字卡／文字／結論 ── */
+function ResultPanelView({ result, onClose }: { result: SharedResult; onClose: () => void }) {
+  const agentMeta = AGENTS.find((a) => a.slug === result.agentSlug);
+  const icon =
+    result.kind === "table" ? (
+      <Table2 size={13} />
+    ) : result.kind === "chart" ? (
+      <BarChart3 size={13} />
+    ) : result.kind === "conclusion" ? (
+      <Quote size={13} />
+    ) : (
+      <Sparkles size={13} />
+    );
+
+  return (
+    <div
+      className="tv-pop relative overflow-hidden rounded-2xl border p-5"
+      style={{ borderColor: `${result.color}55`, background: `linear-gradient(135deg, ${result.color}12, rgba(255,255,255,0.02))` }}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        title="關閉"
+        className="absolute right-3.5 top-3.5 flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/30 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+      >
+        <X size={13} />
+      </button>
+      <p
+        className="mb-3 flex items-center gap-1.5 pr-8 text-[11px] font-semibold tracking-[0.15em]"
+        style={{ color: result.color }}
+      >
+        {icon} {agentMeta ? `${agentMeta.personEn} 的畫面分享` : "畫面分享"}
+      </p>
+      <p className="mb-3 text-base font-medium text-white">{result.title}</p>
+
+      {result.kind === "table" && result.table && (
+        <div className="overflow-x-auto rounded-lg border border-white/8">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-white/[0.05] text-white/45">
+                {result.table.columns.map((c) => (
+                  <th key={c} className="px-3 py-1.5 text-left text-xs font-medium">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {result.table.rows.map((row, i) => (
+                <tr key={i} className={i % 2 === 1 ? "bg-white/[0.02]" : undefined}>
+                  {row.map((cell, j) => (
+                    <td key={j} className="px-3 py-2 text-white/80">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {result.kind === "chart" && result.chart && result.chart.length > 0 && (
+        <div className="space-y-2.5">
+          {(() => {
+            const max = Math.max(1, ...result.chart.map((d) => d.value));
+            return result.chart.map((d) => (
+              <div key={d.label}>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="text-white/70">{d.label}</span>
+                  <span className="font-mono text-white/50">{d.value.toLocaleString("en-US")}</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/[0.06]">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${(d.value / max) * 100}%`, background: result.color }}
+                  />
+                </div>
+              </div>
+            ));
+          })()}
+        </div>
+      )}
+
+      {result.kind === "metrics" && result.metrics && (
+        <div className="grid grid-cols-3 gap-2.5">
+          {result.metrics.map((m) => (
+            <div key={m.label} className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2.5 text-center">
+              <p className="font-mono text-lg font-light text-white">{m.value}</p>
+              <p className="mt-0.5 text-[11px] text-white/40">{m.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(result.kind === "text" || result.kind === "conclusion") && (
+        <p
+          className={`text-sm leading-relaxed ${
+            result.kind === "conclusion" ? "border-l-2 pl-3 italic text-white/85" : "text-white/80"
+          }`}
+          style={result.kind === "conclusion" ? { borderColor: result.color } : undefined}
+        >
+          {result.text}
+        </p>
+      )}
+    </div>
   );
 }
