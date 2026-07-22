@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
+import CommandConsole from "@/components/tv/CommandConsole";
 import LiveTask, { type LiveInfo } from "@/components/tv/LiveTask";
 import RotatingPortrait from "@/components/tv/RotatingPortrait";
 import { AGENTS, avatarFrames } from "@/lib/agent-data";
@@ -168,6 +169,7 @@ export default function TvModePage() {
   const [isFull, setIsFull] = useState(false);
   const [openAgent, setOpenAgent] = useState<AgentSlug | null>(null);
   const [introDone, setIntroDone] = useState(false);
+  const [consoleOpen, setConsoleOpen] = useState(false);
 
   const activeAgents = useMemo(() => AGENTS.filter((a) => a.status === "active"), []);
   const activeCount = activeAgents.length;
@@ -177,14 +179,14 @@ export default function TvModePage() {
   const openDetail = useCallback((slug: AgentSlug) => setOpenAgent(slug), []);
   const closeDetail = useCallback(() => setOpenAgent(null), []);
 
-  // 片頭播完才開始自動輪播（可暫停；展開細節時也暫停）
+  // 片頭播完才開始自動輪播（可暫停；展開細節或指揮台開著時也暫停）
   useEffect(() => {
-    if (!introDone || !autoplay || openAgent) return;
+    if (!introDone || !autoplay || openAgent || consoleOpen) return;
     const t = setInterval(() => {
       setScene((i) => (i + 1) % N);
     }, AUTOPLAY_MS);
     return () => clearInterval(t);
-  }, [introDone, autoplay, scene, openAgent]);
+  }, [introDone, autoplay, scene, openAgent, consoleOpen]);
 
   // 片頭自動收場（點擊也可提前略過）
   useEffect(() => {
@@ -206,11 +208,16 @@ export default function TvModePage() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  // 鍵盤操作：展開細節時 Esc 關閉；否則 ← → 切換場景、空白鍵切換自動輪播
+  // 鍵盤操作：展開細節或指揮台開著時 Esc 關閉（指揮台裡打字不搶場景快捷鍵）；
+  // 否則 ← → 切換場景、空白鍵切換自動輪播
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (openAgent) {
         if (e.key === "Escape") setOpenAgent(null);
+        return;
+      }
+      if (consoleOpen) {
+        if (e.key === "Escape") setConsoleOpen(false);
         return;
       }
       if (e.key === "ArrowRight") {
@@ -224,7 +231,7 @@ export default function TvModePage() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openAgent]);
+  }, [openAgent, consoleOpen]);
 
   const go = (delta: number) => setScene((i) => (i + delta + N) % N);
   const jump = (i: number) => setScene(i);
@@ -267,6 +274,7 @@ export default function TvModePage() {
           <Orbit size={15} />
           宇宙
         </Link>
+        <CommandConsole open={consoleOpen} onOpenChange={setConsoleOpen} />
         <button
           type="button"
           onClick={() => setAutoplay((a) => !a)}
