@@ -32,6 +32,8 @@ export interface FlowNode {
   /** 這一步實際上會跟另一位 Agent 協同（例如約拜訪查行事曆空檔時，讀的是行程助理
    * 也在用的同一份真實 Google 日曆）。畫面上會疊一顆對方的小頭像做視覺連通。 */
   handoff?: AgentSlug;
+  /** 這一步實際上是呼叫外部 app（例如 LINE、Google 日曆、Gmail）——有值時節點以真實品牌 logo 呈現，而不是通用圓點 */
+  app?: string;
 }
 
 export interface FlowColumn {
@@ -61,7 +63,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
           { id: "flag", label: "標記＋通報", branch: "有異常" },
         ],
       },
-      { nodes: [{ id: "send", label: "寄送 LINE" }] },
+      { nodes: [{ id: "send", label: "寄送 LINE", app: "line" }] },
       { nodes: [{ id: "archive", label: "歸檔追蹤", terminal: true }] },
     ],
     idle: "待命中・下次晨報前整備",
@@ -78,7 +80,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
           { id: "loop", label: "繼續監測", branch: "未觸發", terminal: true },
         ],
       },
-      { nodes: [{ id: "push", label: "推播 LINE" }] },
+      { nodes: [{ id: "push", label: "推播 LINE", app: "line" }] },
       { nodes: [{ id: "log", label: "記錄回執", terminal: true }] },
     ],
     idle: "監控中・等待指標觸發",
@@ -104,7 +106,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   schedule: {
     prop: "calendar",
     flow: [
-      { nodes: [{ id: "read", label: "讀取行事曆" }] },
+      { nodes: [{ id: "read", label: "讀取行事曆", app: "google-calendar" }] },
       { nodes: [{ id: "scan", label: "掃描未來 7 天" }] },
       {
         nodes: [
@@ -112,7 +114,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
           { id: "resolve", label: "擬改期選項", branch: "衝突" },
         ],
       },
-      { nodes: [{ id: "send", label: "發送 LINE" }] },
+      { nodes: [{ id: "send", label: "發送 LINE", app: "line" }] },
       { nodes: [{ id: "confirm", label: "確認回覆", terminal: true }] },
     ],
     idle: "待命中・盯著未來七天",
@@ -167,12 +169,13 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
             live: ["2:active"],
             main: true,
             handoff: "schedule",
+            app: "google-calendar",
           },
           { id: "tag", label: "標註客戶標籤", branch: "先不要", live: ["2:done"], terminal: true },
         ],
       },
       { nodes: [{ id: "draft", label: "草擬邀約信", live: ["3"] }] },
-      { nodes: [{ id: "sent", label: "寄出＆追蹤回覆", live: ["4"], terminal: true }] },
+      { nodes: [{ id: "sent", label: "寄出＆追蹤回覆", live: ["4"], terminal: true, app: "gmail" }] },
     ],
     idle: "待命中・等待名片上傳",
     ticker: ["名片一傳來就開工", "2 位客戶回覆較慢，已排跟進", "邀約信模板已就緒"],
@@ -186,7 +189,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
       {
         nodes: [
           { id: "mark", label: "標記加碼機會", branch: "正常", main: true },
-          { id: "alert", label: "即時警示", branch: "超標" },
+          { id: "alert", label: "即時警示", branch: "超標", app: "line" },
         ],
       },
       { nodes: [{ id: "daily", label: "產出日報", terminal: true }] },
@@ -231,7 +234,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   support: {
     prop: "chat",
     flow: [
-      { nodes: [{ id: "receive", label: "接收進線" }] },
+      { nodes: [{ id: "receive", label: "接收進線", app: "line" }] },
       { nodes: [{ id: "understand", label: "理解意圖" }] },
       {
         nodes: [
@@ -252,7 +255,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
       { nodes: [{ id: "verify", label: "核對付款" }] },
       {
         nodes: [
-          { id: "ship", label: "通知出貨", branch: "正常", main: true },
+          { id: "ship", label: "通知出貨", branch: "正常", main: true, app: "line" },
           { id: "escalate", label: "通報異常給你", branch: "異常" },
         ],
       },
@@ -260,7 +263,7 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
       {
         nodes: [
           { id: "done", label: "完成歸檔", branch: "已取貨", main: true, terminal: true },
-          { id: "overdue", label: "逾期提醒取貨", branch: "逾期", terminal: true },
+          { id: "overdue", label: "逾期提醒取貨", branch: "逾期", terminal: true, app: "line" },
         ],
       },
     ],

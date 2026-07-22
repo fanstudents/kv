@@ -2,6 +2,7 @@
 
 import { Check } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
+import BrandLogo from "@/components/integrations/BrandLogo";
 import { AGENTS } from "@/lib/agent-data";
 import type { FlowColumn, FlowNode } from "@/lib/agent-briefings";
 import type { LiveInfo } from "./LiveTask";
@@ -59,33 +60,45 @@ function NodeView({ node, state, color }: { node: FlowNode; state: NodeState; co
   // 疊一顆對方小頭像做視覺連通，而不是假裝這只是自己一個人的步驟。
   const partner = node.handoff ? AGENTS.find((a) => a.slug === node.handoff) : undefined;
 
-  const circleStyle: React.CSSProperties = {
-    width: size,
-    height: size,
-    borderColor:
-      state === "done" || state === "completed"
-        ? color
-        : isCurrent
-          ? dot
-          : state === "ended"
-            ? "rgba(255,255,255,0.45)"
-            : state === "untaken"
-              ? "rgba(255,255,255,0.12)"
-              : state === "idle"
-                ? "rgba(255,255,255,0.28)"
-                : "rgba(255,255,255,0.16)",
-    background:
-      state === "done" || state === "completed"
-        ? color
-        : state === "active"
-          ? `${color}33`
-          : state === "waiting"
-            ? "rgba(245,158,11,0.22)"
-            : state === "ended"
-              ? "rgba(255,255,255,0.32)"
-              : "transparent",
-    boxShadow: isCurrent ? `0 0 16px -2px ${dot}` : "none",
-  };
+  const ringColor =
+    state === "done" || state === "completed"
+      ? color
+      : isCurrent
+        ? dot
+        : state === "ended"
+          ? "rgba(255,255,255,0.45)"
+          : state === "untaken"
+            ? "rgba(255,255,255,0.12)"
+            : state === "idle"
+              ? "rgba(255,255,255,0.28)"
+              : "rgba(255,255,255,0.16)";
+
+  // 這一步實際上是呼叫外部 app（LINE / Google 日曆 / Gmail…）：圓圈改用白底裝真實 logo，
+  // 進度改以角落小徽章表示，而不是把品牌色塗滿整顆圓（那樣會蓋掉 logo 本身的顏色）。
+  const circleStyle: React.CSSProperties = node.app
+    ? {
+        width: size,
+        height: size,
+        borderColor: ringColor,
+        background: "rgba(255,255,255,0.94)",
+        boxShadow: isCurrent ? `0 0 16px -2px ${dot}` : "none",
+      }
+    : {
+        width: size,
+        height: size,
+        borderColor: ringColor,
+        background:
+          state === "done" || state === "completed"
+            ? color
+            : state === "active"
+              ? `${color}33`
+              : state === "waiting"
+                ? "rgba(245,158,11,0.22)"
+                : state === "ended"
+                  ? "rgba(255,255,255,0.32)"
+                  : "transparent",
+        boxShadow: isCurrent ? `0 0 16px -2px ${dot}` : "none",
+      };
 
   const labelClass =
     state === "untaken"
@@ -116,12 +129,33 @@ function NodeView({ node, state, color }: { node: FlowNode; state: NodeState; co
           className={`flex shrink-0 items-center justify-center rounded-full border-2 transition-all ${isCurrent ? "tv-breathe" : ""}`}
           style={circleStyle}
         >
-          {(state === "done" || state === "completed") && (
-            <Check size={11} className="text-[#05060a]" strokeWidth={3} />
+          {node.app ? (
+            <BrandLogo brand={node.app} name={node.label} color={color} size={Math.max(size - 8, 10)} bare />
+          ) : (
+            <>
+              {(state === "done" || state === "completed") && (
+                <Check size={11} className="text-[#05060a]" strokeWidth={3} />
+              )}
+              {isCurrent && <span className="h-2 w-2 rounded-full" style={{ background: dot }} />}
+              {state === "ended" && <span className="h-1.5 w-1.5 rounded-full bg-[#05060a]" />}
+            </>
           )}
-          {isCurrent && <span className="h-2 w-2 rounded-full" style={{ background: dot }} />}
-          {state === "ended" && <span className="h-1.5 w-1.5 rounded-full bg-[#05060a]" />}
         </span>
+        {/* logo 節點的進度徽章：品牌色已經被 logo 佔用，改在右下角疊一顆小圓點表示走到哪 */}
+        {node.app && (state === "done" || state === "completed") && (
+          <span
+            className="absolute -bottom-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full ring-2 ring-[#0b0d12]"
+            style={{ background: color }}
+          >
+            <Check size={8} className="text-[#05060a]" strokeWidth={3} />
+          </span>
+        )}
+        {node.app && isCurrent && (
+          <span
+            className="absolute -bottom-1 -right-1 h-2.5 w-2.5 rounded-full ring-2 ring-[#0b0d12]"
+            style={{ background: dot }}
+          />
+        )}
         {/* 這一步跟另一位 Agent 協同：疊一顆對方的小頭像，畫面上看得出是多人連通的節點 */}
         {partner && (
           <span

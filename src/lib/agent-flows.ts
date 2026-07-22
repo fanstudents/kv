@@ -38,6 +38,8 @@ interface FlowStepDef {
   key: string;
   label: string;
   icon: LucideIcon;
+  /** 這一步實際上是呼叫外部 app（例如 LINE、Google 日曆、Gmail）——用真實品牌 logo 取代通用 icon */
+  brand?: string;
 }
 
 // 每位 Agent 的任務節點流程定義（依照實際運作方式拆解）
@@ -46,12 +48,12 @@ export const AGENT_FLOWS: Record<AgentSlug, FlowStepDef[]> = {
     { key: "collect", label: "巡視團隊動態", icon: Eye },
     { key: "analyze", label: "彙整 24h 工作", icon: Database },
     { key: "summarize", label: "AI 撰寫摘要", icon: Sparkles },
-    { key: "push", label: "LINE 晨報匯報", icon: Send },
+    { key: "push", label: "LINE 晨報匯報", icon: Send, brand: "line" },
   ],
   notify: [
     { key: "watch", label: "監測指標", icon: Eye },
     { key: "match", label: "條件成立", icon: Filter },
-    { key: "push", label: "LINE 推播", icon: Send },
+    { key: "push", label: "LINE 推播", icon: Send, brand: "line" },
     { key: "done", label: "完成回報", icon: CheckCircle2 },
   ],
   report: [
@@ -64,7 +66,7 @@ export const AGENT_FLOWS: Record<AgentSlug, FlowStepDef[]> = {
     { key: "receive", label: "接收預約", icon: CalendarDays },
     { key: "check", label: "檢查衝突", icon: Search },
     { key: "confirm", label: "確認/改期", icon: RefreshCw },
-    { key: "remind", label: "發送提醒", icon: Bell },
+    { key: "remind", label: "發送提醒", icon: Bell, brand: "line" },
   ],
   card: [
     { key: "idea", label: "發想貼文主題", icon: Sparkles },
@@ -81,15 +83,15 @@ export const AGENT_FLOWS: Record<AgentSlug, FlowStepDef[]> = {
   visit: [
     { key: "scan", label: "掃描名片", icon: ScanLine },
     { key: "internal", label: "內部確認", icon: UserCheck },
-    { key: "sent", label: "寄出邀約信", icon: Mail },
+    { key: "sent", label: "寄出邀約信", icon: Mail, brand: "gmail" },
     { key: "reply", label: "客戶回覆", icon: MessageSquareText },
-    { key: "calendar", label: "行事曆建立", icon: CalendarCheck },
+    { key: "calendar", label: "行事曆建立", icon: CalendarCheck, brand: "google-calendar" },
   ],
   today: [
     { key: "monitor", label: "監控投放成效", icon: Eye },
     { key: "detect", label: "偵測異常", icon: AlertTriangle },
     { key: "optimize", label: "預算/素材建議", icon: Sparkles },
-    { key: "notify", label: "LINE 提醒", icon: Send },
+    { key: "notify", label: "LINE 提醒", icon: Send, brand: "line" },
   ],
   competitor: [
     { key: "collect", label: "監測聲量", icon: Globe },
@@ -104,7 +106,7 @@ export const AGENT_FLOWS: Record<AgentSlug, FlowStepDef[]> = {
     { key: "board", label: "儀表板呈現", icon: BarChart3 },
   ],
   support: [
-    { key: "receive", label: "接收客戶訊息", icon: MessageCircle },
+    { key: "receive", label: "接收客戶訊息", icon: MessageCircle, brand: "line" },
     { key: "log", label: "記錄對話", icon: Database },
     { key: "reply", label: "自動回覆", icon: Headphones },
     { key: "handoff", label: "轉真人待處理", icon: UserCheck },
@@ -113,7 +115,7 @@ export const AGENT_FLOWS: Record<AgentSlug, FlowStepDef[]> = {
     { key: "webhook", label: "接收訂單 Webhook", icon: Webhook },
     { key: "parse", label: "解析訂單內容", icon: ShoppingCart },
     { key: "amount", label: "確認金額品項", icon: Coins },
-    { key: "notify", label: "LINE 即時通知", icon: Send },
+    { key: "notify", label: "LINE 即時通知", icon: Send, brand: "line" },
   ],
 };
 
@@ -149,6 +151,7 @@ export function deriveFlowSteps(slug: AgentSlug, latest?: LatestRun): FlowStep[]
     key: def.key,
     label: def.label,
     icon: def.icon,
+    brand: def.brand,
     state: stateAt(i),
     detail: i === 0 && latest?.timestamp ? latest.timestamp : undefined,
   }));

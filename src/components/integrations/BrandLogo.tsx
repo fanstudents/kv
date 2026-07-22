@@ -84,14 +84,25 @@ export default function BrandLogo({
   name,
   color,
   size = 44,
+  bare = false,
 }: {
   brand: string;
   name: string;
   color: string;
   size?: number;
+  /** 省略外框卡片（白底＋邊框），直接輸出裸 SVG——用於已有自己容器（例如流程節點圓圈）的情境 */
+  bare?: boolean;
 }) {
   const b = BRANDS[brand];
   const radius = Math.round(size * 0.28);
+
+  if (b && bare) {
+    return (
+      <svg viewBox={b.viewBox} width={size} height={size} aria-hidden="true">
+        {b.body}
+      </svg>
+    );
+  }
 
   if (b) {
     const inner = b.fullBleed ? size : Math.round(size * 0.6);
