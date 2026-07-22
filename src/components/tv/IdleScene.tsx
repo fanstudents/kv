@@ -5,19 +5,28 @@ import { AlertTriangle, CalendarDays, CheckCircle2, Mail, Plug, Star } from "luc
 import { AGENTS } from "@/lib/agent-data";
 import type { AgentSlug } from "@/lib/types";
 
+// 跟後端行事曆快取節奏對齊（10 分鐘）——場景可能一開就是好幾小時，
+// 只在掛載當下抓一次的話，畫面會停在當時的行事曆，之後新增的行程永遠看不到。
+const IDLE_DATA_POLL_MS = 5 * 60 * 1000;
+
 /** 抓某位 Agent 待命場景的真實資料；失敗回 null（前端退回示意資料） */
 function useIdleData<T>(agent: string): T | null {
   const [data, setData] = useState<T | null>(null);
   useEffect(() => {
     let alive = true;
-    fetch(`/api/tv/idle?agent=${agent}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (alive && d?.ok && d.data) setData(d.data as T);
-      })
-      .catch(() => {});
+    const load = () => {
+      fetch(`/api/tv/idle?agent=${agent}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (alive && d?.ok && d.data) setData(d.data as T);
+        })
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, IDLE_DATA_POLL_MS);
     return () => {
       alive = false;
+      clearInterval(interval);
     };
   }, [agent]);
   return data;
