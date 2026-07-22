@@ -230,14 +230,16 @@ export default function MeetingPage() {
     return () => clearInterval(id);
   }, [phase]);
 
-  /* ── 換人／點名：關掉舊的即時語音連線，向新 Agent 的人設換一組新的連線。
-   * carryText：點名當下說的那句話，會直接轉交給新上場的 Agent 回答，不必你再說一次。 ── */
   /**
-   * 換人／點名：先接上新 Agent 的連線，「確認連上了」才關掉舊的那條——
-   * 不要先斷後接。之前的版本是先關舊連線、才去換 token／建新連線，中間有一段
-   * （網路來回一趟的時間）完全沒有任何連線在聽你說話；會議進行到中後段、
-   * 你講話的當下如果剛好落在這個空窗，就會像「叫不動」。現在舊連線會一直
-   * 聽到新的確實連上為止，換人失敗也不會把整個會議弄啞（舊連線留著）。
+   * 換人／點名：關掉舊的即時語音連線，向新 Agent 的人設換一組新 token 建立連線。
+   * carryText：點名當下說的那句話，會直接轉交給新上場的 Agent 回答，不必你再說一次。
+   *
+   * 為什麼是「先斷後接」而不是「接上才斷」：試過先接新連線、確認連上才關舊的，
+   * 原意是避免換人瞬間沒人在聽；但 OpenAI Realtime 對同一個 session 情境似乎
+   * 只允許同時存在一條有效通話，新舊兩條重疊的當下，新連線的 SDP 交握會被
+   * 伺服器以 409 拒絕——畫面上看起來「換過去了」，但其實從沒真的連上，
+   * Agent 永遠不會回應，比「換人瞬間有個極短空窗」嚴重得多。新連線若還是失敗，
+   * 會自動退回重連你原本正在對談的那位，不會讓會議整個變啞。
    */
   const connectAgent = useCallback(
     async (idx: number, opts?: { carryText?: string }) => {
@@ -255,12 +257,20 @@ export default function MeetingPage() {
       }
 
       const myToken = ++switchTokenRef.current;
-      const outgoing = rtSessionRef.current; // 先留著，等新的連上才關
+      const previousIndex = currentIndexRef.current; // 新連線失敗時的退路
+      rtSessionRef.current?.close();
+      rtSessionRef.current = null;
+      connectedIndexRef.current = -1;
       setConnecting(true);
-      // 立刻更新「現正對談」讓畫面反映意圖（連線中疊層會顯示是誰）；
-      // 實際的 WebRTC 連線／舊連線收尾則等新連線確認就緒才切換
+      // 立刻更新「現正對談」讓畫面反映意圖（連線中疊層會顯示是誰）
       currentIndexRef.current = next;
       setCurrentIndex(next);
+      agentSpeakingRef.current = false;
+      setAgentTalking(false);
+      setResponding(false);
+      setAssistantCaption("");
+      setReply(null);
+      setResultPanel(null);
 
       const agent = roster[next];
       const micTrack = micStreamRef.current?.getAudioTracks()[0];
@@ -420,18 +430,10 @@ export default function MeetingPage() {
           return;
         }
 
-        // 新連線確認就緒，這時才切換——中間沒有任何「完全聽不到」的空窗
-        outgoing?.close();
         rtSessionRef.current = session;
         connectedIndexRef.current = next;
         setConnecting(false);
         setMicOn(true);
-        agentSpeakingRef.current = false;
-        setAgentTalking(false);
-        setResponding(false);
-        setAssistantCaption("");
-        setReply(null);
-        setResultPanel(null);
 
         if (opts?.carryText) {
           lastUserTextRef.current = opts.carryText;
@@ -441,7 +443,9 @@ export default function MeetingPage() {
         if (myToken !== switchTokenRef.current) return;
         setConnecting(false);
         flashMicNotice(err instanceof Error ? err.message : "無法建立即時語音連線", 6000);
-        // 換人失敗：舊連線完全沒動過，會議不會因此變啞
+        // 新連線失敗、舊連線已經關了：自動退回重連原本那位，避免會議整個變啞。
+        // 只退這一次（不會連環重試），若連退回都失敗，至少有錯誤提示可看。
+        if (previousIndex !== next) connectAgentRef.current(previousIndex);
       }
     },
     [roster, detectNamedAgent, logTurn, flashGesture, flashMicNotice]
