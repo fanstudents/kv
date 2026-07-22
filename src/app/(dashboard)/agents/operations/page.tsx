@@ -6,7 +6,11 @@ import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
+import TrendChart from "@/components/agents/charts/TrendChart";
 import type { PipelineOverview } from "@/lib/teaching-system";
+
+const OPS_COLOR = "#F97316"; // 跟 Morgan(營運 Agent)頭像色一致
+const OPS_SECONDARY_COLOR = "#64748B"; // 中性灰藍,跟主色明顯區隔(不靠色相辨識)
 
 const agent = getAgent("operations")!;
 
@@ -82,7 +86,43 @@ function PipelinePanel() {
           hint={data.quotationsDraftValue ? `另有草稿 NT$ ${data.quotationsDraftValue.toLocaleString()}` : undefined}
         />
       </div>
-      <p className="mb-2 text-xs font-medium text-neutral-500">最近的專案</p>
+      <p className="mb-2 text-xs font-medium text-neutral-500">近 6 個月新增專案趨勢</p>
+      <TrendChart
+        data={data.monthlyTrend.map((m) => ({ label: m.label, enterpriseTraining: m.enterpriseTraining, publicCourse: m.publicCourse }))}
+        xKey="label"
+        series={[
+          { key: "enterpriseTraining", name: "企業內訓", color: OPS_COLOR },
+          { key: "publicCourse", name: "公開課程", color: OPS_SECONDARY_COLOR },
+        ]}
+      />
+
+      <p className="mb-2 mt-6 text-xs font-medium text-neutral-500">
+        本月新增／進行中專案 · {data.thisMonthProjects.length} 筆
+      </p>
+      {data.thisMonthProjects.length === 0 ? (
+        <p className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-400 dark:bg-neutral-900">
+          本月尚無新增專案
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {data.thisMonthProjects.map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 text-xs dark:bg-neutral-900"
+            >
+              <span className="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-200">
+                {p.name}
+                <span className="ml-1.5 text-neutral-400">
+                  {p.typeLabel} · {p.organization}
+                </span>
+              </span>
+              <Badge tone={p.closed ? "success" : "neutral"}>{p.closed ? `已成案 ×${p.sessionCount}` : "未成案"}</Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="mb-2 mt-6 text-xs font-medium text-neutral-500">最近的專案</p>
       <ul className="space-y-1.5">
         {data.recentProjects.slice(0, 6).map((p) => (
           <li key={p.id} className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 text-xs dark:bg-neutral-900">

@@ -10,6 +10,12 @@ export interface SearchQueryRow {
   position: number;
 }
 
+export interface SearchDailyRow {
+  date: string;
+  clicks: number;
+  impressions: number;
+}
+
 export interface SearchOverview {
   totalClicks: number;
   totalImpressions: number;
@@ -19,6 +25,8 @@ export interface SearchOverview {
   /** 跟前 28 天相比的變化：clicksDelta 正值＝流量成長；positionDelta 正值＝排名進步（名次數字變小） */
   clicksDelta: number | null;
   positionDelta: number | null;
+  /** 近 28 天每日點擊／曝光，依日期由舊到新排序，給趨勢圖用 */
+  dailyTrend: SearchDailyRow[];
 }
 
 /**
@@ -37,7 +45,7 @@ export async function getSearchOverview(): Promise<SearchOverview> {
   const endPrev28 = new Date(start28.getTime() - 86400000);
   const startPrev28 = new Date(endPrev28.getTime() - 27 * 86400000);
 
-  const [current, previous, topQueries] = await Promise.all([
+  const [current, previous, topQueries, daily] = await Promise.all([
     webmasters.searchanalytics.query({
       siteUrl,
       requestBody: { startDate: isoDate(start28), endDate: isoDate(end) },
@@ -49,6 +57,10 @@ export async function getSearchOverview(): Promise<SearchOverview> {
     webmasters.searchanalytics.query({
       siteUrl,
       requestBody: { startDate: isoDate(start28), endDate: isoDate(end), dimensions: ["query"], rowLimit: 10 },
+    }),
+    webmasters.searchanalytics.query({
+      siteUrl,
+      requestBody: { startDate: isoDate(start28), endDate: isoDate(end), dimensions: ["date"], rowLimit: 31 },
     }),
   ]);
 
@@ -69,5 +81,12 @@ export async function getSearchOverview(): Promise<SearchOverview> {
     })),
     clicksDelta: curr && prev ? (curr.clicks ?? 0) - (prev.clicks ?? 0) : null,
     positionDelta: curr && prev ? (prev.position ?? 0) - (curr.position ?? 0) : null,
+    dailyTrend: (daily.data.rows ?? [])
+      .map((r) => ({
+        date: r.keys?.[0] ?? "",
+        clicks: r.clicks ?? 0,
+        impressions: r.impressions ?? 0,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date)),
   };
 }

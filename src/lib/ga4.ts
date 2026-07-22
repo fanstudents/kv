@@ -8,6 +8,12 @@ export interface ChannelRow {
   conversions: number;
 }
 
+export interface TrafficDailyRow {
+  date: string;
+  sessions: number;
+  conversions: number;
+}
+
 export interface TrafficOverview {
   sessions: number;
   activeUsers: number;
@@ -15,6 +21,8 @@ export interface TrafficOverview {
   /** 跟前 7 天相比的變化，正值＝成長 */
   sessionsDelta: number | null;
   byChannel: ChannelRow[];
+  /** 近 14 天每日工作階段／轉換，依日期由舊到新排序，給趨勢圖用 */
+  dailyTrend: TrafficDailyRow[];
 }
 
 /** 數據助理（Ivy）用：讀取真實 GA4 近 7 天流量與轉換，並跟前 7 天比較、拆分渠道。 */
@@ -25,7 +33,7 @@ export async function getTrafficOverview(): Promise<TrafficOverview> {
   const analyticsdata = google.analyticsdata({ version: "v1beta", auth: getGoogleOAuthClient() });
   const property = `properties/${propertyId}`;
 
-  const [overview, byChannel] = await Promise.all([
+  const [overview, byChannel, daily] = await Promise.all([
     analyticsdata.properties.runReport({
       property,
       requestBody: {
@@ -46,6 +54,15 @@ export async function getTrafficOverview(): Promise<TrafficOverview> {
         limit: "6",
       },
     }),
+    analyticsdata.properties.runReport({
+      property,
+      requestBody: {
+        dateRanges: [{ startDate: "14daysAgo", endDate: "today" }],
+        dimensions: [{ name: "date" }],
+        metrics: [{ name: "sessions" }, { name: "conversions" }],
+        orderBys: [{ dimension: { dimensionName: "date" } }],
+      },
+    }),
   ]);
 
   const rows = overview.data.rows ?? [];
@@ -55,6 +72,9 @@ export async function getTrafficOverview(): Promise<TrafficOverview> {
   const prev = rows.find((r) => r.dimensionValues?.[0]?.value === "date_range_1");
 
   const num = (v: string | null | undefined) => Number(v ?? 0);
+  // GA4 的 date 維度是 "YYYYMMDD" 字串，轉成 "YYYY-MM-DD" 方便跟 GSC 的日期格式一致、也方便畫圖
+  const toIsoDate = (yyyymmdd: string) =>
+    yyyymmdd.length === 8 ? `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}` : yyyymmdd;
 
   return {
     sessions: num(curr?.metricValues?.[0]?.value),
@@ -63,6 +83,11 @@ export async function getTrafficOverview(): Promise<TrafficOverview> {
     sessionsDelta: curr && prev ? num(curr.metricValues?.[0]?.value) - num(prev.metricValues?.[0]?.value) : null,
     byChannel: (byChannel.data.rows ?? []).map((r) => ({
       channel: r.dimensionValues?.[0]?.value ?? "",
+      sessions: num(r.metricValues?.[0]?.value),
+      conversions: num(r.metricValues?.[1]?.value),
+    })),
+    dailyTrend: (daily.data.rows ?? []).map((r) => ({
+      date: toIsoDate(r.dimensionValues?.[0]?.value ?? ""),
       sessions: num(r.metricValues?.[0]?.value),
       conversions: num(r.metricValues?.[1]?.value),
     })),
