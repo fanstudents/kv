@@ -44,6 +44,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, note: "payload received but not recognized as an order" });
   }
 
+  // 存一份結構化訂單記錄（跟原本給人看的 line_agent_activity 摘要分開），
+  // 讓數據 Agent 之後可以直接查詢營收/轉換數字，而不用回頭解析文字摘要。
+  // order_id 有 unique 約束，同一筆訂單重送 webhook 只會更新、不會產生重複列。
+  await supabase.from("teachify_orders").upsert(
+    {
+      order_id: order.id,
+      trade_no: order.tradeNo || null,
+      amount: order.amount,
+      currency: order.currency,
+      user_name: order.userName,
+      user_email: order.userEmail || null,
+      item_names: order.itemNames,
+      coupon_code: order.couponCode,
+      is_refund: order.isRefund,
+      paid_at: order.paidAt,
+      source: "webhook",
+    },
+    { onConflict: "order_id" }
+  );
+
   const { data: agentRow } = await supabase.from("line_agents").select("enabled, settings").eq("slug", "orders").single();
   if (agentRow?.enabled === false) {
     return NextResponse.json({ ok: true, note: "orders agent disabled, notification skipped" });

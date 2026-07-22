@@ -14,31 +14,63 @@ export function parseOrderPayload(body: unknown): NormalizedOrder | null {
   else if (isOrderLike(b.order)) candidate = b.order as Record<string, unknown>;
   else if (isOrderLike(b.data)) candidate = b.data as Record<string, unknown>;
 
-  if (!candidate) return null;
+  if (candidate) {
+    const items = Array.isArray(candidate.items) ? (candidate.items as Record<string, unknown>[]) : [];
+    const itemNames = items
+      .map((it) => (typeof it.name === "string" ? it.name : null))
+      .filter((n): n is string => Boolean(n));
 
-  const items = Array.isArray(candidate.items) ? (candidate.items as Record<string, unknown>[]) : [];
-  const itemNames = items
-    .map((it) => (typeof it.name === "string" ? it.name : null))
-    .filter((n): n is string => Boolean(n));
+    return {
+      id: String(candidate.id ?? ""),
+      tradeNo: String(candidate.trade_no ?? candidate.tradeNo ?? ""),
+      amount: Number(candidate.amount ?? 0),
+      currency: String(candidate.currency ?? "TWD"),
+      userName: String(candidate.user_name ?? candidate.userName ?? "（未提供姓名）"),
+      userEmail: String(candidate.user_email ?? candidate.userEmail ?? ""),
+      itemNames: itemNames.length > 0 ? itemNames : ["（未提供品項名稱）"],
+      couponCode: typeof candidate.coupon_code === "string" ? candidate.coupon_code : null,
+      isRefund: Boolean(candidate.refund) || candidate.status === "refunded",
+      paidAt: typeof candidate.paid_at === "string" ? candidate.paid_at : null,
+    };
+  }
 
-  return {
-    id: String(candidate.id ?? ""),
-    tradeNo: String(candidate.trade_no ?? candidate.tradeNo ?? ""),
-    amount: Number(candidate.amount ?? 0),
-    currency: String(candidate.currency ?? "TWD"),
-    userName: String(candidate.user_name ?? candidate.userName ?? "（未提供姓名）"),
-    userEmail: String(candidate.user_email ?? candidate.userEmail ?? ""),
-    itemNames: itemNames.length > 0 ? itemNames : ["（未提供品項名稱）"],
-    couponCode: typeof candidate.coupon_code === "string" ? candidate.coupon_code : null,
-    isRefund: Boolean(candidate.refund) || candidate.status === "refunded",
-    paidAt: typeof candidate.paid_at === "string" ? candidate.paid_at : null,
-  };
+  // 實測發現 Teachify 目前實際送來的不是訂單事件，而是「選課」事件
+  // （type: "course.student_enroll"，資料在 data.course / data.user 底下，
+  // 沒有 amount / trade_no / coupon_code）。比對 Teachify 訂單 API 後確認：
+  // 這個事件的 data.created_at 跟對應訂單的 paid_at 精確對上，代表它確實是
+  // 「付款完成」當下觸發的，只是 Teachify 沒有把金額明細放進這個事件的 payload。
+  // 所以先讓它也能觸發通知（沒有金額總比整個漏掉訂單好），欄位留白並在文案裡
+  // 如實說明，而不是編造金額。只認這個明確事件名稱，避免其他不明的
+  // course.* 事件（例如課程資料異動）被誤判成新訂單而亂發通知。
+  return parseEnrollmentPayload(b);
 }
 
 function isOrderLike(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const o = v as Record<string, unknown>;
   return "id" in o && ("amount" in o || "trade_no" in o || "items" in o);
+}
+
+function parseEnrollmentPayload(b: Record<string, unknown>): NormalizedOrder | null {
+  if (b.type !== "course.student_enroll") return null;
+  if (!b.data || typeof b.data !== "object") return null;
+  const d = b.data as Record<string, unknown>;
+  const course = d.course && typeof d.course === "object" ? (d.course as Record<string, unknown>) : {};
+  const user = d.user && typeof d.user === "object" ? (d.user as Record<string, unknown>) : {};
+  if (typeof course.name !== "string" || typeof user.name !== "string") return null;
+
+  return {
+    id: String(d.id ?? ""),
+    tradeNo: "",
+    amount: 0,
+    currency: "TWD",
+    userName: user.name,
+    userEmail: typeof user.email === "string" ? user.email : "",
+    itemNames: [course.name],
+    couponCode: null,
+    isRefund: false,
+    paidAt: typeof d.created_at === "string" ? d.created_at : null,
+  };
 }
 
 // 若有設定 TEACHIFY_WEBHOOK_SECRET，會嘗試用 HMAC-SHA256 驗證簽章。
