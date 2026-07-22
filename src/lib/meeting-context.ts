@@ -58,7 +58,7 @@ async function visitContext(): Promise<string> {
       else if (off === "pending") outcome = "待客戶回覆";
       return `- ${c.name}${c.company ? `（${c.company}）` : ""}：${outcome}`;
     });
-    parts.push(`近期處理過的名片（最新 ${lines.length} 筆）：\n${lines.join("\n")}`);
+    parts.push(`近期名片與邀約狀況（即「邀約名單」，最新 ${lines.length} 筆）：\n${lines.join("\n")}`);
   }
 
   try {
