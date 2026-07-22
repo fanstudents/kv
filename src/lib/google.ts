@@ -1,22 +1,9 @@
 import "server-only";
 import { google } from "googleapis";
+import { getGoogleOAuthClient } from "./google-auth";
 
 // 台北無日光節約時間，用固定 UTC+8 位移換算即可，不需要完整時區資料庫
 const TAIPEI_OFFSET_MINUTES = 8 * 60;
-
-function getOAuthClient() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error(
-      "Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN environment variables"
-    );
-  }
-  const client = new google.auth.OAuth2(clientId, clientSecret);
-  client.setCredentials({ refresh_token: refreshToken });
-  return client;
-}
 
 function toTaipeiParts(date: Date) {
   const shifted = new Date(date.getTime() + TAIPEI_OFFSET_MINUTES * 60000);
@@ -55,7 +42,7 @@ export async function findFreeSlots(params: {
   meetingDurationMinutes: number;
   slotCount: number;
 }): Promise<FreeSlot[]> {
-  const calendar = google.calendar({ version: "v3", auth: getOAuthClient() });
+  const calendar = google.calendar({ version: "v3", auth: getGoogleOAuthClient() });
   const now = new Date();
   const [startH, startM] = params.workingHoursStart.split(":").map(Number);
   const [endH, endM] = params.workingHoursEnd.split(":").map(Number);
@@ -115,7 +102,7 @@ export async function findFreeSlots(params: {
 }
 
 export async function sendGmail(params: { to: string; subject: string; body: string; html?: boolean }) {
-  const gmail = google.gmail({ version: "v1", auth: getOAuthClient() });
+  const gmail = google.gmail({ version: "v1", auth: getGoogleOAuthClient() });
 
   const encodedSubject = `=?UTF-8?B?${Buffer.from(params.subject, "utf-8").toString("base64")}?=`;
   const messageLines = [
@@ -149,7 +136,7 @@ export interface WeekOverview {
 
 /** 行程助理待命場景用：讀取主行事曆未來七天的真實行程總覽。 */
 export async function listWeekOverview(): Promise<WeekOverview> {
-  const calendar = google.calendar({ version: "v3", auth: getOAuthClient() });
+  const calendar = google.calendar({ version: "v3", auth: getGoogleOAuthClient() });
   const now = new Date();
   const todayParts = toTaipeiParts(now);
   const rangeStart = taipeiWallToUtc(todayParts.year, todayParts.month, todayParts.date, 0, 0);
@@ -220,7 +207,7 @@ export async function createCalendarEvent(params: {
   endISO: string;
   attendeeEmail: string;
 }): Promise<string> {
-  const calendar = google.calendar({ version: "v3", auth: getOAuthClient() });
+  const calendar = google.calendar({ version: "v3", auth: getGoogleOAuthClient() });
 
   const { data } = await calendar.events.insert({
     calendarId: "primary",

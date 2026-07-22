@@ -1,6 +1,9 @@
 import "server-only";
 import { getSupabase } from "@/lib/supabase";
 import { listWeekOverview } from "@/lib/google";
+import { getSearchOverview } from "@/lib/gsc";
+import { getTrafficOverview } from "@/lib/ga4";
+import { getOrderRevenueSummary } from "@/lib/teachify-order-stats";
 import { getAvailableTags } from "@/lib/contact-tags";
 import { AGENTS } from "@/lib/agent-data";
 
@@ -85,6 +88,75 @@ async function scheduleContext(): Promise<string> {
   return parts.join("\n\n");
 }
 
+/** Leo（SEO 助理）用：真實 Search Console 近 28 天成效。 */
+async function expenseContext(): Promise<string> {
+  const overview = await getSearchOverview();
+  const parts: string[] = [];
+  parts.push(
+    `近 28 天 Search Console 成效：點擊 ${overview.totalClicks} 次、曝光 ${overview.totalImpressions} 次、` +
+      `平均點擊率 ${(overview.avgCtr * 100).toFixed(1)}%、平均排名第 ${overview.avgPosition.toFixed(1)} 名` +
+      (overview.clicksDelta !== null
+        ? `（跟前 28 天相比，點擊${overview.clicksDelta >= 0 ? "增加" : "減少"} ${Math.abs(overview.clicksDelta)} 次，` +
+          `排名${overview.positionDelta! >= 0 ? "進步" : "退步"} ${Math.abs(overview.positionDelta!).toFixed(1)} 名）`
+        : "") +
+      "。"
+  );
+  if (overview.topQueries.length) {
+    parts.push(
+      `熱門搜尋字詞：\n${overview.topQueries
+        .slice(0, 8)
+        .map((q) => `- ${q.query}：點擊 ${q.clicks}、曝光 ${q.impressions}、排名第 ${q.position.toFixed(1)} 名`)
+        .join("\n")}`
+    );
+  }
+  return parts.join("\n\n");
+}
+
+/** Ivy（數據助理）用：真實 GA4 流量與 Teachify 訂單營收，兩者放在一起才看得出「流量有沒有轉換成營收」。 */
+async function reportContext(): Promise<string> {
+  const parts: string[] = [];
+
+  try {
+    const traffic = await getTrafficOverview();
+    parts.push(
+      `近 7 天 GA4 流量：工作階段數 ${traffic.sessions}、活躍使用者 ${traffic.activeUsers}、轉換 ${traffic.conversions} 次` +
+        (traffic.sessionsDelta !== null
+          ? `（跟前 7 天相比${traffic.sessionsDelta >= 0 ? "成長" : "下滑"} ${Math.abs(traffic.sessionsDelta)} 次工作階段）`
+          : "") +
+        "。"
+    );
+    if (traffic.byChannel.length) {
+      parts.push(
+        `渠道拆分：\n${traffic.byChannel
+          .map((c) => `- ${c.channel}：工作階段 ${c.sessions}、轉換 ${c.conversions}`)
+          .join("\n")}`
+      );
+    }
+  } catch {
+    /* GA4 抓不到不影響訂單資料 */
+  }
+
+  try {
+    const orders = await getOrderRevenueSummary(7);
+    parts.push(
+      `近 7 天 Teachify 訂單：成立 ${orders.totalOrders} 筆、總營收 NT$${orders.totalRevenue.toLocaleString()}` +
+        (orders.refundCount > 0 ? `，另有 ${orders.refundCount} 筆退款共 NT$${orders.refundAmount.toLocaleString()}` : "") +
+        "。"
+    );
+    if (orders.topItems.length) {
+      parts.push(
+        `熱銷品項：\n${orders.topItems
+          .map((it) => `- ${it.name}：${it.count} 筆、NT$${it.revenue.toLocaleString()}`)
+          .join("\n")}`
+      );
+    }
+  } catch {
+    /* Teachify 訂單資料抓不到不影響流量資料 */
+  }
+
+  return parts.join("\n\n");
+}
+
 async function teamleadContext(): Promise<string> {
   const supabase = getSupabase();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -143,6 +215,8 @@ export async function getAgentLiveContext(slug: string): Promise<string> {
     if (slug === "visit") parts.push(await visitContext());
     else if (slug === "schedule") parts.push(await scheduleContext());
     else if (slug === "teamlead") parts.push(await teamleadContext());
+    else if (slug === "expense") parts.push(await expenseContext());
+    else if (slug === "report") parts.push(await reportContext());
   } catch {
     /* 該 Agent 專屬的資料來源掛了，不影響下面的通用近期動態 */
   }

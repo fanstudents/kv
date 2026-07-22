@@ -1,0 +1,70 @@
+import "server-only";
+import { google } from "googleapis";
+import { getGoogleOAuthClient } from "./google-auth";
+
+export interface ChannelRow {
+  channel: string;
+  sessions: number;
+  conversions: number;
+}
+
+export interface TrafficOverview {
+  sessions: number;
+  activeUsers: number;
+  conversions: number;
+  /** 跟前 7 天相比的變化，正值＝成長 */
+  sessionsDelta: number | null;
+  byChannel: ChannelRow[];
+}
+
+/** 數據助理（Ivy）用：讀取真實 GA4 近 7 天流量與轉換，並跟前 7 天比較、拆分渠道。 */
+export async function getTrafficOverview(): Promise<TrafficOverview> {
+  const propertyId = process.env.GA4_PROPERTY_ID;
+  if (!propertyId) throw new Error("Missing GA4_PROPERTY_ID environment variable");
+
+  const analyticsdata = google.analyticsdata({ version: "v1beta", auth: getGoogleOAuthClient() });
+  const property = `properties/${propertyId}`;
+
+  const [overview, byChannel] = await Promise.all([
+    analyticsdata.properties.runReport({
+      property,
+      requestBody: {
+        dateRanges: [
+          { startDate: "7daysAgo", endDate: "today" },
+          { startDate: "14daysAgo", endDate: "8daysAgo" },
+        ],
+        metrics: [{ name: "sessions" }, { name: "activeUsers" }, { name: "conversions" }],
+      },
+    }),
+    analyticsdata.properties.runReport({
+      property,
+      requestBody: {
+        dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
+        dimensions: [{ name: "sessionDefaultChannelGroup" }],
+        metrics: [{ name: "sessions" }, { name: "conversions" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: "6",
+      },
+    }),
+  ]);
+
+  const rows = overview.data.rows ?? [];
+  // 有 >1 個 dateRanges 又沒指定 dimensions 時，GA4 會自動補一個 dateRange 虛擬欄位
+  // （值為 "date_range_0" / "date_range_1"）用來區分兩段區間的列。
+  const curr = rows.find((r) => r.dimensionValues?.[0]?.value === "date_range_0");
+  const prev = rows.find((r) => r.dimensionValues?.[0]?.value === "date_range_1");
+
+  const num = (v: string | null | undefined) => Number(v ?? 0);
+
+  return {
+    sessions: num(curr?.metricValues?.[0]?.value),
+    activeUsers: num(curr?.metricValues?.[1]?.value),
+    conversions: num(curr?.metricValues?.[2]?.value),
+    sessionsDelta: curr && prev ? num(curr.metricValues?.[0]?.value) - num(prev.metricValues?.[0]?.value) : null,
+    byChannel: (byChannel.data.rows ?? []).map((r) => ({
+      channel: r.dimensionValues?.[0]?.value ?? "",
+      sessions: num(r.metricValues?.[0]?.value),
+      conversions: num(r.metricValues?.[1]?.value),
+    })),
+  };
+}

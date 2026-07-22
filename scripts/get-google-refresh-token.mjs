@@ -25,10 +25,16 @@ const authUrl = oauth2Client.generateAuthUrl({
   scope: [
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/calendar",
+    // SEO Agent（Leo）讀 Search Console；數據 Agent（Ivy）讀 GA4
+    "https://www.googleapis.com/auth/webmasters.readonly",
+    "https://www.googleapis.com/auth/analytics.readonly",
   ],
 });
 
-console.log("\n請在瀏覽器打開下面這個網址，用要拿來寄信/查行事曆的 Google 帳號登入並同意授權：\n");
+console.log(
+  "\n請在瀏覽器打開下面這個網址，用要拿來寄信/查行事曆/讀 Search Console 與 GA4 的 Google 帳號登入並同意授權：\n" +
+    "（這個帳號必須本來就對你要串接的 GSC 網站財產、GA4 資源有檢視權限，重新授權不會自動給你原本沒有的權限）\n"
+);
 console.log(authUrl);
 console.log("\n等待授權完成中...\n");
 
