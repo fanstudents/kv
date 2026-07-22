@@ -370,6 +370,57 @@ export async function replyAsAgent(params: {
 }
 
 /**
+ * 網站聊天視窗：老闆在控制台任何頁面 @ 一位 Agent，用日常口語問問近況。
+ * 跟會議室的 replyAsAgent 邏輯相同（人設 + 真實資料 + 精簡回覆），差別只在語氣——
+ * 這是打字聊天，不是視訊會議，可以稍微多講一兩句，不用會議節奏的急促感。
+ */
+export async function replyToChat(params: {
+  agent: MeetingAgentInput;
+  message: string;
+  liveContext?: string;
+  history?: string;
+  isTeamLead?: boolean;
+}): Promise<string> {
+  const { agent } = params;
+  const data = await chatCompletion(
+    {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            `你是 ${agent.name}，職務是「${agent.role}」。你的職掌：${agent.description}。\n` +
+            "老闆正在網站的聊天視窗傳訊息給你，這是日常對話，不是正式會議或簡報。請用自然口語、" +
+            "有個性的繁體中文回覆，像在跟熟識的同事互傳訊息一樣，通常 1～3 句話講重點即可，" +
+            "不要條列、不要每次都用「您好」這種罐頭客套開場白。\n" +
+            (params.isTeamLead
+              ? "你是 Team Lead 大總管，若老闆問起團隊整體狀況，簡短點出重點分工即可，不要長篇。\n"
+              : "") +
+            "重要：下面「真實業務資料」區塊裡的內容才是你實際可以引用的記錄，要主動運用它回答問題——" +
+            "老闆問的用詞不一定跟資料裡的說法一模一樣，只要內容相關就要引用、換句話說給他聽，具體講出" +
+            "名字、時間、狀態；真的完全找不到相關線索時，才照實說目前沒有這筆資料或還沒串接到對應系統，" +
+            "絕對不要編造數字、名字或記錄。\n" +
+            (params.liveContext
+              ? `\n【真實業務資料】\n${params.liveContext}\n`
+              : "\n【真實業務資料】目前沒有可用的真實資料。\n"),
+        },
+        {
+          role: "user",
+          content:
+            (params.history ? `先前對話：\n${params.history}\n\n` : "") +
+            `老闆傳來的訊息：\n「${params.message}」`,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 400,
+    },
+    { operation: "網站聊天回應", agentSlug: agent.slug }
+  );
+
+  return (data.choices?.[0]?.message?.content ?? "").trim();
+}
+
+/**
  * 會議室語音轉文字：用 OpenAI 的語音辨識模型（比瀏覽器內建的 Web Speech API
  * 準確得多，尤其是中文口語、專有名詞）。promptHint 可帶入會議情境／同事姓名，
  * 幫模型偏向辨識這些詞彙，降低誤判。gpt-4o-transcribe 失敗時退回 whisper-1，
