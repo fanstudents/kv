@@ -58,10 +58,18 @@ export class RealtimeVoiceSession {
    * 建立 WebRTC 連線：把麥克風軌道送進去、把回傳的語音軌道接出來。
    * model 參數已內含在換發 token 當下設定好的 session 裡，這裡不需要再指定；
    * SDP 交握固定打 /v1/realtime/calls。
+   *
+   * 帶上公用 STUN server：之前完全沒設定 iceServers（OpenAI 官方範例也是這樣），
+   * 在對外走 NAT 的網路（校園網路、公司網路、部分家用路由器）下，瀏覽器沒辦法
+   * 探測到自己對外可見的位址，語音就可能斷斷續續甚至連不上——這正是「語音不太
+   * 順利、不確定是不是網路問題」最常見的成因之一。STUN 只是幫忙探測位址，不會
+   * 經手任何語音內容，也不需要密鑰。
    */
   async connect(token: string, micTrack: MediaStreamTrack): Promise<void> {
     this.closed = false;
-    const pc = new RTCPeerConnection();
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }],
+    });
     this.pc = pc;
 
     pc.ontrack = (e) => {
