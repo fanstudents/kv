@@ -458,3 +458,70 @@ export async function synthesizeSpeech(params: {
     return await callModel("tts-1");
   }
 }
+
+export interface RealtimeSessionConfig {
+  agentName: string; // 顯示名稱，例如 "Vivian 薇薇安"
+  role: string;
+  description: string;
+  voice: string;
+  isTeamLead?: boolean;
+  history?: string;
+}
+
+export interface RealtimeSession {
+  token: string;
+  expiresAt: number;
+  model: string;
+}
+
+const REALTIME_MODEL = "gpt-realtime-2.1";
+
+/**
+ * 開一場「即時語音會議」的 ephemeral client secret：真正的語音進、語音出模型
+ * （跟 ChatGPT 語音模式、Gemini Live 同一種架構），全程 WebRTC 雙向串流，
+ * 不需要我們自己做「錄音→辨識→組句→合成」三段式等待，語音活動偵測也交給
+ * OpenAI 伺服器端處理。這裡用真的 API 金鑰跟 OpenAI 換一組短效期 token，
+ * 前端瀏覽器只拿得到這個 token（不會暴露正式金鑰）。
+ */
+export async function mintRealtimeSession(cfg: RealtimeSessionConfig): Promise<RealtimeSession> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+
+  const instructions =
+    `你是 ${cfg.agentName}，職務是「${cfg.role}」。你的職掌：${cfg.description}。\n` +
+    "老闆正在視訊會議上跟你即時語音對話，你的回覆會直接用語音唸出來。請用第一人稱、口語、" +
+    "簡短俐落地回應——像真人開會一來一回，通常 1～2 句就講完重點，絕對不要長篇大論、不要條列。" +
+    "語氣自然有精神、語速正常偏快，說台灣腔繁體中文。\n" +
+    "重要：如果老闆的話裡提到「別的同事的名字」（不是在跟你說話，而是要找別人），" +
+    "你只需要極簡短交棒，像「好，交給他」「請他來說」（不超過一句話），絕對不要真的回答問題內容，" +
+    "老闆接下來會親自跟那位同事對話。\n" +
+    (cfg.isTeamLead ? "你是 Team Lead 大總管，若老闆請你統整，簡短點出團隊分工即可，不要長篇。\n" : "") +
+    (cfg.history ? `先前會議脈絡（供你參考，不用主動複述）：\n${cfg.history}` : "");
+
+  const res = await fetch(`${OPENAI_API_BASE}/realtime/client_secrets`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      session: {
+        type: "realtime",
+        model: REALTIME_MODEL,
+        audio: {
+          input: {
+            transcription: { model: "whisper-1" },
+            turn_detection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 600 },
+          },
+          output: { voice: cfg.voice },
+        },
+        instructions,
+      },
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`OpenAI realtime session failed (${res.status}): ${text}`);
+  }
+  const data = await res.json();
+  const token = data?.value;
+  if (!token) throw new Error("OpenAI 未回傳有效的即時語音 session token");
+  return { token, expiresAt: data?.expires_at ?? 0, model: REALTIME_MODEL };
+}
