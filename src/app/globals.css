@@ -412,6 +412,52 @@ body {
   animation: tv-focus-glow 2.6s ease-in-out infinite;
 }
 
+/* ---- 會議室頭像：讓鏡頭前的頭像像真人——待機微呼吸、偶爾眨眼、說話時輕輕晃動 ---- */
+@keyframes cam-breathe {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.015) translateY(-1px);
+  }
+}
+.cam-breathe {
+  animation: cam-breathe 5s ease-in-out infinite;
+}
+@keyframes cam-blink {
+  0%,
+  92%,
+  100% {
+    opacity: 0;
+  }
+  94%,
+  96% {
+    opacity: 0.65;
+  }
+}
+.cam-blink {
+  animation: cam-blink 6s ease-in-out infinite;
+}
+@keyframes cam-talk {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.025) rotate(-0.6deg);
+  }
+  50% {
+    transform: scale(1.01) rotate(0.4deg);
+  }
+  75% {
+    transform: scale(1.03) rotate(-0.3deg);
+  }
+}
+.cam-talk {
+  animation: cam-talk 0.9s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tv-blob-a,
   .tv-blob-b,
@@ -432,7 +478,10 @@ body {
   .tv-sheen,
   .tv-marquee,
   .tv-progress,
-  .tv-focus-glow {
+  .tv-focus-glow,
+  .cam-breathe,
+  .cam-blink,
+  .cam-talk {
     animation: none;
   }
   .tv-intro-out {

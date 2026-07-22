@@ -24,7 +24,7 @@ import {
   Quote,
   X,
 } from "lucide-react";
-import Avatar from "@/components/agents/Avatar";
+import LiveAvatar from "@/components/meeting/LiveAvatar";
 import { AGENTS } from "@/lib/agent-data";
 import { RealtimeVoiceSession } from "@/lib/realtime-voice";
 import type { AgentSlug } from "@/lib/types";
@@ -847,7 +847,12 @@ export default function MeetingPage() {
               <div className="mt-9 flex flex-wrap items-end justify-center gap-3">
                 {[teamLead, ...responders].slice(0, 10).map((a) => (
                   <div key={a.slug} className="flex flex-col items-center gap-1.5">
-                    <Avatar personEn={a.personEn} color={a.color} size={a.slug === TEAM_LEAD_SLUG ? 60 : 46} />
+                    <LiveAvatar
+                      personEn={a.personEn}
+                      color={a.color}
+                      size={a.slug === TEAM_LEAD_SLUG ? 60 : 46}
+                      slug={a.slug}
+                    />
                     <span className="text-[11px] text-white/40">{a.personEn}</span>
                   </div>
                 ))}
@@ -999,7 +1004,13 @@ export default function MeetingPage() {
                       className="absolute -inset-2 rounded-full blur-xl"
                       style={{ background: `radial-gradient(circle, ${currentAgent.color}66, transparent 70%)` }}
                     />
-                    <Avatar personEn={currentAgent.personEn} color={currentAgent.color} size={64} />
+                    <LiveAvatar
+                      personEn={currentAgent.personEn}
+                      color={currentAgent.color}
+                      size={64}
+                      slug={currentAgent.slug}
+                      talking={agentTalking}
+                    />
                     <span
                       className="tv-breathe absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-[3px] border-[#0b0d12] bg-[#06C755]"
                       style={{ boxShadow: "0 0 10px 2px rgba(6,199,85,0.6)" }}
@@ -1151,7 +1162,13 @@ export default function MeetingPage() {
                             : undefined
                         }
                       >
-                        <Avatar personEn={a.personEn} color={a.color} size={isCurrent ? 76 : 50} />
+                        <LiveAvatar
+                          personEn={a.personEn}
+                          color={a.color}
+                          size={isCurrent ? 76 : 50}
+                          slug={a.slug}
+                          talking={isCurrent && agentTalking}
+                        />
                         <span
                           className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-[#05060a] ${
                             isCurrent
