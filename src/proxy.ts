@@ -8,12 +8,14 @@ import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth";
 // - 每日晨報排程端點（由 CRON_SECRET 自行保護）
 // - 登入頁與登入 API 本身
 // - Agent 目錄與配置體驗頁（銷售用，給潛在客戶瀏覽 Agent 陣容與試聘配置）
+// - 客服機器人回報回覆內容的記錄端點（由既有客服系統呼叫，自己帶密鑰驗證，不是登入使用者）
 const PUBLIC_PREFIXES = [
   "/login",
   "/api/auth/",
   "/api/line/webhook",
   "/api/webhooks/",
   "/api/agents/visit/respond",
+  "/api/agents/support/log-reply",
   "/api/cron/",
   "/agents-catalog",
   "/agent-config.html",
