@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import LiveTask, { type LiveInfo } from "@/components/tv/LiveTask";
-import { AGENTS, avatarUrl } from "@/lib/agent-data";
+import RotatingPortrait from "@/components/tv/RotatingPortrait";
+import { AGENTS, avatarFrames } from "@/lib/agent-data";
 import { AGENT_BRIEFINGS, AGENT_LIVE_TASKS, type OutputKind } from "@/lib/agent-briefings";
 import type { AgentSlug } from "@/lib/types";
 
@@ -642,12 +643,11 @@ const SceneTeam = memo(function SceneTeam({
               }`}
               style={{ ["--glow-color" as string]: `${agent.color}99` }}
             >
-              {/* 人像滿版（聚焦時 Ken Burns 緩推） */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={avatarUrl(agent.personEn, agent.color)}
+              {/* 人像滿版（聚焦時 Ken Burns 緩推 + 表情輪播） */}
+              <RotatingPortrait
+                frames={avatarFrames(agent.personEn, agent.color)}
                 alt={agent.personEn}
-                className={`absolute inset-0 h-full w-full object-cover ${focused ? "tv-kenburns" : ""}`}
+                className={`h-full w-full object-cover ${focused ? "tv-kenburns" : ""}`}
               />
               {/* 底部漸層 + 資訊 */}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-3 pt-10">
@@ -704,14 +704,14 @@ const SceneSpotlight = memo(function SceneSpotlight({
       key={agent.slug}
       className="tv-pop relative h-[62vh] min-h-[420px] w-full overflow-hidden rounded-3xl border border-white/10"
     >
-      {/* 大底：同一張人像放大模糊，染出整片氛圍色 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={avatarUrl(agent.personEn, agent.color)}
-        alt=""
-        aria-hidden
-        className="absolute inset-0 h-full w-full scale-125 object-cover opacity-45 blur-2xl"
-      />
+      {/* 大底：同一組人像放大模糊，染出整片氛圍色（跟著表情輪播一起換） */}
+      <div className="absolute inset-0 opacity-45">
+        <RotatingPortrait
+          frames={avatarFrames(agent.personEn, agent.color)}
+          alt=""
+          className="h-full w-full scale-125 object-cover blur-2xl"
+        />
+      </div>
       <div
         className="absolute inset-0"
         style={{
@@ -774,9 +774,8 @@ const SceneSpotlight = memo(function SceneSpotlight({
         style={{ boxShadow: `0 24px 70px -18px ${agent.color}66` }}
         title="點擊查看近期紀錄"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={avatarUrl(agent.personEn, agent.color)}
+        <RotatingPortrait
+          frames={avatarFrames(agent.personEn, agent.color)}
           alt={agent.personEn}
           className="tv-kenburns h-full w-full object-cover"
         />

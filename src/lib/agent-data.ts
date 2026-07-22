@@ -26,6 +26,17 @@ export function avatarUrl(seed: string, colorHex: string) {
   )}`;
 }
 
+// 每位有真人頭像的 Agent 都拍了兩張不同表情的照片（-2 為第二張），
+// 給劇場模式的大頭照輪播用，讓人像看起來有呼吸感、不是死板的單張靜照。
+// 沒有真人頭像的（走 dicebear 插畫）就只有一張，輪播元件會自動跳過切換。
+export function avatarFrames(seed: string, colorHex: string): string[] {
+  if (PORTRAIT_NAMES.has(seed)) {
+    const lower = seed.toLowerCase();
+    return [`/avatars/${lower}.jpg`, `/avatars/${lower}-2.jpg`];
+  }
+  return [avatarUrl(seed, colorHex)];
+}
+
 export const AGENTS: AgentMeta[] = [
   {
     slug: "teamlead",
