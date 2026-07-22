@@ -391,7 +391,7 @@ function CinematicIntro({ onSkip, activeCount }: { onSkip: () => void; activeCou
     >
       <div className="relative overflow-hidden px-6 py-2">
         <h1 className="tv-title-in text-[clamp(2rem,6vw,4.5rem)] font-extralight text-white">
-          AI AGENT 劇院
+          原騰數位科技 AI 團隊
         </h1>
         {/* 光帶掃過 */}
         <span className="tv-sheen pointer-events-none absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
