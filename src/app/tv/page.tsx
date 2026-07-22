@@ -18,6 +18,7 @@ import {
   Pause,
   Play,
   Video,
+  Orbit,
   X,
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
@@ -256,6 +257,14 @@ export default function TvModePage() {
         >
           <Video size={15} />
           開會
+        </Link>
+        <Link
+          href="/universe"
+          title="節點宇宙：看所有 Agent 與服務串接的連通關係"
+          className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-indigo-400/30 bg-indigo-400/10 px-4 py-2 text-sm font-semibold text-indigo-200 backdrop-blur transition-transform hover:scale-105"
+        >
+          <Orbit size={15} />
+          宇宙
         </Link>
         <button
           type="button"
