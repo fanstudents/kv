@@ -1,6 +1,8 @@
 "use client";
 
 import { Check } from "lucide-react";
+import Avatar from "@/components/agents/Avatar";
+import { AGENTS } from "@/lib/agent-data";
 import type { FlowColumn, FlowNode } from "@/lib/agent-briefings";
 import type { LiveInfo } from "./LiveTask";
 
@@ -53,6 +55,9 @@ function NodeView({ node, state, color }: { node: FlowNode; state: NodeState; co
   const isCurrent = state === "active" || state === "waiting";
   const dot = state === "waiting" ? "#F59E0B" : color;
   const size = isCurrent ? 28 : 18;
+  // 這一步實際上跟另一位 Agent 協同（例如查的是同一份真實行事曆），
+  // 疊一顆對方小頭像做視覺連通，而不是假裝這只是自己一個人的步驟。
+  const partner = node.handoff ? AGENTS.find((a) => a.slug === node.handoff) : undefined;
 
   const circleStyle: React.CSSProperties = {
     width: size,
@@ -106,15 +111,26 @@ function NodeView({ node, state, color }: { node: FlowNode; state: NodeState; co
           {node.branch}
         </span>
       )}
-      <span
-        className={`flex shrink-0 items-center justify-center rounded-full border-2 transition-all ${isCurrent ? "tv-breathe" : ""}`}
-        style={circleStyle}
-      >
-        {(state === "done" || state === "completed") && (
-          <Check size={11} className="text-[#05060a]" strokeWidth={3} />
+      <span className="relative flex shrink-0 items-center justify-center">
+        <span
+          className={`flex shrink-0 items-center justify-center rounded-full border-2 transition-all ${isCurrent ? "tv-breathe" : ""}`}
+          style={circleStyle}
+        >
+          {(state === "done" || state === "completed") && (
+            <Check size={11} className="text-[#05060a]" strokeWidth={3} />
+          )}
+          {isCurrent && <span className="h-2 w-2 rounded-full" style={{ background: dot }} />}
+          {state === "ended" && <span className="h-1.5 w-1.5 rounded-full bg-[#05060a]" />}
+        </span>
+        {/* 這一步跟另一位 Agent 協同：疊一顆對方的小頭像，畫面上看得出是多人連通的節點 */}
+        {partner && (
+          <span
+            className="absolute -right-1.5 -top-1.5 rounded-full ring-2 ring-[#0b0d12]"
+            title={`與 ${partner.personEn} ${partner.personZh} 協同`}
+          >
+            <Avatar personEn={partner.personEn} color={partner.color} size={14} ring={false} />
+          </span>
         )}
-        {isCurrent && <span className="h-2 w-2 rounded-full" style={{ background: dot }} />}
-        {state === "ended" && <span className="h-1.5 w-1.5 rounded-full bg-[#05060a]" />}
       </span>
       <span
         className={`max-w-[7.5rem] text-[11px] leading-tight ${labelClass}`}
@@ -123,6 +139,12 @@ function NodeView({ node, state, color }: { node: FlowNode; state: NodeState; co
         {node.label}
         {state === "active" ? "…" : ""}
       </span>
+      {partner && (
+        <span className="flex items-center gap-1 text-[9px] font-medium" style={{ color: partner.color }}>
+          <span className="h-1 w-1 rounded-full" style={{ background: partner.color }} />
+          與 {partner.personEn} 協同
+        </span>
+      )}
       {state === "waiting" && (
         <span className="rounded-full bg-amber-400/15 px-1.5 py-px text-[9px] font-medium text-amber-300">
           等待指示

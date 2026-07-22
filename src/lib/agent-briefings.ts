@@ -29,6 +29,9 @@ export interface FlowNode {
   main?: boolean;
   /** 流程終點（走到這裡代表本次流程結束） */
   terminal?: boolean;
+  /** 這一步實際上會跟另一位 Agent 協同（例如約拜訪查行事曆空檔時，讀的是行程助理
+   * 也在用的同一份真實 Google 日曆）。畫面上會疊一顆對方的小頭像做視覺連通。 */
+  handoff?: AgentSlug;
 }
 
 export interface FlowColumn {
@@ -157,7 +160,14 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
       { nodes: [{ id: "confirm", label: "確認資訊（可修正）", live: ["2:waiting"] }] },
       {
         nodes: [
-          { id: "match", label: "比對行事曆空檔", branch: "要", live: ["2:active"], main: true },
+          {
+            id: "match",
+            label: "比對行事曆空檔",
+            branch: "要",
+            live: ["2:active"],
+            main: true,
+            handoff: "schedule",
+          },
           { id: "tag", label: "標註客戶標籤", branch: "先不要", live: ["2:done"], terminal: true },
         ],
       },
