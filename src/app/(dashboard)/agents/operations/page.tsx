@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
+import type { PipelineOverview } from "@/lib/teaching-system";
 
 const agent = getAgent("operations")!;
 
@@ -31,6 +32,82 @@ const STATUS_TONE: Record<ProductLine["status"], "success" | "warning" | "danger
   已完成: "neutral",
 };
 
+function PipelinePanel() {
+  const [data, setData] = useState<PipelineOverview | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/agents/operations/pipeline")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive) return;
+        if (d.ok) setData(d.data as PipelineOverview);
+        else setError(d.error ?? "讀取失敗");
+      })
+      .catch(() => alive && setError("讀取失敗"));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (error) {
+    return (
+      <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+        企業內訓／公開課程真實資料讀取失敗：{error}
+      </div>
+    );
+  }
+  if (!data) {
+    return <div className="mb-6 h-32 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />;
+  }
+
+  return (
+    <div className="mb-6 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">企業內訓／公開課程真實現況</h2>
+        <span className="text-xs text-neutral-400">來源：教學系統資料庫</span>
+      </div>
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="全部專案" value={`${data.totalProjects}`} />
+        <Stat label="已成案" value={`${data.closedProjects}`} />
+        <Stat label="企業內訓" value={`${data.enterpriseTrainingCount}`} />
+        <Stat label="公開課程" value={`${data.publicCourseCount}`} />
+      </div>
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Stat label="待跟進企業顧問洽詢" value={`${data.openInquiries.length} / ${data.totalInquiries} 筆`} />
+        <Stat
+          label="已送出報價金額"
+          value={`NT$ ${data.quotationsSentValue.toLocaleString()}`}
+          hint={data.quotationsDraftValue ? `另有草稿 NT$ ${data.quotationsDraftValue.toLocaleString()}` : undefined}
+        />
+      </div>
+      <p className="mb-2 text-xs font-medium text-neutral-500">最近的專案</p>
+      <ul className="space-y-1.5">
+        {data.recentProjects.slice(0, 6).map((p) => (
+          <li key={p.id} className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2 text-xs dark:bg-neutral-900">
+            <span className="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-200">
+              {p.name}
+              <span className="ml-1.5 text-neutral-400">{p.organization}</span>
+            </span>
+            <Badge tone={p.closed ? "success" : "neutral"}>{p.closed ? `已成案 ×${p.sessionCount}` : "未成案"}</Badge>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-lg bg-neutral-50 px-3 py-2 dark:bg-neutral-900">
+      <p className="text-[11px] text-neutral-400">{label}</p>
+      <p className="text-base font-semibold text-neutral-800 dark:text-neutral-100">{value}</p>
+      {hint && <p className="mt-0.5 text-[10px] text-neutral-400">{hint}</p>}
+    </div>
+  );
+}
+
 export default function OperationsAgentPage() {
   const [lines, setLines] = useState<ProductLine[]>(DEFAULT_LINES);
 
@@ -49,7 +126,9 @@ export default function OperationsAgentPage() {
     lines.map((l) => `・${l.name}［${l.status}］${l.owner !== "—" ? `${l.owner}｜` : ""}${l.nextStep}`).join("\n");
 
   return (
-    <AgentPageShell
+    <>
+      <PipelinePanel />
+      <AgentPageShell
       agent={agent}
       fallbackActivity={ACTIVITY_LOGS.operations}
       onSettingsLoaded={onSettingsLoaded}
@@ -114,6 +193,7 @@ export default function OperationsAgentPage() {
           </div>
         </div>
       }
-    />
+      />
+    </>
   );
 }

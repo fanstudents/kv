@@ -4,6 +4,7 @@ import { listWeekOverview } from "@/lib/google";
 import { getSearchOverview } from "@/lib/gsc";
 import { getTrafficOverview } from "@/lib/ga4";
 import { getOrderRevenueSummary } from "@/lib/teachify-order-stats";
+import { getPipelineOverview } from "@/lib/teaching-system";
 import { getAvailableTags } from "@/lib/contact-tags";
 import { AGENTS } from "@/lib/agent-data";
 
@@ -157,6 +158,41 @@ async function reportContext(): Promise<string> {
   return parts.join("\n\n");
 }
 
+/** Morgan（營運總管）用：真實企業內訓／公開課程／企業顧問洽詢／報價單現況（來自「教學系統」資料庫）。 */
+async function operationsContext(): Promise<string> {
+  const overview = await getPipelineOverview();
+  const parts: string[] = [];
+
+  parts.push(
+    `專案總覽：全部 ${overview.totalProjects} 個專案，${overview.closedProjects} 個已成案（企業內訓 ${overview.enterpriseTrainingCount} 個、公開課程 ${overview.publicCourseCount} 個）。`
+  );
+  if (overview.recentProjects.length) {
+    parts.push(
+      `最近的專案：\n${overview.recentProjects
+        .slice(0, 6)
+        .map((p) => `- ${p.name}（${p.organization}）：${p.closed ? `已成案 ×${p.sessionCount} 場` : "尚未成案"}`)
+        .join("\n")}`
+    );
+  }
+  parts.push(
+    `企業顧問洽詢：共 ${overview.totalInquiries} 筆，${overview.openInquiries.length} 筆待跟進` +
+      (overview.openInquiries.length
+        ? `（例如：${overview.openInquiries
+            .slice(0, 3)
+            .map((i) => `${i.name}${i.company ? `／${i.company}` : ""}`)
+            .join("、")}）`
+        : "") +
+      "。"
+  );
+  parts.push(
+    `報價單：已送出金額 NT$${overview.quotationsSentValue.toLocaleString()}` +
+      (overview.quotationsDraftValue ? `，另有草稿 NT$${overview.quotationsDraftValue.toLocaleString()}` : "") +
+      "。"
+  );
+
+  return parts.join("\n\n");
+}
+
 async function teamleadContext(): Promise<string> {
   const supabase = getSupabase();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -217,6 +253,7 @@ export async function getAgentLiveContext(slug: string): Promise<string> {
     else if (slug === "teamlead") parts.push(await teamleadContext());
     else if (slug === "expense") parts.push(await expenseContext());
     else if (slug === "report") parts.push(await reportContext());
+    else if (slug === "operations") parts.push(await operationsContext());
   } catch {
     /* 該 Agent 專屬的資料來源掛了，不影響下面的通用近期動態 */
   }
