@@ -647,7 +647,7 @@ const SceneTeam = memo(function SceneTeam({
               <RotatingPortrait
                 frames={avatarFrames(agent.personEn, agent.color)}
                 alt={agent.personEn}
-                className={`h-full w-full object-cover ${focused ? "tv-kenburns" : ""}`}
+                className={`h-full w-full object-cover object-top ${focused ? "tv-kenburns" : ""}`}
               />
               {/* 底部漸層 + 資訊 */}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-3 pt-10">
@@ -709,7 +709,7 @@ const SceneSpotlight = memo(function SceneSpotlight({
         <RotatingPortrait
           frames={avatarFrames(agent.personEn, agent.color)}
           alt=""
-          className="h-full w-full scale-125 object-cover blur-2xl"
+          className="h-full w-full scale-125 object-cover object-top blur-2xl"
         />
       </div>
       <div
@@ -777,7 +777,7 @@ const SceneSpotlight = memo(function SceneSpotlight({
         <RotatingPortrait
           frames={avatarFrames(agent.personEn, agent.color)}
           alt={agent.personEn}
-          className="tv-kenburns h-full w-full object-cover"
+          className="tv-kenburns h-full w-full object-cover object-top"
         />
         <span className="absolute right-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-[#06C755] backdrop-blur">
           <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />

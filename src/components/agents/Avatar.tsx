@@ -19,7 +19,7 @@ export default function Avatar({
       alt={personEn}
       width={size}
       height={size}
-      className={`shrink-0 rounded-full object-cover ${ring ? "ring-2" : ""}`}
+      className={`shrink-0 rounded-full object-cover object-top ${ring ? "ring-2" : ""}`}
       style={{ width: size, height: size, ["--tw-ring-color" as string]: `${color}55` }}
     />
   );
