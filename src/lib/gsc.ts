@@ -1,6 +1,6 @@
 import "server-only";
 import { google } from "googleapis";
-import { getGoogleOAuthClient, isoDate } from "./google-auth";
+import { ensureFreshAccessToken, getGoogleOAuthClient, isoDate } from "./google-auth";
 
 export interface SearchQueryRow {
   query: string;
@@ -38,7 +38,9 @@ export async function getSearchOverview(days: number = 7): Promise<SearchOvervie
   const siteUrl = process.env.GSC_SITE_URL;
   if (!siteUrl) throw new Error("Missing GSC_SITE_URL environment variable");
 
-  const webmasters = google.webmasters({ version: "v3", auth: getGoogleOAuthClient() });
+  const authClient = getGoogleOAuthClient();
+  await ensureFreshAccessToken(authClient);
+  const webmasters = google.webmasters({ version: "v3", auth: authClient });
 
   const now = new Date();
   const end = new Date(now.getTime() - 3 * 86400000);

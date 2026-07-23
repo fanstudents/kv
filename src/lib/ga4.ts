@@ -1,6 +1,6 @@
 import "server-only";
 import { google } from "googleapis";
-import { getGoogleOAuthClient } from "./google-auth";
+import { ensureFreshAccessToken, getGoogleOAuthClient } from "./google-auth";
 
 export interface ChannelRow {
   channel: string;
@@ -33,7 +33,9 @@ export async function getTrafficOverview(days: number = 7): Promise<TrafficOverv
   const propertyId = process.env.GA4_PROPERTY_ID;
   if (!propertyId) throw new Error("Missing GA4_PROPERTY_ID environment variable");
 
-  const analyticsdata = google.analyticsdata({ version: "v1beta", auth: getGoogleOAuthClient() });
+  const authClient = getGoogleOAuthClient();
+  await ensureFreshAccessToken(authClient);
+  const analyticsdata = google.analyticsdata({ version: "v1beta", auth: authClient });
   const property = `properties/${propertyId}`;
 
   const [overview, byChannel, daily] = await Promise.all([
