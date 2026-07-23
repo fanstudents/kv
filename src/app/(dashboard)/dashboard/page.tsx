@@ -21,11 +21,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="團隊總覽"
-        description={
-          marketingMode
-            ? `行銷模式：只顯示 ${visibleAgents.length} 位行銷 AI 隊友，適合展示給行銷人看`
-            : `歡迎回到原騰數位科技！${AGENTS.length} 位 AI 隊友正在辦公室裡各司其職，點擊座位可查看細節`
-        }
+        description={`歡迎回到原騰數位科技！${AGENTS.length} 位 AI 隊友正在辦公室裡各司其職，點擊座位可查看細節`}
         actions={
           marketingMode ? (
             <span className="flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-300">

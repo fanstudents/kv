@@ -26,17 +26,6 @@ export function avatarUrl(seed: string, colorHex: string) {
   )}`;
 }
 
-// 每位有真人頭像的 Agent 都拍了兩張不同表情的照片（-2 為第二張），
-// 給劇場模式的大頭照輪播用，讓人像看起來有呼吸感、不是死板的單張靜照。
-// 沒有真人頭像的（走 dicebear 插畫）就只有一張，輪播元件會自動跳過切換。
-export function avatarFrames(seed: string, colorHex: string): string[] {
-  if (PORTRAIT_NAMES.has(seed)) {
-    const lower = seed.toLowerCase();
-    return [`/avatars/${lower}.jpg`, `/avatars/${lower}-2.jpg`];
-  }
-  return [avatarUrl(seed, colorHex)];
-}
-
 export const AGENTS: AgentMeta[] = [
   {
     slug: "teamlead",
@@ -83,7 +72,7 @@ export const AGENTS: AgentMeta[] = [
     tagline: "成效數據彙整與洞察",
     personEn: "Ivy",
     personZh: "艾薇",
-    role: "成效分析師",
+    role: "數據參謀",
     description:
       "彙整各行銷渠道的成效數據（流量、轉換、ROAS 等），定期產出洞察報表並附上 AI 行動建議，推播到 LINE。",
     color: "#3B82F6",
@@ -121,7 +110,7 @@ export const AGENTS: AgentMeta[] = [
     tagline: "社群貼文發想與排程",
     personEn: "Sunny",
     personZh: "陽陽",
-    role: "社群小編",
+    role: "社群操盤手",
     description:
       "依品牌調性發想各社群平台的貼文與圖文素材，安排發文排程，並彙整互動成效供調整內容方向。",
     color: "#8B5CF6",
@@ -140,7 +129,7 @@ export const AGENTS: AgentMeta[] = [
     tagline: "關鍵字追蹤與內容優化建議",
     personEn: "Leo",
     personZh: "立歐",
-    role: "SEO 優化師",
+    role: "SEO 尖兵",
     description:
       "追蹤網站在搜尋引擎的關鍵字排名與自然流量，找出優化機會，提供內容與技術面的 SEO 改善建議。",
     color: "#14B8A6",
@@ -178,7 +167,7 @@ export const AGENTS: AgentMeta[] = [
     tagline: "廣告投放監控與成效優化",
     personEn: "Dana",
     personZh: "丹娜",
-    role: "廣告投手",
+    role: "AI 廣告投手",
     description:
       "監控 Meta、Google 等平台的廣告投放成效（花費、CPA、ROAS），發現異常主動提醒，並提供預算與素材的調整建議。",
     color: "#EF4444",
@@ -197,7 +186,7 @@ export const AGENTS: AgentMeta[] = [
     tagline: "品牌口碑與聲量監測",
     personEn: "Jay",
     personZh: "杰宇",
-    role: "口碑聲量官",
+    role: "輿情哨兵",
     description:
       "追蹤品牌在社群、論壇、新聞與評論平台的提及與情緒，為每則聲量標籤分類與情緒分級，標出需要即時回應的負面口碑。",
     color: "#D946EF",

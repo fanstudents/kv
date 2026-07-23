@@ -268,8 +268,10 @@ function TeamList({ counts, agents, marketingMode }: { counts: Record<string, nu
 
   return (
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-black/70 px-3 py-5 backdrop-blur-xl">
-      <p className="px-2.5 pb-1 text-sm font-semibold text-white">Agent Team</p>
-      <p className="px-2.5 pb-4 text-xs text-white/40">{agents.length} 位隊友，點名字查看細節</p>
+      <p className="px-2.5 pb-1 text-sm font-semibold text-white">{marketingMode ? "行銷戰隊" : "Agent Team"}</p>
+      <p className="px-2.5 pb-4 text-xs text-white/40">
+        {marketingMode ? `你是 AI 行銷指揮官，率領 ${agents.length} 位隊員` : `${agents.length} 位隊友，點名字查看細節`}
+      </p>
       <p className="px-2.5 pb-1 text-xs font-semibold tracking-wide text-white/40">行銷 Team</p>
       <div className="space-y-0.5">{agents.filter((a) => agentTeam(a.slug) === "marketing").map(renderRow)}</div>
       {!marketingMode && (
@@ -471,7 +473,10 @@ export default function OfficeScene() {
           {/* 右上角：切換進完整劇場模式、或退出全螢幕檢視 */}
           <div className="absolute right-4 top-4 z-40 flex items-center gap-2">
             {marketingMode && (
-              <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-500/15 px-3 py-2 text-xs font-medium text-indigo-200">
+              <span
+                title="你是 AI 行銷指揮官，畫面只顯示行銷戰隊隊員"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-500/15 px-3 py-2 text-xs font-medium text-indigo-200"
+              >
                 <Megaphone size={13} />
                 行銷模式
               </span>

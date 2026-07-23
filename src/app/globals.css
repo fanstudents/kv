@@ -320,18 +320,6 @@ body {
 .tv-scene-in {
   animation: tv-scene-in 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
-/* Ken Burns：人像海報的緩慢推移（Apple TV 螢幕保護的招牌手法） */
-@keyframes tv-kenburns {
-  from {
-    transform: scale(1.06) translate(1.5%, -1%);
-  }
-  to {
-    transform: scale(1.16) translate(-1.5%, 1.5%);
-  }
-}
-.tv-kenburns {
-  animation: tv-kenburns 16s ease-in-out infinite alternate;
-}
 /* 片頭：字距收攏 + 亮起 */
 @keyframes tv-title-in {
   0% {
@@ -476,7 +464,6 @@ body {
   .live-bar,
   .live-radar,
   .tv-scene-in,
-  .tv-kenburns,
   .tv-title-in,
   .tv-sheen,
   .tv-marquee,

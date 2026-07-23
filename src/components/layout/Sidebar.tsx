@@ -172,7 +172,7 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={() => setMarketingModeOn(!marketingMode)}
-          title="切換成只顯示行銷 Team 的 Agent，適合展示給行銷人看"
+          title="切換成行銷戰隊視角：你是 AI 行銷指揮官，畫面只顯示行銷 Team 的隊員，適合展示給行銷人看"
           className={`mt-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
             marketingMode
               ? "border-indigo-400/40 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300"

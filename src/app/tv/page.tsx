@@ -25,9 +25,9 @@ import {
 import Avatar from "@/components/agents/Avatar";
 import LiveMetricsPanel from "@/components/tv/LiveMetricsPanel";
 import LiveTask, { type LiveInfo } from "@/components/tv/LiveTask";
-import RotatingPortrait from "@/components/tv/RotatingPortrait";
-import { AGENTS, avatarFrames } from "@/lib/agent-data";
+import { AGENTS, agentTeam, avatarUrl } from "@/lib/agent-data";
 import { AGENT_BRIEFINGS, AGENT_LIVE_TASKS, type OutputKind } from "@/lib/agent-briefings";
+import { useMarketingMode } from "@/lib/marketing-mode";
 import type { AgentSlug } from "@/lib/types";
 
 type Agent = (typeof AGENTS)[number];
@@ -171,10 +171,19 @@ export default function TvModePage() {
   const [openAgent, setOpenAgent] = useState<AgentSlug | null>(null);
   const [introDone, setIntroDone] = useState(false);
 
-  const activeAgents = useMemo(() => AGENTS.filter((a) => a.status === "active"), []);
+  const [marketingMode] = useMarketingMode();
+  const visibleAgents = useMemo(
+    () => (marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS),
+    [marketingMode]
+  );
+  const activeAgents = useMemo(() => visibleAgents.filter((a) => a.status === "active"), [visibleAgents]);
   const activeCount = activeAgents.length;
-  const recipients = useMemo(() => AGENTS.reduce((sum, a) => sum + a.recipients, 0), []);
-  const feed = useActivityFeed(30);
+  const recipients = useMemo(() => visibleAgents.reduce((sum, a) => sum + a.recipients, 0), [visibleAgents]);
+  const feedAll = useActivityFeed(30);
+  const feed = useMemo(
+    () => (marketingMode ? feedAll.filter((r) => r.agent_slug && agentTeam(r.agent_slug) === "marketing") : feedAll),
+    [feedAll, marketingMode]
+  );
 
   const openDetail = useCallback((slug: AgentSlug) => setOpenAgent(slug), []);
   const closeDetail = useCallback(() => setOpenAgent(null), []);
@@ -253,6 +262,15 @@ export default function TvModePage() {
 
       {/* 右上控制列 */}
       <div className="absolute right-6 top-6 z-20 flex items-center gap-2.5">
+        {marketingMode && (
+          <span
+            title="你是 AI 行銷指揮官，畫面只顯示行銷戰隊隊員"
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-500/15 px-3.5 py-2 text-xs font-medium text-indigo-200"
+          >
+            <Megaphone size={13} />
+            行銷模式
+          </span>
+        )}
         <Link
           href="/meeting"
           title="開一場視訊會議"
@@ -309,7 +327,7 @@ export default function TvModePage() {
           {scene === 1 && (
             <SceneOverview
               activeCount={activeCount}
-              total={AGENTS.length}
+              total={visibleAgents.length}
               recipients={recipients}
               visible={introDone}
             />
@@ -652,11 +670,12 @@ const SceneTeam = memo(function SceneTeam({
               }`}
               style={{ ["--glow-color" as string]: `${agent.color}99` }}
             >
-              {/* 人像滿版（聚焦時 Ken Burns 緩推 + 表情輪播） */}
-              <RotatingPortrait
-                frames={avatarFrames(agent.personEn, agent.color)}
+              {/* 人像滿版（單一靜態照片，不做動畫） */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={avatarUrl(agent.personEn, agent.color)}
                 alt={agent.personEn}
-                className={`h-full w-full object-cover object-top ${focused ? "tv-kenburns" : ""}`}
+                className="h-full w-full object-cover object-top"
               />
               {/* 底部漸層 + 資訊 */}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent p-3 pt-10">
@@ -713,10 +732,11 @@ const SceneSpotlight = memo(function SceneSpotlight({
       key={agent.slug}
       className="tv-pop relative h-[62vh] min-h-[420px] w-full overflow-hidden rounded-3xl border border-white/10"
     >
-      {/* 大底：同一組人像放大模糊，染出整片氛圍色（跟著表情輪播一起換） */}
+      {/* 大底：同一張人像放大模糊，染出整片氛圍色 */}
       <div className="absolute inset-0 opacity-45">
-        <RotatingPortrait
-          frames={avatarFrames(agent.personEn, agent.color)}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarUrl(agent.personEn, agent.color)}
           alt=""
           className="h-full w-full scale-125 object-cover object-top blur-2xl"
         />
@@ -775,7 +795,7 @@ const SceneSpotlight = memo(function SceneSpotlight({
         </div>
       </div>
 
-      {/* 右：清晰人像海報（Ken Burns 緩推） */}
+      {/* 右：清晰人像海報 */}
       <button
         type="button"
         onClick={() => onOpen(agent.slug)}
@@ -783,10 +803,11 @@ const SceneSpotlight = memo(function SceneSpotlight({
         style={{ boxShadow: `0 24px 70px -18px ${agent.color}66` }}
         title="點擊查看近期紀錄"
       >
-        <RotatingPortrait
-          frames={avatarFrames(agent.personEn, agent.color)}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={avatarUrl(agent.personEn, agent.color)}
           alt={agent.personEn}
-          className="tv-kenburns h-full w-full object-cover object-top"
+          className="h-full w-full object-cover object-top"
         />
         <span className="absolute right-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-[#06C755] backdrop-blur">
           <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />

@@ -351,7 +351,7 @@ export const AGENT_BRIEFINGS: Record<AgentSlug, AgentBriefing> = {
     ],
   },
   card: {
-    greeting: "嗨，我是 Sunny，社群小編。",
+    greeting: "嗨，我是 Sunny，社群操盤手。",
     report:
       "這七天我發了 6 篇貼文、回了 88 則留言，整理出本週社群成效。週二那篇互動率 6.2% 最高，我建議下週多做同類型題材。明日貼文的 3 版草稿已經備好等你挑。",
     weekStats: [

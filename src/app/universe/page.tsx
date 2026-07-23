@@ -2,11 +2,12 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink, Orbit, X } from "lucide-react";
+import { ChevronLeft, ExternalLink, Megaphone, Orbit, X } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import BrandLogo from "@/components/integrations/BrandLogo";
-import { AGENTS } from "@/lib/agent-data";
+import { AGENTS, agentTeam } from "@/lib/agent-data";
 import { INTEGRATION_SEEDS, type Integration } from "@/lib/integrations-data";
+import { useMarketingMode } from "@/lib/marketing-mode";
 import type { AgentSlug } from "@/lib/types";
 
 // 節點宇宙：所有 Agent 是星系裡的星體，彼此的連線與串接的服務都是真實資料
@@ -64,8 +65,14 @@ function useStarfield(count: number) {
 export default function UniversePage() {
   const stars = useStarfield(140);
   const [selection, setSelection] = useState<Selection>(null);
+  const [marketingMode] = useMarketingMode();
 
-  const ringAgents = useMemo(() => AGENTS.filter((a) => a.slug !== TEAM_LEAD_SLUG), []);
+  // 行銷模式：只留行銷 Team 的 Agent 圍成一圈，沒有 Team Lead 當中心
+  // （呼應「你是 AI 行銷指揮官」的設定，中心不放任何一位 Agent）。
+  const ringAgents = useMemo(() => {
+    const base = AGENTS.filter((a) => a.slug !== TEAM_LEAD_SLUG);
+    return marketingMode ? base.filter((a) => agentTeam(a.slug) === "marketing") : base;
+  }, [marketingMode]);
 
   // 每位 Agent 的位置：Team Lead 在中心，其餘沿橢圓環均分角度
   const agentPos = useMemo(() => {
@@ -99,21 +106,33 @@ export default function UniversePage() {
   }, [agentPos]);
 
   // 真實的 Agent↔Agent 關係：Team Lead 彙整全隊、約拜訪與行程助理共用行事曆
-  const agentEdges = useMemo(
-    () => [
+  // （行銷模式沒有 Team Lead 在場，這層關係也就沒有意義，直接留空）
+  const agentEdges = useMemo(() => {
+    if (marketingMode) return [];
+    return [
       ...ringAgents.map((a) => ({ a: TEAM_LEAD_SLUG, b: a.slug, special: false })),
       { a: "visit" as AgentSlug, b: "schedule" as AgentSlug, special: true },
-    ],
-    [ringAgents]
-  );
+    ];
+  }, [ringAgents, marketingMode]);
 
   const sourceEdges = useMemo(
     () =>
       INTEGRATION_SEEDS.flatMap((src) =>
-        src.uses.map((u) => ({ agent: u.agent, sourceId: src.id, feature: u.feature, connected: src.status === "connected" }))
+        src.uses
+          .filter((u) => !marketingMode || agentTeam(u.agent) === "marketing")
+          .map((u) => ({ agent: u.agent, sourceId: src.id, feature: u.feature, connected: src.status === "connected" }))
       ),
-    []
+    [marketingMode]
   );
+
+  // 行銷模式下只留跟行銷 Agent 有連線的服務節點，不留孤兒節點
+  const visibleSources = useMemo(() => {
+    if (!marketingMode) return INTEGRATION_SEEDS;
+    const usedIds = new Set(sourceEdges.map((e) => e.sourceId));
+    return INTEGRATION_SEEDS.filter((s) => usedIds.has(s.id));
+  }, [marketingMode, sourceEdges]);
+
+  const visibleAgentNodes = marketingMode ? ringAgents : AGENTS;
 
   // 選取後要凸顯哪些節點：agent 選取會連帶點亮跟它有真實關係的同事與服務
   const { hlAgents, hlSources } = useMemo(() => {
@@ -188,7 +207,17 @@ export default function UniversePage() {
           <Orbit size={15} className="text-indigo-300" />
           節 點 宇 宙
         </p>
-        <span className="w-[110px]" />
+        {marketingMode ? (
+          <span
+            title="你是 AI 行銷指揮官，畫面只顯示行銷戰隊隊員與他們用的服務"
+            className="flex w-[110px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-500/15 px-3 py-2 text-xs font-medium text-indigo-200"
+          >
+            <Megaphone size={13} />
+            行銷模式
+          </span>
+        ) : (
+          <span className="w-[110px]" />
+        )}
       </header>
       <p className="relative z-20 mx-auto mt-2 max-w-lg px-6 text-center text-[11px] text-white/30">
         點一位 Agent 或一張服務卡，看看真實的連通關係——資料跟「服務串接」管理頁同一份，不是另外畫的。
@@ -240,7 +269,7 @@ export default function UniversePage() {
         </svg>
 
         {/* Agent 節點 */}
-        {AGENTS.map((a) => {
+        {visibleAgentNodes.map((a) => {
           const pos = agentPos.get(a.slug);
           if (!pos) return null;
           const isCenter = a.slug === TEAM_LEAD_SLUG;
@@ -267,7 +296,7 @@ export default function UniversePage() {
         })}
 
         {/* 資料來源節點 */}
-        {INTEGRATION_SEEDS.map((src) => {
+        {visibleSources.map((src) => {
           const pos = sourcePos.get(src.id);
           if (!pos) return null;
           const dim = isSourceDim(src.id);
