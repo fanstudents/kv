@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
+import ScheduleOverviewPanel from "@/components/agents/ScheduleOverviewPanel";
 import { Field, TextInput, TextArea, Select } from "@/components/ui/Field";
 import Toggle from "@/components/ui/Toggle";
 
@@ -34,6 +35,7 @@ export default function ScheduleAgentPage() {
       onSettingsLoaded={onSettingsLoaded}
       previewText={previewText}
       settings={{ calendarSource, slots, reminderMinutes, allowReschedule, template }}
+      topPanel={<ScheduleOverviewPanel />}
       settingsForm={
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -1,21 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import TrendChart from "@/components/agents/charts/TrendChart";
 import type { SearchOverview } from "@/lib/gsc";
 import type { TrafficOverview } from "@/lib/ga4";
 import type { PipelineOverview } from "@/lib/teaching-system";
+import type { WeekOverview } from "@/lib/google";
 import type { AgentSlug } from "@/lib/types";
 
-// 劇場模式的「彙報完才揭曉」區塊裡，接了真實數據來源的 Agent(GA4／GSC／營運儀表板)
-// 除了原本的示意 weekStats,再多秀一段真的圖表與數字——預設都是跟前 7 天比較增長幅度
-// (營運是專案而非日流量指標,維持看近 6 個月趨勢，不硬套 7 天增幅)。
+// 劇場模式的「彙報完才揭曉」區塊裡，接了真實數據來源的 Agent 除了原本的示意 weekStats，
+// 再多秀一段真的內容——但形狀跟著資料本質走，不是每個都套同一個「數字卡+趨勢圖」模板：
+// GA4／GSC 是流量指標，用趨勢圖；行程是行事曆，用七天分佈條＋接下來的行程；營運是專案，
+// 除了趨勢圖還多一份本月清單。預設都是跟前 7 天比較增長幅度(營運是專案而非日流量指標,
+// 維持看近 6 個月趨勢；行程是「未來」而非「過去」的行程分佈，也不適用增幅比較)。
 // 沒接真實數據源的 Agent 這裡直接不渲染任何東西，外層不用另外判斷。
 
 const LIVE_DATA_ENDPOINT: Partial<Record<AgentSlug, string>> = {
   report: "/api/agents/report/traffic-overview",
   expense: "/api/agents/expense/seo-overview",
   operations: "/api/agents/operations/pipeline",
+  schedule: "/api/agents/schedule/week-overview",
 };
 
 function useOverview<T>(slug: AgentSlug) {
@@ -165,6 +170,88 @@ function OperationsLiveMetrics({ color }: { color: string }) {
           forceDark
         />
       </div>
+      {data.thisMonthProjects.length > 0 && (
+        <ul className="space-y-1.5">
+          {data.thisMonthProjects.slice(0, 4).map((p) => (
+            <li
+              key={p.id}
+              className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.03] px-3.5 py-2.5 text-xs"
+            >
+              <span className="min-w-0 truncate text-white/80">
+                {p.name}
+                <span className="ml-1.5 text-white/35">{p.typeLabel}</span>
+              </span>
+              <span className={`shrink-0 ${p.closed ? "text-[#06C755]" : "text-white/35"}`}>
+                {p.closed ? `已成案 ×${p.sessionCount}` : "未成案"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </PanelShell>
+  );
+}
+
+// 行程助理(Milo)用:跟數字趨勢圖不同,這裡是行事曆形狀——未來七天的行程分佈條、
+// 接下來的行程、衝突提醒，不套「7 天增幅」的比較(未來的行程本來就沒有「前 7 天」可比)。
+function ScheduleLiveMetrics() {
+  const { data, error } = useOverview<WeekOverview>("schedule");
+  if (error) return <p className="text-xs text-white/30">Google 行事曆真實資料讀取失敗：{error}</p>;
+  if (!data) return <div className="h-40 animate-pulse rounded-xl border border-white/8 bg-white/[0.02]" />;
+
+  const maxCount = Math.max(1, ...data.dayCounts);
+  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+
+  return (
+    <PanelShell title="本週行事曆 · 未來 7 天" source="Google 行事曆">
+      <div className="grid grid-cols-7 gap-2">
+        {data.dayCounts.map((count, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() + i);
+          return (
+            <div
+              key={i}
+              className="flex flex-col items-center gap-1 rounded-xl border border-white/8 bg-white/[0.03] py-2.5"
+            >
+              <p className="text-[10px] text-white/35">{i === 0 ? "今天" : `週${weekdays[d.getDay()]}`}</p>
+              <p className="font-mono text-lg font-light" style={{ color: count > 0 ? "#8B5CF6" : "rgba(255,255,255,0.3)" }}>
+                {count}
+              </p>
+              <div className="h-1 w-5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-[#8B5CF6]"
+                  style={{ width: `${Math.max(8, (count / maxCount) * 100)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {data.warnings.length > 0 && (
+        <div className="space-y-1.5">
+          {data.warnings.map((w, i) => (
+            <p key={i} className="flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-400/10 p-2 text-xs text-amber-300">
+              <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+              {w}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {data.upcoming.length > 0 && (
+        <ul className="space-y-1.5">
+          {data.upcoming.map((u, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.03] px-3.5 py-2.5 text-xs"
+            >
+              <span className="min-w-0 truncate text-white/80">{u.title}</span>
+              <span className="shrink-0 text-white/35">{u.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </PanelShell>
   );
 }
@@ -173,5 +260,6 @@ export default function LiveMetricsPanel({ slug, color }: { slug: AgentSlug; col
   if (slug === "report") return <ReportLiveMetrics />;
   if (slug === "expense") return <ExpenseLiveMetrics />;
   if (slug === "operations") return <OperationsLiveMetrics color={color} />;
+  if (slug === "schedule") return <ScheduleLiveMetrics />;
   return null;
 }
