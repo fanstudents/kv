@@ -9,7 +9,7 @@ import type { SearchOverview } from "@/lib/gsc";
 
 const SEO_COLOR = "#14B8A6"; // 跟 Leo(SEO Agent)頭像色一致
 
-// SEO 助理(Leo)用:真實 Search Console 近 28 天成效——重點數字、每日點擊趨勢、熱門關鍵字。
+// SEO 助理(Leo)用:真實 Search Console 近 7 天成效——重點數字、每日點擊趨勢、熱門關鍵字。
 export default function SeoOverviewPanel() {
   const [data, setData] = useState<SearchOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,12 +54,12 @@ export default function SeoOverviewPanel() {
   return (
     <Card className="mb-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">SEO 真實成效(近 28 天)</h2>
+        <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">SEO 真實成效(近 7 天)</h2>
         <span className="text-xs text-neutral-400">來源:Google Search Console</span>
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="總點擊次數" value={data.totalClicks.toLocaleString("en-US")} delta={data.clicksDelta} hint="較前 28 天" />
+        <StatTile label="總點擊次數" value={data.totalClicks.toLocaleString("en-US")} delta={data.clicksDelta} hint="較前 7 天" />
         <StatTile label="總曝光次數" value={data.totalImpressions.toLocaleString("en-US")} />
         <StatTile label="平均 CTR" value={`${(data.avgCtr * 100).toFixed(1)}%`} />
         <StatTile
@@ -70,7 +70,7 @@ export default function SeoOverviewPanel() {
         />
       </div>
 
-      <p className="mb-2 text-xs font-medium text-neutral-500">每日點擊趨勢</p>
+      <p className="mb-2 text-xs font-medium text-neutral-500">每日點擊趨勢(近 14 天)</p>
       <TrendChart data={trendData} xKey="date" series={[{ key: "clicks", name: "點擊", color: SEO_COLOR }]} />
 
       {topQueries.length > 0 && (

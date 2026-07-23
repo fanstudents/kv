@@ -32,6 +32,7 @@ export default function AgentPageShell({
   previewTitle = "情境預覽",
   testPushLabel = "傳送測試訊息",
   onSettingsLoaded,
+  topPanel,
 }: {
   agent: AgentMeta;
   settings: Record<string, unknown>;
@@ -42,6 +43,8 @@ export default function AgentPageShell({
   previewTitle?: string;
   testPushLabel?: string;
   onSettingsLoaded?: (settings: Record<string, unknown>) => void;
+  /** 頭像／身分列之後、任務流程節點之前的專屬內容(例如真實數據圖表) */
+  topPanel?: React.ReactNode;
 }) {
   const [enabled, setEnabled] = useState(agent.status === "active");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -193,6 +196,7 @@ export default function AgentPageShell({
       />
 
       <div className="space-y-6">
+        {topPanel}
         <Card>
           <h2 className="mb-1 text-sm font-semibold text-neutral-700 dark:text-neutral-200">任務流程節點</h2>
           <p className="mb-4 text-xs text-neutral-400">

@@ -22,15 +22,16 @@ export interface SearchOverview {
   avgCtr: number;
   avgPosition: number;
   topQueries: SearchQueryRow[];
-  /** 跟前 28 天相比的變化：clicksDelta 正值＝流量成長；positionDelta 正值＝排名進步（名次數字變小） */
+  /** 跟前 7 天相比的變化：clicksDelta 正值＝流量成長；positionDelta 正值＝排名進步（名次數字變小） */
   clicksDelta: number | null;
   positionDelta: number | null;
-  /** 近 28 天每日點擊／曝光，依日期由舊到新排序，給趨勢圖用 */
+  /** 近 14 天每日點擊／曝光，依日期由舊到新排序，給趨勢圖用 */
   dailyTrend: SearchDailyRow[];
 }
 
 /**
- * SEO 助理（Leo）用：讀取真實 Search Console 近 28 天成效，並跟前 28 天比較。
+ * SEO 助理（Leo）用：讀取真實 Search Console 近 7 天成效，並跟前 7 天比較
+ * （跟數據助理的 GA4 預設比較窗口一致）。
  * GSC 資料通常有 2-3 天回報延遲，時間窗一律往回推 3 天，避免抓到還沒到齊的當日資料。
  */
 export async function getSearchOverview(): Promise<SearchOverview> {
@@ -41,26 +42,27 @@ export async function getSearchOverview(): Promise<SearchOverview> {
 
   const now = new Date();
   const end = new Date(now.getTime() - 3 * 86400000);
-  const start28 = new Date(end.getTime() - 27 * 86400000);
-  const endPrev28 = new Date(start28.getTime() - 86400000);
-  const startPrev28 = new Date(endPrev28.getTime() - 27 * 86400000);
+  const start7 = new Date(end.getTime() - 6 * 86400000);
+  const endPrev7 = new Date(start7.getTime() - 86400000);
+  const startPrev7 = new Date(endPrev7.getTime() - 6 * 86400000);
+  const startTrend = new Date(end.getTime() - 13 * 86400000); // 趨勢圖獨立拉近 14 天，比較窗口仍是 7 天
 
   const [current, previous, topQueries, daily] = await Promise.all([
     webmasters.searchanalytics.query({
       siteUrl,
-      requestBody: { startDate: isoDate(start28), endDate: isoDate(end) },
+      requestBody: { startDate: isoDate(start7), endDate: isoDate(end) },
     }),
     webmasters.searchanalytics.query({
       siteUrl,
-      requestBody: { startDate: isoDate(startPrev28), endDate: isoDate(endPrev28) },
+      requestBody: { startDate: isoDate(startPrev7), endDate: isoDate(endPrev7) },
     }),
     webmasters.searchanalytics.query({
       siteUrl,
-      requestBody: { startDate: isoDate(start28), endDate: isoDate(end), dimensions: ["query"], rowLimit: 10 },
+      requestBody: { startDate: isoDate(start7), endDate: isoDate(end), dimensions: ["query"], rowLimit: 10 },
     }),
     webmasters.searchanalytics.query({
       siteUrl,
-      requestBody: { startDate: isoDate(start28), endDate: isoDate(end), dimensions: ["date"], rowLimit: 31 },
+      requestBody: { startDate: isoDate(startTrend), endDate: isoDate(end), dimensions: ["date"], rowLimit: 20 },
     }),
   ]);
 

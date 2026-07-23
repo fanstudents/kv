@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import CommandConsole from "@/components/tv/CommandConsole";
+import LiveMetricsPanel from "@/components/tv/LiveMetricsPanel";
 import LiveTask, { type LiveInfo } from "@/components/tv/LiveTask";
 import RotatingPortrait from "@/components/tv/RotatingPortrait";
 import { AGENTS, avatarFrames } from "@/lib/agent-data";
@@ -1057,6 +1058,8 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
             {/* 彙報完才揭曉：數字、任務重點、產出（滑入） */}
             {done && (
               <div className="space-y-6">
+                <LiveMetricsPanel slug={agent.slug} color={agent.color} />
+
                 <div className="tv-in grid grid-cols-3 gap-3">
                   {brief.weekStats.map((s) => (
                     <div

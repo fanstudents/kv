@@ -30,14 +30,18 @@ export default function TrendChart({
   series,
   height = 200,
   valueFormatter = (v: number) => v.toLocaleString("en-US"),
+  forceDark,
 }: {
   data: Record<string, string | number>[];
   xKey: string;
   series: TrendSeries[];
   height?: number;
   valueFormatter?: (v: number) => string;
+  /** 強制走深色配色,不管系統色彩模式——給劇場模式這種永遠是暗色底的畫面用 */
+  forceDark?: boolean;
 }) {
-  const dark = usePrefersDark();
+  const systemDark = usePrefersDark();
+  const dark = forceDark ?? systemDark;
   const gridColor = dark ? "#262626" : "#e5e5e5";
   const axisColor = dark ? "#737373" : "#a3a3a3";
   const tooltipBg = dark ? "#171717" : "#ffffff";
@@ -51,7 +55,8 @@ export default function TrendChart({
           {series.map((s) => (
             <span
               key={s.key}
-              className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400"
+              className="flex items-center gap-1.5 text-[11px]"
+              style={{ color: dark ? "#a3a3a3" : "#737373" }}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: s.color }} />
               {s.name}

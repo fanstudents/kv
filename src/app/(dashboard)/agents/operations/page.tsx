@@ -57,17 +57,17 @@ function PipelinePanel() {
 
   if (error) {
     return (
-      <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+      <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
         企業內訓／公開課程真實資料讀取失敗：{error}
       </div>
     );
   }
   if (!data) {
-    return <div className="mb-6 h-32 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />;
+    return <div className="h-32 animate-pulse rounded-xl border border-neutral-200 dark:border-neutral-800" />;
   }
 
   return (
-    <div className="mb-6 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
+    <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">企業內訓／公開課程真實現況</h2>
         <span className="text-xs text-neutral-400">來源：教學系統資料庫</span>
@@ -166,15 +166,14 @@ export default function OperationsAgentPage() {
     lines.map((l) => `・${l.name}［${l.status}］${l.owner !== "—" ? `${l.owner}｜` : ""}${l.nextStep}`).join("\n");
 
   return (
-    <>
-      <PipelinePanel />
-      <AgentPageShell
+    <AgentPageShell
       agent={agent}
       fallbackActivity={ACTIVITY_LOGS.operations}
       onSettingsLoaded={onSettingsLoaded}
       previewText={previewText}
       previewTitle="營運儀表板 + 週報預覽"
       testPushLabel="傳送營運週報測試"
+      topPanel={<PipelinePanel />}
       settings={{ lines }}
       settingsForm={
         <div className="space-y-3">
@@ -234,6 +233,5 @@ export default function OperationsAgentPage() {
         </div>
       }
       />
-    </>
   );
 }
