@@ -25,8 +25,11 @@ export interface TrafficOverview {
   dailyTrend: TrafficDailyRow[];
 }
 
-/** 數據助理（Ivy）用：讀取真實 GA4 近 7 天流量與轉換，並跟前 7 天比較、拆分渠道。 */
-export async function getTrafficOverview(): Promise<TrafficOverview> {
+/**
+ * 數據助理（Ivy）用：讀取真實 GA4 流量與轉換，並跟前一個等長區間比較、拆分渠道。
+ * @param days 統計區間天數（預設 7），跟前 `days` 天比較，趨勢圖也顯示這 `days` 天。
+ */
+export async function getTrafficOverview(days: number = 7): Promise<TrafficOverview> {
   const propertyId = process.env.GA4_PROPERTY_ID;
   if (!propertyId) throw new Error("Missing GA4_PROPERTY_ID environment variable");
 
@@ -38,8 +41,8 @@ export async function getTrafficOverview(): Promise<TrafficOverview> {
       property,
       requestBody: {
         dateRanges: [
-          { startDate: "7daysAgo", endDate: "today" },
-          { startDate: "14daysAgo", endDate: "8daysAgo" },
+          { startDate: `${days}daysAgo`, endDate: "today" },
+          { startDate: `${days * 2}daysAgo`, endDate: `${days + 1}daysAgo` },
         ],
         metrics: [{ name: "sessions" }, { name: "activeUsers" }, { name: "conversions" }],
       },
@@ -47,7 +50,7 @@ export async function getTrafficOverview(): Promise<TrafficOverview> {
     analyticsdata.properties.runReport({
       property,
       requestBody: {
-        dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
+        dateRanges: [{ startDate: `${days}daysAgo`, endDate: "today" }],
         dimensions: [{ name: "sessionDefaultChannelGroup" }],
         metrics: [{ name: "sessions" }, { name: "conversions" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
@@ -57,7 +60,7 @@ export async function getTrafficOverview(): Promise<TrafficOverview> {
     analyticsdata.properties.runReport({
       property,
       requestBody: {
-        dateRanges: [{ startDate: "14daysAgo", endDate: "today" }],
+        dateRanges: [{ startDate: `${days}daysAgo`, endDate: "today" }],
         dimensions: [{ name: "date" }],
         metrics: [{ name: "sessions" }, { name: "conversions" }],
         orderBys: [{ dimension: { dimensionName: "date" } }],
