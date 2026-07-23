@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AGENTS } from "@/lib/agent-data";
+import { Maximize2, MonitorPlay, X } from "lucide-react";
+import { AGENTS, agentTeam } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
 import type { AgentMeta } from "@/lib/types";
 
@@ -232,10 +233,65 @@ function DoorPlate({ sceneId }: { sceneId: (typeof SCENES)[number]["id"] }) {
   );
 }
 
+// 全螢幕檢視時的左側面板：Agent team 列表，點名字前往該 Agent 的詳情頁
+function TeamList({ counts }: { counts: Record<string, number> }) {
+  const renderRow = (agent: AgentMeta) => (
+    <Link
+      key={agent.slug}
+      href={`/agents/${agent.slug}`}
+      className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+    >
+      <Avatar personEn={agent.personEn} color={agent.color} size={30} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{agent.name}</span>
+        <span className="block truncate text-xs font-normal text-white/40">
+          {agent.personEn} {agent.personZh} · {agent.role}
+        </span>
+      </span>
+      {(counts[agent.slug] ?? 0) > 0 && (
+        <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#06C755]/20 px-1.5 text-[10px] font-bold text-[#06C755]">
+          {counts[agent.slug]}
+        </span>
+      )}
+      <span
+        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+          agent.status === "active"
+            ? "animate-pulse bg-[#06C755]"
+            : agent.status === "paused"
+              ? "bg-amber-500"
+              : "bg-white/20"
+        }`}
+      />
+    </Link>
+  );
+
+  return (
+    <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-black/70 px-3 py-5 backdrop-blur-xl">
+      <p className="px-2.5 pb-1 text-sm font-semibold text-white">Agent Team</p>
+      <p className="px-2.5 pb-4 text-xs text-white/40">{AGENTS.length} 位隊友，點名字查看細節</p>
+      <p className="px-2.5 pb-1 text-xs font-semibold tracking-wide text-white/40">行銷 Team</p>
+      <div className="space-y-0.5">{AGENTS.filter((a) => agentTeam(a.slug) === "marketing").map(renderRow)}</div>
+      <p className="px-2.5 pb-1 pt-4 text-xs font-semibold tracking-wide text-white/40">行政 Team</p>
+      <div className="space-y-0.5">{AGENTS.filter((a) => agentTeam(a.slug) === "admin").map(renderRow)}</div>
+    </div>
+  );
+}
+
 export default function OfficeScene() {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [celebrating, setCelebrating] = useState<Set<string>>(new Set());
   const [sceneIndex, setSceneIndex] = useState(0);
+  const [fullView, setFullView] = useState(false);
+
+  // 全螢幕檢視時 Esc 可退出
+  useEffect(() => {
+    if (!fullView) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullView(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullView]);
   const prevLatestSuccess = useRef<Record<string, string> | null>(null);
 
   useEffect(() => {
@@ -304,11 +360,8 @@ export default function OfficeScene() {
   const prevScene = canPrev ? SCENES[sceneIndex - 1] : null;
   const nextScene = canNext ? SCENES[sceneIndex + 1] : null;
 
-  return (
-    <div
-      className="relative w-full overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm"
-      style={{ aspectRatio: "16 / 9" }}
-    >
+  const sceneContent = (
+    <>
       <style>{walkKeyframes}</style>
 
       {/* 場景滑軌：橫向排列所有場景，用 translateX 做移動式切換 */}
@@ -398,6 +451,57 @@ export default function OfficeScene() {
           </span>
         </button>
       )}
+    </>
+  );
+
+  if (fullView) {
+    return (
+      <div className="fixed inset-0 z-50 flex bg-black">
+        <TeamList counts={counts} />
+        <div className="relative min-w-0 flex-1 overflow-hidden">
+          {sceneContent}
+
+          {/* 右上角：切換進完整劇場模式、或退出全螢幕檢視 */}
+          <div className="absolute right-4 top-4 z-40 flex items-center gap-2">
+            <Link
+              href="/tv"
+              title="切換成劇場模式"
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-[#06C755] px-4 py-2 text-sm font-semibold text-black shadow-[0_0_20px_-4px_rgba(6,199,85,0.7)] transition-transform hover:scale-105"
+            >
+              <MonitorPlay size={15} />
+              劇場模式
+            </Link>
+            <button
+              type="button"
+              onClick={() => setFullView(false)}
+              title="退出全螢幕"
+              aria-label="退出全螢幕"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 backdrop-blur transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-3xl border border-[#E2D3BC] shadow-sm"
+      style={{ aspectRatio: "16 / 9" }}
+    >
+      {sceneContent}
+
+      <button
+        type="button"
+        onClick={() => setFullView(true)}
+        title="全螢幕檢視"
+        aria-label="全螢幕檢視"
+        className="absolute right-3 top-3 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white opacity-70 shadow-lg backdrop-blur-sm transition-all hover:scale-110 hover:opacity-100"
+      >
+        <Maximize2 size={14} />
+      </button>
     </div>
   );
 }

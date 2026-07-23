@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import Avatar from "@/components/agents/Avatar";
+import LevelPipeline from "@/components/knowledge/LevelPipeline";
 import { AGENTS } from "@/lib/agent-data";
 import { KNOWLEDGE_LEVELS, levelInfo, type KnowledgeDoc, type KnowledgeLevel } from "@/lib/knowledge-base-data";
 import type { AgentSlug } from "@/lib/types";
@@ -201,6 +202,7 @@ export default function KnowledgeBasePage() {
         }
       />
 
+      <LevelPipeline access={access} />
       <LevelLegend />
       <AccessMatrix access={access} onChange={setAgentAccess} />
 
