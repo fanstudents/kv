@@ -62,9 +62,12 @@ function audioExt(mimeType: string): string {
 export default function CommandConsole({
   open,
   onOpenChange,
+  variant = "overlay",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** "overlay":浮在劇場模式場景上的懸浮面板(預設)。"page":獨立整頁,無懸浮定位、無觸發鈕。 */
+  variant?: "overlay" | "page";
 }) {
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
   const [text, setText] = useState("");
@@ -262,45 +265,47 @@ export default function CommandConsole({
     setRecording(false);
   };
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        title={open ? "關閉指揮台" : "指揮台:@ 或開口,同時對多位 Agent 下指令"}
-        className={`flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur transition-colors ${
-          open
-            ? "border-[#06C755]/50 bg-[#06C755]/15 text-[#06C755]"
-            : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white"
-        }`}
-      >
-        <SlidersHorizontal size={15} />
-      </button>
+  const isPage = variant === "page";
+  const visible = isPage || open;
 
-      {open && (
-        <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-11 sm:px-8">
-          <div className="tv-pop flex w-full max-w-[860px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d12]/95 shadow-2xl backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-white/8 px-5 py-3">
-              <div>
-                <p className="flex items-center gap-2 text-sm font-semibold text-white">
-                  <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />
-                  指揮台
-                </p>
-                <p className="text-[11px] text-white/40">打字 @ 或按麥克風開口,一次對多位隊友下指令</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="關閉"
-              >
-                <X size={16} />
-              </button>
-            </div>
+  const panel = visible && (
+    <div
+      className={
+        isPage
+          ? "tv-pop flex w-full flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d12]/95 shadow-2xl backdrop-blur-xl"
+          : "tv-pop flex w-full max-w-[860px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d12]/95 shadow-2xl backdrop-blur-xl"
+      }
+    >
+      <div className="flex items-center justify-between border-b border-white/8 px-5 py-3">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold text-white">
+            <span className="tv-breathe h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+            指揮台
+          </p>
+          <p className="text-[11px] text-white/40">打字 @ 或按麥克風開口,一次對多位隊友下指令</p>
+        </div>
+        {!isPage && (
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="關閉"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
 
-            {entries.length > 0 && (
-              <div ref={scrollRef} className="max-h-[38vh] space-y-3 overflow-y-auto px-5 py-3">
-                {entries.map((e) => {
+      {entries.length > 0 ? (
+        <div
+          ref={scrollRef}
+          className={
+            isPage
+              ? "flex-1 space-y-3 overflow-y-auto px-5 py-3"
+              : "max-h-[38vh] space-y-3 overflow-y-auto px-5 py-3"
+          }
+        >
+          {entries.map((e) => {
                   if (e.kind === "command") {
                     return (
                       <div key={e.id} className="flex justify-end">
@@ -345,11 +350,15 @@ export default function CommandConsole({
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            )}
+          })}
+        </div>
+      ) : isPage ? (
+        <div className="flex flex-1 items-center justify-center text-sm text-white/25">
+          尚無指令,打字 @ 或按麥克風開始
+        </div>
+      ) : null}
 
-            {/* 快速點名:點頭像插入 @Name,免打字也能同時點好幾位 */}
+      {/* 快速點名:點頭像插入 @Name,免打字也能同時點好幾位 */}
             <div className="flex gap-1.5 overflow-x-auto px-5 pb-1 pt-3">
               {AGENTS.map((a) => (
                 <button
@@ -430,8 +439,30 @@ export default function CommandConsole({
                   <Send size={17} />
                 </button>
               </div>
-            </div>
-          </div>
+      </div>
+    </div>
+  );
+
+  if (isPage) return panel;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        title={open ? "關閉指揮台" : "指揮台:@ 或開口,同時對多位 Agent 下指令"}
+        className={`flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur transition-colors ${
+          open
+            ? "border-[#06C755]/50 bg-[#06C755]/15 text-[#06C755]"
+            : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        <SlidersHorizontal size={15} />
+      </button>
+
+      {open && (
+        <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-11 sm:px-8">
+          {panel}
         </div>
       )}
     </>

@@ -17,6 +17,7 @@ import {
   Wallet,
   Plug,
   MonitorPlay,
+  BookLock,
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
@@ -260,6 +261,17 @@ export default function Sidebar() {
         >
           <ListChecks size={18} />
           待辦總覽
+        </Link>
+        <Link
+          href="/knowledge-base"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/knowledge-base")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <BookLock size={18} />
+          知識庫
         </Link>
         <Link
           href="/integrations"
