@@ -77,7 +77,7 @@ export default function CommandConsole({
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -190,7 +190,7 @@ export default function CommandConsole({
     });
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     if (mention && suggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -266,16 +266,159 @@ export default function CommandConsole({
   };
 
   const isPage = variant === "page";
-  const visible = isPage || open;
 
-  const panel = visible && (
-    <div
-      className={
-        isPage
-          ? "tv-pop flex w-full flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d12]/95 shadow-2xl backdrop-blur-xl"
-          : "tv-pop flex w-full max-w-[860px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d12]/95 shadow-2xl backdrop-blur-xl"
-      }
-    >
+  // 對話紀錄的訊息泡泡，overlay／page 兩種呈現都用同一份
+  const entryBubbles = entries.map((e) => {
+    if (e.kind === "command") {
+      return (
+        <div key={e.id} className="flex justify-end">
+          <div className="max-w-[85%] break-words rounded-2xl rounded-br-sm bg-[#06C755] px-3.5 py-2 text-sm text-black">
+            {e.text}
+          </div>
+        </div>
+      );
+    }
+    const agent = AGENTS.find((a) => a.slug === e.agentSlug);
+    return (
+      <div key={e.id} className="flex items-start gap-2.5">
+        {agent && <Avatar personEn={agent.personEn} color={agent.color} size={26} />}
+        <div className="min-w-0 flex-1">
+          {agent && (
+            <p className="mb-0.5 text-[11px] font-medium" style={{ color: agent.color }}>
+              {agent.personEn} {agent.personZh}
+            </p>
+          )}
+          <div
+            className={`max-w-full break-words rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm ${
+              e.kind === "error" ? "bg-red-500/10 text-red-300" : "bg-white/[0.06] text-white/90"
+            }`}
+          >
+            {e.pending ? (
+              <span className="flex items-center gap-1 py-0.5">
+                {[0, 1, 2].map((i) => (
+                  <i
+                    key={i}
+                    className="h-1.5 w-1.5 rounded-full bg-current opacity-60"
+                    style={{ animation: "office-typing 1.2s ease-in-out infinite", animationDelay: `${i * 160}ms` }}
+                  />
+                ))}
+              </span>
+            ) : (
+              e.text
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  });
+
+  const mentionDropdown = mention && suggestions.length > 0 && (
+    <div className="absolute bottom-full left-0 right-0 mb-2 max-h-56 overflow-y-auto rounded-xl border border-white/10 bg-[#14161c] py-1 shadow-2xl">
+      {suggestions.map((a, i) => (
+        <button
+          key={a.slug}
+          type="button"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            insertMention(a, mention);
+          }}
+          className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${i === activeIndex ? "bg-white/10" : ""}`}
+        >
+          <Avatar personEn={a.personEn} color={a.color} size={22} />
+          <span className="min-w-0 flex-1 truncate text-white/90">
+            <span className="font-medium">
+              {a.personEn} {a.personZh}
+            </span>
+            <span className="ml-1.5 text-xs text-white/40">{a.role}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+
+  // 整頁模式:走 Google 搜尋框式的簡潔版面,沒有大卡片外框
+  if (isPage) {
+    const hasEntries = entries.length > 0;
+    return (
+      <div className={`flex w-full flex-1 flex-col ${hasEntries ? "" : "items-center justify-center"}`}>
+        {hasEntries && (
+          <div ref={scrollRef} className="mx-auto mb-6 w-full max-w-2xl flex-1 space-y-3 overflow-y-auto">
+            {entryBubbles}
+          </div>
+        )}
+
+        <div className="mx-auto w-full max-w-2xl shrink-0">
+          {!hasEntries && (
+            <p className="mb-6 flex items-center justify-center gap-2 text-lg font-medium text-white/80">
+              <span className="tv-breathe h-2 w-2 rounded-full bg-[#06C755]" />
+              指揮台
+            </p>
+          )}
+
+          {hint && <p className="mb-2 text-center text-xs text-amber-300">{hint}</p>}
+          {transcribing && <p className="mb-2 text-center text-xs text-white/40">辨識語音中…</p>}
+
+          <div className="relative">
+            {mentionDropdown}
+            <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.05] py-2.5 pl-5 pr-2.5 shadow-2xl backdrop-blur-xl transition-colors focus-within:border-[#06C755]/50">
+              <input
+                ref={textareaRef as React.RefObject<HTMLInputElement>}
+                type="text"
+                value={text}
+                onChange={(e) => handleChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+                onKeyDown={onKeyDown}
+                onClick={(ev) => {
+                  const el = ev.currentTarget;
+                  handleChange(text, el.selectionStart ?? text.length);
+                }}
+                placeholder="@Milo 明天行程排一下、@Ivy 準備週報…"
+                className="min-w-0 flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-white/30"
+              />
+              <button
+                type="button"
+                onClick={() => (recording ? stopRecording() : startRecording())}
+                disabled={transcribing}
+                title={recording ? "停止錄音" : "按一下開口說話"}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
+                  recording ? "tv-breathe bg-red-500 text-white" : "text-white/50 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                {recording ? <Square size={14} /> : <Mic size={16} />}
+              </button>
+              <button
+                type="button"
+                onClick={() => send()}
+                disabled={!text.trim()}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#06C755] text-black transition-opacity hover:opacity-90 disabled:opacity-40"
+                aria-label="送出"
+              >
+                <Send size={15} />
+              </button>
+            </div>
+          </div>
+
+          {/* 快速點名:點頭像插入 @Name,免打字也能同時點好幾位 */}
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {AGENTS.map((a) => (
+              <button
+                key={a.slug}
+                type="button"
+                onClick={() => insertMention(a, null)}
+                title={`點名 @${a.personEn}`}
+                className="shrink-0 rounded-full opacity-60 ring-offset-2 ring-offset-[#05060a] transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2"
+                style={{ ["--tw-ring-color" as string]: a.color }}
+              >
+                <Avatar personEn={a.personEn} color={a.color} size={26} />
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const panel = open && (
+    <div className="tv-pop flex w-full max-w-[860px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b0d12]/95 shadow-2xl backdrop-blur-xl">
       <div className="flex items-center justify-between border-b border-white/8 px-5 py-3">
         <div>
           <p className="flex items-center gap-2 text-sm font-semibold text-white">
@@ -284,166 +427,82 @@ export default function CommandConsole({
           </p>
           <p className="text-[11px] text-white/40">打字 @ 或按麥克風開口,一次對多位隊友下指令</p>
         </div>
-        {!isPage && (
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white"
-            aria-label="關閉"
-          >
-            <X size={16} />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition-colors hover:bg-white/10 hover:text-white"
+          aria-label="關閉"
+        >
+          <X size={16} />
+        </button>
       </div>
 
-      {entries.length > 0 ? (
-        <div
-          ref={scrollRef}
-          className={
-            isPage
-              ? "flex-1 space-y-3 overflow-y-auto px-5 py-3"
-              : "max-h-[38vh] space-y-3 overflow-y-auto px-5 py-3"
-          }
-        >
-          {entries.map((e) => {
-                  if (e.kind === "command") {
-                    return (
-                      <div key={e.id} className="flex justify-end">
-                        <div className="max-w-[85%] break-words rounded-2xl rounded-br-sm bg-[#06C755] px-3.5 py-2 text-sm text-black">
-                          {e.text}
-                        </div>
-                      </div>
-                    );
-                  }
-                  const agent = AGENTS.find((a) => a.slug === e.agentSlug);
-                  return (
-                    <div key={e.id} className="flex items-start gap-2.5">
-                      {agent && <Avatar personEn={agent.personEn} color={agent.color} size={26} />}
-                      <div className="min-w-0 flex-1">
-                        {agent && (
-                          <p className="mb-0.5 text-[11px] font-medium" style={{ color: agent.color }}>
-                            {agent.personEn} {agent.personZh}
-                          </p>
-                        )}
-                        <div
-                          className={`max-w-full break-words rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm ${
-                            e.kind === "error" ? "bg-red-500/10 text-red-300" : "bg-white/[0.06] text-white/90"
-                          }`}
-                        >
-                          {e.pending ? (
-                            <span className="flex items-center gap-1 py-0.5">
-                              {[0, 1, 2].map((i) => (
-                                <i
-                                  key={i}
-                                  className="h-1.5 w-1.5 rounded-full bg-current opacity-60"
-                                  style={{
-                                    animation: "office-typing 1.2s ease-in-out infinite",
-                                    animationDelay: `${i * 160}ms`,
-                                  }}
-                                />
-                              ))}
-                            </span>
-                          ) : (
-                            e.text
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-          })}
+      {entries.length > 0 && (
+        <div ref={scrollRef} className="max-h-[38vh] space-y-3 overflow-y-auto px-5 py-3">
+          {entryBubbles}
         </div>
-      ) : isPage ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-white/25">
-          尚無指令,打字 @ 或按麥克風開始
-        </div>
-      ) : null}
+      )}
 
       {/* 快速點名:點頭像插入 @Name,免打字也能同時點好幾位 */}
-            <div className="flex gap-1.5 overflow-x-auto px-5 pb-1 pt-3">
-              {AGENTS.map((a) => (
-                <button
-                  key={a.slug}
-                  type="button"
-                  onClick={() => insertMention(a, null)}
-                  title={`點名 @${a.personEn}`}
-                  className="shrink-0 rounded-full opacity-70 ring-offset-2 ring-offset-[#0b0d12] transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2"
-                  style={{ ["--tw-ring-color" as string]: a.color }}
-                >
-                  <Avatar personEn={a.personEn} color={a.color} size={30} />
-                </button>
-              ))}
-            </div>
+      <div className="flex gap-1.5 overflow-x-auto px-5 pb-1 pt-3">
+        {AGENTS.map((a) => (
+          <button
+            key={a.slug}
+            type="button"
+            onClick={() => insertMention(a, null)}
+            title={`點名 @${a.personEn}`}
+            className="shrink-0 rounded-full opacity-70 ring-offset-2 ring-offset-[#0b0d12] transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2"
+            style={{ ["--tw-ring-color" as string]: a.color }}
+          >
+            <Avatar personEn={a.personEn} color={a.color} size={30} />
+          </button>
+        ))}
+      </div>
 
-            <div className="relative px-5 pb-5 pt-2">
-              {mention && suggestions.length > 0 && (
-                <div className="absolute bottom-full left-5 right-5 mb-2 max-h-56 overflow-y-auto rounded-xl border border-white/10 bg-[#14161c] py-1 shadow-2xl">
-                  {suggestions.map((a, i) => (
-                    <button
-                      key={a.slug}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        insertMention(a, mention);
-                      }}
-                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm ${
-                        i === activeIndex ? "bg-white/10" : ""
-                      }`}
-                    >
-                      <Avatar personEn={a.personEn} color={a.color} size={22} />
-                      <span className="min-w-0 flex-1 truncate text-white/90">
-                        <span className="font-medium">
-                          {a.personEn} {a.personZh}
-                        </span>
-                        <span className="ml-1.5 text-xs text-white/40">{a.role}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {hint && <p className="mb-1.5 text-xs text-amber-300">{hint}</p>}
-              {transcribing && <p className="mb-1.5 text-xs text-white/40">辨識語音中…</p>}
-              <div className="flex items-end gap-2.5">
-                <textarea
-                  ref={textareaRef}
-                  value={text}
-                  onChange={(e) => handleChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
-                  onKeyDown={onKeyDown}
-                  onClick={(ev) => {
-                    const el = ev.target as HTMLTextAreaElement;
-                    handleChange(text, el.selectionStart ?? text.length);
-                  }}
-                  rows={2}
-                  placeholder="@Milo 明天行程排一下、@Ivy 準備週報…"
-                  className="max-h-32 min-h-[3.2rem] flex-1 resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none placeholder:text-white/30 focus:border-[#06C755]/60"
-                />
-                <button
-                  type="button"
-                  onClick={() => (recording ? stopRecording() : startRecording())}
-                  disabled={transcribing}
-                  title={recording ? "停止錄音" : "按一下開口說話"}
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
-                    recording
-                      ? "tv-breathe bg-red-500 text-white"
-                      : "border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {recording ? <Square size={15} /> : <Mic size={17} />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => send()}
-                  disabled={!text.trim()}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#06C755] text-black transition-opacity hover:opacity-90 disabled:opacity-40"
-                  aria-label="送出"
-                >
-                  <Send size={17} />
-                </button>
-              </div>
+      <div className="relative px-5 pb-5 pt-2">
+        {mentionDropdown}
+        {hint && <p className="mb-1.5 text-xs text-amber-300">{hint}</p>}
+        {transcribing && <p className="mb-1.5 text-xs text-white/40">辨識語音中…</p>}
+        <div className="flex items-end gap-2.5">
+          <textarea
+            ref={textareaRef as React.RefObject<HTMLTextAreaElement>}
+            value={text}
+            onChange={(e) => handleChange(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+            onKeyDown={onKeyDown}
+            onClick={(ev) => {
+              const el = ev.currentTarget;
+              handleChange(text, el.selectionStart ?? text.length);
+            }}
+            rows={2}
+            placeholder="@Milo 明天行程排一下、@Ivy 準備週報…"
+            className="max-h-32 min-h-[3.2rem] flex-1 resize-none rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[15px] text-white outline-none placeholder:text-white/30 focus:border-[#06C755]/60"
+          />
+          <button
+            type="button"
+            onClick={() => (recording ? stopRecording() : startRecording())}
+            disabled={transcribing}
+            title={recording ? "停止錄音" : "按一下開口說話"}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
+              recording
+                ? "tv-breathe bg-red-500 text-white"
+                : "border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            {recording ? <Square size={15} /> : <Mic size={17} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => send()}
+            disabled={!text.trim()}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#06C755] text-black transition-opacity hover:opacity-90 disabled:opacity-40"
+            aria-label="送出"
+          >
+            <Send size={17} />
+          </button>
+        </div>
       </div>
     </div>
   );
-
-  if (isPage) return panel;
 
   return (
     <>

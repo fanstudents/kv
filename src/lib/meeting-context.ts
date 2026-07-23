@@ -6,6 +6,7 @@ import { getTrafficOverview } from "@/lib/ga4";
 import { getOrderRevenueSummary } from "@/lib/teachify-order-stats";
 import { getPipelineOverview } from "@/lib/teaching-system";
 import { getAvailableTags } from "@/lib/contact-tags";
+import { knowledgeContext } from "@/lib/knowledge-base";
 import { AGENTS } from "@/lib/agent-data";
 
 // 會議室 Agent 人設的「真實資料」補丁：之前只餵了職稱／職掌的靜態說明，
@@ -262,6 +263,12 @@ export async function getAgentLiveContext(slug: string): Promise<string> {
     parts.push(await ownRecentActivity(slug));
   } catch {
     /* ignore */
+  }
+
+  try {
+    parts.push(await knowledgeContext(slug));
+  } catch {
+    /* 知識庫讀不到不影響其他真實資料 */
   }
 
   return parts.filter(Boolean).join("\n\n");

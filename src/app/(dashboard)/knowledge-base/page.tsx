@@ -8,16 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import Avatar from "@/components/agents/Avatar";
 import { AGENTS } from "@/lib/agent-data";
-import {
-  AGENT_ACCESS_SEEDS,
-  KNOWLEDGE_ACCESS_STORAGE_KEY,
-  KNOWLEDGE_LEVELS,
-  KNOWLEDGE_SEEDS,
-  KNOWLEDGE_STORAGE_KEY,
-  levelInfo,
-  type KnowledgeDoc,
-  type KnowledgeLevel,
-} from "@/lib/knowledge-base-data";
+import { KNOWLEDGE_LEVELS, levelInfo, type KnowledgeDoc, type KnowledgeLevel } from "@/lib/knowledge-base-data";
 import type { AgentSlug } from "@/lib/types";
 
 /* ── 分級說明表：對照資料分級概念的四個等級 ── */
@@ -118,8 +109,8 @@ function AccessMatrix({
 
 /* ── 頁面 ── */
 export default function KnowledgeBasePage() {
-  const [docs, setDocs] = useState<KnowledgeDoc[]>(KNOWLEDGE_SEEDS);
-  const [access, setAccess] = useState<Record<AgentSlug, KnowledgeLevel>>(AGENT_ACCESS_SEEDS);
+  const [docs, setDocs] = useState<KnowledgeDoc[]>([]);
+  const [access, setAccess] = useState<Record<AgentSlug, KnowledgeLevel>>({} as Record<AgentSlug, KnowledgeLevel>);
   const [loaded, setLoaded] = useState(false);
   const [filterAgent, setFilterAgent] = useState<AgentSlug | null>(null);
   const [adding, setAdding] = useState(false);
@@ -127,54 +118,54 @@ export default function KnowledgeBasePage() {
   const [newCategory, setNewCategory] = useState("");
   const [newLevel, setNewLevel] = useState<KnowledgeLevel>(1);
 
-  // 異動存於瀏覽器 localStorage（介面示範，未接後端）
+  // 真實資料：文件與 Agent 讀取權限存在 Supabase（knowledge_base／knowledge_access 表），
+  // 這裡編輯的異動會直接影響 Agent 對話時實際讀得到什麼內容（見 src/lib/knowledge-base.ts）。
   useEffect(() => {
     let cancelled = false;
-    Promise.resolve().then(() => {
-      if (cancelled) return;
-      try {
-        const rawDocs = localStorage.getItem(KNOWLEDGE_STORAGE_KEY);
-        if (rawDocs) setDocs(JSON.parse(rawDocs));
-        const rawAccess = localStorage.getItem(KNOWLEDGE_ACCESS_STORAGE_KEY);
-        if (rawAccess) setAccess({ ...AGENT_ACCESS_SEEDS, ...JSON.parse(rawAccess) });
-      } catch {
-        /* 壞資料就回到種子 */
-      }
-      setLoaded(true);
-    });
+    fetch("/api/knowledge-base")
+      .then((res) => res.json())
+      .then((data: { docs: KnowledgeDoc[]; access: Record<AgentSlug, KnowledgeLevel> }) => {
+        if (cancelled) return;
+        setDocs(data.docs ?? []);
+        setAccess(data.access ?? ({} as Record<AgentSlug, KnowledgeLevel>));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
-  useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem(KNOWLEDGE_STORAGE_KEY, JSON.stringify(docs));
-    } catch {
-      /* 私密模式等情況忽略 */
-    }
-  }, [docs, loaded]);
-  useEffect(() => {
-    if (!loaded) return;
-    try {
-      localStorage.setItem(KNOWLEDGE_ACCESS_STORAGE_KEY, JSON.stringify(access));
-    } catch {
-      /* 私密模式等情況忽略 */
-    }
-  }, [access, loaded]);
 
-  const setAgentAccess = (slug: AgentSlug, level: KnowledgeLevel) =>
+  const setAgentAccess = (slug: AgentSlug, level: KnowledgeLevel) => {
     setAccess((prev) => ({ ...prev, [slug]: level }));
+    fetch("/api/knowledge-base/access", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agentSlug: slug, level }),
+    }).catch(() => {});
+  };
 
-  const removeDoc = (id: string) => setDocs((prev) => prev.filter((d) => d.id !== id));
+  const removeDoc = (id: string) => {
+    setDocs((prev) => prev.filter((d) => d.id !== id));
+    fetch(`/api/knowledge-base?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+  };
 
-  const addDoc = () => {
+  const addDoc = async () => {
     const title = newTitle.trim();
     if (!title) return;
-    setDocs((prev) => [
-      ...prev,
-      { id: `custom-${Date.now()}`, title, category: newCategory.trim() || "未分類", level: newLevel },
-    ]);
+    try {
+      const res = await fetch("/api/knowledge-base", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, category: newCategory.trim() || "未分類", level: newLevel }),
+      });
+      const doc: KnowledgeDoc = await res.json();
+      if (res.ok) setDocs((prev) => [...prev, doc]);
+    } catch {
+      /* 新增失敗就不加入清單 */
+    }
     setNewTitle("");
     setNewCategory("");
     setNewLevel(1);
@@ -197,7 +188,7 @@ export default function KnowledgeBasePage() {
         description="示範資料分級：內容依敏感度分為四級，只有被指派對應等級的 Agent 才能讀取"
         actions={
           <>
-            <Badge tone="neutral">異動儲存於此瀏覽器（示範）</Badge>
+            <Badge tone="success">{loaded ? "已接上真實資料庫" : "載入中…"}</Badge>
             <button
               type="button"
               onClick={() => setAdding((a) => !a)}
