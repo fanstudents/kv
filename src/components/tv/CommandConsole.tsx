@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Send, SlidersHorizontal, Square, X } from "lucide-react";
 import { AGENTS } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
+import ConsoleCanvas from "@/components/tv/ConsoleCanvas";
 import type { AgentMeta } from "@/lib/types";
+import type { CanvasPayload } from "@/lib/chat-canvas";
 
 // 劇院模式指揮台:一個大輸入框,老闆打字 @ 或直接開口說話,同時對多位 Agent 下指令。
 // 沿用 AgentChatWidget 的 @ 提及解析,但允許「一句話同時點好幾位名」,各自平行回覆、
@@ -16,6 +18,7 @@ interface ConsoleEntry {
   agentSlug?: string;
   text: string;
   pending?: boolean;
+  canvas?: CanvasPayload;
 }
 
 let idSeq = 0;
@@ -76,6 +79,8 @@ export default function CommandConsole({
   const [hint, setHint] = useState("");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [lastAgents, setLastAgents] = useState<AgentMeta[]>([]);
+  const [activeCanvas, setActiveCanvas] = useState<CanvasPayload | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -146,11 +151,14 @@ export default function CommandConsole({
   const send = (raw0?: string) => {
     const raw = (raw0 ?? text).trim();
     if (!raw) return;
-    const agents = findMentionedAgents(raw);
+    // 這句話沒 @ 任何人:延續上一輪點名的對象,免得每句都要重打 @Name
+    const mentioned = findMentionedAgents(raw);
+    const agents = mentioned.length > 0 ? mentioned : lastAgents;
     if (agents.length === 0) {
       setHint("先 @ 一位或多位 Agent,或點下面的頭像點名～");
       return;
     }
+    setLastAgents(agents);
 
     const recentHistory = entries
       .filter((e) => !e.pending && e.kind !== "error")
@@ -177,9 +185,11 @@ export default function CommandConsole({
         .then(async (res) => {
           const data = await res.json().catch(() => ({}));
           if (!res.ok || !data.reply) throw new Error(data.error || "沒有收到回覆");
+          const canvas = (data.canvas as CanvasPayload | null) ?? undefined;
           setEntries((prev) =>
-            prev.map((e) => (e.id === pendingId ? { ...e, text: data.reply as string, pending: false } : e))
+            prev.map((e) => (e.id === pendingId ? { ...e, text: data.reply as string, pending: false, canvas } : e))
           );
+          if (canvas) setActiveCanvas(canvas);
         })
         .catch((err) => {
           const msg = err instanceof Error ? err.message : "連線失敗,稍後再試一次";
@@ -307,6 +317,15 @@ export default function CommandConsole({
               e.text
             )}
           </div>
+          {e.canvas && (
+            <button
+              type="button"
+              onClick={() => setActiveCanvas(e.canvas!)}
+              className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              📊 {e.canvas.title}
+            </button>
+          )}
         </div>
       </div>
     );
@@ -339,8 +358,8 @@ export default function CommandConsole({
   // 整頁模式:走 Google 搜尋框式的簡潔版面,沒有大卡片外框
   if (isPage) {
     const hasEntries = entries.length > 0;
-    return (
-      <div className={`flex w-full flex-1 flex-col ${hasEntries ? "" : "items-center justify-center"}`}>
+    const chatColumn = (
+      <div className={`flex min-w-0 flex-1 flex-col ${hasEntries ? "" : "items-center justify-center"}`}>
         {hasEntries && (
           <div ref={scrollRef} className="mx-auto mb-6 w-full max-w-2xl flex-1 space-y-3 overflow-y-auto">
             {entryBubbles}
@@ -413,6 +432,17 @@ export default function CommandConsole({
             ))}
           </div>
         </div>
+      </div>
+    );
+
+    return (
+      <div className={`flex w-full flex-1 gap-6 ${activeCanvas ? "flex-col lg:flex-row" : ""}`}>
+        {chatColumn}
+        {activeCanvas && (
+          <div className="h-[520px] w-full shrink-0 lg:h-full lg:w-[420px]">
+            <ConsoleCanvas canvas={activeCanvas} onClose={() => setActiveCanvas(null)} />
+          </div>
+        )}
       </div>
     );
   }

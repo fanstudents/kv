@@ -68,6 +68,33 @@ const BRANDS: Record<string, Brand> = {
       />
     ),
   },
+  "google-analytics": {
+    viewBox: "0 0 24 24",
+    body: (
+      <>
+        <rect x="14.5" y="3" width="5" height="18" rx="2.5" fill="#F9AB00" />
+        <rect x="9" y="9" width="5" height="12" rx="2.5" fill="#E37400" />
+        <rect x="3.5" y="14" width="5" height="7" rx="2.5" fill="#FDE293" />
+      </>
+    ),
+  },
+  "google-search-console": {
+    viewBox: "0 0 24 24",
+    body: (
+      <>
+        <circle cx="11" cy="11" r="8" fill="none" stroke="#4285F4" strokeWidth="2.4" />
+        <line x1="16.6" y1="16.6" x2="21" y2="21" stroke="#4285F4" strokeWidth="2.4" strokeLinecap="round" />
+        <path
+          d="M7.3 11.2l2.3 2.3 4.6-5.1"
+          fill="none"
+          stroke="#34A853"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </>
+    ),
+  },
   meta: {
     viewBox: "0 0 24 24",
     body: (

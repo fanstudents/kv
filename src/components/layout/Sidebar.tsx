@@ -18,11 +18,13 @@ import {
   Plug,
   MonitorPlay,
   BookLock,
+  Megaphone,
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
 import { SUPER_AGENTS, principalAvatar } from "@/lib/super-agent-data";
 import Avatar from "@/components/agents/Avatar";
+import { useMarketingMode } from "@/lib/marketing-mode";
 import type { AgentMeta } from "@/lib/types";
 
 interface ActivityRow {
@@ -36,6 +38,7 @@ export default function Sidebar() {
   const router = useRouter();
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
+  const [marketingMode, setMarketingModeOn] = useMarketingMode();
 
   // 換頁時自動收起行動版抽屜
   useEffect(() => {
@@ -165,46 +168,76 @@ export default function Sidebar() {
           <span className="ml-auto text-[10px] font-normal text-neutral-400">全螢幕</span>
         </Link>
 
-        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">超級 Agent</p>
-        {SUPER_AGENTS.map((sa) => {
-          const href = `/super-agents/${sa.id}`;
-          return (
-            <Link
-              key={sa.id}
-              href={href}
-              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
-                isActive(href)
-                  ? "bg-[#06C755]/10 text-[#06C755]"
-                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-              }`}
-            >
-              <span className="relative flex h-[30px] w-[30px] shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={principalAvatar(sa)}
-                  alt={sa.principal?.name ?? sa.shortTitle}
-                  className="h-[30px] w-[30px] rounded-full object-cover object-top ring-2 ring-amber-400/60"
-                />
-                <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-500 text-white ring-2 ring-white dark:ring-neutral-900">
-                  <Crown size={8} />
-                </span>
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate">{sa.shortTitle}超級 Agent</span>
-                <span className="block truncate text-xs font-normal text-neutral-400">
-                  {sa.principal ? `主理人 ${sa.principal.name}` : "主理人遴選中"}
-                </span>
-              </span>
-              {sa.status === "active" && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#06C755]" />}
-            </Link>
-          );
-        })}
+        {/* 行銷模式:展示給行銷人看時，畫面收斂成只剩行銷 Team 的 Agent */}
+        <button
+          type="button"
+          onClick={() => setMarketingModeOn(!marketingMode)}
+          title="切換成只顯示行銷 Team 的 Agent，適合展示給行銷人看"
+          className={`mt-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            marketingMode
+              ? "border-indigo-400/40 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300"
+              : "border-neutral-200 text-neutral-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-neutral-800 dark:text-neutral-300"
+          }`}
+        >
+          <Megaphone size={18} />
+          行銷模式
+          <span
+            className={`ml-auto flex h-5 w-9 shrink-0 items-center rounded-full px-0.5 transition-colors ${
+              marketingMode ? "justify-end bg-indigo-500" : "justify-start bg-neutral-300 dark:bg-neutral-700"
+            }`}
+          >
+            <span className="h-4 w-4 rounded-full bg-white shadow" />
+          </span>
+        </button>
+
+        {!marketingMode && (
+          <>
+            <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">超級 Agent</p>
+            {SUPER_AGENTS.map((sa) => {
+              const href = `/super-agents/${sa.id}`;
+              return (
+                <Link
+                  key={sa.id}
+                  href={href}
+                  className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                    isActive(href)
+                      ? "bg-[#06C755]/10 text-[#06C755]"
+                      : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                  }`}
+                >
+                  <span className="relative flex h-[30px] w-[30px] shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={principalAvatar(sa)}
+                      alt={sa.principal?.name ?? sa.shortTitle}
+                      className="h-[30px] w-[30px] rounded-full object-cover object-top ring-2 ring-amber-400/60"
+                    />
+                    <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-500 text-white ring-2 ring-white dark:ring-neutral-900">
+                      <Crown size={8} />
+                    </span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{sa.shortTitle}超級 Agent</span>
+                    <span className="block truncate text-xs font-normal text-neutral-400">
+                      {sa.principal ? `主理人 ${sa.principal.name}` : "主理人遴選中"}
+                    </span>
+                  </span>
+                  {sa.status === "active" && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[#06C755]" />}
+                </Link>
+              );
+            })}
+          </>
+        )}
 
         <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">行銷 Team</p>
         {AGENTS.filter((a) => agentTeam(a.slug) === "marketing").map(renderAgent)}
 
-        <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">行政 Team</p>
-        {AGENTS.filter((a) => agentTeam(a.slug) === "admin").map(renderAgent)}
+        {!marketingMode && (
+          <>
+            <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">行政 Team</p>
+            {AGENTS.filter((a) => agentTeam(a.slug) === "admin").map(renderAgent)}
+          </>
+        )}
 
         <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">系統</p>
         <Link

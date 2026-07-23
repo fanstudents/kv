@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Maximize2, MonitorPlay, X } from "lucide-react";
+import { Maximize2, Megaphone, MonitorPlay, X } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
 import Avatar from "@/components/agents/Avatar";
+import { useMarketingMode } from "@/lib/marketing-mode";
 import type { AgentMeta } from "@/lib/types";
 
 interface ActivityRow {
@@ -234,7 +235,7 @@ function DoorPlate({ sceneId }: { sceneId: (typeof SCENES)[number]["id"] }) {
 }
 
 // 全螢幕檢視時的左側面板：Agent team 列表，點名字前往該 Agent 的詳情頁
-function TeamList({ counts }: { counts: Record<string, number> }) {
+function TeamList({ counts, agents, marketingMode }: { counts: Record<string, number>; agents: AgentMeta[]; marketingMode: boolean }) {
   const renderRow = (agent: AgentMeta) => (
     <Link
       key={agent.slug}
@@ -268,11 +269,15 @@ function TeamList({ counts }: { counts: Record<string, number> }) {
   return (
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-black/70 px-3 py-5 backdrop-blur-xl">
       <p className="px-2.5 pb-1 text-sm font-semibold text-white">Agent Team</p>
-      <p className="px-2.5 pb-4 text-xs text-white/40">{AGENTS.length} 位隊友，點名字查看細節</p>
+      <p className="px-2.5 pb-4 text-xs text-white/40">{agents.length} 位隊友，點名字查看細節</p>
       <p className="px-2.5 pb-1 text-xs font-semibold tracking-wide text-white/40">行銷 Team</p>
-      <div className="space-y-0.5">{AGENTS.filter((a) => agentTeam(a.slug) === "marketing").map(renderRow)}</div>
-      <p className="px-2.5 pb-1 pt-4 text-xs font-semibold tracking-wide text-white/40">行政 Team</p>
-      <div className="space-y-0.5">{AGENTS.filter((a) => agentTeam(a.slug) === "admin").map(renderRow)}</div>
+      <div className="space-y-0.5">{agents.filter((a) => agentTeam(a.slug) === "marketing").map(renderRow)}</div>
+      {!marketingMode && (
+        <>
+          <p className="px-2.5 pb-1 pt-4 text-xs font-semibold tracking-wide text-white/40">行政 Team</p>
+          <div className="space-y-0.5">{agents.filter((a) => agentTeam(a.slug) === "admin").map(renderRow)}</div>
+        </>
+      )}
     </div>
   );
 }
@@ -282,6 +287,8 @@ export default function OfficeScene() {
   const [celebrating, setCelebrating] = useState<Set<string>>(new Set());
   const [sceneIndex, setSceneIndex] = useState(0);
   const [fullView, setFullView] = useState(false);
+  const [marketingMode] = useMarketingMode();
+  const visibleAgents = marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS;
 
   // 全螢幕檢視時 Esc 可退出
   useEffect(() => {
@@ -374,7 +381,7 @@ export default function OfficeScene() {
         }}
       >
         {SCENES.map((s) => {
-          const sceneAgents = AGENTS.filter((a) => (AGENT_SCENE[a.slug] ?? "office") === s.id);
+          const sceneAgents = visibleAgents.filter((a) => (AGENT_SCENE[a.slug] ?? "office") === s.id);
           return (
             <div
               key={s.id}
@@ -457,12 +464,18 @@ export default function OfficeScene() {
   if (fullView) {
     return (
       <div className="fixed inset-0 z-50 flex bg-black">
-        <TeamList counts={counts} />
+        <TeamList counts={counts} agents={visibleAgents} marketingMode={marketingMode} />
         <div className="relative min-w-0 flex-1 overflow-hidden">
           {sceneContent}
 
           {/* 右上角：切換進完整劇場模式、或退出全螢幕檢視 */}
           <div className="absolute right-4 top-4 z-40 flex items-center gap-2">
+            {marketingMode && (
+              <span className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-500/15 px-3 py-2 text-xs font-medium text-indigo-200">
+                <Megaphone size={13} />
+                行銷模式
+              </span>
+            )}
             <Link
               href="/tv"
               title="切換成劇場模式"

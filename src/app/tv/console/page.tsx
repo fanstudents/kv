@@ -30,7 +30,7 @@ export default function CommandConsolePage() {
         <ChevronLeft size={15} />
         返回劇場模式
       </button>
-      <div className="mx-auto flex w-full max-w-[860px] flex-1">
+      <div className="mx-auto flex w-full max-w-6xl flex-1">
         <CommandConsole open onOpenChange={back} variant="page" />
       </div>
     </main>

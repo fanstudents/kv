@@ -1,21 +1,39 @@
+"use client";
+
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Megaphone } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
 import Avatar from "@/components/agents/Avatar";
 import OfficeScene from "@/components/office/OfficeScene";
-import { AGENTS } from "@/lib/agent-data";
+import { AGENTS, agentTeam } from "@/lib/agent-data";
+import { useMarketingMode } from "@/lib/marketing-mode";
 
 export default function DashboardPage() {
-  const activeCount = AGENTS.filter((a) => a.status === "active").length;
-  const totalRecipients = AGENTS.reduce((sum, a) => sum + a.recipients, 0);
+  const [marketingMode] = useMarketingMode();
+  const visibleAgents = marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS;
+
+  const activeCount = visibleAgents.filter((a) => a.status === "active").length;
+  const totalRecipients = visibleAgents.reduce((sum, a) => sum + a.recipients, 0);
 
   return (
     <div>
       <PageHeader
         title="團隊總覽"
-        description={`歡迎回到原騰數位科技！${AGENTS.length} 位 AI 隊友正在辦公室裡各司其職，點擊座位可查看細節`}
+        description={
+          marketingMode
+            ? `行銷模式：只顯示 ${visibleAgents.length} 位行銷 AI 隊友，適合展示給行銷人看`
+            : `歡迎回到原騰數位科技！${AGENTS.length} 位 AI 隊友正在辦公室裡各司其職，點擊座位可查看細節`
+        }
+        actions={
+          marketingMode ? (
+            <span className="flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-300">
+              <Megaphone size={13} />
+              行銷模式
+            </span>
+          ) : undefined
+        }
       />
 
       <div className="mb-8">
@@ -26,7 +44,7 @@ export default function DashboardPage() {
         <Card>
           <p className="text-xs text-neutral-400">上工中隊友</p>
           <p className="mt-1 text-2xl font-semibold text-neutral-900 dark:text-white">
-            {activeCount} <span className="text-sm font-normal text-neutral-400">/ {AGENTS.length}</span>
+            {activeCount} <span className="text-sm font-normal text-neutral-400">/ {visibleAgents.length}</span>
           </p>
         </Card>
         <Card>
@@ -40,7 +58,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {AGENTS.map((agent) => (
+        {visibleAgents.map((agent) => (
           <Link key={agent.slug} href={`/agents/${agent.slug}`}>
             <Card className="h-full transition-shadow hover:shadow-md">
               <div className="flex items-start justify-between">

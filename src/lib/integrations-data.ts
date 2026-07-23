@@ -33,12 +33,13 @@ export const INTEGRATION_CATEGORIES = [
   "電商",
   "廣告",
   "資料庫",
+  "數據分析",
   "AI 模型",
   "其他",
 ] as const;
 
-// v2：品牌標誌鍵改版（gmail/line/… 取代舊 lucide 鍵），提高版號讓舊快取重新載入種子
-export const INTEGRATIONS_STORAGE_KEY = "kv-integrations-v2";
+// v3：加入 GA4／Search Console（今天接上的真實資料來源），提高版號讓舊快取重新載入種子
+export const INTEGRATIONS_STORAGE_KEY = "kv-integrations-v3";
 
 export const INTEGRATION_SEEDS: Integration[] = [
   {
@@ -153,6 +154,34 @@ export const INTEGRATION_SEEDS: Integration[] = [
     icon: "meta",
     color: "#1877F2",
     uses: [{ agent: "today", feature: "廣告成效每日抓取（待連線）" }],
+    builtin: true,
+  },
+  {
+    id: "ga4",
+    name: "Google Analytics 4",
+    provider: "Google",
+    category: "數據分析",
+    link: "https://analytics.google.com",
+    status: "connected",
+    icon: "google-analytics",
+    color: "#F9AB00",
+    uses: [
+      { agent: "report", feature: "流量、轉換與渠道拆分，指揮台圖表資料來源" },
+    ],
+    builtin: true,
+  },
+  {
+    id: "gsc",
+    name: "Google Search Console",
+    provider: "Google",
+    category: "數據分析",
+    link: "https://search.google.com/search-console",
+    status: "connected",
+    icon: "google-search-console",
+    color: "#4285F4",
+    uses: [
+      { agent: "expense", feature: "關鍵字排名與點擊成效，指揮台圖表資料來源" },
+    ],
     builtin: true,
   },
 ];

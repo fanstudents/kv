@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AGENTS } from "@/lib/agent-data";
 import { getAgentLiveContext } from "@/lib/meeting-context";
 import { replyToChat } from "@/lib/openai";
+import { buildCanvasForReply } from "@/lib/chat-canvas";
 
 const TEAM_LEAD_SLUG = "teamlead";
 
@@ -45,5 +46,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 
-  return NextResponse.json({ reply: text || "收到，我確認後回覆您。" });
+  let canvas = null;
+  try {
+    canvas = await buildCanvasForReply(agentSlug, message);
+  } catch {
+    // 圖表資料抓不到就不附畫布，不影響文字回覆
+  }
+
+  return NextResponse.json({ reply: text || "收到，我確認後回覆您。", canvas });
 }
