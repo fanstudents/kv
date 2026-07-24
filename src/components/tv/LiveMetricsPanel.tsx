@@ -3,22 +3,26 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import TrendChart from "@/components/agents/charts/TrendChart";
-import type { SearchOverview } from "@/lib/gsc";
-import type { TrafficOverview } from "@/lib/ga4";
 import type { PipelineOverview } from "@/lib/teaching-system";
 import type { WeekOverview } from "@/lib/google";
 import type { AgentSlug } from "@/lib/types";
+import { buildTrafficDemo } from "@/lib/ga4-demo";
+import { buildSearchDemo } from "@/lib/gsc-demo";
+import { ADS_DEMO_CAMPAIGNS, ADS_DEMO_DAILY_SPEND, ADS_DEMO_STATS } from "@/lib/ads-demo";
+import { SOCIAL_DEMO_POSTS, SOCIAL_DEMO_STATS, SOCIAL_DEMO_WEEKLY_ENGAGEMENT } from "@/lib/social-demo";
+import {
+  REPUTATION_DEMO_MENTIONS,
+  REPUTATION_DEMO_STATS,
+  REPUTATION_DEMO_TREND,
+} from "@/lib/reputation-demo";
 
-// 劇場模式的「彙報完才揭曉」區塊裡，接了真實數據來源的 Agent 除了原本的示意 weekStats，
-// 再多秀一段真的內容——但形狀跟著資料本質走，不是每個都套同一個「數字卡+趨勢圖」模板：
-// GA4／GSC 是流量指標，用趨勢圖；行程是行事曆，用七天分佈條＋接下來的行程；營運是專案，
-// 除了趨勢圖還多一份本月清單。預設都是跟前 7 天比較增長幅度(營運是專案而非日流量指標,
-// 維持看近 6 個月趨勢；行程是「未來」而非「過去」的行程分佈，也不適用增幅比較)。
-// 沒接真實數據源的 Agent 這裡直接不渲染任何東西，外層不用另外判斷。
+// 劇場模式的「彙報完才揭曉」區塊裡，五位行銷 Team 成員(數據／SEO／社群／廣告／口碑)
+// 目前全數改用示範資料呈現(錄影／展示用途)——原本 report／expense 接的是真實 GA4／GSC，
+// 想切回真實資料，把下面 ReportLiveMetrics／ExpenseLiveMetrics 改回呼叫
+// /api/agents/report/traffic-overview、/api/agents/expense/seo-overview 即可(參照 git 歷史)。
+// 營運／行程不是行銷 Team 成員，維持原本接真實資料來源的邏輯不變。
 
 const LIVE_DATA_ENDPOINT: Partial<Record<AgentSlug, string>> = {
-  report: "/api/agents/report/traffic-overview",
-  expense: "/api/agents/expense/seo-overview",
   operations: "/api/agents/operations/pipeline",
   schedule: "/api/agents/schedule/week-overview",
 };
@@ -66,6 +70,15 @@ function StatBox({ label, value, delta, deltaHint }: { label: string; value: str
   );
 }
 
+function ListRow({ primary, secondary }: { primary: string; secondary: string }) {
+  return (
+    <li className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.03] px-3.5 py-2.5 text-xs">
+      <span className="min-w-0 truncate text-white/80">{primary}</span>
+      <span className="shrink-0 text-white/35">{secondary}</span>
+    </li>
+  );
+}
+
 function PanelShell({ title, source, children }: { title: string; source: string; children: React.ReactNode }) {
   return (
     <div className="tv-in space-y-3">
@@ -81,15 +94,13 @@ function PanelShell({ title, source, children }: { title: string; source: string
   );
 }
 
+// 數據參謀(Ivy)用:GA4 流量示範資料
 function ReportLiveMetrics() {
-  const { data, error } = useOverview<TrafficOverview>("report");
-  if (error) return <p className="text-xs text-white/30">GA4 真實資料讀取失敗：{error}</p>;
-  if (!data) return <div className="h-40 animate-pulse rounded-xl border border-white/8 bg-white/[0.02]" />;
-
+  const data = buildTrafficDemo(7);
   const trendData = data.dailyTrend.map((d) => ({ date: d.date.slice(5).replace("-", "/"), sessions: d.sessions }));
 
   return (
-    <PanelShell title="GA4 真實流量 · 近 7 天" source="Google Analytics 4">
+    <PanelShell title="GA4 流量 · 近 7 天" source="Google Analytics 4（示範）">
       <div className="grid grid-cols-3 gap-3">
         <StatBox label="工作階段" value={data.sessions.toLocaleString("en-US")} delta={data.sessionsDelta} deltaHint="較前 7 天" />
         <StatBox label="不重複使用者" value={data.activeUsers.toLocaleString("en-US")} />
@@ -108,24 +119,17 @@ function ReportLiveMetrics() {
   );
 }
 
+// SEO 尖兵(Leo)用:GSC 關鍵字排名示範資料
 function ExpenseLiveMetrics() {
-  const { data, error } = useOverview<SearchOverview>("expense");
-  if (error) return <p className="text-xs text-white/30">Search Console 真實資料讀取失敗：{error}</p>;
-  if (!data) return <div className="h-40 animate-pulse rounded-xl border border-white/8 bg-white/[0.02]" />;
-
+  const data = buildSearchDemo(7);
   const trendData = data.dailyTrend.map((d) => ({ date: d.date.slice(5).replace("-", "/"), clicks: d.clicks }));
 
   return (
-    <PanelShell title="SEO 真實成效 · 近 7 天" source="Google Search Console">
+    <PanelShell title="SEO 成效 · 近 7 天" source="Google Search Console（示範）">
       <div className="grid grid-cols-3 gap-3">
         <StatBox label="總點擊次數" value={data.totalClicks.toLocaleString("en-US")} delta={data.clicksDelta} deltaHint="較前 7 天" />
         <StatBox label="總曝光次數" value={data.totalImpressions.toLocaleString("en-US")} />
-        <StatBox
-          label="平均排名"
-          value={data.avgPosition.toFixed(1)}
-          delta={data.positionDelta}
-          deltaHint="正值＝名次進步"
-        />
+        <StatBox label="平均排名" value={data.avgPosition.toFixed(1)} delta={data.positionDelta} deltaHint="正值＝名次進步" />
       </div>
       <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
         <TrendChart
@@ -136,6 +140,132 @@ function ExpenseLiveMetrics() {
           forceDark
         />
       </div>
+      <ul className="space-y-1.5">
+        {data.topQueries.slice(0, 4).map((q) => (
+          <ListRow key={q.query} primary={q.query} secondary={`第 ${q.position.toFixed(1)} 名 · ${q.clicks} 次點擊`} />
+        ))}
+      </ul>
+    </PanelShell>
+  );
+}
+
+// 社群操盤手(Sunny)用:多版位社群成效示範資料
+function CardLiveMetrics() {
+  const stats = SOCIAL_DEMO_STATS;
+
+  return (
+    <PanelShell title="社群經營 · 近 7 天" source="Instagram／Facebook／Threads（示範）">
+      <div className="grid grid-cols-3 gap-3">
+        <StatBox label="本週發文" value={`${stats.posts}`} delta={stats.postsDelta} deltaHint="較前 7 天" />
+        <StatBox label="平均互動率" value={`${stats.avgEngagement}%`} delta={stats.avgEngagementDelta} deltaHint="較前 7 天" />
+        <StatBox label="總觸及" value={stats.totalReach.toLocaleString("en-US")} />
+      </div>
+      <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
+        <TrendChart
+          data={SOCIAL_DEMO_WEEKLY_ENGAGEMENT}
+          xKey="date"
+          series={[{ key: "engagement", name: "互動率", color: "#8B5CF6" }]}
+          height={140}
+          valueFormatter={(v) => `${v}%`}
+          forceDark
+        />
+      </div>
+      <ul className="space-y-1.5">
+        {SOCIAL_DEMO_POSTS.slice(0, 3).map((p) => (
+          <ListRow key={`${p.platform}-${p.format}`} primary={`${p.platform} · ${p.format}`} secondary={p.scheduledAt} />
+        ))}
+      </ul>
+    </PanelShell>
+  );
+}
+
+// 廣告投手(Dana)用:Meta 廣告成效示範資料
+function TodayLiveMetrics() {
+  return (
+    <PanelShell title="Meta 廣告成效 · 近 7 天" source="Meta 廣告管理員（示範）">
+      <div className="grid grid-cols-3 gap-3">
+        <StatBox
+          label="廣告花費"
+          value={`NT$ ${ADS_DEMO_STATS.spend.toLocaleString("en-US")}`}
+          delta={ADS_DEMO_STATS.spendDelta}
+          deltaHint="較前 7 天"
+        />
+        <StatBox label="整體 ROAS" value={ADS_DEMO_STATS.roas.toFixed(1)} delta={ADS_DEMO_STATS.roasDelta} deltaHint="較前 7 天" />
+        <StatBox
+          label="平均 CPA"
+          value={`NT$ ${ADS_DEMO_STATS.cpa}`}
+          delta={-ADS_DEMO_STATS.cpaDelta}
+          deltaHint="正值＝成本下降"
+        />
+      </div>
+      <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
+        <TrendChart
+          data={ADS_DEMO_DAILY_SPEND}
+          xKey="date"
+          series={[{ key: "spend", name: "花費", color: "#EF4444" }]}
+          height={140}
+          valueFormatter={(v) => `NT$ ${v.toLocaleString("en-US")}`}
+          forceDark
+        />
+      </div>
+      <ul className="space-y-1.5">
+        {ADS_DEMO_CAMPAIGNS.slice(0, 3).map((c) => (
+          <ListRow key={c.name} primary={c.name} secondary={`ROAS ${c.roas.toFixed(1)} · ${c.status}`} />
+        ))}
+      </ul>
+    </PanelShell>
+  );
+}
+
+// 輿情哨兵(Jay)用:多平台情緒分數 + 聲量內容示範資料
+function CompetitorLiveMetrics() {
+  return (
+    <PanelShell title="品牌口碑與聲量 · 近 7 天" source="多平台社群聆聽（示範）">
+      <div className="grid grid-cols-3 gap-3">
+        <StatBox
+          label="總聲量"
+          value={REPUTATION_DEMO_STATS.totalMentions.toLocaleString("en-US")}
+          delta={REPUTATION_DEMO_STATS.mentionsDelta}
+          deltaHint="較前 7 天"
+        />
+        <StatBox label="正面評價比例" value={`${REPUTATION_DEMO_STATS.positiveRatio}%`} delta={REPUTATION_DEMO_STATS.positiveRatioDelta} deltaHint="較前 7 天" />
+        <StatBox label="待處理負評" value={`${REPUTATION_DEMO_STATS.pendingNegative}`} />
+      </div>
+      <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
+        <TrendChart
+          data={REPUTATION_DEMO_TREND}
+          xKey="date"
+          series={[
+            { key: "positive", name: "正面", color: "#06C755" },
+            { key: "negative", name: "負面", color: "#EF4444" },
+          ]}
+          height={140}
+          forceDark
+        />
+      </div>
+      <ul className="space-y-2">
+        {REPUTATION_DEMO_MENTIONS.map((m, i) => (
+          <li
+            key={i}
+            className={`rounded-xl border px-3.5 py-2.5 text-xs ${
+              m.sentiment === "negative" ? "border-amber-400/25 bg-amber-400/[0.06]" : "border-white/8 bg-white/[0.03]"
+            }`}
+          >
+            <div className="mb-1 flex items-center gap-2">
+              <span className="font-medium text-white/70">{m.platform}</span>
+              <span className="text-white/35">{m.handle}</span>
+              <span
+                className={`ml-auto shrink-0 ${
+                  m.sentiment === "positive" ? "text-[#06C755]" : m.sentiment === "negative" ? "text-amber-300" : "text-white/40"
+                }`}
+              >
+                {m.time}
+              </span>
+            </div>
+            <p className="leading-relaxed text-white/70">「{m.quote}」</p>
+          </li>
+        ))}
+      </ul>
     </PanelShell>
   );
 }
@@ -259,6 +389,9 @@ function ScheduleLiveMetrics() {
 export default function LiveMetricsPanel({ slug, color }: { slug: AgentSlug; color: string }) {
   if (slug === "report") return <ReportLiveMetrics />;
   if (slug === "expense") return <ExpenseLiveMetrics />;
+  if (slug === "card") return <CardLiveMetrics />;
+  if (slug === "today") return <TodayLiveMetrics />;
+  if (slug === "competitor") return <CompetitorLiveMetrics />;
   if (slug === "operations") return <OperationsLiveMetrics color={color} />;
   if (slug === "schedule") return <ScheduleLiveMetrics />;
   return null;
