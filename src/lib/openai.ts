@@ -637,7 +637,9 @@ export async function mintRealtimeSession(cfg: RealtimeSessionConfig): Promise<R
         audio: {
           input: {
             transcription: { model: "whisper-1" },
-            turn_detection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 600 },
+            // 語意判斷「這句話講完了沒」，講完立刻接話，不像固定靜音計時器要傻等一段時間，
+            // 語尾拖長（「這個…嗯…」）才會多等——比固定 600ms 靜音等待更快也更自然。
+            turn_detection: { type: "semantic_vad", eagerness: "high" },
           },
           output: { voice: cfg.voice },
         },
