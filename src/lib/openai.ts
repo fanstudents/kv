@@ -420,6 +420,60 @@ export async function replyToChat(params: {
   return (data.choices?.[0]?.message?.content ?? "").trim();
 }
 
+export interface ActionPlanItem {
+  label: string;
+  detail?: string;
+}
+
+/**
+ * 指揮台的「行動方案」畫布：把一段同事的口語回覆整理成幾條具體可執行的行動項目，
+ * 給老闆在畫布面板看，而不是要他自己從對話泡泡裡腦補下一步該做什麼。
+ * 純粹是文字整理，抓不到具體行動（例如只是閒聊或單純答覆事實）就回傳 null，
+ * 不勉強生出空洞的行動項目。
+ */
+export async function extractActionPlan(params: {
+  agent: MeetingAgentInput;
+  message: string;
+  replyText: string;
+}): Promise<{ title: string; items: ActionPlanItem[] } | null> {
+  const data = await chatCompletion(
+    {
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "把一段同事對老闆的口語回覆，整理成 2-5 條具體、可執行的行動項目，給老闆在畫面上看的行動方案卡。" +
+            "每條 label 要簡短(不超過 20 字)，可以的話附一句更細的說明放在 detail(選填)。" +
+            '只回傳 JSON 物件：{"title": "這份行動方案的標題", "items": [{"label": "...", "detail": "..."}]}。' +
+            '如果這段回覆內容根本沒有具體可執行的行動(只是閒聊、單純回答事實或數字)，回傳 {"items": []}，不要硬湊。',
+        },
+        {
+          role: "user",
+          content: `老闆問：「${params.message}」\n${params.agent.name}回覆：「${params.replyText}」\n請整理成行動方案。`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+      max_tokens: 300,
+    },
+    { operation: "指揮台行動方案萃取", agentSlug: params.agent.slug }
+  );
+
+  const content = data.choices?.[0]?.message?.content ?? "{}";
+  let parsed: { title?: string; items?: ActionPlanItem[] } = {};
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    return null;
+  }
+  const items = Array.isArray(parsed.items)
+    ? parsed.items.filter((i): i is ActionPlanItem => Boolean(i && typeof i.label === "string" && i.label.trim()))
+    : [];
+  if (items.length === 0) return null;
+  return { title: parsed.title?.trim() || "行動方案", items };
+}
+
 /**
  * 會議室語音轉文字：用 OpenAI 的語音辨識模型（比瀏覽器內建的 Web Speech API
  * 準確得多，尤其是中文口語、專有名詞）。promptHint 可帶入會議情境／同事姓名，

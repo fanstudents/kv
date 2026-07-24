@@ -21,6 +21,13 @@ interface ConsoleEntry {
   canvas?: CanvasPayload;
 }
 
+const CANVAS_ICON: Record<CanvasPayload["kind"], string> = {
+  "ga4-trend": "📊",
+  "gsc-trend": "📊",
+  calendar: "📅",
+  "action-plan": "✅",
+};
+
 let idSeq = 0;
 function nextId() {
   idSeq += 1;
@@ -87,6 +94,10 @@ export default function CommandConsole({
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  // 防止「不小心送出兩次」：同步鎖，涵蓋 send() 從讀取 text 到清空 text 這段關鍵區間——
+  // IME 選字時按 Enter 既會確認組字、又會觸發 keydown，或連按兩下 Enter 太快，
+  // 都可能在 setText("") 生效前讓第二次呼叫讀到同一段還沒被清空的文字。
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -149,6 +160,7 @@ export default function CommandConsole({
   };
 
   const send = (raw0?: string) => {
+    if (sendingRef.current) return;
     const raw = (raw0 ?? text).trim();
     if (!raw) return;
     // 這句話沒 @ 任何人:延續上一輪點名的對象,免得每句都要重打 @Name
@@ -158,6 +170,7 @@ export default function CommandConsole({
       setHint("先 @ 一位或多位 Agent,或點下面的頭像點名～");
       return;
     }
+    sendingRef.current = true;
     setLastAgents(agents);
 
     const recentHistory = entries
@@ -170,6 +183,8 @@ export default function CommandConsole({
     setText("");
     setMention(null);
     setHint("");
+    // 關鍵區間到此結束(訊息已經讀走、輸入框也已清空)，開鎖讓下一則訊息可以送出
+    sendingRef.current = false;
 
     agents.forEach((agent) => {
       const pendingId = nextId();
@@ -201,6 +216,11 @@ export default function CommandConsole({
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    // 中文注音／拼音等輸入法選字時按 Enter 只是確認組字，不是要送出；
+    // isComposing 涵蓋大部分瀏覽器，Safari 較舊版本則要靠 keyCode 229 兜底。
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    // 按住 Enter 不放會連續觸發 keydown，不是使用者真的按了好幾次
+    if (e.repeat) return;
     if (mention && suggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -281,7 +301,7 @@ export default function CommandConsole({
   const entryBubbles = entries.map((e) => {
     if (e.kind === "command") {
       return (
-        <div key={e.id} className="flex justify-end">
+        <div key={e.id} className="tv-fade flex justify-end">
           <div className="max-w-[85%] break-words rounded-2xl rounded-br-sm bg-[#06C755] px-3.5 py-2 text-sm text-black">
             {e.text}
           </div>
@@ -290,7 +310,7 @@ export default function CommandConsole({
     }
     const agent = AGENTS.find((a) => a.slug === e.agentSlug);
     return (
-      <div key={e.id} className="flex items-start gap-2.5">
+      <div key={e.id} className="tv-fade flex items-start gap-2.5">
         {agent && <Avatar personEn={agent.personEn} color={agent.color} size={26} />}
         <div className="min-w-0 flex-1">
           {agent && (
@@ -321,9 +341,9 @@ export default function CommandConsole({
             <button
               type="button"
               onClick={() => setActiveCanvas(e.canvas!)}
-              className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+              className="tv-fade mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/[0.06] px-2.5 py-1 text-[11px] font-medium text-white/60 transition-all hover:scale-105 hover:bg-white/10 hover:text-white"
             >
-              📊 {e.canvas.title}
+              {CANVAS_ICON[e.canvas.kind]} {e.canvas.title}
             </button>
           )}
         </div>
@@ -408,7 +428,7 @@ export default function CommandConsole({
                 type="button"
                 onClick={() => send()}
                 disabled={!text.trim()}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#06C755] text-black transition-opacity hover:opacity-90 disabled:opacity-40"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#06C755] text-black transition-all hover:opacity-90 active:scale-90 disabled:opacity-40 disabled:active:scale-100"
                 aria-label="送出"
               >
                 <Send size={15} />
@@ -424,7 +444,7 @@ export default function CommandConsole({
                 type="button"
                 onClick={() => insertMention(a, null)}
                 title={`點名 @${a.personEn}`}
-                className="shrink-0 rounded-full opacity-60 ring-offset-2 ring-offset-[#05060a] transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2"
+                className="shrink-0 rounded-full opacity-60 ring-offset-2 ring-offset-[#05060a] transition-all hover:-translate-y-0.5 hover:scale-110 hover:opacity-100 focus:outline-none focus-visible:ring-2"
                 style={{ ["--tw-ring-color" as string]: a.color }}
               >
                 <Avatar personEn={a.personEn} color={a.color} size={26} />
@@ -481,7 +501,7 @@ export default function CommandConsole({
             type="button"
             onClick={() => insertMention(a, null)}
             title={`點名 @${a.personEn}`}
-            className="shrink-0 rounded-full opacity-70 ring-offset-2 ring-offset-[#0b0d12] transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2"
+            className="shrink-0 rounded-full opacity-70 ring-offset-2 ring-offset-[#0b0d12] transition-all hover:-translate-y-0.5 hover:scale-110 hover:opacity-100 focus:outline-none focus-visible:ring-2"
             style={{ ["--tw-ring-color" as string]: a.color }}
           >
             <Avatar personEn={a.personEn} color={a.color} size={30} />
@@ -524,7 +544,7 @@ export default function CommandConsole({
             type="button"
             onClick={() => send()}
             disabled={!text.trim()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#06C755] text-black transition-opacity hover:opacity-90 disabled:opacity-40"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#06C755] text-black transition-all hover:opacity-90 active:scale-90 disabled:opacity-40 disabled:active:scale-100"
             aria-label="送出"
           >
             <Send size={17} />

@@ -48,9 +48,14 @@ export async function POST(req: NextRequest) {
 
   let canvas = null;
   try {
-    canvas = await buildCanvasForReply(agentSlug, message);
+    canvas = await buildCanvasForReply({
+      agentSlug,
+      message,
+      replyText: text,
+      agent: { slug: agent.slug, name: `${agent.personEn} ${agent.personZh}`, role: agent.role, description: agent.description },
+    });
   } catch {
-    // 圖表資料抓不到就不附畫布，不影響文字回覆
+    // 畫布資料抓不到就不附畫布，不影響文字回覆
   }
 
   return NextResponse.json({ reply: text || "收到，我確認後回覆您。", canvas });
