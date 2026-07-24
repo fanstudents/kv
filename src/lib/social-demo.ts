@@ -3,8 +3,6 @@
 export interface SocialPostDemo {
   platform: "Instagram" | "Facebook" | "Threads";
   format: string;
-  ratio: string;
-  gradient: [string, string];
   caption: string;
   likes: number;
   comments: number;
@@ -55,8 +53,6 @@ export const SOCIAL_DEMO_POSTS: SocialPostDemo[] = [
   {
     platform: "Instagram",
     format: "Feed 貼文",
-    ratio: "1:1",
-    gradient: ["#8B5CF6", "#EC4899"],
     caption: "夏季優惠正式開跑 ☀️ 前 100 名下單再送限量小禮，連結在個人檔案！",
     likes: 482,
     comments: 36,
@@ -66,8 +62,6 @@ export const SOCIAL_DEMO_POSTS: SocialPostDemo[] = [
   {
     platform: "Instagram",
     format: "限時動態",
-    ratio: "9:16",
-    gradient: ["#6366F1", "#8B5CF6"],
     caption: "3 個常見問題，滑動看解答 →",
     likes: 214,
     comments: 8,
@@ -77,8 +71,6 @@ export const SOCIAL_DEMO_POSTS: SocialPostDemo[] = [
   {
     platform: "Facebook",
     format: "連結貼文",
-    ratio: "1.91:1",
-    gradient: ["#3B82F6", "#8B5CF6"],
     caption: "【客戶案例】三個月導入 AI 客服，回覆時間縮短 70%——完整故事看這裡",
     likes: 156,
     comments: 22,
@@ -88,8 +80,6 @@ export const SOCIAL_DEMO_POSTS: SocialPostDemo[] = [
   {
     platform: "Threads",
     format: "文字貼文",
-    ratio: "text",
-    gradient: ["#171717", "#404040"],
     caption: "做行銷這幾年學到最重要的一件事：與其追熱點，不如把基本功練扎實。",
     likes: 328,
     comments: 47,

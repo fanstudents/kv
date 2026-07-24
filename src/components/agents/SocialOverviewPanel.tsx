@@ -14,58 +14,14 @@ import {
 
 const SOCIAL_COLOR = "#8B5CF6"; // 跟 Sunny(社群 Agent)頭像色一致
 
-const PLATFORM_TONE: Record<string, string> = {
-  Instagram: "bg-gradient-to-br from-purple-500 to-pink-500",
-  Facebook: "bg-blue-500",
-  Threads: "bg-neutral-900 dark:bg-neutral-700",
+const PLATFORM_DOT: Record<string, string> = {
+  Instagram: "#EC4899",
+  Facebook: "#3B82F6",
+  Threads: "#8B5CF6",
 };
 
-function PostMock({ post }: { post: (typeof SOCIAL_DEMO_POSTS)[number] }) {
-  const isText = post.ratio === "text";
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-neutral-200 dark:border-neutral-800">
-      <div className="flex items-center gap-2 px-3 py-2">
-        <span className={`h-5 w-5 shrink-0 rounded-full ${PLATFORM_TONE[post.platform]}`} />
-        <span className="text-xs font-medium text-neutral-700 dark:text-neutral-200">{post.platform}</span>
-        <span className="text-[11px] text-neutral-400">· {post.format}</span>
-        <span className="ml-auto text-[11px] text-neutral-400">{post.scheduledAt}</span>
-      </div>
-
-      {isText ? (
-        <div
-          className="mx-3 mb-3 flex min-h-[96px] items-center rounded-lg p-4 text-sm text-white"
-          style={{ background: `linear-gradient(135deg, ${post.gradient[0]}, ${post.gradient[1]})` }}
-        >
-          {post.caption}
-        </div>
-      ) : (
-        <>
-          <div
-            className="h-40 w-full"
-            style={{ background: `linear-gradient(135deg, ${post.gradient[0]}, ${post.gradient[1]})` }}
-          />
-          <p className="px-3 pt-2 text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">{post.caption}</p>
-        </>
-      )}
-
-      <div className="flex items-center gap-4 px-3 pb-3 pt-2 text-[11px] text-neutral-400">
-        <span className="flex items-center gap-1">
-          <Heart size={12} /> {post.likes.toLocaleString("en-US")}
-        </span>
-        <span className="flex items-center gap-1">
-          <MessageCircle size={12} /> {post.comments}
-        </span>
-        <span className="flex items-center gap-1">
-          <Share2 size={12} /> {post.shares}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// 社群操盤手(Sunny)用:多版位貼文示範素材——本週成效數字、互動率趨勢，
-// 以及跨平台(IG Feed／IG 限動／FB／Threads)的貼文草稿版位示範。
+// 社群操盤手(Sunny)用:純數字的社群成效——本週重點數字、互動率趨勢、各平台成效、
+// 最佳發文時段，以及每篇貼文的互動數字（不放示意圖片）。
 export default function SocialOverviewPanel() {
   return (
     <Card className="mb-6">
@@ -152,11 +108,47 @@ export default function SocialOverviewPanel() {
       </div>
 
       <div className="mt-6">
-        <p className="mb-3 text-xs font-medium text-neutral-500">多版位貼文草稿(待你挑選定稿)</p>
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2">
-          {SOCIAL_DEMO_POSTS.map((post) => (
-            <PostMock key={`${post.platform}-${post.format}`} post={post} />
-          ))}
+        <p className="mb-3 text-xs font-medium text-neutral-500">近期貼文互動成效</p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[460px] border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-neutral-200 text-left text-neutral-400 dark:border-neutral-800">
+                <th className="py-2 pr-3 font-medium">貼文</th>
+                <th className="px-2 py-2 text-right font-medium">
+                  <Heart size={12} className="inline" />
+                </th>
+                <th className="px-2 py-2 text-right font-medium">
+                  <MessageCircle size={12} className="inline" />
+                </th>
+                <th className="px-2 py-2 text-right font-medium">
+                  <Share2 size={12} className="inline" />
+                </th>
+                <th className="py-2 pl-2 text-right font-medium">排程</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SOCIAL_DEMO_POSTS.map((post) => (
+                <tr
+                  key={`${post.platform}-${post.format}`}
+                  className="border-b border-neutral-100 last:border-0 dark:border-neutral-900"
+                >
+                  <td className="py-2.5 pr-3">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: PLATFORM_DOT[post.platform] }} />
+                      <span className="font-medium text-neutral-700 dark:text-neutral-200">{post.platform}</span>
+                      <span className="text-neutral-400">{post.format}</span>
+                    </span>
+                  </td>
+                  <td className="px-2 py-2.5 text-right font-mono text-neutral-600 dark:text-neutral-300">
+                    {post.likes.toLocaleString("en-US")}
+                  </td>
+                  <td className="px-2 py-2.5 text-right font-mono text-neutral-600 dark:text-neutral-300">{post.comments}</td>
+                  <td className="px-2 py-2.5 text-right font-mono text-neutral-600 dark:text-neutral-300">{post.shares}</td>
+                  <td className="py-2.5 pl-2 text-right text-neutral-400">{post.scheduledAt}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </Card>
