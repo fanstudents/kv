@@ -5,8 +5,11 @@ import Link from "next/link";
 import { ChevronLeft, ExternalLink, Megaphone, Orbit, X } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import BrandLogo from "@/components/integrations/BrandLogo";
+import KnowledgeStrata from "@/components/universe/KnowledgeStrata";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
 import { INTEGRATION_SEEDS, type Integration } from "@/lib/integrations-data";
+import { AGENT_ACCESS_DEMO, MARKETING_COLLAB_EDGES, collaboratorsOf } from "@/lib/marketing-graph";
+import { levelInfo } from "@/lib/knowledge-base-data";
 import { useMarketingMode } from "@/lib/marketing-mode";
 import type { AgentSlug } from "@/lib/types";
 
@@ -115,6 +118,15 @@ export default function UniversePage() {
     ];
   }, [ringAgents, marketingMode]);
 
+  // 行銷戰隊彼此互聯：社群參考口碑、廣告素材來自社群、數據參謀彙整每一條渠道成效。
+  // 這層網狀連動在兩種模式都畫（在行銷模式下更是主角——沒有 Team Lead 當中心）。
+  const collabEdges = useMemo(() => {
+    const visible = new Set(
+      (marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS).map((a) => a.slug)
+    );
+    return MARKETING_COLLAB_EDGES.filter((e) => visible.has(e.from) && visible.has(e.to));
+  }, [marketingMode]);
+
   const sourceEdges = useMemo(
     () =>
       INTEGRATION_SEEDS.flatMap((src) =>
@@ -141,10 +153,14 @@ export default function UniversePage() {
     const sources = new Set<string>();
     if (selection.kind === "agent") {
       agents.add(selection.slug);
-      if (selection.slug === TEAM_LEAD_SLUG) ringAgents.forEach((a) => agents.add(a.slug));
-      else agents.add(TEAM_LEAD_SLUG);
+      if (!marketingMode) {
+        if (selection.slug === TEAM_LEAD_SLUG) ringAgents.forEach((a) => agents.add(a.slug));
+        else agents.add(TEAM_LEAD_SLUG);
+      }
       if (selection.slug === "visit") agents.add("schedule");
       if (selection.slug === "schedule") agents.add("visit");
+      // 點亮跟這位 Agent 有協作連線的行銷隊友
+      collaboratorsOf(selection.slug).forEach((c) => agents.add(c));
       sourceEdges.forEach((e) => {
         if (e.agent === selection.slug) sources.add(e.sourceId);
       });
@@ -155,7 +171,7 @@ export default function UniversePage() {
       });
     }
     return { hlAgents: agents, hlSources: sources };
-  }, [selection, ringAgents, sourceEdges]);
+  }, [selection, ringAgents, sourceEdges, marketingMode]);
 
   const isAgentDim = useCallback((slug: AgentSlug) => hlAgents !== null && !hlAgents.has(slug), [hlAgents]);
   const isSourceDim = useCallback((id: string) => hlSources !== null && !hlSources.has(id), [hlSources]);
@@ -173,7 +189,7 @@ export default function UniversePage() {
   const selectedSource = selection?.kind === "source" ? INTEGRATION_SEEDS.find((s) => s.id === selection.id) : null;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#03040a] text-white">
+    <main className="relative min-h-screen overflow-x-hidden bg-[#03040a] text-white">
       {/* 星空背景 */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-[10%] -top-[15%] h-[70vh] w-[70vh] rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.14),transparent_65%)] blur-3xl" />
@@ -242,6 +258,33 @@ export default function UniversePage() {
                 stroke={color}
                 strokeWidth={e.special ? 0.35 : 0.15}
                 opacity={dim ? 0.06 : e.special ? 0.75 : 0.22}
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          })}
+          {/* 行銷戰隊彼此互聯：微微彎的弧線，用 from 那位的顏色，畫出「資料往誰流」 */}
+          {collabEdges.map((e, i) => {
+            const from = agentPos.get(e.from);
+            const to = agentPos.get(e.to);
+            if (!from || !to) return null;
+            const dim = isAgentEdgeDim(e.from, e.to);
+            const color = AGENTS.find((a) => a.slug === e.from)?.color ?? "#818cf8";
+            const mx = (from.x + to.x) / 2;
+            const my = (from.y + to.y) / 2;
+            // 垂直偏移做出弧度，避免所有連線都疊在中央
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const len = Math.hypot(dx, dy) || 1;
+            const cx = mx + (-dy / len) * 6;
+            const cy = my + (dx / len) * 6;
+            return (
+              <path
+                key={`ce-${i}`}
+                d={`M${from.x},${from.y} Q${cx},${cy} ${to.x},${to.y}`}
+                fill="none"
+                stroke={color}
+                strokeWidth={0.18}
+                opacity={dim ? 0.06 : 0.4}
                 vectorEffect="non-scaling-stroke"
               />
             );
@@ -321,7 +364,16 @@ export default function UniversePage() {
             </button>
           );
         })}
+
+        {/* 往下捲：進入底層的知識庫分級治理 */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex flex-col items-center gap-1 text-white/30">
+          <span className="text-[10px] tracking-[0.25em]">向下探入知識底層</span>
+          <span className="tv-breathe">↓</span>
+        </div>
       </div>
+
+      {/* 底層：知識庫分級治理的立體結構 */}
+      <KnowledgeStrata marketingMode={marketingMode} />
 
       {/* 側欄：選取的 Agent 或服務詳情。外層不接手點擊事件（pointer-events-none），
           這樣點別的節點可以直接切換選取，不必先關掉這張卡才點得到下一個節點。 */}
@@ -357,6 +409,11 @@ function AgentPanel({ agent }: { agent: (typeof AGENTS)[number] }) {
           ? "讀取的行事曆跟約拜訪 Coco 排時段時查詢的是同一份真實資料。"
           : null;
 
+  // 這位 Agent 的行銷協作連線（資料往哪流、從哪來）
+  const collabs = MARKETING_COLLAB_EDGES.filter((e) => e.from === agent.slug || e.to === agent.slug);
+  const accessLevel = AGENT_ACCESS_DEMO[agent.slug] ?? 1;
+  const levelMeta = levelInfo(accessLevel);
+
   return (
     <div>
       <div className="mb-4 flex items-center gap-3">
@@ -376,6 +433,42 @@ function AgentPanel({ agent }: { agent: (typeof AGENTS)[number] }) {
         <div className="mb-5 rounded-xl border border-white/8 bg-white/[0.03] p-3 text-xs leading-relaxed text-white/60">
           <span className="mb-1 block text-[10px] font-semibold tracking-[0.15em] text-white/35">跨 Agent 協作</span>
           {coordinationNote}
+        </div>
+      )}
+
+      {/* 知識庫治理：這位 Agent 的讀取上限等級 */}
+      <div className="mb-5 flex items-center gap-2 rounded-xl border border-white/8 bg-white/[0.03] p-3">
+        <span className="text-[10px] font-semibold tracking-[0.15em] text-white/35">知識庫讀取上限</span>
+        <span
+          className="ml-auto rounded-full px-2.5 py-1 text-[11px] font-semibold text-white"
+          style={{ background: levelMeta.color }}
+        >
+          {levelMeta.label}
+        </span>
+      </div>
+
+      {collabs.length > 0 && (
+        <div className="mb-5">
+          <p className="mb-2.5 text-[11px] font-semibold tracking-[0.2em] text-white/40">戰隊協作連動</p>
+          <ul className="space-y-2">
+            {collabs.map((e, i) => {
+              const isOut = e.from === agent.slug;
+              const otherSlug = isOut ? e.to : e.from;
+              const other = AGENTS.find((a) => a.slug === otherSlug);
+              if (!other) return null;
+              return (
+                <li key={i} className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
+                  <Avatar personEn={other.personEn} color={other.color} size={28} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-white/85">
+                      <span className="text-white/40">{isOut ? "→ 給" : "← 來自"}</span> {other.personEn}
+                    </p>
+                    <p className="truncate text-xs text-white/40">{e.flow}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 

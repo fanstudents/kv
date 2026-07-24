@@ -89,19 +89,26 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   report: {
     prop: "chart",
     flow: [
-      { nodes: [{ id: "fetch", label: "抓取數據" }] },
-      { nodes: [{ id: "clean", label: "清洗彙整" }] },
-      { nodes: [{ id: "calc", label: "計算指標" }] },
       {
         nodes: [
-          { id: "produce", label: "產出報表", branch: "正常", main: true },
-          { id: "note", label: "標注低谷原因", branch: "有異常" },
+          { id: "ga4", label: "GA4 流量", branch: "流量", app: "google-analytics", main: true },
+          { id: "meta", label: "Meta 廣告成效", branch: "廣告", app: "meta", handoff: "today" },
+          { id: "social", label: "社群互動數據", branch: "社群", handoff: "card" },
         ],
       },
-      { nodes: [{ id: "send", label: "寄送摘要", terminal: true }] },
+      { nodes: [{ id: "clean", label: "清洗彙整" }] },
+      { nodes: [{ id: "ctx", label: "讀知識庫脈絡", app: "supabase" }] },
+      { nodes: [{ id: "insight", label: "AI 產生洞察", app: "openai" }] },
+      {
+        nodes: [
+          { id: "produce", label: "產出戰報", branch: "正常", main: true },
+          { id: "flag", label: "標注低谷＋通報", branch: "有異常", handoff: "teamlead" },
+        ],
+      },
+      { nodes: [{ id: "send", label: "推播摘要", app: "line", terminal: true }] },
     ],
     idle: "待命中・等待數據更新",
-    ticker: ["昨日報表已寄出 ✓", "盯著轉換率變化…", "下次產出 明早 08:00"],
+    ticker: ["昨日戰報已寄出 ✓", "彙整廣告 / SEO / 社群三路數據…", "下次產出 明早 08:00"],
   },
   schedule: {
     prop: "calendar",
@@ -123,36 +130,48 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   card: {
     prop: "compose",
     flow: [
+      { nodes: [{ id: "listen", label: "讀口碑風向", branch: "情緒參考", handoff: "competitor" }] },
       { nodes: [{ id: "ideate", label: "選題發想" }] },
-      { nodes: [{ id: "draft", label: "撰寫草稿" }] },
+      { nodes: [{ id: "draft", label: "AI 多版草稿", app: "openai" }] },
       {
         nodes: [
           { id: "auto", label: "自動排程", branch: "定稿", main: true },
           { id: "pick", label: "等你挑版本", branch: "多版草稿" },
         ],
       },
-      { nodes: [{ id: "publish", label: "定時發佈" }] },
-      { nodes: [{ id: "reply", label: "回覆留言", terminal: true }] },
+      { nodes: [{ id: "publish", label: "多平台發佈", app: "meta" }] },
+      {
+        nodes: [
+          { id: "reply", label: "回覆留言", branch: "一般", main: true, terminal: true },
+          { id: "boost", label: "爆文轉廣告素材", branch: "高互動", handoff: "today", terminal: true },
+        ],
+      },
     ],
     idle: "待命中・等待排程時間",
-    ticker: ["3 版草稿等你挑選", "下次發文 明日 12:00", "留言區目前安靜"],
+    ticker: ["3 版草稿等你挑選", "下次發文 明日 12:00", "參考口碑情緒調整語氣"],
   },
   expense: {
     prop: "radar",
     flow: [
-      { nodes: [{ id: "crawl", label: "爬取排名" }] },
+      { nodes: [{ id: "crawl", label: "爬取排名", app: "google-search-console" }] },
       { nodes: [{ id: "diff", label: "對比變化" }] },
       {
         nodes: [
-          { id: "opportunity", label: "整理機會清單", branch: "上升", main: true },
-          { id: "fix", label: "擬修正建議", branch: "下滑" },
+          { id: "opportunity", label: "整理機會清單", branch: "排名上升", main: true },
+          { id: "fix", label: "擬技術修正建議", branch: "排名下滑" },
         ],
       },
-      { nodes: [{ id: "weekly", label: "產出週報" }] },
-      { nodes: [{ id: "topics", label: "選題入庫", terminal: true }] },
+      { nodes: [{ id: "draft", label: "AI 產內容草稿", app: "openai" }] },
+      {
+        nodes: [
+          { id: "topics", label: "選題入庫", branch: "定稿", app: "supabase", main: true },
+          { id: "toCard", label: "熱門選題給社群", branch: "可再利用", handoff: "card" },
+        ],
+      },
+      { nodes: [{ id: "weekly", label: "週報＋彙整", handoff: "report", terminal: true }] },
     ],
     idle: "監看中・持續追蹤排名",
-    ticker: ["排名快照 每日 06:00", "3 組關鍵字進前十 ▲", "技術健檢一切正常"],
+    ticker: ["排名快照 每日 06:00", "3 組關鍵字進前十 ▲", "熱門選題已同步社群"],
   },
   visit: {
     prop: "card",
@@ -183,36 +202,46 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   today: {
     prop: "chart",
     flow: [
-      { nodes: [{ id: "connect", label: "連線廣告平台" }] },
-      { nodes: [{ id: "fetch", label: "抓取成效" }] },
-      { nodes: [{ id: "calc", label: "計算 CPA / ROAS" }] },
       {
         nodes: [
-          { id: "mark", label: "標記加碼機會", branch: "正常", main: true },
+          { id: "meta", label: "Meta 成效", branch: "Meta", app: "meta", main: true },
+          { id: "google", label: "Google Ads", branch: "Google", app: "google-analytics" },
+        ],
+      },
+      { nodes: [{ id: "calc", label: "計算 CPA / ROAS" }] },
+      { nodes: [{ id: "audience", label: "受眾比對", branch: "排除競品受眾", handoff: "competitor" }] },
+      {
+        nodes: [
+          { id: "scale", label: "標記加碼機會", branch: "達標", main: true },
           { id: "alert", label: "即時警示", branch: "超標", app: "line" },
         ],
       },
-      { nodes: [{ id: "daily", label: "產出日報", terminal: true }] },
+      { nodes: [{ id: "daily", label: "日報＋彙整", handoff: "report", terminal: true }] },
     ],
     idle: "待命中・等待投放數據",
-    ticker: ["下次抓取 明早 06:30", "CPA 門檻監控中…", "加碼機會清單 12 筆"],
+    ticker: ["下次抓取 明早 06:30", "跨 Meta / Google 門檻監控中…", "加碼機會清單 12 筆"],
   },
   competitor: {
     prop: "radar",
     flow: [
-      { nodes: [{ id: "watch", label: "監看評論與社群" }] },
-      { nodes: [{ id: "detect", label: "偵測新內容" }] },
+      { nodes: [{ id: "watch", label: "監看 IG／Threads／PTT／FB" }] },
+      { nodes: [{ id: "score", label: "AI 情緒分級", app: "openai" }] },
       {
         nodes: [
-          { id: "digest", label: "納入彙整", branch: "一般", main: true },
-          { id: "escalate", label: "立即通報＋建議回覆", branch: "負評" },
+          { id: "digest", label: "納入彙整", branch: "正面／中立", main: true },
+          { id: "escalate", label: "即時通報＋建議回覆", branch: "負評", app: "line" },
         ],
       },
-      { nodes: [{ id: "intel", label: "競品敵情彙整" }] },
-      { nodes: [{ id: "weekly", label: "聲量週摘要", terminal: true }] },
+      { nodes: [{ id: "intel", label: "競品敵情入庫", app: "supabase" }] },
+      {
+        nodes: [
+          { id: "toCard", label: "情緒風向給社群", branch: "內容調整", handoff: "card", main: true, terminal: true },
+          { id: "toAds", label: "受眾建議給廣告", branch: "投放調整", handoff: "today", terminal: true },
+        ],
+      },
     ],
     idle: "監看中・盯著評論與競品",
-    ticker: ["掃描評論區…", "競品動態監看中", "本週聲量 +8%"],
+    ticker: ["掃描 IG / Threads / PTT / FB…", "競品情緒對比監看中", "本週綜合情緒 78°"],
   },
   operations: {
     prop: "doc",

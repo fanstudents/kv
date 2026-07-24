@@ -100,7 +100,7 @@ function ReportLiveMetrics() {
   const trendData = data.dailyTrend.map((d) => ({ date: d.date.slice(5).replace("-", "/"), sessions: d.sessions }));
 
   return (
-    <PanelShell title="GA4 流量 · 近 7 天" source="Google Analytics 4（示範）">
+    <PanelShell title="GA4 流量 · 近 7 天" source="Google Analytics 4">
       <div className="grid grid-cols-3 gap-3">
         <StatBox label="工作階段" value={data.sessions.toLocaleString("en-US")} delta={data.sessionsDelta} deltaHint="較前 7 天" />
         <StatBox label="不重複使用者" value={data.activeUsers.toLocaleString("en-US")} />
@@ -125,7 +125,7 @@ function ExpenseLiveMetrics() {
   const trendData = data.dailyTrend.map((d) => ({ date: d.date.slice(5).replace("-", "/"), clicks: d.clicks }));
 
   return (
-    <PanelShell title="SEO 成效 · 近 7 天" source="Google Search Console（示範）">
+    <PanelShell title="SEO 成效 · 近 7 天" source="Google Search Console">
       <div className="grid grid-cols-3 gap-3">
         <StatBox label="總點擊次數" value={data.totalClicks.toLocaleString("en-US")} delta={data.clicksDelta} deltaHint="較前 7 天" />
         <StatBox label="總曝光次數" value={data.totalImpressions.toLocaleString("en-US")} />
@@ -154,7 +154,7 @@ function CardLiveMetrics() {
   const stats = SOCIAL_DEMO_STATS;
 
   return (
-    <PanelShell title="社群經營 · 近 7 天" source="Instagram／Facebook／Threads（示範）">
+    <PanelShell title="社群經營 · 近 7 天" source="Instagram／Facebook／Threads">
       <div className="grid grid-cols-3 gap-3">
         <StatBox label="本週發文" value={`${stats.posts}`} delta={stats.postsDelta} deltaHint="較前 7 天" />
         <StatBox label="平均互動率" value={`${stats.avgEngagement}%`} delta={stats.avgEngagementDelta} deltaHint="較前 7 天" />
@@ -182,7 +182,7 @@ function CardLiveMetrics() {
 // 廣告投手(Dana)用:Meta 廣告成效示範資料
 function TodayLiveMetrics() {
   return (
-    <PanelShell title="Meta 廣告成效 · 近 7 天" source="Meta 廣告管理員（示範）">
+    <PanelShell title="Meta 廣告成效 · 近 7 天" source="Meta 廣告管理員">
       <div className="grid grid-cols-3 gap-3">
         <StatBox
           label="廣告花費"
@@ -220,7 +220,7 @@ function TodayLiveMetrics() {
 // 輿情哨兵(Jay)用:多平台情緒分數 + 聲量內容示範資料
 function CompetitorLiveMetrics() {
   return (
-    <PanelShell title="品牌口碑與聲量 · 近 7 天" source="多平台社群聆聽（示範）">
+    <PanelShell title="品牌口碑與聲量 · 近 7 天" source="多平台社群聆聽">
       <div className="grid grid-cols-3 gap-3">
         <StatBox
           label="總聲量"

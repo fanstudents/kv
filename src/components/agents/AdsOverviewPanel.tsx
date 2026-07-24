@@ -5,7 +5,15 @@ import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import TrendChart from "@/components/agents/charts/TrendChart";
 import StatTile from "@/components/agents/charts/StatTile";
-import { ADS_DEMO_ALERT, ADS_DEMO_CAMPAIGNS, ADS_DEMO_DAILY_SPEND, ADS_DEMO_STATS } from "@/lib/ads-demo";
+import BreakdownBars from "@/components/agents/charts/BreakdownBars";
+import {
+  ADS_DEMO_ALERT,
+  ADS_DEMO_AUDIENCES,
+  ADS_DEMO_CAMPAIGNS,
+  ADS_DEMO_DAILY_SPEND,
+  ADS_DEMO_PLATFORMS,
+  ADS_DEMO_STATS,
+} from "@/lib/ads-demo";
 
 const ADS_COLOR = "#EF4444"; // 跟 Dana(廣告 Agent)頭像色一致
 
@@ -15,17 +23,20 @@ const STATUS_TONE: Record<string, "success" | "neutral" | "warning"> = {
   受眾疲勞: "warning",
 };
 
+const AUDIENCE_TONE: Record<string, "success" | "neutral" | "danger"> = {
+  加碼: "success",
+  維持: "neutral",
+  排除: "danger",
+};
+
 // 廣告投手(Dana)用:Meta 廣告投放示範儀表板——花費/ROAS/CPA/CTR 重點數字、
 // 每日花費趨勢、依廣告組合拆解成效，並附一則超標提醒範例。
 export default function AdsOverviewPanel() {
   return (
     <Card className="mb-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">Meta 廣告成效(近 7 天)</h2>
-        <div className="flex items-center gap-2">
-          <Badge tone="neutral">示範資料</Badge>
-          <span className="text-xs text-neutral-400">來源:Meta 廣告管理員</span>
-        </div>
+        <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">廣告投放成效(近 7 天)</h2>
+        <span className="text-xs text-neutral-400">來源:Meta／Google 廣告管理員</span>
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -54,6 +65,30 @@ export default function AdsOverviewPanel() {
         series={[{ key: "spend", name: "花費", color: ADS_COLOR }]}
         valueFormatter={(v) => `NT$ ${v.toLocaleString("en-US")}`}
       />
+
+      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div>
+          <p className="mb-2 text-xs font-medium text-neutral-500">各平台花費拆分</p>
+          <BreakdownBars
+            items={ADS_DEMO_PLATFORMS.map((p) => ({ label: `${p.platform}（ROAS ${p.roas}）`, value: p.spend, color: p.color }))}
+            valueFormatter={(v) => `NT$ ${v.toLocaleString("en-US")}`}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-xs font-medium text-neutral-500">受眾成效與建議</p>
+          <ul className="space-y-1.5">
+            {ADS_DEMO_AUDIENCES.map((a) => (
+              <li key={a.name} className="flex items-center justify-between gap-2 text-xs">
+                <span className="min-w-0 truncate text-neutral-600 dark:text-neutral-300">{a.name}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="font-medium text-neutral-800 dark:text-neutral-100">ROAS {a.roas}</span>
+                  <Badge tone={AUDIENCE_TONE[a.action]}>{a.action}</Badge>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
       <div className="mt-6">
         <p className="mb-2 text-xs font-medium text-neutral-500">依廣告組合拆解(依花費排序)</p>

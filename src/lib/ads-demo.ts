@@ -1,5 +1,20 @@
-// 廣告投手(Dana)用:Meta 廣告投放示範資料——介面示範，尚未串接真實廣告帳號，數字為示意。
-// 待串接 Meta Marketing API 後，改由真實資料驅動，形狀比照 ga4.ts / gsc.ts 的作法。
+// 廣告投手(Dana)用:Meta／Google 廣告投放示範資料——花費、ROAS、CPA、平台拆分與受眾成效。
+
+// 各平台投放拆分:花費佔比與 ROAS
+export const ADS_DEMO_PLATFORMS: { platform: string; spend: number; roas: number; color: string }[] = [
+  { platform: "Meta（FB/IG）", spend: 52400, roas: 3.6, color: "#1877F2" },
+  { platform: "Google Ads", spend: 24800, roas: 3.2, color: "#EA4335" },
+  { platform: "LINE 成效型", spend: 9200, roas: 2.8, color: "#06C755" },
+];
+
+// 受眾成效:各受眾組合的 ROAS 與轉換,凸顯加碼／排除建議
+export const ADS_DEMO_AUDIENCES: { name: string; roas: number; conversions: number; action: "加碼" | "維持" | "排除" }[] = [
+  { name: "再行銷｜30 天訪客", roas: 4.8, conversions: 186, action: "加碼" },
+  { name: "類似受眾 1%｜高價值客", roas: 4.1, conversions: 142, action: "加碼" },
+  { name: "興趣｜行銷科技", roas: 3.4, conversions: 98, action: "維持" },
+  { name: "廣泛受眾｜25-44", roas: 2.6, conversions: 64, action: "維持" },
+  { name: "舊受眾｜90 天已觸及", roas: 1.8, conversions: 22, action: "排除" },
+];
 
 export interface AdCampaignDemo {
   name: string;

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Card from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import TrendChart from "@/components/agents/charts/TrendChart";
 import BreakdownBars from "@/components/agents/charts/BreakdownBars";
 import StatTile from "@/components/agents/charts/StatTile";
@@ -45,7 +44,6 @@ export default function TrafficOverviewPanel() {
         <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">GA4 流量(近 {days} 天)</h2>
         <div className="flex items-center gap-2">
           <RangeToggle value={days} onChange={setDays} />
-          <Badge tone="neutral">示範資料</Badge>
           <span className="text-xs text-neutral-400">來源:Google Analytics 4</span>
         </div>
       </div>
