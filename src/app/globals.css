@@ -400,7 +400,92 @@ body {
   animation: tv-focus-glow 2.6s ease-in-out infinite;
 }
 
+/* ---- 工作流程圖（劇院模式與後台共用同一份設計） ---- */
+/* 顏色一律走 CSS 變數：後台跟著系統淺／深色，劇院模式加 .flow-dark 強制深色，
+   同一個元件在兩種情境下都對得起來。 */
+.flow-canvas {
+  --flow-text: #3f3f46;
+  --flow-muted: #a1a1aa;
+  --flow-dim: #c4c4cc;
+  --flow-line: rgba(113, 113, 122, 0.32);
+  --flow-grid: rgba(113, 113, 122, 0.12);
+  --flow-surface: rgba(250, 250, 250, 0.6);
+  --flow-border: rgba(0, 0, 0, 0.08);
+  --flow-chip: rgba(0, 0, 0, 0.04);
+  --flow-node-bg: #ffffff;
+  --flow-node-border: rgba(113, 113, 122, 0.35);
+  --flow-ring: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  .flow-canvas {
+    --flow-text: rgba(255, 255, 255, 0.82);
+    --flow-muted: rgba(255, 255, 255, 0.42);
+    --flow-dim: rgba(255, 255, 255, 0.3);
+    --flow-line: rgba(255, 255, 255, 0.2);
+    --flow-grid: rgba(255, 255, 255, 0.05);
+    --flow-surface: rgba(255, 255, 255, 0.02);
+    --flow-border: rgba(255, 255, 255, 0.08);
+    --flow-chip: rgba(255, 255, 255, 0.07);
+    --flow-node-bg: transparent;
+    --flow-node-border: rgba(255, 255, 255, 0.28);
+    --flow-ring: #0b0d12;
+  }
+}
+.flow-canvas.flow-dark {
+  --flow-text: rgba(255, 255, 255, 0.82);
+  --flow-muted: rgba(255, 255, 255, 0.42);
+  --flow-dim: rgba(255, 255, 255, 0.3);
+  --flow-line: rgba(255, 255, 255, 0.2);
+  --flow-grid: rgba(255, 255, 255, 0.05);
+  --flow-surface: rgba(255, 255, 255, 0.02);
+  --flow-border: rgba(255, 255, 255, 0.08);
+  --flow-chip: rgba(255, 255, 255, 0.07);
+  --flow-node-bg: transparent;
+  --flow-node-border: rgba(255, 255, 255, 0.28);
+  --flow-ring: #0b0d12;
+}
+
+/* 資料封包：沿著連線的路徑往下一個節點流（CSS motion path，不用 JS 逐格計算） */
+@keyframes flow-packet {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+.flow-packet {
+  offset-rotate: 0deg;
+  offset-anchor: center;
+  animation: flow-packet var(--packet-duration, 2.2s) linear infinite;
+}
+
+/* 節點宇宙立體模式：連線上的資料流動（虛線往前跑） */
+@keyframes u3d-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.u3d-flow {
+  animation: u3d-flow 1.1s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .u3d-flow {
+    animation: none;
+  }
+  .flow-packet {
+    animation: none;
+    opacity: 0 !important;
+  }
   .tv-blob-a,
   .tv-blob-b,
   .tv-in,

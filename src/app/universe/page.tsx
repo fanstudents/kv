@@ -2,14 +2,15 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink, Megaphone, Orbit, X } from "lucide-react";
+import { Boxes, ChevronLeft, ExternalLink, LayoutGrid, Megaphone, Orbit, X } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import BrandLogo from "@/components/integrations/BrandLogo";
 import KnowledgeStrata from "@/components/universe/KnowledgeStrata";
+import Universe3D from "@/components/universe/Universe3D";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
 import { INTEGRATION_SEEDS, type Integration } from "@/lib/integrations-data";
-import { AGENT_ACCESS_DEMO, MARKETING_COLLAB_EDGES, collaboratorsOf } from "@/lib/marketing-graph";
-import { levelInfo } from "@/lib/knowledge-base-data";
+import { AGENT_ACCESS_DEMO, KNOWLEDGE_DOMAINS, MARKETING_COLLAB_EDGES, collaboratorsOf } from "@/lib/marketing-graph";
+import { levelInfo, type KnowledgeLevel } from "@/lib/knowledge-base-data";
 import { useMarketingMode } from "@/lib/marketing-mode";
 import type { AgentSlug } from "@/lib/types";
 
@@ -28,7 +29,11 @@ interface Pos {
   y: number;
 }
 
-type Selection = { kind: "agent"; slug: AgentSlug } | { kind: "source"; id: string } | null;
+type Selection =
+  | { kind: "agent"; slug: AgentSlug }
+  | { kind: "source"; id: string }
+  | { kind: "level"; level: KnowledgeLevel }
+  | null;
 
 function circularMeanDeg(anglesDeg: number[]): number {
   if (anglesDeg.length === 0) return 0;
@@ -69,6 +74,9 @@ export default function UniversePage() {
   const stars = useStarfield(140);
   const [selection, setSelection] = useState<Selection>(null);
   const [marketingMode] = useMarketingMode();
+  // 立體模式：Agent 網狀協作＋知識庫分級治理放在同一個 3D 空間，展示整體架構用；
+  // 平面模式保留原本的一頁式星圖（適合截圖與快速掃視）。
+  const [view, setView] = useState<"3d" | "flat">("3d");
 
   // 行銷模式：只留行銷 Team 的 Agent 圍成一圈，沒有 Team Lead 當中心
   // （呼應「你是 AI 行銷指揮官」的設定，中心不放任何一位 Agent）。
@@ -164,10 +172,15 @@ export default function UniversePage() {
       sourceEdges.forEach((e) => {
         if (e.agent === selection.slug) sources.add(e.sourceId);
       });
-    } else {
+    } else if (selection.kind === "source") {
       sources.add(selection.id);
       sourceEdges.forEach((e) => {
         if (e.sourceId === selection.id) agents.add(e.agent);
+      });
+    } else {
+      // 選到知識庫等級：點亮讀取上限涵蓋這一級的每一位 Agent
+      AGENTS.forEach((a) => {
+        if ((AGENT_ACCESS_DEMO[a.slug] ?? 1) >= selection.level) agents.add(a.slug);
       });
     }
     return { hlAgents: agents, hlSources: sources };
@@ -187,6 +200,7 @@ export default function UniversePage() {
 
   const selectedAgent = selection?.kind === "agent" ? AGENTS.find((a) => a.slug === selection.slug) : null;
   const selectedSource = selection?.kind === "source" ? INTEGRATION_SEEDS.find((s) => s.id === selection.id) : null;
+  const selectedLevel = selection?.kind === "level" ? selection.level : null;
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#03040a] text-white">
@@ -223,23 +237,58 @@ export default function UniversePage() {
           <Orbit size={15} className="text-indigo-300" />
           節 點 宇 宙
         </p>
-        {marketingMode ? (
-          <span
-            title="你是 AI 行銷指揮官，畫面只顯示行銷戰隊隊員與他們用的服務"
-            className="flex w-[110px] items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-500/15 px-3 py-2 text-xs font-medium text-indigo-200"
-          >
-            <Megaphone size={13} />
-            行銷模式
-          </span>
-        ) : (
-          <span className="w-[110px]" />
-        )}
+        <div className="flex items-center gap-2">
+          {/* 立體／平面切換：展示整體架構用立體，快速掃視用平面 */}
+          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur">
+            <button
+              type="button"
+              onClick={() => setView("3d")}
+              title="立體模式：看 Agent 網狀結構與知識庫的關係"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                view === "3d" ? "bg-indigo-500/25 text-indigo-100" : "text-white/45 hover:text-white"
+              }`}
+            >
+              <Boxes size={13} />
+              立體
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("flat")}
+              title="平面模式：一頁式星圖"
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                view === "flat" ? "bg-indigo-500/25 text-indigo-100" : "text-white/45 hover:text-white"
+              }`}
+            >
+              <LayoutGrid size={13} />
+              平面
+            </button>
+          </div>
+          {marketingMode && (
+            <span
+              title="你是 AI 行銷指揮官，畫面只顯示行銷戰隊隊員與他們用的服務"
+              className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-indigo-500/15 px-3 py-2 text-xs font-medium text-indigo-200"
+            >
+              <Megaphone size={13} />
+              行銷模式
+            </span>
+          )}
+        </div>
       </header>
-      <p className="relative z-20 mx-auto mt-2 max-w-lg px-6 text-center text-[11px] text-white/30">
-        點一位 Agent 或一張服務卡，看看真實的連通關係——資料跟「服務串接」管理頁同一份，不是另外畫的。
+      <p className="relative z-20 mx-auto mt-2 max-w-xl px-6 text-center text-[11px] text-white/30">
+        {view === "3d"
+          ? "上層是串接的服務、中層是 Agent 的網狀協作、下層是四片知識庫圓盤——拖曳旋轉看全貌，點任一節點看它連到誰。"
+          : "點一位 Agent 或一張服務卡，看看真實的連通關係——資料跟「服務串接」管理頁同一份，不是另外畫的。"}
       </p>
 
-      {/* 星圖舞台 */}
+      {view === "3d" && (
+        <div className="relative z-10 mx-auto mt-3 w-full max-w-[1500px] px-6">
+          <Universe3D marketingMode={marketingMode} selection={selection} onSelect={setSelection} />
+        </div>
+      )}
+
+      {view === "flat" && (
+        <>
+      {/* 星圖舞台（平面模式） */}
       <div className="relative z-10 mx-auto mt-4 h-[calc(100vh-140px)] w-full max-w-[1500px]">
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           {agentEdges.map((e, i) => {
@@ -374,10 +423,12 @@ export default function UniversePage() {
 
       {/* 底層：知識庫分級治理的立體結構 */}
       <KnowledgeStrata marketingMode={marketingMode} />
+        </>
+      )}
 
       {/* 側欄：選取的 Agent 或服務詳情。外層不接手點擊事件（pointer-events-none），
           這樣點別的節點可以直接切換選取，不必先關掉這張卡才點得到下一個節點。 */}
-      {(selectedAgent || selectedSource) && (
+      {(selectedAgent || selectedSource || selectedLevel) && (
         <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-end p-4 sm:p-6">
           <div className="tv-pop pointer-events-auto max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-3xl border border-white/10 bg-[#0b0d16]/95 p-6 shadow-2xl backdrop-blur">
             <button
@@ -391,6 +442,7 @@ export default function UniversePage() {
 
             {selectedAgent && <AgentPanel agent={selectedAgent} />}
             {selectedSource && <SourcePanel source={selectedSource} />}
+            {selectedLevel && <LevelPanel level={selectedLevel} marketingMode={marketingMode} />}
           </div>
         </div>
       )}
@@ -494,6 +546,73 @@ function AgentPanel({ agent }: { agent: (typeof AGENTS)[number] }) {
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** 選到某一片知識庫圓盤：這一級裝什麼、誰讀得到、AI 使用上的建議 */
+function LevelPanel({ level, marketingMode }: { level: KnowledgeLevel; marketingMode: boolean }) {
+  const info = levelInfo(level);
+  const topics = KNOWLEDGE_DOMAINS.find((d) => d.level === level)?.topics ?? [];
+  const pool = marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS;
+  const eligible = pool.filter((a) => (AGENT_ACCESS_DEMO[a.slug] ?? 1) >= level);
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-3">
+        <span
+          className="flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-bold text-white"
+          style={{ background: info.color }}
+        >
+          L{level}
+        </span>
+        <div>
+          <p className="text-lg font-medium">{info.label}</p>
+          <p className="text-sm text-white/45">{info.dataTypes}</p>
+        </div>
+      </div>
+
+      <p className="mb-5 rounded-xl border border-white/8 bg-white/[0.03] p-3 text-xs leading-relaxed text-white/60">
+        <span className="mb-1 block text-[10px] font-semibold tracking-[0.15em] text-white/35">AI 使用原則</span>
+        {info.aiUsage}
+      </p>
+
+      <p className="mb-2.5 text-[11px] font-semibold tracking-[0.2em] text-white/40">這一級的內容</p>
+      <div className="mb-5 flex flex-wrap gap-1.5">
+        {topics.map((t) => (
+          <span
+            key={t}
+            className="rounded-md border px-2 py-1 text-[11px] text-white/75"
+            style={{ borderColor: `${info.color}44`, background: `${info.color}14` }}
+          >
+            {t}
+          </span>
+        ))}
+      </div>
+
+      <p className="mb-2.5 text-[11px] font-semibold tracking-[0.2em] text-white/40">
+        讀取上限涵蓋這一級的同事（{eligible.length}）
+      </p>
+      <ul className="space-y-2">
+        {eligible.map((a) => (
+          <li key={a.slug} className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] p-2.5">
+            <Avatar personEn={a.personEn} color={a.color} size={30} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-white/85">
+                {a.personEn} <span className="text-white/40">{a.personZh}</span>
+              </p>
+              <p className="truncate text-xs text-white/40">{a.role}</p>
+            </div>
+            <span
+              className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+              style={{ background: levelInfo(AGENT_ACCESS_DEMO[a.slug] ?? 1).color }}
+            >
+              上限 L{AGENT_ACCESS_DEMO[a.slug] ?? 1}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {eligible.length === 0 && <p className="text-sm text-white/30">目前沒有 Agent 被授權讀取這一級。</p>}
     </div>
   );
 }

@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Send, Save, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Send, Save, Loader2, ChevronDown, ChevronRight, Plus, Target } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import Toggle from "@/components/ui/Toggle";
 import ActivityLog from "@/components/agents/ActivityLog";
 import Avatar from "@/components/agents/Avatar";
-import VisitFlowSteps from "@/components/agents/VisitFlowSteps";
+import FlowCanvas, { type FlowRun } from "@/components/flow/FlowCanvas";
+import GoalBar from "@/components/goals/GoalBar";
+import GoalDialog from "@/components/goals/GoalDialog";
 import PhoneFrame from "@/components/agents/PhoneFrame";
 import {
   LineTextMessage,
@@ -15,7 +17,9 @@ import {
   LineConfirmMessage,
   LineButtonsMessage,
 } from "@/components/agents/LineMessages";
-import { deriveFlowSteps } from "@/lib/agent-flows";
+import { AGENT_LIVE_TASKS } from "@/lib/agent-briefings";
+import { goalProgress, type AgentGoal } from "@/lib/agent-goals";
+import { removeGoal, useAgentGoals } from "@/lib/agent-goals-store";
 import { PUSH_STYLES, type PushStyle } from "@/lib/line-message-styles";
 import type { AgentMeta, AgentActivity } from "@/lib/types";
 
@@ -56,6 +60,8 @@ export default function AgentPageShell({
   const [testUserId, setTestUserId] = useState("");
   const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [testError, setTestError] = useState("");
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<AgentGoal | null>(null);
 
   useEffect(() => {
     setTestUserId(localStorage.getItem(TEST_USER_ID_KEY) ?? DEFAULT_TEST_USER_ID);
@@ -96,6 +102,16 @@ export default function AgentPageShell({
 
   // 最近一次「真正的執行」——排除草稿狀態的種子紀錄，避免誤導流程圖
   const latestRun = activity.find((a) => !a.summary.includes("草稿狀態") && a.timestamp !== "尚未啟用");
+  const flowRun: FlowRun = latestRun ? { mode: "run", status: latestRun.status } : { mode: "idle" };
+
+  // 這位 Agent 背的目標
+  const allGoals = useAgentGoals();
+  const myGoals = useMemo(() => allGoals.filter((g) => g.agentSlug === agent.slug), [allGoals, agent.slug]);
+  const goalAverage = useMemo(() => {
+    const scored = myGoals.map((g) => goalProgress(g)).filter((p) => p !== null);
+    if (scored.length === 0) return 0;
+    return scored.reduce((s, p) => s + Math.min(1, Math.max(0, p!.ratio)), 0) / scored.length;
+  }, [myGoals]);
 
   const handleToggle = async (next: boolean) => {
     setEnabled(next);
@@ -201,10 +217,57 @@ export default function AgentPageShell({
           <h2 className="mb-1 text-sm font-semibold text-neutral-700 dark:text-neutral-200">任務流程節點</h2>
           <p className="mb-4 text-xs text-neutral-400">
             {latestRun
-              ? `依最近一次執行（${latestRun.timestamp}）顯示各節點狀態`
-              : "尚無執行紀錄，Agent 待命中"}
+              ? `依最近一次執行（${latestRun.timestamp}）顯示各節點狀態；主幹之外的虛線是順手做掉的旁支`
+              : "尚無執行紀錄，Agent 待命中——這是他完整的工作路徑（含分支與旁支）"}
           </p>
-          <VisitFlowSteps steps={deriveFlowSteps(agent.slug, latestRun)} />
+          {/* 跟劇院模式同一個元件、同一套設計：主幹＋分支＋旁支，任務推進時線上會有資料流動 */}
+          <FlowCanvas flow={AGENT_LIVE_TASKS[agent.slug].flow} color={agent.color} run={flowRun} />
+        </Card>
+
+        {/* 這位 Agent 背的目標與達成率（跟「目標達成率」總覽同一份資料） */}
+        <Card>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+              <Target size={15} className="text-[#06C755]" />
+              目標與達成率
+            </h2>
+            {myGoals.length > 0 && (
+              <span className="rounded-full bg-[#06C755]/12 px-2 py-0.5 text-[11px] font-medium text-[#06C755]">
+                平均 {Math.round(goalAverage * 100)}%
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setGoalDialogOpen(true)}
+              className="ml-auto flex items-center gap-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              <Plus size={13} />
+              設定目標
+            </button>
+          </div>
+          {myGoals.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-neutral-200 px-4 py-5 text-center text-xs text-neutral-400 dark:border-neutral-700">
+              還沒有幫 {agent.personEn} 設定目標——按右上角挑一個指標給他背。
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {myGoals.map((g) => (
+                <GoalBar
+                  key={g.id}
+                  goal={g}
+                  color={agent.color}
+                  compact
+                  onEdit={(goal) => {
+                    setEditingGoal(goal);
+                    setGoalDialogOpen(true);
+                  }}
+                  onDelete={(goal) => {
+                    if (confirm("確定要刪除這個目標嗎？")) removeGoal(goal.id);
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card>
@@ -328,6 +391,16 @@ export default function AgentPageShell({
           )}
         </Card>
       </div>
+
+      <GoalDialog
+        open={goalDialogOpen}
+        onClose={() => {
+          setGoalDialogOpen(false);
+          setEditingGoal(null);
+        }}
+        editing={editingGoal}
+        lockedAgent={agent.slug}
+      />
     </div>
   );
 }

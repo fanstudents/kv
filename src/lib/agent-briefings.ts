@@ -16,6 +16,20 @@ export type OutputKind =
 // 劇院式「現正處理」場景：每位 Agent 操作的道具視覺 + 逐步推進的階段
 export type PropKind = "card" | "chart" | "chat" | "radar" | "calendar" | "compose" | "doc";
 
+/** 節點的性質：決定畫面上的形狀與圖示（取數是方的、判斷是菱形、AI 有星芒…） */
+export type FlowNodeKind = "source" | "process" | "ai" | "decision" | "output" | "store";
+
+/** 旁支：主線之外「順手做掉」的事——寫進知識庫、通報隊友、留一份紀錄。
+ * 畫在節點下方，用虛線小支線接回節點，讓人看到主線以外還發生了什麼。 */
+export interface FlowSide {
+  label: string;
+  kind?: FlowNodeKind;
+  /** 這個旁支打到的外部服務（有值時顯示品牌 logo） */
+  app?: string;
+  /** 這個旁支實際上是交給另一位隊友 */
+  handoff?: AgentSlug;
+}
+
 /** 流程圖節點。每位 Agent 的工作流程是「多欄」構成：一欄一個節點是主幹，一欄多個節點是分支（擇一走）。 */
 export interface FlowNode {
   id: string;
@@ -34,9 +48,19 @@ export interface FlowNode {
   handoff?: AgentSlug;
   /** 這一步實際上是呼叫外部 app（例如 LINE、Google 日曆、Gmail）——有值時節點以真實品牌 logo 呈現，而不是通用圓點 */
   app?: string;
+  /** 節點性質（影響形狀與圖示） */
+  kind?: FlowNodeKind;
+  /** 這一步實際在做什麼（節點下方的一行小字） */
+  detail?: string;
+  /** 這一步交棒給下一站的資料（標在連線中段，資料流動的封包上） */
+  data?: string;
+  /** 旁支動作 */
+  side?: FlowSide[];
 }
 
 export interface FlowColumn {
+  /** 階段名稱（畫在這一欄最上方，例如「取數」「判斷」「送出」） */
+  title?: string;
   nodes: FlowNode[];
 }
 
@@ -55,16 +79,65 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   teamlead: {
     prop: "doc",
     flow: [
-      { nodes: [{ id: "collect", label: "彙整成員動態" }] },
-      { nodes: [{ id: "scan", label: "掃描異常" }] },
       {
+        title: "巡場",
         nodes: [
-          { id: "write", label: "撰寫晨報", branch: "正常", main: true },
-          { id: "flag", label: "標記＋通報", branch: "有異常" },
+          {
+            id: "collect",
+            label: "彙整成員動態",
+            kind: "source",
+            detail: "讀全隊 24h 活動紀錄",
+            data: "全隊工作紀錄",
+            side: [{ label: "抓漏未回報的隊友", kind: "process" }],
+          },
         ],
       },
-      { nodes: [{ id: "send", label: "寄送 LINE", app: "line" }] },
-      { nodes: [{ id: "archive", label: "歸檔追蹤", terminal: true }] },
+      {
+        title: "體檢",
+        nodes: [
+          {
+            id: "scan",
+            label: "掃描異常",
+            kind: "process",
+            detail: "失敗、逾時、卡關",
+            data: "異常清單",
+            side: [{ label: "比對昨日基準", kind: "process" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "write", label: "撰寫晨報", branch: "正常", main: true, kind: "ai", detail: "AI 寫成一頁摘要" },
+          { id: "flag", label: "標記＋通報", branch: "有異常", kind: "decision", detail: "點名負責的隊友跟進" },
+        ],
+      },
+      {
+        title: "送出",
+        nodes: [
+          {
+            id: "send",
+            label: "寄送 LINE",
+            app: "line",
+            kind: "output",
+            detail: "每早 09:00 準時推播",
+            data: "晨報",
+          },
+        ],
+      },
+      {
+        title: "收尾",
+        nodes: [
+          {
+            id: "archive",
+            label: "歸檔追蹤",
+            terminal: true,
+            kind: "store",
+            detail: "未結案的留到明天再問",
+            side: [{ label: "待辦寫入待辦總覽", kind: "store" }],
+          },
+        ],
+      },
     ],
     idle: "待命中・下次晨報前整備",
     ticker: ["整理 10 位成員今日進度…", "下一份晨報 明早 09:00 準時送出", "追蹤中事項 3 件，皆在掌握"],
@@ -72,16 +145,64 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   notify: {
     prop: "chat",
     flow: [
-      { nodes: [{ id: "watch", label: "監測指標" }] },
-      { nodes: [{ id: "judge", label: "門檻判斷" }] },
       {
+        title: "監測",
         nodes: [
-          { id: "build", label: "組裝訊息", branch: "觸發", main: true },
-          { id: "loop", label: "繼續監測", branch: "未觸發", terminal: true },
+          {
+            id: "watch",
+            label: "監測指標",
+            kind: "source",
+            detail: "6 個門檻持續輪詢",
+            data: "即時指標值",
+          },
         ],
       },
-      { nodes: [{ id: "push", label: "推播 LINE", app: "line" }] },
-      { nodes: [{ id: "log", label: "記錄回執", terminal: true }] },
+      {
+        title: "判斷",
+        nodes: [
+          {
+            id: "judge",
+            label: "門檻判斷",
+            kind: "decision",
+            detail: "比對設定的觸發條件",
+            side: [{ label: "門檻微調建議", kind: "process" }],
+          },
+        ],
+      },
+      {
+        title: "分流",
+        nodes: [
+          { id: "build", label: "組裝訊息", branch: "觸發", main: true, kind: "process", detail: "帶上數字與建議動作" },
+          { id: "loop", label: "繼續監測", branch: "未觸發", terminal: true, kind: "process", detail: "回到監測迴圈" },
+        ],
+      },
+      {
+        title: "送出",
+        nodes: [
+          {
+            id: "push",
+            label: "推播 LINE",
+            app: "line",
+            kind: "output",
+            detail: "推給該負責的人",
+            data: "提醒訊息",
+            side: [{ label: "逾時未達自動重送", kind: "process" }],
+          },
+        ],
+      },
+      {
+        title: "收尾",
+        nodes: [
+          {
+            id: "log",
+            label: "記錄回執",
+            terminal: true,
+            kind: "store",
+            detail: "送達與否都留紀錄",
+            side: [{ label: "異常回報總管", handoff: "teamlead" }],
+          },
+        ],
+      },
     ],
     idle: "監控中・等待指標觸發",
     ticker: ["盯著 6 個指標門檻…", "LINE 推播通道正常", "上次觸發 今早 09:12"],
@@ -90,22 +211,105 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
     prop: "chart",
     flow: [
       {
+        title: "取數",
         nodes: [
-          { id: "ga4", label: "GA4 流量", branch: "流量", app: "google-analytics", main: true },
-          { id: "meta", label: "Meta 廣告成效", branch: "廣告", app: "meta", handoff: "today" },
-          { id: "social", label: "社群互動數據", branch: "社群", handoff: "card" },
+          {
+            id: "ga4",
+            label: "GA4 流量",
+            branch: "流量",
+            app: "google-analytics",
+            main: true,
+            kind: "source",
+            detail: "工作階段 / 轉換 / 渠道",
+            data: "28 天流量",
+          },
+          {
+            id: "meta",
+            label: "Meta 廣告成效",
+            branch: "廣告",
+            app: "meta",
+            handoff: "today",
+            kind: "source",
+            detail: "花費 / ROAS / CPA",
+          },
+          {
+            id: "social",
+            label: "社群互動數據",
+            branch: "社群",
+            handoff: "card",
+            kind: "source",
+            detail: "觸及與互動率",
+          },
         ],
       },
-      { nodes: [{ id: "clean", label: "清洗彙整" }] },
-      { nodes: [{ id: "ctx", label: "讀知識庫脈絡", app: "supabase" }] },
-      { nodes: [{ id: "insight", label: "AI 產生洞察", app: "openai" }] },
       {
+        title: "清洗",
         nodes: [
-          { id: "produce", label: "產出戰報", branch: "正常", main: true },
-          { id: "flag", label: "標注低谷＋通報", branch: "有異常", handoff: "teamlead" },
+          {
+            id: "clean",
+            label: "清洗彙整",
+            kind: "process",
+            detail: "對齊時間軸、去重、補缺",
+            data: "統一格式成效表",
+            side: [{ label: "缺數據自動補抓", kind: "process" }],
+          },
         ],
       },
-      { nodes: [{ id: "send", label: "推播摘要", app: "line", terminal: true }] },
+      {
+        title: "脈絡",
+        nodes: [
+          {
+            id: "ctx",
+            label: "讀知識庫脈絡",
+            app: "supabase",
+            kind: "store",
+            detail: "去年同期、活動檔期、客群",
+            data: "帶脈絡的數據",
+          },
+        ],
+      },
+      {
+        title: "洞察",
+        nodes: [
+          {
+            id: "insight",
+            label: "AI 產生洞察",
+            app: "openai",
+            kind: "ai",
+            detail: "解釋漲跌並給行動建議",
+            data: "洞察 + 建議",
+            side: [{ label: "洞察存回知識庫", app: "supabase", kind: "store" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "produce", label: "產出戰報", branch: "正常", main: true, kind: "output", detail: "一頁式成效戰報" },
+          {
+            id: "flag",
+            label: "標注低谷＋通報",
+            branch: "有異常",
+            handoff: "teamlead",
+            kind: "decision",
+            detail: "低於門檻先示警",
+          },
+        ],
+      },
+      {
+        title: "送出",
+        nodes: [
+          {
+            id: "send",
+            label: "推播摘要",
+            app: "line",
+            terminal: true,
+            kind: "output",
+            detail: "LINE 推播給指揮官",
+            side: [{ label: "歸檔到產出總覽", kind: "store" }],
+          },
+        ],
+      },
     ],
     idle: "待命中・等待數據更新",
     ticker: ["昨日戰報已寄出 ✓", "彙整廣告 / SEO / 社群三路數據…", "下次產出 明早 08:00"],
@@ -113,16 +317,66 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   schedule: {
     prop: "calendar",
     flow: [
-      { nodes: [{ id: "read", label: "讀取行事曆", app: "google-calendar" }] },
-      { nodes: [{ id: "scan", label: "掃描未來 7 天" }] },
       {
+        title: "取行程",
         nodes: [
-          { id: "remind", label: "產生提醒", branch: "正常", main: true },
-          { id: "resolve", label: "擬改期選項", branch: "衝突" },
+          {
+            id: "read",
+            label: "讀取行事曆",
+            app: "google-calendar",
+            kind: "source",
+            detail: "跟約拜訪同一份日曆",
+            data: "未來行程",
+            handoff: "visit",
+          },
         ],
       },
-      { nodes: [{ id: "send", label: "發送 LINE", app: "line" }] },
-      { nodes: [{ id: "confirm", label: "確認回覆", terminal: true }] },
+      {
+        title: "掃描",
+        nodes: [
+          {
+            id: "scan",
+            label: "掃描未來 7 天",
+            kind: "process",
+            detail: "找衝突、交期與續約日",
+            data: "重點時段",
+            side: [{ label: "空檔給約拜訪用", handoff: "visit" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "remind", label: "產生提醒", branch: "正常", main: true, kind: "process", detail: "會議前 30 分鐘提醒" },
+          { id: "resolve", label: "擬改期選項", branch: "衝突", kind: "decision", detail: "備兩個替代時段" },
+        ],
+      },
+      {
+        title: "送出",
+        nodes: [
+          {
+            id: "send",
+            label: "發送 LINE",
+            app: "line",
+            kind: "output",
+            detail: "同時通知雙方",
+            data: "提醒 / 改期選項",
+          },
+        ],
+      },
+      {
+        title: "收尾",
+        nodes: [
+          {
+            id: "confirm",
+            label: "確認回覆",
+            terminal: true,
+            kind: "store",
+            detail: "回覆後寫回行事曆",
+            side: [{ label: "更新日曆事件", app: "google-calendar", kind: "store" }],
+          },
+        ],
+      },
     ],
     idle: "待命中・盯著未來七天",
     ticker: ["掃描未來 7 天行程…", "距離下次提醒 42 分", "目前沒有時段衝突"],
@@ -130,20 +384,89 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   card: {
     prop: "compose",
     flow: [
-      { nodes: [{ id: "listen", label: "讀口碑風向", branch: "情緒參考", handoff: "competitor" }] },
-      { nodes: [{ id: "ideate", label: "選題發想" }] },
-      { nodes: [{ id: "draft", label: "AI 多版草稿", app: "openai" }] },
       {
+        title: "聽風向",
         nodes: [
-          { id: "auto", label: "自動排程", branch: "定稿", main: true },
-          { id: "pick", label: "等你挑版本", branch: "多版草稿" },
+          {
+            id: "listen",
+            label: "讀口碑風向",
+            branch: "情緒參考",
+            handoff: "competitor",
+            kind: "source",
+            detail: "這週大家在討論什麼",
+            data: "情緒與熱詞",
+            side: [{ label: "SEO 熱門選題", handoff: "expense" }],
+          },
         ],
       },
-      { nodes: [{ id: "publish", label: "多平台發佈", app: "meta" }] },
       {
+        title: "選題",
         nodes: [
-          { id: "reply", label: "回覆留言", branch: "一般", main: true, terminal: true },
-          { id: "boost", label: "爆文轉廣告素材", branch: "高互動", handoff: "today", terminal: true },
+          {
+            id: "ideate",
+            label: "選題發想",
+            kind: "process",
+            detail: "對照品牌調性挑角度",
+            data: "本週題目",
+          },
+        ],
+      },
+      {
+        title: "草稿",
+        nodes: [
+          {
+            id: "draft",
+            label: "AI 多版草稿",
+            app: "openai",
+            kind: "ai",
+            detail: "一題三個語氣版本",
+            data: "3 版圖文",
+            side: [{ label: "圖片素材生成", kind: "ai" }],
+          },
+        ],
+      },
+      {
+        title: "定案",
+        nodes: [
+          { id: "auto", label: "自動排程", branch: "定稿", main: true, kind: "process", detail: "排進最佳發文時段" },
+          { id: "pick", label: "等你挑版本", branch: "多版草稿", kind: "decision", detail: "LINE 上挑一版" },
+        ],
+      },
+      {
+        title: "發佈",
+        nodes: [
+          {
+            id: "publish",
+            label: "多平台發佈",
+            app: "meta",
+            kind: "output",
+            detail: "IG / FB / Threads 同步",
+            data: "上線貼文",
+          },
+        ],
+      },
+      {
+        title: "後續",
+        nodes: [
+          {
+            id: "reply",
+            label: "回覆留言",
+            branch: "一般",
+            main: true,
+            terminal: true,
+            kind: "process",
+            detail: "常見問題直接回",
+            side: [{ label: "互動數據給數據參謀", handoff: "report" }],
+          },
+          {
+            id: "boost",
+            label: "爆文轉廣告素材",
+            branch: "高互動",
+            handoff: "today",
+            terminal: true,
+            kind: "decision",
+            detail: "互動率前段直接投放",
+          },
         ],
       },
     ],
@@ -153,22 +476,95 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   expense: {
     prop: "radar",
     flow: [
-      { nodes: [{ id: "crawl", label: "爬取排名", app: "google-search-console" }] },
-      { nodes: [{ id: "diff", label: "對比變化" }] },
       {
+        title: "取數",
         nodes: [
-          { id: "opportunity", label: "整理機會清單", branch: "排名上升", main: true },
-          { id: "fix", label: "擬技術修正建議", branch: "排名下滑" },
+          {
+            id: "crawl",
+            label: "爬取排名",
+            app: "google-search-console",
+            kind: "source",
+            detail: "點擊 / 曝光 / 平均排名",
+            data: "關鍵字快照",
+          },
         ],
       },
-      { nodes: [{ id: "draft", label: "AI 產內容草稿", app: "openai" }] },
       {
+        title: "比對",
         nodes: [
-          { id: "topics", label: "選題入庫", branch: "定稿", app: "supabase", main: true },
-          { id: "toCard", label: "熱門選題給社群", branch: "可再利用", handoff: "card" },
+          {
+            id: "diff",
+            label: "對比變化",
+            kind: "process",
+            detail: "跟上週、去年同期比",
+            data: "漲跌清單",
+            side: [{ label: "技術面健檢", kind: "process" }],
+          },
         ],
       },
-      { nodes: [{ id: "weekly", label: "週報＋彙整", handoff: "report", terminal: true }] },
+      {
+        title: "判斷",
+        nodes: [
+          {
+            id: "opportunity",
+            label: "整理機會清單",
+            branch: "排名上升",
+            main: true,
+            kind: "decision",
+            detail: "第 11-20 名優先補內容",
+          },
+          { id: "fix", label: "擬技術修正建議", branch: "排名下滑", kind: "decision", detail: "速度、結構化資料" },
+        ],
+      },
+      {
+        title: "內容",
+        nodes: [
+          {
+            id: "draft",
+            label: "AI 產內容草稿",
+            app: "openai",
+            kind: "ai",
+            detail: "比較型長文為主",
+            data: "文章草稿",
+          },
+        ],
+      },
+      {
+        title: "分流",
+        nodes: [
+          {
+            id: "topics",
+            label: "選題入庫",
+            branch: "定稿",
+            app: "supabase",
+            main: true,
+            kind: "store",
+            detail: "存進知識庫供全隊用",
+          },
+          {
+            id: "toCard",
+            label: "熱門選題給社群",
+            branch: "可再利用",
+            handoff: "card",
+            kind: "decision",
+            detail: "同一題改寫成貼文",
+          },
+        ],
+      },
+      {
+        title: "彙整",
+        nodes: [
+          {
+            id: "weekly",
+            label: "週報＋彙整",
+            handoff: "report",
+            terminal: true,
+            kind: "output",
+            detail: "自然流量進數據參謀的戰報",
+            side: [{ label: "排名警示推播", app: "line", kind: "output" }],
+          },
+        ],
+      },
     ],
     idle: "監看中・持續追蹤排名",
     ticker: ["排名快照 每日 06:00", "3 組關鍵字進前十 ▲", "熱門選題已同步社群"],
@@ -176,10 +572,47 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   visit: {
     prop: "card",
     flow: [
-      { nodes: [{ id: "scan", label: "辨識名片", live: ["0"] }] },
-      { nodes: [{ id: "write", label: "寫入聯絡人", live: ["1"] }] },
-      { nodes: [{ id: "confirm", label: "確認資訊（可修正）", live: ["2:waiting"] }] },
       {
+        title: "辨識",
+        nodes: [
+          {
+            id: "scan",
+            label: "辨識名片",
+            live: ["0"],
+            kind: "source",
+            detail: "AI 讀出姓名、公司、職稱",
+            data: "名片欄位",
+          },
+        ],
+      },
+      {
+        title: "建檔",
+        nodes: [
+          {
+            id: "write",
+            label: "寫入聯絡人",
+            live: ["1"],
+            kind: "store",
+            detail: "存進聯絡人資料庫",
+            data: "聯絡人",
+            side: [{ label: "同名重複自動合併", kind: "process" }],
+          },
+        ],
+      },
+      {
+        title: "確認",
+        nodes: [
+          {
+            id: "confirm",
+            label: "確認資訊（可修正）",
+            live: ["2:waiting"],
+            kind: "decision",
+            detail: "LINE 上跟你核對一次",
+          },
+        ],
+      },
+      {
+        title: "分流",
         nodes: [
           {
             id: "match",
@@ -189,12 +622,48 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
             main: true,
             handoff: "schedule",
             app: "google-calendar",
+            kind: "process",
+            detail: "跟行程助理同一份日曆",
           },
-          { id: "tag", label: "標註客戶標籤", branch: "先不要", live: ["2:done"], terminal: true },
+          {
+            id: "tag",
+            label: "標註客戶標籤",
+            branch: "先不要",
+            live: ["2:done"],
+            terminal: true,
+            kind: "store",
+            detail: "留著之後再跟進",
+          },
         ],
       },
-      { nodes: [{ id: "draft", label: "草擬邀約信", live: ["3"] }] },
-      { nodes: [{ id: "sent", label: "寄出＆追蹤回覆", live: ["4"], terminal: true, app: "gmail" }] },
+      {
+        title: "邀約",
+        nodes: [
+          {
+            id: "draft",
+            label: "草擬邀約信",
+            live: ["3"],
+            kind: "ai",
+            detail: "帶上兩個候選時段",
+            data: "邀約信",
+          },
+        ],
+      },
+      {
+        title: "送出",
+        nodes: [
+          {
+            id: "sent",
+            label: "寄出＆追蹤回覆",
+            live: ["4"],
+            terminal: true,
+            app: "gmail",
+            kind: "output",
+            detail: "沒回信自動排跟進",
+            side: [{ label: "確認後建立日曆事件", app: "google-calendar", handoff: "schedule" }],
+          },
+        ],
+      },
     ],
     idle: "待命中・等待名片上傳",
     ticker: ["名片一傳來就開工", "2 位客戶回覆較慢，已排跟進", "邀約信模板已就緒"],
@@ -203,20 +672,76 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
     prop: "chart",
     flow: [
       {
+        title: "取數",
         nodes: [
-          { id: "meta", label: "Meta 成效", branch: "Meta", app: "meta", main: true },
-          { id: "google", label: "Google Ads", branch: "Google", app: "google-analytics" },
+          {
+            id: "meta",
+            label: "Meta 成效",
+            branch: "Meta",
+            app: "meta",
+            main: true,
+            kind: "source",
+            detail: "活動 / 組合 / 素材三層",
+            data: "投放成效",
+          },
+          {
+            id: "google",
+            label: "Google Ads",
+            branch: "Google",
+            app: "google-analytics",
+            kind: "source",
+            detail: "搜尋與多媒體",
+          },
         ],
       },
-      { nodes: [{ id: "calc", label: "計算 CPA / ROAS" }] },
-      { nodes: [{ id: "audience", label: "受眾比對", branch: "排除競品受眾", handoff: "competitor" }] },
       {
+        title: "算帳",
         nodes: [
-          { id: "scale", label: "標記加碼機會", branch: "達標", main: true },
-          { id: "alert", label: "即時警示", branch: "超標", app: "line" },
+          {
+            id: "calc",
+            label: "計算 CPA / ROAS",
+            kind: "process",
+            detail: "換算成同一把尺",
+            data: "成本效益表",
+            side: [{ label: "素材疲勞度檢查", kind: "process" }],
+          },
         ],
       },
-      { nodes: [{ id: "daily", label: "日報＋彙整", handoff: "report", terminal: true }] },
+      {
+        title: "受眾",
+        nodes: [
+          {
+            id: "audience",
+            label: "受眾比對",
+            branch: "排除競品受眾",
+            handoff: "competitor",
+            kind: "process",
+            detail: "負評受眾先排除",
+            data: "受眾調整建議",
+            side: [{ label: "高互動貼文轉素材", handoff: "card" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "scale", label: "標記加碼機會", branch: "達標", main: true, kind: "decision", detail: "ROAS 前段建議加預算" },
+          { id: "alert", label: "即時警示", branch: "超標", app: "line", kind: "output", detail: "CPA 超標當下就通知" },
+        ],
+      },
+      {
+        title: "彙整",
+        nodes: [
+          {
+            id: "daily",
+            label: "日報＋彙整",
+            handoff: "report",
+            terminal: true,
+            kind: "output",
+            detail: "廣告成效進戰報",
+          },
+        ],
+      },
     ],
     idle: "待命中・等待投放數據",
     ticker: ["下次抓取 明早 06:30", "跨 Meta / Google 門檻監控中…", "加碼機會清單 12 筆"],
@@ -224,19 +749,81 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   competitor: {
     prop: "radar",
     flow: [
-      { nodes: [{ id: "watch", label: "監看 IG／Threads／PTT／FB" }] },
-      { nodes: [{ id: "score", label: "AI 情緒分級", app: "openai" }] },
       {
+        title: "監看",
         nodes: [
-          { id: "digest", label: "納入彙整", branch: "正面／中立", main: true },
-          { id: "escalate", label: "即時通報＋建議回覆", branch: "負評", app: "line" },
+          {
+            id: "watch",
+            label: "監看 IG／Threads／PTT／FB",
+            kind: "source",
+            detail: "品牌字與競品字一起掃",
+            data: "原始聲量",
+          },
         ],
       },
-      { nodes: [{ id: "intel", label: "競品敵情入庫", app: "supabase" }] },
       {
+        title: "分級",
         nodes: [
-          { id: "toCard", label: "情緒風向給社群", branch: "內容調整", handoff: "card", main: true, terminal: true },
-          { id: "toAds", label: "受眾建議給廣告", branch: "投放調整", handoff: "today", terminal: true },
+          {
+            id: "score",
+            label: "AI 情緒分級",
+            app: "openai",
+            kind: "ai",
+            detail: "每則打 0-100 情緒分",
+            data: "情緒分數",
+            side: [{ label: "情緒關鍵詞統計", kind: "process" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "digest", label: "納入彙整", branch: "正面／中立", main: true, kind: "process", detail: "累積成聲量趨勢" },
+          {
+            id: "escalate",
+            label: "即時通報＋建議回覆",
+            branch: "負評",
+            app: "line",
+            kind: "output",
+            detail: "附一版可直接貼的回覆",
+          },
+        ],
+      },
+      {
+        title: "入庫",
+        nodes: [
+          {
+            id: "intel",
+            label: "競品敵情入庫",
+            app: "supabase",
+            kind: "store",
+            detail: "競品活動與定價變化",
+            data: "敵情摘要",
+          },
+        ],
+      },
+      {
+        title: "外送",
+        nodes: [
+          {
+            id: "toCard",
+            label: "情緒風向給社群",
+            branch: "內容調整",
+            handoff: "card",
+            main: true,
+            terminal: true,
+            kind: "output",
+            detail: "調整貼文題材與語氣",
+          },
+          {
+            id: "toAds",
+            label: "受眾建議給廣告",
+            branch: "投放調整",
+            handoff: "today",
+            terminal: true,
+            kind: "output",
+            detail: "排除或加碼特定受眾",
+          },
         ],
       },
     ],
@@ -246,16 +833,55 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   operations: {
     prop: "doc",
     flow: [
-      { nodes: [{ id: "audit", label: "盤點各線數據" }] },
-      { nodes: [{ id: "dashboard", label: "更新儀表板" }] },
       {
+        title: "盤點",
         nodes: [
-          { id: "kb", label: "更新知識庫", branch: "正常", main: true },
-          { id: "blocker", label: "標記卡點待辦", branch: "卡點" },
+          {
+            id: "audit",
+            label: "盤點各線數據",
+            kind: "source",
+            detail: "內訓 / 公開課 / 導入 / 陪跑",
+            data: "各產品線現況",
+          },
         ],
       },
-      { nodes: [{ id: "sync", label: "同步團隊" }] },
-      { nodes: [{ id: "archive", label: "歸檔", terminal: true }] },
+      {
+        title: "彙整",
+        nodes: [
+          {
+            id: "dashboard",
+            label: "更新儀表板",
+            kind: "process",
+            detail: "進度、金額、下一步",
+            data: "營運全貌",
+            side: [{ label: "訂單營收對帳", handoff: "orders" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "kb", label: "更新知識庫", branch: "正常", main: true, app: "supabase", kind: "store", detail: "補常見問答與 SOP" },
+          { id: "blocker", label: "標記卡點待辦", branch: "卡點", kind: "decision", detail: "指派負責人與期限" },
+        ],
+      },
+      {
+        title: "同步",
+        nodes: [
+          {
+            id: "sync",
+            label: "同步團隊",
+            kind: "output",
+            detail: "把異動推給相關隊友",
+            data: "異動通知",
+            side: [{ label: "重大異動回報總管", handoff: "teamlead" }],
+          },
+        ],
+      },
+      {
+        title: "收尾",
+        nodes: [{ id: "archive", label: "歸檔", terminal: true, kind: "store", detail: "留一份可回溯的快照" }],
+      },
     ],
     idle: "待命中・等待營運異動",
     ticker: ["儀表板已同步 ✓", "知識庫本週 +6 條", "1 個流程卡點待處理"],
@@ -263,16 +889,65 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   support: {
     prop: "chat",
     flow: [
-      { nodes: [{ id: "receive", label: "接收進線", app: "line" }] },
-      { nodes: [{ id: "understand", label: "理解意圖" }] },
       {
+        title: "進線",
         nodes: [
-          { id: "script", label: "話術回覆", branch: "常見題", main: true },
-          { id: "human", label: "轉真人＋附摘要", branch: "複雜題" },
+          {
+            id: "receive",
+            label: "接收進線",
+            app: "line",
+            kind: "source",
+            detail: "客服官方帳號 24h 值班",
+            data: "客戶訊息",
+          },
         ],
       },
-      { nodes: [{ id: "send", label: "送出回覆" }] },
-      { nodes: [{ id: "log", label: "記錄對話", terminal: true }] },
+      {
+        title: "理解",
+        nodes: [
+          {
+            id: "understand",
+            label: "理解意圖",
+            kind: "ai",
+            detail: "分類問題並找出關鍵字",
+            data: "意圖分類",
+            side: [{ label: "查知識庫話術", app: "supabase", kind: "store" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "script", label: "話術回覆", branch: "常見題", main: true, kind: "process", detail: "照核可過的話術回" },
+          { id: "human", label: "轉真人＋附摘要", branch: "複雜題", kind: "decision", detail: "把前情摘要一起交接" },
+        ],
+      },
+      {
+        title: "回覆",
+        nodes: [
+          {
+            id: "send",
+            label: "送出回覆",
+            app: "line",
+            kind: "output",
+            detail: "平均 3 分鐘內回覆",
+            data: "回覆訊息",
+          },
+        ],
+      },
+      {
+        title: "收尾",
+        nodes: [
+          {
+            id: "log",
+            label: "記錄對話",
+            terminal: true,
+            kind: "store",
+            detail: "整段對話留檔可查",
+            side: [{ label: "負面情緒轉口碑追蹤", handoff: "competitor" }],
+          },
+        ],
+      },
     ],
     idle: "整備中・等待帳號金鑰",
     ticker: ["等待 Channel 金鑰接入…", "客服話術庫已就緒", "隨時可以上線值班"],
@@ -280,19 +955,63 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
   orders: {
     prop: "doc",
     flow: [
-      { nodes: [{ id: "receive", label: "接收新訂單" }] },
-      { nodes: [{ id: "verify", label: "核對付款" }] },
       {
+        title: "接單",
         nodes: [
-          { id: "ship", label: "通知出貨", branch: "正常", main: true, app: "line" },
-          { id: "escalate", label: "通報異常給你", branch: "異常" },
+          {
+            id: "receive",
+            label: "接收新訂單",
+            kind: "source",
+            detail: "Teachify Webhook 即時進來",
+            data: "訂單內容",
+          },
         ],
       },
-      { nodes: [{ id: "track", label: "追蹤到貨" }] },
       {
+        title: "核對",
         nodes: [
-          { id: "done", label: "完成歸檔", branch: "已取貨", main: true, terminal: true },
-          { id: "overdue", label: "逾期提醒取貨", branch: "逾期", terminal: true, app: "line" },
+          {
+            id: "verify",
+            label: "核對付款",
+            kind: "process",
+            detail: "金額、品項、發票資訊",
+            data: "已核對訂單",
+            side: [{ label: "營收累加到營運儀表板", handoff: "operations" }],
+          },
+        ],
+      },
+      {
+        title: "判斷",
+        nodes: [
+          { id: "ship", label: "通知出貨", branch: "正常", main: true, app: "line", kind: "output", detail: "推播明細給你" },
+          { id: "escalate", label: "通報異常給你", branch: "異常", kind: "decision", detail: "退款、金額對不上" },
+        ],
+      },
+      {
+        title: "追蹤",
+        nodes: [
+          {
+            id: "track",
+            label: "追蹤到貨",
+            kind: "process",
+            detail: "盯物流與取貨狀態",
+            data: "配送狀態",
+          },
+        ],
+      },
+      {
+        title: "收尾",
+        nodes: [
+          { id: "done", label: "完成歸檔", branch: "已取貨", main: true, terminal: true, kind: "store", detail: "併入營收統計" },
+          {
+            id: "overdue",
+            label: "逾期提醒取貨",
+            branch: "逾期",
+            terminal: true,
+            app: "line",
+            kind: "output",
+            detail: "超過期限自動催取",
+          },
         ],
       },
     ],

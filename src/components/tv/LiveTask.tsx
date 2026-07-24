@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AgentLiveDef, PropKind } from "@/lib/agent-briefings";
 import type { AgentSlug } from "@/lib/types";
-import FlowGraph from "./FlowGraph";
+import FlowCanvas, { type FlowRun } from "@/components/flow/FlowCanvas";
 import IdleScene from "./IdleScene";
 
 /* 各職務的道具視覺（真實任務進行中、但沒有實照可放時演出用） */
@@ -177,6 +177,8 @@ export default function LiveTask({
 }) {
   const isLive = Boolean(live?.active);
   const isWaiting = isLive && live!.status === "waiting";
+  // 流程圖吃的推進狀態：有真實任務就照 live 的步驟走，否則整張圖以待命全貌呈現
+  const flowRun: FlowRun = isLive ? { mode: "live", step: live!.step, status: live!.status } : { mode: "idle" };
   const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
 
   return (
@@ -243,10 +245,15 @@ export default function LiveTask({
         )}
       </div>
 
-      {/* 工作流程圖：完整節點＋分支。待命時展示全貌；真實任務時亮出走過的路徑 */}
+      {/* 工作流程圖：主幹＋分支＋旁支。待命時展示全貌；真實任務時亮出走過的路徑與資料流動 */}
       <div className="mt-5">
-        <p className="mb-2.5 text-[10px] font-semibold tracking-[0.2em] text-white/35">工作流程</p>
-        <FlowGraph flow={def.flow} color={color} live={live} />
+        <p className="mb-2.5 flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-white/35">
+          工作流程
+          <span className="font-normal tracking-normal text-white/25">
+            {isLive ? "資料正沿著這條路徑流動" : "待命中・完整路徑一覽"}
+          </span>
+        </p>
+        <FlowCanvas flow={def.flow} color={color} run={flowRun} theme="dark" />
       </div>
 
       {/* 等待指示時：明確告訴觀眾在等下一步 */}
