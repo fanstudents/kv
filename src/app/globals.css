@@ -400,55 +400,6 @@ body {
   animation: tv-focus-glow 2.6s ease-in-out infinite;
 }
 
-/* ---- 會議室頭像：讓鏡頭前的頭像像真人——待機微呼吸、偶爾眨眼、說話時輕輕晃動 ---- */
-@keyframes cam-breathe {
-  0%,
-  100% {
-    transform: scale(1) translateY(0);
-  }
-  50% {
-    transform: scale(1.015) translateY(-1px);
-  }
-}
-.cam-breathe {
-  animation: cam-breathe 5s ease-in-out infinite;
-}
-@keyframes cam-blink {
-  0%,
-  92%,
-  100% {
-    opacity: 0;
-  }
-  94%,
-  96% {
-    opacity: 0.6;
-  }
-}
-.cam-blink {
-  /* 柔和的橢圓漸層，不是一條硬邊色塊——不同照片的眼睛高度多少有落差，
-     邊緣模糊掉才不會在對不準的照片上看起來像一道瑕疵橫紋 */
-  background: radial-gradient(ellipse 60% 100% at center, rgba(5, 6, 10, 0.8) 0%, rgba(5, 6, 10, 0.35) 55%, transparent 80%);
-  animation: cam-blink 6s ease-in-out infinite;
-}
-@keyframes cam-talk {
-  0%,
-  100% {
-    transform: scale(1) rotate(0deg);
-  }
-  25% {
-    transform: scale(1.015) rotate(-0.35deg);
-  }
-  50% {
-    transform: scale(1.006) rotate(0.25deg);
-  }
-  75% {
-    transform: scale(1.018) rotate(-0.2deg);
-  }
-}
-.cam-talk {
-  animation: cam-talk 0.9s ease-in-out infinite;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .tv-blob-a,
   .tv-blob-b,
@@ -468,10 +419,7 @@ body {
   .tv-sheen,
   .tv-marquee,
   .tv-progress,
-  .tv-focus-glow,
-  .cam-breathe,
-  .cam-blink,
-  .cam-talk {
+  .tv-focus-glow {
     animation: none;
   }
   .tv-intro-out {

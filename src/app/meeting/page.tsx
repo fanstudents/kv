@@ -163,6 +163,9 @@ export default function MeetingPage() {
   const gestureHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const micNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recoveringMicRef = useRef(false);
+  // 保底看門狗：老闆講完話後遲遲沒等到 Agent 開口（VAD 誤判、換人瞬間的連線競態…），
+  // 幾秒後自動催一下，避免整場對話卡死看起來像「換過去但沒人回應」。
+  const noResponseWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     currentIndexRef.current = currentIndex;
@@ -261,6 +264,10 @@ export default function MeetingPage() {
       rtSessionRef.current?.close();
       rtSessionRef.current = null;
       connectedIndexRef.current = -1;
+      if (noResponseWatchdogRef.current) {
+        clearTimeout(noResponseWatchdogRef.current);
+        noResponseWatchdogRef.current = null;
+      }
       setConnecting(true);
       // 立刻更新「現正對談」讓畫面反映意圖（連線中疊層會顯示是誰）
       currentIndexRef.current = next;
@@ -275,7 +282,14 @@ export default function MeetingPage() {
       const agent = roster[next];
       const micTrack = micStreamRef.current?.getAudioTracks()[0];
       if (!micTrack) {
+        // 麥克風軌道拿不到：換人整個沒發生（畫面卻已經先顯示成新的一位），
+        // 一定要留下明確提示，不然看起來像「換過去了但沒人理你」，其實從頭到尾沒連上。
         setConnecting(false);
+        flashMicNotice("麥克風目前無法使用，換人失敗，請確認麥克風權限", 6000);
+        if (previousIndex !== next) {
+          currentIndexRef.current = previousIndex;
+          setCurrentIndex(previousIndex);
+        }
         return;
       }
 
@@ -308,11 +322,22 @@ export default function MeetingPage() {
             if (myToken !== switchTokenRef.current) return;
             lastVoiceTsRef.current = Date.now();
             setIsSpeakingUI(true);
+            if (noResponseWatchdogRef.current) {
+              clearTimeout(noResponseWatchdogRef.current);
+              noResponseWatchdogRef.current = null;
+            }
           },
           onUserSpeechStop: () => {
             if (myToken !== switchTokenRef.current) return;
             setIsSpeakingUI(false);
             setResponding(true);
+            // 保底看門狗：5 秒內沒等到 Agent 開口就主動催一下，不讓對話卡死
+            if (noResponseWatchdogRef.current) clearTimeout(noResponseWatchdogRef.current);
+            noResponseWatchdogRef.current = setTimeout(() => {
+              if (myToken !== switchTokenRef.current) return;
+              console.debug("[meeting] 沒等到回應，主動催一下 response.create");
+              session.nudgeResponse();
+            }, 5000);
           },
           onUserTranscript: (text) => {
             if (!text || myToken !== switchTokenRef.current) return;
@@ -345,12 +370,20 @@ export default function MeetingPage() {
             agentSpeakingRef.current = true;
             setAgentTalking(true);
             setAssistantCaption((prev) => prev + delta);
+            if (noResponseWatchdogRef.current) {
+              clearTimeout(noResponseWatchdogRef.current);
+              noResponseWatchdogRef.current = null;
+            }
           },
           onAssistantSpeechStart: () => {
             if (myToken !== switchTokenRef.current) return;
             setResponding(false);
             agentSpeakingRef.current = true;
             setAgentTalking(true);
+            if (noResponseWatchdogRef.current) {
+              clearTimeout(noResponseWatchdogRef.current);
+              noResponseWatchdogRef.current = null;
+            }
           },
           onAssistantTranscriptDone: (text) => {
             if (myToken !== switchTokenRef.current) return;
@@ -421,6 +454,10 @@ export default function MeetingPage() {
             if (myToken !== switchTokenRef.current) return;
             agentSpeakingRef.current = false;
             setAgentTalking(false);
+            if (noResponseWatchdogRef.current) {
+              clearTimeout(noResponseWatchdogRef.current);
+              noResponseWatchdogRef.current = null;
+            }
           },
         });
 
@@ -863,7 +900,6 @@ export default function MeetingPage() {
                       personEn={a.personEn}
                       color={a.color}
                       size={a.slug === TEAM_LEAD_SLUG ? 60 : 46}
-                      slug={a.slug}
                     />
                     <span className="text-[11px] text-white/40">{a.personEn}</span>
                   </div>
@@ -1016,13 +1052,7 @@ export default function MeetingPage() {
                       className="absolute -inset-2 rounded-full blur-xl"
                       style={{ background: `radial-gradient(circle, ${currentAgent.color}66, transparent 70%)` }}
                     />
-                    <LiveAvatar
-                      personEn={currentAgent.personEn}
-                      color={currentAgent.color}
-                      size={64}
-                      slug={currentAgent.slug}
-                      talking={agentTalking}
-                    />
+                    <LiveAvatar personEn={currentAgent.personEn} color={currentAgent.color} size={64} />
                     <span
                       className="tv-breathe absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-[3px] border-[#0b0d12] bg-[#06C755]"
                       style={{ boxShadow: "0 0 10px 2px rgba(6,199,85,0.6)" }}
@@ -1174,13 +1204,7 @@ export default function MeetingPage() {
                             : undefined
                         }
                       >
-                        <LiveAvatar
-                          personEn={a.personEn}
-                          color={a.color}
-                          size={isCurrent ? 76 : 50}
-                          slug={a.slug}
-                          talking={isCurrent && agentTalking}
-                        />
+                        <LiveAvatar personEn={a.personEn} color={a.color} size={isCurrent ? 76 : 50} />
                         <span
                           className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-[#05060a] ${
                             isCurrent

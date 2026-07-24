@@ -122,6 +122,14 @@ export class RealtimeVoiceSession {
     this.dc.send(JSON.stringify({ type: "response.cancel" }));
   }
 
+  /** 手動催一下：正常情況下伺服器端 VAD 偵測到講完就會自動生成回覆，這支是保底用——
+   * 老闆講完話卻遲遲沒反應（VAD 誤判沒偵測到講完、或换人瞬間的連線競態）時，
+   * 由前端主動補一句 response.create，避免整場對話卡死等不到人接話。 */
+  nudgeResponse(): void {
+    if (!this.dc || this.dc.readyState !== "open") return;
+    this.dc.send(JSON.stringify({ type: "response.create" }));
+  }
+
   /** 回覆 Agent 呼叫的工具結果。continueResponse=true 會接著要求 Agent 繼續講話
    * （例如 show_result 之後讓它接著唸重點）；換人這種不需要它再開口的情境傳 false。 */
   submitFunctionResult(callId: string, output: unknown, continueResponse: boolean): void {
