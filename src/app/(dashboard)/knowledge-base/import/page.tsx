@@ -52,6 +52,15 @@ export default function KnowledgeImportPage() {
   const [limit, setLimit] = useState(25);
   const [preview, setPreview] = useState<string>("");
   const [urlBusy, setUrlBusy] = useState(false);
+  const [credit, setCredit] = useState<{ remaining: number; plan: number; periodEnd: string | null } | null>(null);
+
+  // 進頁面就先問一次 Firecrawl 還剩多少額度（抓網頁是按頁計費的）
+  useEffect(() => {
+    fetch("/api/knowledge-base/crawl")
+      .then((r) => (r.ok ? r.json() : { credit: null }))
+      .then((d) => setCredit(d.credit ?? null))
+      .catch(() => {});
+  }, [result]);
 
   useEffect(() => {
     fetch("/api/knowledge-base/import")
@@ -94,6 +103,7 @@ export default function KnowledgeImportPage() {
       const res = await fetch(`/api/knowledge-base/crawl?url=${encodeURIComponent(url.trim())}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "預覽失敗");
+      if (data.credit) setCredit(data.credit);
       setPreview(`這個站大約有 ${data.count} 頁；整站匯入會依「頁數上限」抓前面幾頁`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "預覽失敗");
@@ -114,6 +124,7 @@ export default function KnowledgeImportPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "匯入失敗");
+      if (data.credit) setCredit(data.credit);
       if (data.unchanged) {
         setDone("這個網址先前已匯入過，而且內容沒有變動——沒有產生新的待審條目。");
       } else {
@@ -261,10 +272,30 @@ export default function KnowledgeImportPage() {
           <Globe size={15} className="text-[#0EA5E9]" />
           從網址匯入
         </h2>
-        <p className="mb-4 text-xs text-neutral-400">
+        <p className="mb-3 text-xs text-neutral-400">
           官網、課程頁、說明文章直接餵進來——會抓成乾淨的正文（去掉導覽列與頁尾），
           再走跟 PDF 一樣的流程：轉條目 → 人審 → 發布。動態渲染的頁面也抓得到。
         </p>
+        {credit && (
+          <p className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
+            <span
+              className={`rounded-full px-2 py-0.5 font-medium ${
+                credit.remaining < 100
+                  ? "bg-red-500/12 text-red-500"
+                  : credit.remaining < 300
+                    ? "bg-amber-400/15 text-amber-600 dark:text-amber-300"
+                    : "bg-[#0EA5E9]/12 text-[#0EA5E9]"
+              }`}
+            >
+              抓取額度剩 {credit.remaining.toLocaleString()} 頁
+            </span>
+            <span className="text-neutral-400">
+              每月 {credit.plan.toLocaleString()} 頁
+              {credit.periodEnd && ` · ${new Date(credit.periodEnd).toLocaleDateString("zh-TW")} 重置`}
+              · 一頁約 1 額度（PDF 匯入不消耗）
+            </span>
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <input
             value={url}

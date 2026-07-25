@@ -23,18 +23,76 @@ function apiKey(): string {
   return key;
 }
 
-async function firecrawl<T>(path: string, body?: Record<string, unknown>, method: "GET" | "POST" = "POST"): Promise<T> {
+/** 額度／限流用完時丟這個，上層可以據此給使用者看得懂的說明而不是 HTTP 代碼 */
+export class FirecrawlQuotaError extends Error {
+  constructor(
+    message: string,
+    readonly kind: "credits" | "rate-limit" | "auth"
+  ) {
+    super(message);
+    this.name = "FirecrawlQuotaError";
+  }
+}
+
+async function firecrawl<T>(
+  path: string,
+  body?: Record<string, unknown>,
+  method: "GET" | "POST" = "POST",
+  retry = true
+): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` },
     body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const detail = typeof data?.error === "string" ? data.error : `HTTP ${res.status}`;
-    throw new Error(`Firecrawl 失敗：${detail}`);
+
+  if (res.ok) return data as T;
+
+  // 額度用完（402）與限流（429）要分開處理：前者要等下個計費週期或加值，
+  // 後者只是打太快，等一下就好——所以 429 自動重試一次。
+  if (res.status === 402) {
+    throw new FirecrawlQuotaError(
+      "Firecrawl 本期額度已用完，無法再抓取網頁。可以等下一個計費週期，或到 Firecrawl 後台加值；PDF 匯入不受影響。",
+      "credits"
+    );
   }
-  return data as T;
+  if (res.status === 429) {
+    const wait = Number(res.headers.get("retry-after")) || 8;
+    if (retry) {
+      await new Promise((r) => setTimeout(r, Math.min(wait, 20) * 1000));
+      return firecrawl<T>(path, body, method, false);
+    }
+    throw new FirecrawlQuotaError("Firecrawl 請求太密集（同時最多 2 個任務），請稍後再試一次。", "rate-limit");
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new FirecrawlQuotaError("Firecrawl API key 無效或已被撤銷，請更新 FIRECRAWL_API_KEY。", "auth");
+  }
+
+  const detail = typeof data?.error === "string" ? data.error : `HTTP ${res.status}`;
+  throw new Error(`Firecrawl 失敗：${detail}`);
+}
+
+export interface CreditUsage {
+  remaining: number;
+  plan: number;
+  periodEnd: string | null;
+}
+
+/** 查目前剩餘額度（抓取前的預檢與畫面上的提示都用這個） */
+export async function getCreditUsage(): Promise<CreditUsage | null> {
+  try {
+    const data = await firecrawl<{
+      data?: { remainingCredits?: number; planCredits?: number; billingPeriodEnd?: string };
+    }>("/team/credit-usage", undefined, "GET");
+    return {
+      remaining: Number(data.data?.remainingCredits ?? 0),
+      plan: Number(data.data?.planCredits ?? 0),
+      periodEnd: data.data?.billingPeriodEnd ?? null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export interface CrawledPage {
@@ -63,6 +121,15 @@ export async function mapSite(url: string, limit = 100): Promise<{ url: string; 
 
 /** 整站爬：非同步任務，這裡輪詢到完成為止（有時間上限，逾時就用已完成的部分） */
 export async function crawlSite(url: string, limit = 25): Promise<CrawledPage[]> {
+  // 抓之前先看額度夠不夠——與其爬到一半 402 中斷、留下半份知識，不如一開始就講清楚
+  const credit = await getCreditUsage();
+  if (credit && credit.remaining < limit) {
+    throw new FirecrawlQuotaError(
+      `Firecrawl 剩餘額度 ${credit.remaining}，不足以抓 ${limit} 頁。請調低頁數上限，或等下一個計費週期。`,
+      "credits"
+    );
+  }
+
   const start = await firecrawl<{ id?: string }>("/crawl", {
     url,
     limit,
