@@ -60,5 +60,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // 排除靜態資源與圖檔，其餘全部經過登入檢查
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|avatars/|managers/|office-.*\\.jpg).*)"],
+  // knowledge-tiers.png：knowledge-base.html（公開銷售頁）內嵌的分級架構圖，漏了會讓
+  // 沒登入的訪客看到圖裂掉——跟這頁本身一起加進來，之前已經因為忘記加頁面本身而修過一次。
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|avatars/|managers/|office-.*\\.jpg|knowledge-tiers\\.png).*)"],
 };
