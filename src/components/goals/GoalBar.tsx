@@ -2,6 +2,7 @@
 
 import { Pencil, Trash2 } from "lucide-react";
 import BrandLogo from "@/components/integrations/BrandLogo";
+import GoalTrend from "@/components/goals/GoalTrend";
 import {
   CADENCE_LABEL,
   GOAL_STATUS_META,
@@ -50,6 +51,7 @@ export default function GoalBar({
             {daysLeft >= 0 ? `（剩 ${daysLeft} 天）` : `（逾期 ${-daysLeft} 天）`}
           </p>
         </div>
+        {!compact && <GoalTrend metricId={goal.metricId} unit={metric.unit} color={meta.color} />}
         <div className="shrink-0 text-right">
           <p className="font-mono text-lg font-semibold leading-none text-neutral-900 dark:text-white">
             {Math.round(ratio * 100)}%

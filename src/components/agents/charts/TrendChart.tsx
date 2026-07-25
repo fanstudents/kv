@@ -9,7 +9,7 @@ export interface TrendSeries {
   color: string;
 }
 
-function usePrefersDark() {
+export function usePrefersDark() {
   const [dark, setDark] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(prefers-color-scheme: dark)").matches : false
   );
