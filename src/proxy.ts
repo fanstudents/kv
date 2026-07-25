@@ -8,6 +8,8 @@ import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth";
 // - 每日晨報排程端點（由 CRON_SECRET 自行保護）
 // - 登入頁與登入 API 本身
 // - Agent 目錄與配置體驗頁（銷售用，給潛在客戶瀏覽 Agent 陣容與試聘配置）
+// - 首頁串出去的其他銷售頁（知識庫導入／真人專家／團隊架構）——同樣是給潛在客戶看的，
+//   沒放進來就會被登入牆擋掉，首頁連過去的訪客與 Google 都進不去
 // - 客服機器人回報回覆內容的記錄端點（由既有客服系統呼叫，自己帶密鑰驗證，不是登入使用者）
 const PUBLIC_PREFIXES = [
   "/login",
@@ -19,6 +21,9 @@ const PUBLIC_PREFIXES = [
   "/api/cron/",
   "/agents-catalog",
   "/agent-config.html",
+  "/knowledge-base.html",
+  "/super-agent.html",
+  "/agent-architecture.html",
 ];
 
 function isPublic(pathname: string): boolean {
