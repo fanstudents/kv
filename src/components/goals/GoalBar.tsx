@@ -91,7 +91,6 @@ export default function GoalBar({
           style={{
             width: `${pct * 100}%`,
             background: `linear-gradient(90deg, ${color}99, ${meta.color})`,
-            boxShadow: `0 0 10px -2px ${meta.color}`,
           }}
         />
         <span
