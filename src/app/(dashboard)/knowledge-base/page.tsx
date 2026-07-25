@@ -1,15 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Lock, Plus, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { Archive, FileUp, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Field, TextInput, Select } from "@/components/ui/Field";
+import { Field, TextInput, TextArea, Select } from "@/components/ui/Field";
 import Avatar from "@/components/agents/Avatar";
 import LevelPipeline from "@/components/knowledge/LevelPipeline";
 import { AGENTS } from "@/lib/agent-data";
-import { KNOWLEDGE_LEVELS, levelInfo, type KnowledgeDoc, type KnowledgeLevel } from "@/lib/knowledge-base-data";
+import {
+  KNOWLEDGE_KIND_LABEL,
+  KNOWLEDGE_LEVELS,
+  KNOWLEDGE_STATUS_LABEL,
+  levelInfo,
+  type KnowledgeDoc,
+  type KnowledgeKind,
+  type KnowledgeLevel,
+} from "@/lib/knowledge-base-data";
 import type { AgentSlug } from "@/lib/types";
 
 /* ── 分級說明表：對照資料分級概念的四個等級 ── */
@@ -118,6 +127,9 @@ export default function KnowledgeBasePage() {
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newLevel, setNewLevel] = useState<KnowledgeLevel>(1);
+  const [newContent, setNewContent] = useState("");
+  const [editing, setEditing] = useState<KnowledgeDoc | null>(null);
+  const [notice, setNotice] = useState("");
 
   // 真實資料：文件與 Agent 讀取權限存在 Supabase（knowledge_base／knowledge_access 表），
   // 這裡編輯的異動會直接影響 Agent 對話時實際讀得到什麼內容（見 src/lib/knowledge-base.ts）。
@@ -148,9 +160,37 @@ export default function KnowledgeBasePage() {
     }).catch(() => {});
   };
 
-  const removeDoc = (id: string) => {
-    setDocs((prev) => prev.filter((d) => d.id !== id));
-    fetch(`/api/knowledge-base?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+  // 刪除要看伺服器怎麼說：內建示範文件刪不掉，以前畫面會假裝刪掉、重整又跑回來
+  const removeDoc = async (id: string) => {
+    setNotice("");
+    try {
+      const res = await fetch(`/api/knowledge-base?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (res.ok) {
+        setDocs((prev) => prev.filter((d) => d.id !== id));
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      setNotice(data.error ?? "刪除失敗");
+    } catch {
+      setNotice("刪除失敗");
+    }
+  };
+
+  /** 更新一份文件（編輯內容、改分級、封存／取消封存） */
+  const patchDoc = async (id: string, patch: Partial<KnowledgeDoc>) => {
+    setNotice("");
+    const res = await fetch("/api/knowledge-base", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...patch }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setNotice(data.error ?? "更新失敗");
+      return;
+    }
+    const doc: KnowledgeDoc = await res.json();
+    setDocs((prev) => prev.map((d) => (d.id === id ? doc : d)));
   };
 
   const addDoc = async () => {
@@ -160,7 +200,12 @@ export default function KnowledgeBasePage() {
       const res = await fetch("/api/knowledge-base", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, category: newCategory.trim() || "未分類", level: newLevel }),
+        body: JSON.stringify({
+          title,
+          category: newCategory.trim() || "未分類",
+          level: newLevel,
+          content: newContent.trim() || undefined,
+        }),
       });
       const doc: KnowledgeDoc = await res.json();
       if (res.ok) setDocs((prev) => [...prev, doc]);
@@ -169,6 +214,7 @@ export default function KnowledgeBasePage() {
     }
     setNewTitle("");
     setNewCategory("");
+    setNewContent("");
     setNewLevel(1);
     setAdding(false);
   };
@@ -190,6 +236,13 @@ export default function KnowledgeBasePage() {
         actions={
           <>
             <Badge tone="success">{loaded ? "已接上真實資料庫" : "載入中…"}</Badge>
+            <Link
+              href="/knowledge-base/import"
+              className="flex items-center gap-1.5 rounded-lg border border-neutral-300 px-3.5 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              <FileUp size={15} />
+              匯入 PDF
+            </Link>
             <button
               type="button"
               onClick={() => setAdding((a) => !a)}
@@ -201,6 +254,12 @@ export default function KnowledgeBasePage() {
           </>
         }
       />
+
+      {notice && (
+        <p className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-2.5 text-xs text-amber-700 dark:text-amber-200">
+          {notice}
+        </p>
+      )}
 
       <LevelPipeline access={access} />
       <LevelLegend />
@@ -233,6 +292,16 @@ export default function KnowledgeBasePage() {
                   </option>
                 ))}
               </Select>
+            </Field>
+          </div>
+          <div className="mt-4">
+            <Field label="內容" hint="這段文字就是 Agent 實際讀得到的內容——留空的話 Agent 只會看到標題">
+              <TextArea
+                value={newContent}
+                onChange={(e) => setNewContent(e.target.value)}
+                rows={3}
+                placeholder="例如：未拆封商品 7 天內可退貨，需保留原包裝與發票；已使用的商品不接受退貨。"
+              />
             </Field>
           </div>
           <button
@@ -287,6 +356,17 @@ export default function KnowledgeBasePage() {
         </p>
       )}
 
+      {editing && (
+        <EditDialog
+          doc={editing}
+          onClose={() => setEditing(null)}
+          onSave={async (patch) => {
+            await patchDoc(editing.id, patch);
+            setEditing(null);
+          }}
+        />
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {KNOWLEDGE_LEVELS.map((lv) => (
           <Card key={lv.level} className="flex flex-col">
@@ -321,8 +401,41 @@ export default function KnowledgeBasePage() {
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-neutral-700 dark:text-neutral-200">{doc.title}</p>
-                      <p className="truncate text-xs text-neutral-400">{doc.category}</p>
+                      <p className="flex items-center gap-1.5 truncate text-xs text-neutral-400">
+                        {doc.category}
+                        {doc.kind && doc.kind !== "doc" && <span>· {KNOWLEDGE_KIND_LABEL[doc.kind]}</span>}
+                        {doc.sourcePage && <span>· 第 {doc.sourcePage} 頁</span>}
+                        {doc.status && doc.status !== "published" && (
+                          <span
+                            className={`rounded px-1 py-px text-[10px] font-medium ${
+                              doc.status === "draft"
+                                ? "bg-amber-400/15 text-amber-600 dark:text-amber-300"
+                                : "bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-300"
+                            }`}
+                          >
+                            {KNOWLEDGE_STATUS_LABEL[doc.status]}
+                          </span>
+                        )}
+                      </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(doc)}
+                      className="shrink-0 rounded p-1 text-neutral-300 opacity-0 transition-opacity hover:text-neutral-700 group-hover:opacity-100 dark:hover:text-neutral-200"
+                      title="編輯這份文件"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        patchDoc(doc.id, { status: doc.status === "archived" ? "published" : "archived" })
+                      }
+                      className="shrink-0 rounded p-1 text-neutral-300 opacity-0 transition-opacity hover:text-amber-500 group-hover:opacity-100"
+                      title={doc.status === "archived" ? "取消封存（重新讓 Agent 讀得到）" : "封存（Agent 不再讀到，但保留紀錄）"}
+                    >
+                      <Archive size={13} />
+                    </button>
                     {!doc.builtin && (
                       <button
                         type="button"
@@ -342,6 +455,100 @@ export default function KnowledgeBasePage() {
             </ul>
           </Card>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── 編輯一份文件：原本只能刪掉重建，改一個錯字 id 都會變 ── */
+function EditDialog({
+  doc,
+  onClose,
+  onSave,
+}: {
+  doc: KnowledgeDoc;
+  onClose: () => void;
+  onSave: (patch: Partial<KnowledgeDoc>) => void;
+}) {
+  const [title, setTitle] = useState(doc.title);
+  const [category, setCategory] = useState(doc.category);
+  const [content, setContent] = useState(doc.content ?? "");
+  const [level, setLevel] = useState<KnowledgeLevel>(doc.level);
+  const [kind, setKind] = useState<KnowledgeKind>(doc.kind ?? "doc");
+  const [reviewAt, setReviewAt] = useState(doc.reviewAt ?? "");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+      <button type="button" aria-label="關閉" onClick={onClose} className="absolute inset-0 cursor-default bg-black/50 backdrop-blur-sm" />
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="flex items-center gap-2.5 border-b border-neutral-200 px-5 py-4 dark:border-neutral-800">
+          <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900 dark:text-white">
+            編輯文件
+            <span className="ml-2 text-xs font-normal text-neutral-400">
+              v{doc.version ?? 1}
+              {doc.updatedAt && ` · 最後更新 ${new Date(doc.updatedAt).toLocaleString("zh-TW")}`}
+            </span>
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+          <Field label="標題／問題">
+            <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
+          <Field label="內容" hint="這段文字就是 Agent 實際讀得到的內容">
+            <TextArea value={content} onChange={(e) => setContent(e.target.value)} rows={6} />
+          </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field label="分級">
+              <Select value={level} onChange={(e) => setLevel(Number(e.target.value) as KnowledgeLevel)}>
+                {KNOWLEDGE_LEVELS.map((lv) => (
+                  <option key={lv.level} value={lv.level}>
+                    {lv.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="型別">
+              <Select value={kind} onChange={(e) => setKind(e.target.value as KnowledgeKind)}>
+                {(Object.keys(KNOWLEDGE_KIND_LABEL) as KnowledgeKind[]).map((k) => (
+                  <option key={k} value={k}>
+                    {KNOWLEDGE_KIND_LABEL[k]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="分類">
+              <TextInput value={category} onChange={(e) => setCategory(e.target.value)} />
+            </Field>
+          </div>
+          <Field label="下次複檢日" hint="知識會過期——到期後這份文件會被標記為待複檢">
+            <TextInput type="date" value={reviewAt} onChange={(e) => setReviewAt(e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-neutral-200 px-5 py-3.5 dark:border-neutral-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave({ title, category, content, level, kind, reviewAt: reviewAt || null })}
+            className="rounded-lg bg-[#06C755] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            儲存
+          </button>
+        </div>
       </div>
     </div>
   );

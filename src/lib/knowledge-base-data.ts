@@ -48,6 +48,26 @@ export function levelInfo(level: KnowledgeLevel): KnowledgeLevelInfo {
   return KNOWLEDGE_LEVELS[level - 1];
 }
 
+/** 條目型別：不是所有內容都適合寫成問答，流程要留步驟、表格要留欄位 */
+export type KnowledgeKind = "faq" | "sop" | "fact" | "table" | "doc";
+
+export const KNOWLEDGE_KIND_LABEL: Record<KnowledgeKind, string> = {
+  faq: "問答",
+  sop: "步驟",
+  fact: "事實",
+  table: "表格",
+  doc: "文件",
+};
+
+/** 草稿＝AI 轉出來還沒人審，不會進 Agent 的 prompt；封存＝退場但保留可追溯 */
+export type KnowledgeStatus = "draft" | "published" | "archived";
+
+export const KNOWLEDGE_STATUS_LABEL: Record<KnowledgeStatus, string> = {
+  draft: "待審",
+  published: "已發布",
+  archived: "已封存",
+};
+
 export interface KnowledgeDoc {
   id: string;
   title: string;
@@ -55,4 +75,15 @@ export interface KnowledgeDoc {
   level: KnowledgeLevel;
   content?: string;
   builtin?: boolean;
+  status?: KnowledgeStatus;
+  kind?: KnowledgeKind;
+  updatedAt?: string;
+  version?: number;
+  owner?: string | null;
+  /** 下次複檢日：過了就該重看一次，知識會過期 */
+  reviewAt?: string | null;
+  /** 來源檔與頁碼——Agent 回答時可以附出處 */
+  sourceDocId?: string | null;
+  sourcePage?: number | null;
+  meta?: Record<string, unknown>;
 }

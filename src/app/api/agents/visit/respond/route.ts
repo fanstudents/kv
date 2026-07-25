@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { researchContact } from "@/lib/contact-research";
 import { createCalendarEvent, sendGmail } from "@/lib/google";
 import { pushLineMessage } from "@/lib/line";
 import { buildThankYouEmailHtml, escapeHtml } from "@/lib/email-templates";
@@ -195,6 +196,27 @@ export async function POST(req: NextRequest) {
       summary: `${contactName} 已確認 ${chosenLabel}${location ? `（地點：${location}）` : ""}，行事曆邀請與感謝信已寄出`,
       status: "success",
     });
+
+    // 約成了才做行前功課：上網查這個人與這家公司的公開資料，整理成見面前的背景卡。
+    // 用 after() 在回應送出後才跑——對方點確認的頁面不必等網路搜尋（要十幾秒）。
+    if (contact?.name) {
+      after(async () => {
+        const profileId = await researchContact({
+          contactId: (row.contact_id as string) ?? null,
+          inviteId,
+          name: contact.name as string,
+          company: contact.company ?? null,
+          title: contact.title ?? null,
+          email: row.to_email ?? null,
+        });
+        if (profileId) {
+          await pushLineMessage(
+            row.line_user_id,
+            `🔎 我順手查了 ${contactName}${contact.company ? `與 ${contact.company}` : ""} 的公開資料，行前功課整理好了——在「約拜訪」頁面可以看到公司近況、社群連結與可以聊的切入點。`
+          ).catch(() => {});
+        }
+      });
+    }
 
     return page(
       "時段已確認！",

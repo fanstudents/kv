@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Loader2, ScanLine, Sparkles, RotateCcw } from "lucide-react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
+import ContactResearchPanel from "@/components/agents/ContactResearchPanel";
 import { Field, TextInput, TextArea, Select } from "@/components/ui/Field";
 import Toggle from "@/components/ui/Toggle";
 import EmailMessage from "@/components/agents/EmailMessage";
@@ -183,6 +184,8 @@ export default function VisitAgentPage() {
   return (
     <AgentPageShell
       agent={agent}
+      // 約成之後自動做的行前功課（真實資料，不是示範），放在流程節點上方
+      topPanel={<ContactResearchPanel />}
       fallbackActivity={ACTIVITY_LOGS.visit}
       onSettingsLoaded={onSettingsLoaded}
       previewText={previewLineText}

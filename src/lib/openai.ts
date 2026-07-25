@@ -36,6 +36,114 @@ async function chatCompletion(
   return data;
 }
 
+/**
+ * 通用的 JSON 模式呼叫：給知識庫匯入這類「一段原文換一份結構化結果」的場景用。
+ * 一律走 response_format=json_object，解析失敗回空物件而不是丟例外（讓上層決定要不要跳過）。
+ */
+export async function chatJson(params: {
+  model: string;
+  operation: string;
+  messages: { role: "system" | "user" | "assistant"; content: string }[];
+  temperature?: number;
+  agentSlug?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): Promise<any> {
+  const data = await chatCompletion(
+    {
+      model: params.model,
+      messages: params.messages,
+      response_format: { type: "json_object" },
+      temperature: params.temperature ?? 0.2,
+    },
+    { operation: params.operation, agentSlug: params.agentSlug ?? null }
+  );
+  const content = data.choices?.[0]?.message?.content ?? "{}";
+  try {
+    return JSON.parse(content);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * 帶網路搜尋的 JSON 呼叫（Responses API）：給「需要查外部公開資料」的場景用，
+ * 例如拜訪前的客戶背景調查。模型會自己決定要不要搜尋、搜幾次。
+ *
+ * web search 這個工具的名稱在不同 API 版本叫法不同（web_search / web_search_preview），
+ * 所以第一次被拒絕時會自動換另一個名字重試一次，避免因為版本差異整個功能掛掉。
+ */
+export async function webSearchJson(params: {
+  instructions: string;
+  input: string;
+  operation: string;
+  model?: string;
+  agentSlug?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): Promise<any> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+
+  const call = async (toolType: string) => {
+    const res = await fetch(`${OPENAI_API_BASE}/responses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: params.model ?? "gpt-4o",
+        instructions: params.instructions,
+        input: params.input,
+        tools: [{ type: toolType }],
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`OpenAI responses failed (${res.status}): ${text}`);
+    }
+    return res.json();
+  };
+
+  let data;
+  try {
+    data = await call("web_search");
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("(400)")) data = await call("web_search_preview");
+    else throw err;
+  }
+
+  await logAiUsage({
+    operation: params.operation,
+    model: params.model ?? "gpt-4o",
+    usage: data.usage
+      ? {
+          prompt_tokens: data.usage.input_tokens,
+          completion_tokens: data.usage.output_tokens,
+          total_tokens: data.usage.total_tokens,
+        }
+      : undefined,
+    agentSlug: params.agentSlug,
+  });
+
+  // Responses API 的輸出結構：output[] 裡挑出 message 型別的文字內容
+  const text: string =
+    data.output_text ??
+    (Array.isArray(data.output)
+      ? data.output
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .flatMap((o: any) => (Array.isArray(o?.content) ? o.content : []))
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((c: any) => c?.text ?? "")
+          .join("")
+      : "");
+
+  // 模型可能會把 JSON 包在說明文字或 ```json 區塊裡，取第一個完整的物件來解析
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return {};
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return {};
+  }
+}
+
 export interface ParsedCard {
   name: string;
   company: string;
