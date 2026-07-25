@@ -21,6 +21,7 @@ import {
   Megaphone,
   Target,
   Presentation,
+  Workflow,
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
@@ -257,6 +258,17 @@ export default function Sidebar() {
         )}
 
         <p className="px-3 pt-4 pb-1 text-xs font-semibold tracking-wide text-neutral-400">系統</p>
+        <Link
+          href="/flow-atlas"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/flow-atlas")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <Workflow size={18} />
+          流程節點總表
+        </Link>
         <Link
           href="/subscribers"
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
