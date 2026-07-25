@@ -1,0 +1,534 @@
+<meta charset="utf-8">
+<title>Agent 團隊架構 — TBR AI Studio｜不是 12 個聊天機器人，是一個有分層的團隊</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#ffffff;
+    --band:#fafafa;
+    --card:#ffffff;
+    --line:#e5e5e5;
+    --line-soft:#f5f5f5;
+    --text:#171717;
+    --body:#525252;
+    --muted:#737373;
+    --faint:#a3a3a3;
+    --green:#06C755;
+    --green-soft:rgba(6,199,85,.10);
+    --gold:#D97706;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,monospace;
+    --sans:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,Arial,sans-serif;
+    --maxw:1152px;
+    --shadow:0 1px 2px rgba(0,0,0,.05);
+    --shadow-md:0 4px 12px rgba(0,0,0,.08);
+    --l1:#06C755; --l2:#3B82F6; --l3:#F59E0B; --l4:#EF4444;
+    color-scheme:light dark;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{
+      --bg:#0a0a0a;--band:#111111;--card:#171717;
+      --line:#262626;--line-soft:#1f1f1f;
+      --text:#ffffff;--body:#d4d4d4;--muted:#a3a3a3;--faint:#737373;
+      --gold:#F59E0B;
+      --shadow:0 1px 2px rgba(0,0,0,.4);--shadow-md:0 4px 12px rgba(0,0,0,.5);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--sans);font-size:17px;line-height:1.75;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  ::selection{background:var(--green);color:#fff}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  section{padding:76px 0}
+  @media(max-width:640px){section{padding:52px 0}}
+
+  h1,h2,h3{margin:0;text-wrap:balance;font-weight:700;letter-spacing:.01em}
+  h1{font-size:clamp(30px,5vw,46px);line-height:1.35}
+  h2{font-size:clamp(25px,3.6vw,34px);line-height:1.4;color:var(--text)}
+  p{margin:0}
+  a{color:inherit}
+
+  .eyebrow{
+    font-size:12px;font-weight:700;letter-spacing:.14em;
+    color:var(--faint);display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  }
+  .eyebrow::before{content:"";width:22px;height:2px;border-radius:2px;background:var(--green);flex:none}
+  .lede{color:var(--muted);max-width:34em;margin-top:12px;font-size:17px}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:20px;box-shadow:var(--shadow);
+  }
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:12px 24px;border-radius:10px;text-decoration:none;cursor:pointer;
+    font-weight:600;font-size:16px;line-height:1.3;border:1px solid transparent;
+    transition:transform .15s ease,box-shadow .15s ease,background .15s ease;
+    font-family:var(--sans);
+  }
+  .btn:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+  .btn-green{background:var(--green);color:#fff}
+  .btn-green:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(6,199,85,.3)}
+  .btn-ghost{border-color:var(--line);color:var(--text);background:var(--card)}
+  .btn-ghost:hover{border-color:var(--green);color:var(--green)}
+  .btn-sm{padding:8px 16px;font-size:13.5px;border-radius:8px}
+
+  nav.top{
+    position:sticky;top:0;z-index:50;
+    background:color-mix(in srgb,var(--bg) 90%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  }
+  .nav-in{
+    max-width:var(--maxw);margin:0 auto;padding:12px 24px;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+  }
+  .logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .logo-mark{
+    width:34px;height:34px;border-radius:10px;background:var(--green);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;
+  }
+  .logo-name{font-size:14px;font-weight:600;color:var(--text);line-height:1.3}
+  .logo-sub{font-size:11px;color:var(--faint);line-height:1.2}
+  .nav-links{display:flex;gap:20px;align-items:center;font-size:14px;color:var(--body)}
+  .nav-links a{text-decoration:none;font-weight:500}
+  .nav-links a:hover{color:var(--green)}
+  @media(max-width:760px){.nav-links a.hide-m{display:none}}
+
+  header.page{padding:60px 0 4px;position:relative;overflow:hidden}
+  header.page::before{
+    content:"";position:absolute;right:-140px;top:-120px;
+    width:520px;height:420px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(6,199,85,.10),transparent);
+    pointer-events:none;
+  }
+  header.page h1 em{font-style:normal;color:var(--green)}
+  .hero-cta{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
+  .hero-note{font-size:14px;color:var(--faint);margin-top:14px}
+  .hero-note b{color:var(--muted);font-weight:600}
+
+  .card-ic{
+    width:38px;height:38px;border-radius:10px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--band);border:1px solid var(--line);
+    margin-bottom:11px;color:var(--green);
+  }
+  .card-ic svg{width:19px;height:19px;display:block}
+  .sec-band .card-ic{background:var(--bg)}
+  .sec-band{background:var(--band);border-block:1px solid var(--line)}
+
+  .cap{
+    display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .cap h3{font-size:15px;color:var(--text)}
+  .cap span{font-size:12.5px;color:var(--faint)}
+
+  /* ── 數字帶 ── */
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:30px}
+  @media(max-width:860px){.stats{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:520px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .st{padding:15px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+  .st b{display:block;font-family:var(--mono);font-size:26px;font-weight:700;color:var(--text);line-height:1.2}
+  .st span{display:block;margin-top:4px;font-size:12px;color:var(--faint)}
+
+  /* ── 四層架構 ── */
+  .stack{margin-top:28px;display:grid;gap:12px}
+  .layer{
+    display:grid;grid-template-columns:132px 1fr;gap:20px;align-items:center;
+    border:1px solid var(--line);border-radius:16px;background:var(--card);
+    padding:18px 20px;box-shadow:var(--shadow);position:relative;
+  }
+  @media(max-width:700px){.layer{grid-template-columns:1fr;gap:10px}}
+  .layer-tag{
+    font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.16em;
+    color:var(--faint);
+  }
+  .layer-name{margin-top:5px;font-size:17px;font-weight:700;color:var(--text);line-height:1.35}
+  .layer-desc{font-size:14.5px;color:var(--muted);line-height:1.75}
+  .layer-desc b{color:var(--body)}
+  .layer.principals{border-color:rgba(217,119,6,.42)}
+  .layer.principals .layer-tag{color:var(--gold)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{
+    border:1px solid var(--line);border-radius:999px;padding:2px 10px;
+    font-size:11.5px;color:var(--muted);
+  }
+  .chip.lv{color:#fff;border:none;font-weight:700}
+
+  /* ── 一位 Agent 的組成 ── */
+  .parts{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:26px}
+  @media(max-width:980px){.parts{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:600px){.parts{grid-template-columns:1fr}}
+  .part{padding:18px 16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+  .part .n{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--faint)}
+  .part h3{margin-top:8px;font-size:15.5px;color:var(--text)}
+  .part p{margin-top:7px;font-size:13px;color:var(--muted);line-height:1.7}
+
+  /* ── 協作網 ── */
+  .flows{margin-top:20px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--card);box-shadow:var(--shadow)}
+  .fl{
+    display:grid;grid-template-columns:auto auto 1fr;gap:12px;align-items:center;
+    padding:12px 16px;border-bottom:1px solid var(--line-soft);
+  }
+  .fl:last-child{border-bottom:none}
+  @media(max-width:640px){.fl{grid-template-columns:1fr;gap:5px}}
+  .who{
+    display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;
+    color:var(--text);white-space:nowrap;
+  }
+  .who i{width:9px;height:9px;border-radius:50%;flex:none;display:block}
+  .arrow{color:var(--faint);font-size:13px}
+  @media(max-width:640px){.arrow{display:none}}
+  .fl-what{font-size:13.5px;color:var(--muted);line-height:1.6}
+
+  /* ── 治理 ── */
+  .gov{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:26px}
+  @media(max-width:900px){.gov{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.gov{grid-template-columns:1fr}}
+  .gov .card{padding:18px}
+  .gov h3{font-size:15px;margin-top:9px;color:var(--text)}
+  .gov p{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.7}
+
+  .links{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:26px}
+  @media(max-width:820px){.links{grid-template-columns:1fr}}
+  .lk{
+    display:block;padding:20px;border:1px solid var(--line);border-radius:16px;
+    background:var(--card);text-decoration:none;transition:border-color .15s ease,box-shadow .15s ease;
+  }
+  .lk:hover{border-color:var(--green);box-shadow:var(--shadow-md)}
+  .lk h3{font-size:16px;color:var(--text)}
+  .lk p{margin-top:7px;font-size:13.5px;color:var(--muted);line-height:1.7}
+  .lk .go{margin-top:12px;display:block;font-size:13px;font-weight:600;color:var(--green)}
+
+  .final{
+    text-align:center;background:var(--band);border-top:1px solid var(--line);
+    position:relative;overflow:hidden;
+  }
+  .final::before{
+    content:"";position:absolute;left:50%;bottom:-160px;transform:translateX(-50%);
+    width:560px;height:320px;border-radius:50%;
+    background:radial-gradient(closest-side,rgba(6,199,85,.12),transparent);
+    pointer-events:none;
+  }
+  .final h2{font-size:clamp(25px,3.8vw,36px)}
+  .final .lede{margin-inline:auto;text-align:center}
+  .final .hero-cta{justify-content:center}
+  .final .hero-note{text-align:center}
+
+  footer.site{border-top:1px solid var(--line);padding:30px 0;font-size:12.5px;color:var(--faint)}
+  .foot-in{max-width:var(--maxw);margin:0 auto;padding:0 24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  footer.site a{color:var(--muted);text-decoration:none}
+  footer.site a:hover{color:var(--green)}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
+  }
+</style>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></g></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z"/></g></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></g></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></g></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0V8z"/><path d="M12 17v5"/></g></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></g></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M18 15h.01"/></g></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></g></symbol>
+</svg>
+
+<nav class="top">
+  <div class="nav-in">
+    <a class="logo" href="/agent-team.html">
+      <span class="logo-mark">T</span>
+      <span>
+        <span class="logo-name">TBR AI Studio</span><br>
+        <span class="logo-sub">Agent 團隊架構</span>
+      </span>
+    </a>
+    <div class="nav-links">
+      <a class="hide-m" href="/agent-team.html">← 回介紹頁</a>
+      <a class="hide-m" href="#stack">四層架構</a>
+      <a class="hide-m" href="#anatomy">一位 Agent</a>
+      <a class="hide-m" href="#collab">協作網</a>
+      <a class="hide-m" href="#gov">治理</a>
+      <a class="btn btn-green btn-sm" href="#cta">預約架構諮詢</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════ HERO ════════ -->
+<header class="page" id="top">
+  <div class="wrap">
+    <div class="eyebrow">系統架構・完整說明</div>
+    <h1>不是 12 個聊天機器人，<br>是一個<em>有分層的團隊</em>。</h1>
+    <p class="lede">
+      每位 Agent 有自己的職責、流程、讀取權限與串接；彼此之間會交棒。
+      下面是這套系統實際的架構——四層怎麼疊、一位 Agent 由什麼組成、誰把什麼交給誰。
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-green" href="#cta">預約架構諮詢 →</a>
+      <a class="btn btn-ghost" href="#stack">看四層架構</a>
+    </div>
+
+    <div class="stats">
+      <div class="st"><b>12</b><span>位 Agent・2 個 Team</span></div>
+      <div class="st"><b>83</b><span>個流程節點</span></div>
+      <div class="st"><b>23</b><span>次跨 Agent 交棒</span></div>
+      <div class="st"><b>11</b><span>個外部服務串接</span></div>
+      <div class="st"><b>4</b><span>層知識庫分級</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ════════ 四層架構 ════════ -->
+<section id="stack">
+  <div class="wrap">
+    <div class="eyebrow">架構・四層怎麼疊</div>
+    <h2>由上而下：<br>服務、隊員、知識、帶隊的人。</h2>
+    <p class="lede">這四層不是概念圖——後台的「節點宇宙」就是照這個結構畫出來的，每一層都點得開。</p>
+
+    <div class="stack">
+      <div class="layer">
+        <div>
+          <div class="layer-tag">LAYER 01・上層</div>
+          <div class="layer-name">外部服務串接</div>
+        </div>
+        <div>
+          <p class="layer-desc">
+            Agent 實際會去打的地方。<b>用官方 API 或 Webhook 旁掛</b>，
+            不修改也不取代你原本的系統，不需要停機部署。
+          </p>
+          <div class="chips">
+            <span class="chip">LINE OA</span><span class="chip">Gmail</span><span class="chip">Google 日曆</span>
+            <span class="chip">GA4</span><span class="chip">Search Console</span><span class="chip">Meta 廣告</span>
+            <span class="chip">Teachify</span><span class="chip">OpenAI</span><span class="chip">Supabase</span>
+            <span class="chip">Firecrawl</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div>
+          <div class="layer-tag">LAYER 02・中層</div>
+          <div class="layer-name">Agent 協作網</div>
+        </div>
+        <div>
+          <p class="layer-desc">
+            12 位各司其職的 Agent，分成<b>行銷 Team 與行政 Team</b>，由總管 Agent 居中彙整。
+            彼此不是各做各的——一位的產出會成為另一位的輸入。
+          </p>
+          <div class="chips">
+            <span class="chip">總管</span><span class="chip">數據</span><span class="chip">社群</span>
+            <span class="chip">SEO</span><span class="chip">廣告</span><span class="chip">口碑</span>
+            <span class="chip">客服</span><span class="chip">訂單</span><span class="chip">營運</span>
+            <span class="chip">約拜訪</span><span class="chip">行程</span><span class="chip">通知</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="layer">
+        <div>
+          <div class="layer-tag">LAYER 03・下層</div>
+          <div class="layer-name">四層知識庫</div>
+        </div>
+        <div>
+          <p class="layer-desc">
+            Agent 的答案從這裡來。四層<b>等重要、等距</b>——能不能讀是「等級 ≤ 讀取上限」的門檻，
+            不是包含關係。每位 Agent 往下插一根探針，插到自己的上限為止。
+          </p>
+          <div class="chips">
+            <span class="chip lv" style="background:var(--l1)">L1 公開</span>
+            <span class="chip lv" style="background:var(--l2)">L2 內部</span>
+            <span class="chip lv" style="background:var(--l3)">L3 敏感</span>
+            <span class="chip lv" style="background:var(--l4)">L4 高敏感</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="layer principals">
+        <div>
+          <div class="layer-tag">貫穿・可選</div>
+          <div class="layer-name">真人主理人</div>
+        </div>
+        <div>
+          <p class="layer-desc">
+            超級 Agent 才有的一層。<b>真人專業經理人帶隊</b>，把方法論寫進他那組 Agent，
+            每週看數據覆盤調教。AI 負責執行，人負責判斷。
+          </p>
+          <div class="chips">
+            <span class="chip">電商營運</span><span class="chip">客服業務</span>
+            <span class="chip">Threads 自媒體</span><span class="chip">SEO</span><span class="chip">Email 行銷</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 一位 Agent 的組成 ════════ -->
+<section class="sec-band" id="anatomy">
+  <div class="wrap">
+    <div class="eyebrow">架構・一位 Agent 是什麼</div>
+    <h2>一位 Agent 不是一段提示詞，<br>是五樣東西組起來的。</h2>
+    <p class="lede">這也是為什麼它換一家公司就不能直接用——五樣裡有四樣是你的。</p>
+
+    <div class="parts">
+      <div class="part">
+        <div class="n">01</div>
+        <h3>職責</h3>
+        <p>他負責哪一塊、不負責哪一塊。界線清楚，才不會兩位 Agent 搶同一件事。</p>
+      </div>
+      <div class="part">
+        <div class="n">02</div>
+        <h3>流程節點</h3>
+        <p>從取數、判斷到送出的每一站，包含分支與旁支。跑到哪一站、卡在哪，畫面上看得到。</p>
+      </div>
+      <div class="part">
+        <div class="n">03</div>
+        <h3>讀取權限</h3>
+        <p>知識庫的可讀上限。守在資料庫層——超過等級的內容他撈不出來，不是叫他別說。</p>
+      </div>
+      <div class="part">
+        <div class="n">04</div>
+        <h3>串接</h3>
+        <p>他能打哪些外部服務、用什麼帳號。每一次呼叫都有紀錄。</p>
+      </div>
+      <div class="part">
+        <div class="n">05</div>
+        <h3>目標</h3>
+        <p>他背哪個指標、期限到哪。達成率跟時間進度並排，超前或落後一眼看出來。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ 協作網 ════════ -->
+<section id="collab">
+  <div class="wrap">
+    <div class="eyebrow">架構・誰把什麼交給誰</div>
+    <h2>交棒是設計出來的，<br>不是剛好都接上。</h2>
+    <p class="lede">下面是行銷 Team 內部實際的交棒關係——每一條都指名了交出去的是什麼。</p>
+
+    <div class="cap" style="margin-top:28px">
+      <h3>行銷 Team 協作關係</h3>
+      <span>行政 Team 另有一組</span>
+    </div>
+    <div class="flows">
+      <div class="fl">
+        <span class="who"><i style="background:#EF4444"></i>廣告 Dana</span><span class="arrow">→</span>
+        <span class="fl-what">廣告 ROAS／花費成效 → 數據參謀彙整</span>
+      </div>
+      <div class="fl">
+        <span class="who"><i style="background:#14B8A6"></i>SEO Leo</span><span class="arrow">→</span>
+        <span class="fl-what">SEO 自然流量與排名 → 數據參謀彙整</span>
+      </div>
+      <div class="fl">
+        <span class="who"><i style="background:#8B5CF6"></i>社群 Sunny</span><span class="arrow">→</span>
+        <span class="fl-what">社群互動率與觸及 → 數據參謀彙整</span>
+      </div>
+      <div class="fl">
+        <span class="who"><i style="background:#D946EF"></i>口碑 Jay</span><span class="arrow">→</span>
+        <span class="fl-what">多平台聲量與情緒分數 → 數據參謀彙整</span>
+      </div>
+      <div class="fl">
+        <span class="who"><i style="background:#D946EF"></i>口碑 Jay</span><span class="arrow">→</span>
+        <span class="fl-what">口碑情緒風向 → 社群調整貼文題材與語氣</span>
+      </div>
+      <div class="fl">
+        <span class="who"><i style="background:#8B5CF6"></i>社群 Sunny</span><span class="arrow">→</span>
+        <span class="fl-what">高互動貼文 → 轉為廣告素材投放</span>
+      </div>
+      <div class="fl">
+        <span class="who"><i style="background:#14B8A6"></i>SEO Leo</span><span class="arrow">→</span>
+        <span class="fl-what">SEO 熱門選題 → 餵給社群內容發想</span>
+      </div>
+      <div class="fl">
+        <span class="who"><i style="background:#D946EF"></i>口碑 Jay</span><span class="arrow">→</span>
+        <span class="fl-what">負評受眾／競品動向 → 廣告受眾排除與加碼</span>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:16px;font-size:14px">
+      四條路徑都通往數據 Ivy——她是這個 Team 的匯流點，週報就是這樣長出來的。
+    </p>
+  </div>
+</section>
+
+<!-- ════════ 治理 ════════ -->
+<section class="sec-band" id="gov">
+  <div class="wrap">
+    <div class="eyebrow">架構・跑起來之後怎麼管</div>
+    <h2>會自己動的東西，<br>要看得住才敢放它動。</h2>
+
+    <div class="gov">
+      <div class="card">
+        <div class="card-ic"><svg><use href="#i-search"/></svg></div>
+        <h3>執行紀錄</h3>
+        <p>每一次執行的時間、內容摘要與結果都留著，可查、可稽核、可匯出。</p>
+      </div>
+      <div class="card">
+        <div class="card-ic"><svg><use href="#i-wallet"/></svg></div>
+        <h3>成本護欄</h3>
+        <p>AI 用量設有每日與每月上限，超過就直接擋下——請求根本不會送出去。</p>
+      </div>
+      <div class="card">
+        <div class="card-ic"><svg><use href="#i-target"/></svg></div>
+        <h3>目標達成率</h3>
+        <p>每位背的指標與期限並排呈現，誰超前誰落後一眼看完，還能看走勢。</p>
+      </div>
+      <div class="card">
+        <div class="card-ic"><svg><use href="#i-shield"/></svg></div>
+        <h3>異常儀表板</h3>
+        <p>失敗、逾時、卡關集中列出，總管 Agent 每天巡一次並點名跟進。</p>
+      </div>
+    </div>
+
+    <div class="links">
+      <a class="lk" href="/knowledge-base.html">
+        <div class="card-ic"><svg><use href="#i-layers"/></svg></div>
+        <h3>知識庫導入與分級</h3>
+        <p>四層分級的架構、讀取權限矩陣，以及從一份 PDF 到能被問的知識中間那八道關卡。</p>
+        <span class="go">看知識庫架構 →</span>
+      </a>
+      <a class="lk" href="/super-agent.html">
+        <div class="card-ic"><svg><use href="#i-users"/></svg></div>
+        <h3>真人專家超級 Agent</h3>
+        <p>帶隊的主理人是誰、每週覆盤實際在改什麼，以及 3 個月後怎麼交棒給你的人。</p>
+        <span class="go">認識主理人 →</span>
+      </a>
+      <a class="lk" href="/agents-catalog">
+        <div class="card-ic"><svg><use href="#i-plug"/></svg></div>
+        <h3>完整 Agent 目錄</h3>
+        <p>每一位點開都看得到實際的運作流程節點——接什麼系統、做哪些判斷、交出什麼。</p>
+        <span class="go">瀏覽目錄 →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ CTA ════════ -->
+<section class="final" id="cta">
+  <div class="wrap">
+    <div class="eyebrow" style="justify-content:center">從你的流程開始談</div>
+    <h2>架構長怎樣是其次，<br>接得上你的流程才算數。</h2>
+    <p class="lede">
+      30 分鐘線上諮詢：先聽你現在怎麼跑，再談哪幾個環節適合交給 Agent、
+      要接哪些系統、資料怎麼分級。編制與報價依你的情況另外規劃。
+    </p>
+    <div class="hero-cta" style="margin-top:30px">
+      <a class="btn btn-green" href="mailto:service@tbr.digital?subject=預約 Agent 架構諮詢">預約架構諮詢 →</a>
+      <a class="btn btn-ghost" href="/agent-team.html">回 Agent Team 介紹頁</a>
+    </div>
+    <p class="hero-note">諮詢不收費・不綁約・<b>不適合我們會直接說</b></p>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="foot-in">
+    <span>© 2026 TBR Digital — AI Studio</span>
+    <span><a href="https://ai.tbr.digital">ai.tbr.digital</a>　service@tbr.digital</span>
+  </div>
+</footer>
