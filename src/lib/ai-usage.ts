@@ -24,6 +24,108 @@ export function estimateCost(model: string, usage: OpenAIUsage): number {
   return input * price.input + output * price.output;
 }
 
+// ── 成本護欄 ──────────────────────────────────────────────
+// ai_usage_logs 一直只是「記帳本」——記得很清楚，但不會阻止任何事。
+// 一個迴圈 bug、一份 300 頁的 PDF、或有人狂點重建索引，就是一張帳單。
+// 這裡加一道閘門：超過每日／每月預算就直接拒絕後續呼叫。
+//
+// 預算從環境變數讀（沒設定就用保守的預設值）：
+//   AI_DAILY_BUDGET_USD   預設 5
+//   AI_MONTHLY_BUDGET_USD 預設 60
+// 查詢結果快取 60 秒——這是護欄不是計費系統，不需要每次呼叫都精確到分。
+
+export class BudgetExceededError extends Error {
+  constructor(
+    message: string,
+    readonly scope: "daily" | "monthly",
+    readonly spent: number,
+    readonly limit: number
+  ) {
+    super(message);
+    this.name = "BudgetExceededError";
+  }
+}
+
+const BUDGET_CACHE_MS = 60_000;
+let budgetCache: { at: number; daily: number; monthly: number } | null = null;
+
+async function spentSoFar(): Promise<{ daily: number; monthly: number }> {
+  if (budgetCache && Date.now() - budgetCache.at < BUDGET_CACHE_MS) {
+    return { daily: budgetCache.daily, monthly: budgetCache.monthly };
+  }
+  const now = new Date();
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  const { data } = await getSupabase()
+    .from("ai_usage_logs")
+    .select("cost_usd,created_at")
+    .gte("created_at", monthStart);
+
+  let daily = 0;
+  let monthly = 0;
+  for (const row of data ?? []) {
+    const cost = Number(row.cost_usd) || 0;
+    monthly += cost;
+    if (row.created_at >= dayStart) daily += cost;
+  }
+  budgetCache = { at: Date.now(), daily, monthly };
+  return { daily, monthly };
+}
+
+export interface BudgetStatus {
+  daily: { spent: number; limit: number };
+  monthly: { spent: number; limit: number };
+}
+
+export function budgetLimits(): { daily: number; monthly: number } {
+  return {
+    daily: Number(process.env.AI_DAILY_BUDGET_USD) || 5,
+    monthly: Number(process.env.AI_MONTHLY_BUDGET_USD) || 60,
+  };
+}
+
+export async function budgetStatus(): Promise<BudgetStatus> {
+  const limits = budgetLimits();
+  const spent = await spentSoFar();
+  return {
+    daily: { spent: spent.daily, limit: limits.daily },
+    monthly: { spent: spent.monthly, limit: limits.monthly },
+  };
+}
+
+/** 呼叫 AI 之前先過這道閘門；超支就丟 BudgetExceededError，不會真的送出請求。 */
+export async function assertBudget(operation: string): Promise<void> {
+  try {
+    const limits = budgetLimits();
+    const spent = await spentSoFar();
+    if (spent.daily >= limits.daily) {
+      throw new BudgetExceededError(
+        `今日 AI 用量已達上限（US$${spent.daily.toFixed(2)} / ${limits.daily}）——「${operation}」已停止。明天會自動恢復，或調高 AI_DAILY_BUDGET_USD。`,
+        "daily",
+        spent.daily,
+        limits.daily
+      );
+    }
+    if (spent.monthly >= limits.monthly) {
+      throw new BudgetExceededError(
+        `本月 AI 用量已達上限（US$${spent.monthly.toFixed(2)} / ${limits.monthly}）——「${operation}」已停止。`,
+        "monthly",
+        spent.monthly,
+        limits.monthly
+      );
+    }
+  } catch (err) {
+    if (err instanceof BudgetExceededError) throw err;
+    // 查不到用量就放行：護欄壞掉不該讓整個系統停擺
+  }
+}
+
+/** 記錄之後讓快取失效，下一次檢查才看得到剛剛的花費 */
+function invalidateBudgetCache() {
+  budgetCache = null;
+}
+
 // 記錄一次 AI 呼叫的用量與估算成本。失敗不影響主流程（吞掉錯誤）。
 export async function logAiUsage(params: {
   operation: string;
@@ -45,6 +147,7 @@ export async function logAiUsage(params: {
         total_tokens: usage.total_tokens ?? (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0),
         cost_usd: cost,
       });
+    invalidateBudgetCache();
   } catch {
     // 記錄失敗不影響主流程
   }

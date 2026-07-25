@@ -26,7 +26,13 @@ interface RecentRow {
   cost_usd: number;
   created_at: string;
 }
+interface BudgetSide {
+  spent: number;
+  limit: number;
+}
+
 interface UsageData {
+  budget?: { daily: BudgetSide; monthly: BudgetSide };
   total: Sum;
   last30: Sum;
   last7: Sum;
@@ -67,6 +73,45 @@ export default function AiUsagePage() {
         title="AI 使用成本"
         description="統計這套系統所有 AI 呼叫的次數、Token 用量與估算費用（依 OpenAI 定價換算，僅供參考）"
       />
+
+      {/* 預算護欄：超過上限就會擋下後續 AI 呼叫，不是只記帳 */}
+      {data?.budget && (
+        <Card className="mb-6">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">用量護欄</p>
+            <p className="text-xs text-neutral-400">
+              超過上限會直接擋下後續 AI 呼叫（可用 AI_DAILY_BUDGET_USD／AI_MONTHLY_BUDGET_USD 調整）
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {(
+              [
+                { label: "今日", side: data.budget.daily },
+                { label: "本月", side: data.budget.monthly },
+              ] as const
+            ).map(({ label, side }) => {
+              const pct = side.limit > 0 ? Math.min(1, side.spent / side.limit) : 0;
+              const tone = pct >= 1 ? "#EF4444" : pct >= 0.8 ? "#F59E0B" : "#06C755";
+              return (
+                <div key={label}>
+                  <div className="mb-1 flex items-baseline justify-between text-xs">
+                    <span className="text-neutral-500 dark:text-neutral-400">{label}用量</span>
+                    <span className="font-mono" style={{ color: tone }}>
+                      {usd(side.spent)} / {usd(side.limit)}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                    <div className="h-full rounded-full" style={{ width: `${pct * 100}%`, background: tone }} />
+                  </div>
+                  {pct >= 1 && (
+                    <p className="mt-1 text-[11px] text-red-500">已達上限，AI 呼叫已暫停</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

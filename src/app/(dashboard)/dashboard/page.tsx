@@ -9,12 +9,15 @@ import Avatar from "@/components/agents/Avatar";
 import OfficeScene from "@/components/office/OfficeScene";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
 import { useMarketingMode } from "@/lib/marketing-mode";
+import { useAgentStatus } from "@/lib/agent-status";
 
 export default function DashboardPage() {
   const [marketingMode] = useMarketingMode();
+  // 啟用狀態以 line_agents.enabled 為準，不是寫死的常數
+  const agentEnabled = useAgentStatus();
   const visibleAgents = marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS;
 
-  const activeCount = visibleAgents.filter((a) => a.status === "active").length;
+  const activeCount = visibleAgents.filter((a) => agentEnabled[a.slug]).length;
   const totalRecipients = visibleAgents.reduce((sum, a) => sum + a.recipients, 0);
 
   return (

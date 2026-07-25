@@ -1,5 +1,5 @@
 import "server-only";
-import { logAiUsage } from "@/lib/ai-usage";
+import { assertBudget, logAiUsage } from "@/lib/ai-usage";
 import { AGENTS } from "@/lib/agent-data";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
@@ -10,6 +10,8 @@ async function chatCompletion(
 ) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+  // 超出預算就在這裡擋下來，請求根本不會送出
+  await assertBudget(meta.operation);
 
   const res = await fetch(`${OPENAI_API_BASE}/chat/completions`, {
     method: "POST",
@@ -82,6 +84,7 @@ export async function webSearchJson(params: {
 }): Promise<any> {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+  await assertBudget(params.operation);
 
   const call = async (toolType: string) => {
     const res = await fetch(`${OPENAI_API_BASE}/responses`, {
@@ -152,6 +155,7 @@ export async function embedTexts(texts: string[], operation = "知識庫向量�
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
   if (texts.length === 0) return [];
+  await assertBudget(operation);
 
   const res = await fetch(`${OPENAI_API_BASE}/embeddings`, {
     method: "POST",

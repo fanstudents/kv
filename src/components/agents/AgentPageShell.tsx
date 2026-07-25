@@ -22,6 +22,7 @@ import { AGENT_LIVE_TASKS } from "@/lib/agent-briefings";
 import { goalProgress, type AgentGoal } from "@/lib/agent-goals";
 import { removeGoal, useAgentGoals } from "@/lib/agent-goals-store";
 import { useDemoMode } from "@/lib/demo-mode";
+import { refreshAgentStatus } from "@/lib/agent-status";
 import { PUSH_STYLES, type PushStyle } from "@/lib/line-message-styles";
 import type { AgentMeta, AgentActivity } from "@/lib/types";
 
@@ -126,6 +127,8 @@ export default function AgentPageShell({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: next }),
     }).catch(() => {});
+    // 側欄的燈、劇院模式的值勤人數都讀同一份狀態，切換後立刻更新
+    refreshAgentStatus();
   };
 
   const handleSave = async () => {

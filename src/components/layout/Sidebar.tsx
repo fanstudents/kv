@@ -28,6 +28,7 @@ import { SUPER_AGENTS, principalAvatar } from "@/lib/super-agent-data";
 import Avatar from "@/components/agents/Avatar";
 import { useMarketingMode } from "@/lib/marketing-mode";
 import { useDemoMode } from "@/lib/demo-mode";
+import { useAgentStatus } from "@/lib/agent-status";
 import type { AgentMeta } from "@/lib/types";
 
 interface ActivityRow {
@@ -43,6 +44,8 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false);
   const [marketingMode, setMarketingModeOn] = useMarketingMode();
   const [demoMode, setDemoModeOn] = useDemoMode();
+  // 啟用狀態以資料庫為準（後台按下停用，這顆燈會跟著滅）
+  const agentEnabled = useAgentStatus();
 
   // 換頁時自動收起行動版抽屜
   useEffect(() => {
@@ -102,12 +105,11 @@ export default function Sidebar() {
         )}
         <span
           className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-            agent.status === "active"
+            agentEnabled[agent.slug]
               ? "animate-pulse bg-[#06C755]"
-              : agent.status === "paused"
-                ? "bg-amber-500"
-                : "bg-neutral-300 dark:bg-neutral-600"
+              : "bg-neutral-300 dark:bg-neutral-600"
           }`}
+          title={agentEnabled[agent.slug] ? "已啟用" : "已停用"}
         />
       </Link>
     );

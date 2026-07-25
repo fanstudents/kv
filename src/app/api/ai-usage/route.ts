@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
+import { budgetStatus } from "@/lib/ai-usage";
 
 interface UsageRow {
   agent_slug: string | null;
@@ -58,7 +59,9 @@ export async function GET() {
     .map(([model, list]) => ({ model, ...sum(list) }))
     .sort((a, b) => b.cost - a.cost);
 
+  const budget = await budgetStatus();
   return NextResponse.json({
+    budget,
     total: sum(rows),
     last30: sum(recent30),
     last7: sum(recent7),

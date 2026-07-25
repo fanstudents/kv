@@ -29,6 +29,7 @@ import { AGENTS, agentTeam, avatarUrl } from "@/lib/agent-data";
 import { AGENT_BRIEFINGS, AGENT_LIVE_TASKS, type OutputKind } from "@/lib/agent-briefings";
 import { useMarketingMode } from "@/lib/marketing-mode";
 import { useDemoMode } from "@/lib/demo-mode";
+import { useAgentStatus } from "@/lib/agent-status";
 import RealStatusPanel from "@/components/agents/RealStatusPanel";
 import type { AgentSlug } from "@/lib/types";
 
@@ -179,7 +180,12 @@ export default function TvModePage() {
     () => (marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS),
     [marketingMode]
   );
-  const activeAgents = useMemo(() => visibleAgents.filter((a) => a.status === "active"), [visibleAgents]);
+  // 「值勤中」以 line_agents.enabled 為準，不是寫死的常數
+  const agentEnabled = useAgentStatus();
+  const activeAgents = useMemo(
+    () => visibleAgents.filter((a) => agentEnabled[a.slug]),
+    [visibleAgents, agentEnabled]
+  );
   const activeCount = activeAgents.length;
   const recipients = useMemo(() => visibleAgents.reduce((sum, a) => sum + a.recipients, 0), [visibleAgents]);
   const feedAll = useActivityFeed(30);
