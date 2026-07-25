@@ -6,7 +6,10 @@ import Mascot from "@/components/agents/Mascot";
 import VisitFlowSteps, { type FlowStep } from "@/components/agents/VisitFlowSteps";
 import { SUPER_AGENTS, principalAvatar } from "@/lib/super-agent-data";
 
-export const metadata = { title: "超級 Agent｜Agent 目錄" };
+export const metadata = {
+  title: "超級 Agent｜Agent 目錄",
+  description: "由真人專業經理人帶隊的 Agent Team，前 3 個月親自帶隊調教，之後可轉交企業內部主管接手管理。",
+};
 
 const SERVICE_MODEL: FlowStep[] = [
   { key: "kickoff", label: "主理人帶隊啟動", detail: "Month 1", icon: UserCog, state: "done" },

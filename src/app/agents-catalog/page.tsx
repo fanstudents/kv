@@ -5,6 +5,12 @@ import Mascot from "@/components/agents/Mascot";
 import { AGENT_CATALOG, agentsByTier } from "@/lib/agent-catalog";
 import { SUPER_AGENTS } from "@/lib/super-agent-data";
 
+export const metadata = {
+  title: "Agent 目錄｜TBR AI Studio",
+  description:
+    "12 種以上可以聘任的 AI Agent，分通用型、專業型、超級 Agent 三個等級。每位點開都看得到實際運作流程節點——接什麼系統、做哪些判斷、交出什麼結果。",
+};
+
 const TIERS = [
   {
     href: "/agents-catalog/general",

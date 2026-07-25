@@ -3,7 +3,10 @@ import { ArrowLeft } from "lucide-react";
 import CatalogAgentCard from "@/components/agents/CatalogAgentCard";
 import { AGENT_CATALOG, DEPT_ORDER, agentsByTier } from "@/lib/agent-catalog";
 
-export const metadata = { title: "通用型 Agent｜Agent 目錄" };
+export const metadata = {
+  title: "通用型 Agent｜Agent 目錄",
+  description: "開箱即用的單一職務 Agent，不需客製串接，部署完當天上工。適合第一次導入、先試水溫的職務，例如售後關懷、排程提醒、履歷篩選。",
+};
 
 export default function GeneralCatalogPage() {
   const items = agentsByTier(1);

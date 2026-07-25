@@ -3,7 +3,10 @@ import { ArrowLeft } from "lucide-react";
 import CatalogAgentCard from "@/components/agents/CatalogAgentCard";
 import { AGENT_CATALOG, DEPT_ORDER, agentsByTier } from "@/lib/agent-catalog";
 
-export const metadata = { title: "專業型 Agent｜Agent 目錄" };
+export const metadata = {
+  title: "專業型 Agent｜Agent 目錄",
+  description: "串接你的 LINE OA、訂單、廣告後台與資料庫，執行多步驟流程，依你的品牌口吻與 SOP 調教。",
+};
 
 export default function ProfessionalCatalogPage() {
   const items = agentsByTier([2, 3]);
