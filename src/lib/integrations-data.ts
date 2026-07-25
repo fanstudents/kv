@@ -191,9 +191,8 @@ export const INTEGRATION_SEEDS: Integration[] = [
     category: "其他",
     link: "https://www.firecrawl.dev/app",
     status: "connected",
-    // 沒有內嵌官方 logo（BrandLogo 未收錄），以品牌色字首色塊呈現——跟 Teachify 一樣的處理方式
     icon: "firecrawl",
-    color: "#FF6B35",
+    color: "#FA5D19",
     uses: [{ agent: "operations", feature: "知識庫「從網址匯入」：把網頁抓成乾淨正文" }],
     builtin: true,
   },
