@@ -81,10 +81,13 @@ export default function Universe3D({
   marketingMode,
   selection,
   onSelect,
+  mode = "3d",
 }: {
   marketingMode: boolean;
   selection: UniverseSelection;
   onSelect: (s: UniverseSelection) => void;
+  /** 3d＝立體三層；flat＝平面同心網狀圖（同一份資料、另一種讀法） */
+  mode?: "3d" | "flat";
 }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 640 });
@@ -110,7 +113,7 @@ export default function Universe3D({
 
   // 自動繞行（拖曳中或使用者關閉時停止；尊重 prefers-reduced-motion）
   useEffect(() => {
-    if (!spin) return;
+    if (!spin || mode === "flat") return;
     if (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let raf = 0;
     let last = performance.now();
@@ -122,7 +125,7 @@ export default function Universe3D({
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [spin]);
+  }, [spin, mode]);
 
   // ── 世界座標（跟旋轉無關，只在資料變動時重算）──
   const world = useMemo(() => {
@@ -321,7 +324,8 @@ export default function Universe3D({
             {label}
           </button>
         ))}
-        <span className="mx-1 h-4 w-px bg-white/10" />
+        {mode === "3d" && <span className="mx-1 h-4 w-px bg-white/10" />}
+        {mode === "3d" && (
         <button
           type="button"
           onClick={() => setSpin((s) => !s)}
@@ -332,6 +336,8 @@ export default function Universe3D({
         >
           <RotateCw size={13} />
         </button>
+        )}
+        {mode === "3d" && (
         <button
           type="button"
           onClick={() => setZoom((z) => Math.min(2.2, z + 0.15))}
@@ -340,6 +346,8 @@ export default function Universe3D({
         >
           <ZoomIn size={13} />
         </button>
+        )}
+        {mode === "3d" && (
         <button
           type="button"
           onClick={() => setZoom((z) => Math.max(0.6, z - 0.15))}
@@ -348,6 +356,7 @@ export default function Universe3D({
         >
           <ZoomOut size={13} />
         </button>
+        )}
       </div>
 
       <div
@@ -357,8 +366,23 @@ export default function Universe3D({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onWheel={(e) => setZoom((z) => Math.max(0.6, Math.min(2.2, z - e.deltaY * 0.0012)))}
-        className="relative h-[calc(100vh-220px)] min-h-[520px] w-full cursor-grab touch-none select-none overflow-hidden active:cursor-grabbing"
+        className={`relative h-[calc(100vh-220px)] min-h-[520px] w-full touch-none select-none overflow-hidden ${
+          mode === "flat" ? "" : "cursor-grab active:cursor-grabbing"
+        }`}
       >
+        {mode === "flat" ? (
+          <FlatMesh
+            size={size}
+            world={world}
+            layers={layers}
+            highlight={highlight}
+            focus={focus}
+            selection={selection}
+            onSelect={onSelect}
+            setHover={setHover}
+          />
+        ) : (
+        <>
         {/* 連線與圓盤 */}
         <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
           {/* 知識庫圓盤（投影成傾斜的橢圓多邊形，跟著旋轉） */}
@@ -651,14 +675,305 @@ export default function Universe3D({
           })}
 
 
+        </>
+        )}
       </div>
 
       {/* 底部一行把「這張圖在講什麼」與「怎麼操作」講完，不再分兩排文字 */}
       <div className="mt-1 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[10px] text-white/30">
-        <span>上層 服務 · 中層 Agent · 下層 四級知識庫</span>
-        <span className="text-white/20">探針插到哪一層，就讀得到哪一層</span>
-        <span className="text-white/20">滑過看關係 · 拖曳旋轉 · 滾輪縮放</span>
+        {mode === "flat" ? (
+          <>
+            <span>核心 四級知識庫 · 中圈 Agent · 外圈 服務</span>
+            <span className="text-white/20">往內插得越深，能讀的等級越高</span>
+            <span className="text-white/20">滑過看關係 · 點擊鎖定</span>
+          </>
+        ) : (
+          <>
+            <span>上層 服務 · 中層 Agent · 下層 四級知識庫</span>
+            <span className="text-white/20">探針插到哪一層，就讀得到哪一層</span>
+            <span className="text-white/20">滑過看關係 · 拖曳旋轉 · 滾輪縮放</span>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+// ── 平面模式：同心網狀圖 ─────────────────────────────────────
+// 立體模式是「三層樓」的空間感；平面模式把同一份關係攤成一張同心圖，
+// 適合截圖、投影片、以及一眼看全部的網狀連動：
+//   核心＝四級知識庫（越往內越敏感）／中圈＝Agent／外圈＝服務
+// 立體模式的「探針往下插」在這裡變成「往內插」——插得越深，能讀的等級越高，
+// 同一個心智模型，換一個視角。
+
+const FLAT_KB_R: Record<KnowledgeLevel, number> = { 1: 168, 2: 128, 3: 90, 4: 54 };
+const FLAT_AGENT_R = 268;
+const FLAT_SOURCE_R = 372;
+
+type FlatWorld = {
+  visibleAgents: typeof AGENTS;
+  sources: { id: string; name: string; icon: string; color: string; status: string }[];
+  sourceEdges: { agent: AgentSlug; sourceId: string; connected: boolean }[];
+  agentEdges: { a: AgentSlug; b: AgentSlug; strong?: boolean }[];
+};
+
+function FlatMesh({
+  size,
+  world,
+  layers,
+  highlight,
+  focus,
+  selection,
+  onSelect,
+  setHover,
+}: {
+  size: { w: number; h: number };
+  world: FlatWorld;
+  layers: { agents: boolean; sources: boolean; knowledge: boolean };
+  highlight: { agents: Set<AgentSlug>; sources: Set<string>; levels: Set<KnowledgeLevel> } | null;
+  focus: UniverseSelection;
+  selection: UniverseSelection;
+  onSelect: (s: UniverseSelection) => void;
+  setHover: (s: UniverseSelection) => void;
+}) {
+  const cx = size.w / 2;
+  const cy = size.h / 2;
+  // 依舞台大小等比縮放，小螢幕也塞得下
+  const fit = Math.max(0.55, Math.min(1.15, Math.min(size.w, size.h) / 860));
+  const r = (base: number) => base * fit;
+  // 座標固定精度：伺服器端與瀏覽器端的三角函數在最後幾位會差一點，
+  // 不四捨五入的話 SSR 與 hydration 對不起來（跟立體模式同一個處理）
+  const q = (n: number) => Math.round(n * 100) / 100;
+
+  const agents = world.visibleAgents;
+  const at = (index: number, count: number, radius: number) => {
+    const deg = -90 + (360 / Math.max(1, count)) * index;
+    const rad = (deg * Math.PI) / 180;
+    return { x: q(cx + Math.cos(rad) * radius), y: q(cy + Math.sin(rad) * radius), deg, rad };
+  };
+
+  const agentPt = new Map<AgentSlug, { x: number; y: number; rad: number }>();
+  agents.forEach((a, i) => agentPt.set(a.slug, at(i, agents.length, r(FLAT_AGENT_R))));
+  const sourcePt = new Map<string, { x: number; y: number }>();
+  world.sources.forEach((s, i) => sourcePt.set(s.id, at(i, world.sources.length, r(FLAT_SOURCE_R))));
+
+  return (
+    <>
+      <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+        {/* 核心：四圈知識庫 */}
+        {layers.knowledge &&
+          [...KNOWLEDGE_LEVELS].reverse().map((lv) => {
+            const dim = Boolean(highlight && !highlight.levels.has(lv.level));
+            return (
+              <circle
+                key={`ring-${lv.level}`}
+                cx={cx}
+                cy={cy}
+                r={q(r(FLAT_KB_R[lv.level]))}
+                fill={`${lv.color}0e`}
+                stroke={lv.color}
+                strokeWidth={1.2}
+                strokeOpacity={dim ? 0.18 : 0.6}
+              />
+            );
+          })}
+
+        {/* Agent 之間的網狀協作：往圓心微彎的弦，指到才亮 */}
+        {layers.agents &&
+          world.agentEdges.map((e, i) => {
+            const a = agentPt.get(e.a);
+            const b = agentPt.get(e.b);
+            if (!a || !b) return null;
+            const lit = Boolean(highlight && highlight.agents.has(e.a) && highlight.agents.has(e.b));
+            const color = AGENTS.find((x) => x.slug === e.a)?.color ?? "#818cf8";
+            // 控制點往圓心拉，弦才不會全部疊在中央的知識庫上
+            const mx = (a.x + b.x) / 2;
+            const my = (a.y + b.y) / 2;
+            const k = 0.55;
+            const ctrl = { x: q(cx + (mx - cx) * k), y: q(cy + (my - cy) * k) };
+            return (
+              <path
+                key={`fe-${i}`}
+                d={`M${a.x},${a.y} Q${ctrl.x},${ctrl.y} ${b.x},${b.y}`}
+                fill="none"
+                stroke={lit ? color : "#ffffff"}
+                strokeWidth={lit ? 1.6 : 1}
+                strokeOpacity={lit ? 0.6 : highlight ? 0.03 : e.strong ? 0.1 : 0.05}
+                strokeDasharray={e.strong ? "5 7" : undefined}
+                className={lit ? "u3d-flow" : undefined}
+              />
+            );
+          })}
+
+        {/* Agent → 服務：往外的短輻條 */}
+        {layers.sources &&
+          world.sourceEdges.map((e, i) => {
+            const a = agentPt.get(e.agent);
+            const b = sourcePt.get(e.sourceId);
+            if (!a || !b) return null;
+            const lit = Boolean(highlight && highlight.agents.has(e.agent) && highlight.sources.has(e.sourceId));
+            return (
+              <line
+                key={`fs-${i}`}
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
+                stroke={lit ? "#38bdf8" : "#ffffff"}
+                strokeWidth={1}
+                strokeOpacity={lit ? 0.5 : highlight ? 0.03 : 0.06}
+                strokeDasharray={e.connected ? "4 6" : "2 4"}
+                className={lit && e.connected ? "u3d-flow" : undefined}
+              />
+            );
+          })}
+
+        {/* 存取規則：探針改成往圓心插，插到自己讀得到的最深一圈，每經過一圈亮一點 */}
+        {layers.knowledge &&
+          agents.map((a) => {
+            const p = agentPt.get(a.slug);
+            if (!p) return null;
+            const cap = (AGENT_ACCESS_DEMO[a.slug] ?? 1) as KnowledgeLevel;
+            const lit = Boolean(highlight && highlight.agents.has(a.slug));
+            const dim = Boolean(highlight && !lit);
+            const end = {
+              x: q(cx + Math.cos(p.rad) * r(FLAT_KB_R[cap])),
+              y: q(cy + Math.sin(p.rad) * r(FLAT_KB_R[cap])),
+            };
+            return (
+              <g key={`fp-${a.slug}`} opacity={dim ? 0.1 : 1}>
+                <line
+                  x1={p.x}
+                  y1={p.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke={lit ? a.color : "#ffffff"}
+                  strokeWidth={lit ? 1.3 : 1}
+                  strokeOpacity={lit ? 0.55 : 0.12}
+                  strokeDasharray="3 6"
+                  className={lit ? "u3d-flow" : undefined}
+                />
+                {KNOWLEDGE_LEVELS.filter((lv) => lv.level <= cap).map((lv) => {
+                  const levelDimmed = Boolean(highlight && !highlight.levels.has(lv.level));
+                  return (
+                    <circle
+                      key={`fp-${a.slug}-${lv.level}`}
+                      cx={q(cx + Math.cos(p.rad) * r(FLAT_KB_R[lv.level]))}
+                      cy={q(cy + Math.sin(p.rad) * r(FLAT_KB_R[lv.level]))}
+                      r={lit ? 4.2 : 3.2}
+                      fill={lv.color}
+                      opacity={levelDimmed ? 0.2 : lit ? 1 : 0.85}
+                    />
+                  );
+                })}
+              </g>
+            );
+          })}
+      </svg>
+
+      {/* 知識庫層標籤：貼在每一圈的正上方 */}
+      {layers.knowledge &&
+        KNOWLEDGE_LEVELS.map((lv) => {
+          const dim = Boolean(highlight && !highlight.levels.has(lv.level));
+          const readers = world.visibleAgents.filter((a) => (AGENT_ACCESS_DEMO[a.slug] ?? 1) >= lv.level).length;
+          return (
+            <button
+              key={`fl-${lv.level}`}
+              type="button"
+              onClick={() =>
+                onSelect(
+                  selection?.kind === "level" && selection.level === lv.level ? null : { kind: "level", level: lv.level }
+                )
+              }
+              onMouseEnter={() => setHover({ kind: "level", level: lv.level })}
+              onMouseLeave={() => setHover(null)}
+              className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold backdrop-blur transition-opacity"
+              style={{
+                left: cx,
+                top: q(cy - r(FLAT_KB_R[lv.level])),
+                opacity: dim ? 0.35 : 1,
+                borderColor: `${lv.color}66`,
+                background: `${lv.color}26`,
+                color: "#fff",
+                zIndex: 6,
+              }}
+            >
+              L{lv.level}
+              <span className="font-normal text-white/55">{readers}</span>
+            </button>
+          );
+        })}
+
+      {/* 服務（外圈） */}
+      {layers.sources &&
+        world.sources.map((src) => {
+          const p = sourcePt.get(src.id);
+          if (!p) return null;
+          const dim = Boolean(highlight && !highlight.sources.has(src.id));
+          const named = (focus?.kind === "source" && focus.id === src.id) || (highlight?.sources.has(src.id) ?? false);
+          return (
+            <button
+              key={src.id}
+              type="button"
+              onClick={() =>
+                onSelect(selection?.kind === "source" && selection.id === src.id ? null : { kind: "source", id: src.id })
+              }
+              onMouseEnter={() => setHover({ kind: "source", id: src.id })}
+              onMouseLeave={() => setHover(null)}
+              className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 transition-opacity"
+              style={{ left: p.x, top: p.y, opacity: dim ? 0.18 : 1, zIndex: 5 }}
+            >
+              <span
+                className="rounded-2xl"
+                style={{ boxShadow: dim || src.status !== "connected" ? "none" : `0 0 16px -3px ${src.color}` }}
+              >
+                <BrandLogo brand={src.icon} name={src.name} color={src.color} size={32} />
+              </span>
+              {named && <span className="whitespace-nowrap text-[10px] text-white/70">{src.name}</span>}
+            </button>
+          );
+        })}
+
+      {/* Agent（中圈） */}
+      {layers.agents &&
+        agents.map((agent) => {
+          const p = agentPt.get(agent.slug);
+          if (!p) return null;
+          const dim = Boolean(highlight && !highlight.agents.has(agent.slug));
+          const cap = (AGENT_ACCESS_DEMO[agent.slug] ?? 1) as KnowledgeLevel;
+          return (
+            <button
+              key={agent.slug}
+              type="button"
+              onClick={() =>
+                onSelect(
+                  selection?.kind === "agent" && selection.slug === agent.slug
+                    ? null
+                    : { kind: "agent", slug: agent.slug }
+                )
+              }
+              onMouseEnter={() => setHover({ kind: "agent", slug: agent.slug })}
+              onMouseLeave={() => setHover(null)}
+              className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 transition-opacity"
+              style={{ left: p.x, top: p.y, opacity: dim ? 0.2 : 1, zIndex: 6 }}
+            >
+              <span
+                className="relative"
+                style={{ boxShadow: dim ? "none" : `0 0 18px -4px ${agent.color}`, borderRadius: 9999 }}
+              >
+                <Avatar personEn={agent.personEn} color={agent.color} size={48} />
+                <span
+                  className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white ring-2 ring-[#03040a]"
+                  style={{ background: KNOWLEDGE_LEVELS[cap - 1].color }}
+                  title={`知識庫讀取上限 ${KNOWLEDGE_LEVELS[cap - 1].label}`}
+                >
+                  {cap}
+                </span>
+              </span>
+              <span className="whitespace-nowrap text-[11px] font-medium text-white/85">{agent.personEn}</span>
+            </button>
+          );
+        })}
+    </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Boxes, ChevronLeft, ExternalLink, LayoutGrid, Megaphone, Orbit, X } from "lucide-react";
+import { Boxes, ChevronLeft, ExternalLink, LayoutGrid, Megaphone, Orbit, Share2, X } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import BrandLogo from "@/components/integrations/BrandLogo";
 import KnowledgeStrata from "@/components/universe/KnowledgeStrata";
@@ -74,9 +74,11 @@ export default function UniversePage() {
   const stars = useStarfield(140);
   const [selection, setSelection] = useState<Selection>(null);
   const [marketingMode] = useMarketingMode();
-  // 立體模式：Agent 網狀協作＋知識庫分級治理放在同一個 3D 空間，展示整體架構用；
-  // 平面模式保留原本的一頁式星圖（適合截圖與快速掃視）。
-  const [view, setView] = useState<"3d" | "flat">("3d");
+  // 三種讀法，同一份資料：
+  //   3d   立體三層（服務在上、Agent 在中、知識庫在下），展示整體架構
+  //   mesh 平面同心網狀圖（知識庫在核心、Agent 中圈、服務外圈），適合截圖與投影片
+  //   star 原本的一頁式星圖 + 底部知識庫分級剖面
+  const [view, setView] = useState<"3d" | "mesh" | "star">("3d");
 
   // 行銷模式：只留行銷 Team 的 Agent 圍成一圈，沒有 Team Lead 當中心
   // （呼應「你是 AI 行銷指揮官」的設定，中心不放任何一位 Agent）。
@@ -240,28 +242,26 @@ export default function UniversePage() {
         <div className="flex items-center gap-2">
           {/* 立體／平面切換：展示整體架構用立體，快速掃視用平面 */}
           <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur">
-            <button
-              type="button"
-              onClick={() => setView("3d")}
-              title="立體模式：看 Agent 網狀結構與知識庫的關係"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === "3d" ? "bg-indigo-500/25 text-indigo-100" : "text-white/45 hover:text-white"
-              }`}
-            >
-              <Boxes size={13} />
-              立體
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("flat")}
-              title="平面模式：一頁式星圖"
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                view === "flat" ? "bg-indigo-500/25 text-indigo-100" : "text-white/45 hover:text-white"
-              }`}
-            >
-              <LayoutGrid size={13} />
-              平面
-            </button>
+            {(
+              [
+                { key: "3d", label: "立體", icon: Boxes, hint: "三層空間：服務在上、Agent 在中、知識庫在下" },
+                { key: "mesh", label: "平面", icon: Share2, hint: "同心網狀圖：知識庫在核心、Agent 中圈、服務外圈" },
+                { key: "star", label: "星圖", icon: LayoutGrid, hint: "原本的一頁式星圖與知識庫分級剖面" },
+              ] as const
+            ).map(({ key, label, icon: Icon, hint }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setView(key)}
+                title={hint}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === key ? "bg-indigo-500/25 text-indigo-100" : "text-white/45 hover:text-white"
+                }`}
+              >
+                <Icon size={13} />
+                {label}
+              </button>
+            ))}
           </div>
           {marketingMode && (
             <span
@@ -277,16 +277,23 @@ export default function UniversePage() {
       <p className="relative z-20 mx-auto mt-2 max-w-xl px-6 text-center text-[11px] text-white/30">
         {view === "3d"
           ? "上層是串接的服務、中層是 Agent 的網狀協作、下層是四層平行的知識庫——每位 Agent 往下插一根探針，插到自己的讀取上限為止，經過的每一層亮一顆點就是讀得到。"
-          : "點一位 Agent 或一張服務卡，看看真實的連通關係——資料跟「服務串接」管理頁同一份，不是另外畫的。"}
+          : view === "mesh"
+            ? "同一份關係攤成一張平面同心圖：核心是四級知識庫、中圈是 Agent 的網狀協作、外圈是串接的服務——探針往內插得越深，能讀的等級越高。"
+            : "點一位 Agent 或一張服務卡，看看真實的連通關係——資料跟「服務串接」管理頁同一份，不是另外畫的。"}
       </p>
 
-      {view === "3d" && (
+      {view !== "star" && (
         <div className="relative z-10 mx-auto mt-3 w-full max-w-[1500px] px-6">
-          <Universe3D marketingMode={marketingMode} selection={selection} onSelect={setSelection} />
+          <Universe3D
+            marketingMode={marketingMode}
+            selection={selection}
+            onSelect={setSelection}
+            mode={view === "mesh" ? "flat" : "3d"}
+          />
         </div>
       )}
 
-      {view === "flat" && (
+      {view === "star" && (
         <>
       {/* 星圖舞台（平面模式） */}
       <div className="relative z-10 mx-auto mt-4 h-[calc(100vh-140px)] w-full max-w-[1500px]">
