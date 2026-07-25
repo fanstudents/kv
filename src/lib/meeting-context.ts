@@ -241,11 +241,13 @@ async function ownRecentActivity(slug: string): Promise<string> {
 
 /**
  * 依 Agent slug 抓真實業務資料，格式化成一段文字給 mintRealtimeSession 塞進
+ * instructions。帶 question 時，知識庫那段會改成「依這個問題檢索出最相關的幾條」，
+ * 而不是把整個知識庫倒進去（見 knowledgeContext）。
  * instructions。全部 best-effort：任何一段抓不到就跳過那段，不讓整個
  * 換 token 流程失敗；抓不到任何資料就回空字串，讓上層照實告訴老闆
  * 「目前沒有串接到真實資料」而不是瞎編。
  */
-export async function getAgentLiveContext(slug: string): Promise<string> {
+export async function getAgentLiveContext(slug: string, question?: string): Promise<string> {
   const parts: string[] = [];
 
   try {
@@ -266,7 +268,7 @@ export async function getAgentLiveContext(slug: string): Promise<string> {
   }
 
   try {
-    parts.push(await knowledgeContext(slug));
+    parts.push(await knowledgeContext(slug, question));
   } catch {
     /* 知識庫讀不到不影響其他真實資料 */
   }

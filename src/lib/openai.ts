@@ -144,6 +144,35 @@ export async function webSearchJson(params: {
   }
 }
 
+/**
+ * 產生向量（知識庫檢索用）。text-embedding-3-small：1536 維、便宜，
+ * 對「一段中文問答對應到一段中文原文」這種任務已經很夠用。
+ */
+export async function embedTexts(texts: string[], operation = "知識庫向量化"): Promise<number[][]> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+  if (texts.length === 0) return [];
+
+  const res = await fetch(`${OPENAI_API_BASE}/embeddings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: "text-embedding-3-small", input: texts }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`OpenAI embeddings failed (${res.status}): ${detail}`);
+  }
+  const data = await res.json();
+  await logAiUsage({
+    operation,
+    model: "text-embedding-3-small",
+    usage: { prompt_tokens: data.usage?.prompt_tokens, total_tokens: data.usage?.total_tokens },
+    agentSlug: null,
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data.data ?? []).map((d: any) => d.embedding as number[]);
+}
+
 export interface ParsedCard {
   name: string;
   company: string;

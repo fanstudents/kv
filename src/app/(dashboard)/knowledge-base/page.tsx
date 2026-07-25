@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Archive, FileUp, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Archive, FileUp, Loader2, Lock, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -130,9 +130,35 @@ export default function KnowledgeBasePage() {
   const [newContent, setNewContent] = useState("");
   const [editing, setEditing] = useState<KnowledgeDoc | null>(null);
   const [notice, setNotice] = useState("");
+  // 檢索索引：Agent 回答時是靠這個找相關內容，不是把整個知識庫倒進 prompt
+  const [indexStats, setIndexStats] = useState<{ chunks: number; docs: number } | null>(null);
+  const [reindexing, setReindexing] = useState(false);
 
   // 真實資料：文件與 Agent 讀取權限存在 Supabase（knowledge_base／knowledge_access 表），
   // 這裡編輯的異動會直接影響 Agent 對話時實際讀得到什麼內容（見 src/lib/knowledge-base.ts）。
+  useEffect(() => {
+    fetch("/api/knowledge-base/reindex")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.stats && setIndexStats(d.stats))
+      .catch(() => {});
+  }, []);
+
+  const reindex = async () => {
+    setReindexing(true);
+    setNotice("");
+    try {
+      const res = await fetch("/api/knowledge-base/reindex", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "重建失敗");
+      setIndexStats(data.stats ?? null);
+      setNotice(`已重建索引：${data.indexable} 份文件、${data.chunks} 個可檢索段落`);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : "重建索引失敗");
+    } finally {
+      setReindexing(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/knowledge-base")
@@ -260,6 +286,31 @@ export default function KnowledgeBasePage() {
           {notice}
         </p>
       )}
+
+      {/* 檢索索引狀態 */}
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+            <Search size={15} className="text-[#06C755]" />
+            檢索索引
+          </p>
+          <p className="text-xs text-neutral-400">
+            {indexStats
+              ? `${indexStats.docs} 份文件、${indexStats.chunks} 個可檢索段落`
+              : "讀取中…"}
+            ——Agent 回答時只會取跟問題最相關的幾段，不是把整個知識庫塞進去
+          </p>
+          <button
+            type="button"
+            onClick={reindex}
+            disabled={reindexing}
+            className="ml-auto flex items-center gap-1.5 rounded-lg border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          >
+            {reindexing ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+            {reindexing ? "重建中…" : "重建索引"}
+          </button>
+        </div>
+      </Card>
 
       <LevelPipeline access={access} />
       <LevelLegend />

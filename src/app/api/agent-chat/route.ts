@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
 
   let liveContext = "";
   try {
-    liveContext = await getAgentLiveContext(agentSlug);
+    // 把使用者這句話一起傳進去：知識庫那段會依問題檢索，而不是全量塞
+    liveContext = await getAgentLiveContext(agentSlug, message);
   } catch {
     // 真實資料抓不到就照實跟老闆說沒有，不阻塞聊天
   }

@@ -8,6 +8,7 @@ import {
   type KnowledgeLevel,
   type KnowledgeStatus,
 } from "@/lib/knowledge-base-data";
+import { formatHits, indexDocs, searchKnowledge } from "@/lib/kb-search";
 import type { AgentSlug } from "@/lib/types";
 
 // 知識庫的「真實資料」層：文件與 Agent 讀取權限存在 Supabase（knowledge_base／
@@ -151,6 +152,8 @@ export async function updateKnowledgeDoc(
     .select(DOC_COLUMNS)
     .maybeSingle();
   if (error) throw new Error(error.message);
+  // 內容或等級變了就重建索引（封存／草稿化會讓這份文件的段落被清掉）
+  await indexDocs([id]);
   return data ? toDoc(data) : null;
 }
 
@@ -163,6 +166,8 @@ export async function publishKnowledgeDocs(ids: string[]): Promise<number> {
     .in("id", ids)
     .select("id");
   if (error) throw new Error(error.message);
+  // 發布之後才建索引——草稿不進檢索，也就進不了任何 Agent 的回答
+  await indexDocs(ids);
   return data?.length ?? 0;
 }
 
@@ -213,41 +218,45 @@ async function getAgentMaxLevel(slug: string): Promise<KnowledgeLevel> {
   return (data?.max_level as KnowledgeLevel) ?? 1;
 }
 
-/** 塞進 prompt 的字數上限：知識庫一旦匯入整份 PDF，全量塞會直接把 context 撐爆。 */
-const CONTEXT_CHAR_BUDGET = 6000;
+/** 沒有問題可檢索時（例如語音會議一開場），只給一份「知識庫有什麼」的目錄 */
+const INDEX_LIMIT = 40;
 
 /**
- * 塞進 getAgentLiveContext()：依這位 Agent 的可讀取上限，只把等級內、已發布的條目給他。
- * 草稿（AI 轉出來還沒人審）永遠不會進 prompt——這是人審這一關真正的意義。
- * 另外有字數預算：超過就先給等級低、比較新的，並在最後照實說明還有幾條沒放進來。
+ * 塞進 getAgentLiveContext() 的知識段落。
+ *
+ * 有問題（文字對話）→ 用向量檢索取最相關的幾段，並記一筆引用紀錄。
+ * 沒問題（語音會議一開場、還不知道要問什麼）→ 只給標題目錄，讓 Agent 知道
+ * 「我有哪些知識可以查」，而不是把整個知識庫倒進 prompt。
+ *
+ * 兩種情況都只看已發布的條目，也都受這位 Agent 的讀取上限限制。
  */
-export async function knowledgeContext(slug: string): Promise<string> {
+export async function knowledgeContext(slug: string, question?: string): Promise<string> {
   const maxLevel = await getAgentMaxLevel(slug);
+
+  if (question && question.trim().length > 1) {
+    const hits = await searchKnowledge({ question, maxLevel, limit: 6 });
+    if (hits.length > 0) {
+      // 記錄「這次回答用到了哪幾條」——之後才答得出哪份知識在幫忙、哪份沒人用
+      await Promise.all(
+        hits.map((h) => citeKnowledge({ docId: h.docId, agentSlug: slug, question: question.slice(0, 200) }))
+      );
+      return formatHits(hits);
+    }
+  }
+
   const docs = await listKnowledgeDocs({ status: "published" });
   const readable = docs.filter((d) => d.level <= maxLevel);
   const withheld = docs.length - readable.length;
-
   if (readable.length === 0) return "";
 
-  const lines: string[] = [];
-  let used = 0;
-  let dropped = 0;
-  for (const d of readable) {
-    const source = d.sourcePage ? `（出處：第 ${d.sourcePage} 頁）` : "";
-    const line = `- 【${levelInfo(d.level).label}】${d.title}：${d.content ?? "（無內容摘要）"}${source}`;
-    if (used + line.length > CONTEXT_CHAR_BUDGET) {
-      dropped += 1;
-      continue;
-    }
-    lines.push(line);
-    used += line.length;
-  }
-
+  const listed = readable.slice(0, INDEX_LIMIT);
   const parts: string[] = [];
-  parts.push(`你的知識庫讀取權限上限為 ${levelInfo(maxLevel).label}，以下是你能讀到的內容：\n${lines.join("\n")}`);
-  if (dropped > 0) {
-    parts.push(`另有 ${dropped} 條因長度限制未放入，若使用者問到相關細節，請說明需要查閱完整知識庫。`);
-  }
+  parts.push(
+    `你的知識庫讀取權限上限為 ${levelInfo(maxLevel).label}。你可以查到的知識有這些主題：\n` +
+      listed.map((d) => `- 【${levelInfo(d.level).label}】${d.title}`).join("\n") +
+      (readable.length > listed.length ? `\n（另有 ${readable.length - listed.length} 條未列出）` : "")
+  );
+  parts.push("被問到細節時，就依這些主題裡的內容回答；沒有涵蓋到的就照實說知識庫查不到，不要自行補充。");
   if (withheld > 0) {
     parts.push(`另有 ${withheld} 份文件因等級高於你的讀取權限，未提供內容——如被問起，請照實說明無法讀取，不要編造。`);
   }
