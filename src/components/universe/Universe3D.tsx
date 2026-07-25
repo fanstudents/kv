@@ -25,16 +25,18 @@ import type { AgentSlug } from "@/lib/types";
 const CAM_Z = 760; // 相機距離
 const FOV = 820;
 
-const AGENT_R = 380; // Agent 星環半徑
+const AGENT_R = 350; // Agent 星環半徑
 /** 整個結構的重心（服務在上、知識庫在下）往上補正，畫面才不會整團偏下 */
-const WORLD_Y_OFFSET = 235;
-const SOURCE_R = 560; // 服務外環半徑
-const SOURCE_Y = -210; // 服務層高度（負值＝上方）
+const WORLD_Y_OFFSET = 190;
+// 服務環比 Agent 星環小、而且吊得更高：小環＋高懸，投影後不會跟星環穿插，
+// 讀起來就是「一頂懸在團隊上方的服務冠冕」，連線也短，不再橫跨整個畫面。
+const SOURCE_R = 260;
+const SOURCE_Y = -430; // 服務層高度（負值＝上方）
 /** 四層平行知識庫：等大、等距（誰能讀是規則問題，不是大小問題）。
  * 層距要大於盤面投影後的高度（約 2R·sin(俯角)），四層才不會糊成一團。 */
 const PLATE_R = 190;
-const PLATE_TOP = 165;
-const PLATE_GAP = 210;
+const PLATE_TOP = 215;
+const PLATE_GAP = 200;
 function plateY(level: KnowledgeLevel): number {
   return PLATE_TOP + (level - 1) * PLATE_GAP;
 }
@@ -88,9 +90,11 @@ export default function Universe3D({
   const [size, setSize] = useState({ w: 1200, h: 640 });
   const [yaw, setYaw] = useState(24);
   const [pitch, setPitch] = useState(32);
-  const [zoom, setZoom] = useState(0.9);
+  const [zoom, setZoom] = useState(0.72);
   const [spin, setSpin] = useState(true);
   const [layers, setLayers] = useState({ agents: true, sources: true, knowledge: true });
+  // 滑過就預覽關係、點下去才鎖定：預設畫面保持安靜，指到誰才把那條路徑點亮
+  const [hover, setHover] = useState<UniverseSelection>(null);
   const dragRef = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null);
 
   // 舞台尺寸
@@ -150,14 +154,16 @@ export default function Universe3D({
     const placedSources = sources
       .map((src) => ({ id: src.id, angle: circularMeanDeg(src.uses.map((u) => agentPos.get(u.agent)?.angle ?? 0)) }))
       .sort((a, b) => a.angle - b.angle);
-    const minSep = Math.min(34, 330 / Math.max(1, placedSources.length));
+    // 依「使用它的 Agent 的平均方位」排好序，再等角平均攤開：順序仍然對得上使用者，
+    // 但每個 logo 之間的距離一致，冠冕看起來是整齊的一圈而不是幾團擠在一起。
+    const step = 360 / Math.max(1, placedSources.length);
+    const base = placedSources[0]?.angle ?? 0;
     placedSources.forEach((s, i) => {
-      if (i > 0 && s.angle - placedSources[i - 1].angle < minSep) {
-        s.angle = placedSources[i - 1].angle + minSep;
-      }
+      s.angle = base + i * step;
       const rad = (s.angle * Math.PI) / 180;
-      const r = SOURCE_R + (i % 2 === 0 ? 0 : 70);
-      sourcePos.set(s.id, { x: Math.cos(rad) * r, y: SOURCE_Y - (i % 2) * 40, z: Math.sin(rad) * r });
+      // 全部落在同一個乾淨的圓環上（不再交錯高低半徑）——名稱預設收起來，
+      // 沒有標籤要閃避，服務層就能是一圈整齊的 logo。
+      sourcePos.set(s.id, { x: Math.cos(rad) * SOURCE_R, y: SOURCE_Y, z: Math.sin(rad) * SOURCE_R });
     });
 
     // 知識庫：四層平行盤面。主題標籤不固定在盤上，而是每次繪製時排在「面向鏡頭的前緣」，
@@ -221,7 +227,8 @@ export default function Universe3D({
       const r2 = (n: number) => Math.round(n * 100) / 100;
       return {
         x: r2(size.w / 2 + x1 * k),
-        y: r2(size.h / 2 + y2 * k - 20),
+        // 往下推一點：上方要留給工具列，不然服務層會被切掉
+        y: r2(size.h / 2 + y2 * k + 42),
         k: Math.round(k * 1000) / 1000,
         depth: r2(z2),
       };
@@ -229,12 +236,14 @@ export default function Universe3D({
     [yaw, pitch, zoom, size.w, size.h]
   );
 
-  // ── 選取後要點亮誰 ──
+  // ── 指到（或選到）誰，就點亮跟他有關的那一組 ──
+  const focus = selection ?? hover;
   const highlight = useMemo(() => {
     const agents = new Set<AgentSlug>();
     const sources = new Set<string>();
     const levels = new Set<KnowledgeLevel>();
-    if (!selection) return null;
+    if (!focus) return null;
+    const selection = focus;
 
     if (selection.kind === "agent") {
       agents.add(selection.slug);
@@ -261,7 +270,7 @@ export default function Universe3D({
       });
     }
     return { agents, sources, levels };
-  }, [selection, world]);
+  }, [focus, world]);
 
   const agentDim = (slug: AgentSlug) => Boolean(highlight && !highlight.agents.has(slug));
   const sourceDim = (id: string) => Boolean(highlight && !highlight.sources.has(id));
@@ -304,10 +313,8 @@ export default function Universe3D({
             key={key}
             type="button"
             onClick={() => setLayers((l) => ({ ...l, [key]: !l[key] }))}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-              layers[key]
-                ? "border-indigo-400/40 bg-indigo-500/15 text-indigo-200"
-                : "border-white/10 bg-white/5 text-white/35 hover:text-white/70"
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition-colors ${
+              layers[key] ? "bg-white/10 text-white/70" : "text-white/25 hover:text-white/50"
             }`}
           >
             <Icon size={13} />
@@ -319,8 +326,8 @@ export default function Universe3D({
           type="button"
           onClick={() => setSpin((s) => !s)}
           title={spin ? "停止自轉" : "開始自轉"}
-          className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-            spin ? "border-white/15 bg-white/10 text-white/70" : "border-white/10 bg-white/5 text-white/35"
+          className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+            spin ? "bg-white/10 text-white/60" : "text-white/25 hover:text-white/50"
           }`}
         >
           <RotateCw size={13} />
@@ -329,7 +336,7 @@ export default function Universe3D({
           type="button"
           onClick={() => setZoom((z) => Math.min(2.2, z + 0.15))}
           title="放大"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-white/30 transition-colors hover:bg-white/10 hover:text-white/70"
         >
           <ZoomIn size={13} />
         </button>
@@ -337,7 +344,7 @@ export default function Universe3D({
           type="button"
           onClick={() => setZoom((z) => Math.max(0.6, z - 0.15))}
           title="縮小"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/55 hover:text-white"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-white/30 transition-colors hover:bg-white/10 hover:text-white/70"
         >
           <ZoomOut size={13} />
         </button>
@@ -398,7 +405,9 @@ export default function Universe3D({
               if (!a || !b) return null;
               const pa = project(a);
               const pb = project(b);
-              const dim = Boolean(highlight && !(highlight.agents.has(e.a) && highlight.agents.has(e.b)));
+              // 沒有指到任何節點時，所有線都收在同一個極淡的中性色——畫面先給人結構感，
+              // 而不是四十幾條彩色線同時搶注意力；指到誰，才把他那幾條用他的顏色點亮。
+              const lit = Boolean(highlight && highlight.agents.has(e.a) && highlight.agents.has(e.b));
               const color = AGENTS.find((x) => x.slug === e.a)?.color ?? "#818cf8";
               return (
                 <line
@@ -407,11 +416,11 @@ export default function Universe3D({
                   y1={pa.y}
                   x2={pb.x}
                   y2={pb.y}
-                  stroke={e.strong ? color : "#ffffff"}
-                  strokeWidth={e.strong ? 1.6 : 1}
-                  strokeOpacity={dim ? 0.05 : e.strong ? 0.6 : 0.16}
+                  stroke={lit ? color : "#ffffff"}
+                  strokeWidth={lit ? 1.6 : 1}
+                  strokeOpacity={lit ? 0.65 : highlight ? 0.03 : e.strong ? 0.1 : 0.05}
                   strokeDasharray={e.strong ? "5 7" : undefined}
-                  className={e.strong && !dim ? "u3d-flow" : undefined}
+                  className={lit ? "u3d-flow" : undefined}
                 />
               );
             })}
@@ -424,8 +433,8 @@ export default function Universe3D({
               if (!a || !b) return null;
               const pa = project(a);
               const pb = project(b);
-              const dim = Boolean(
-                highlight && !(highlight.agents.has(e.agent) && highlight.sources.has(e.sourceId))
+              const lit = Boolean(
+                highlight && highlight.agents.has(e.agent) && highlight.sources.has(e.sourceId)
               );
               return (
                 <line
@@ -434,11 +443,11 @@ export default function Universe3D({
                   y1={pa.y}
                   x2={pb.x}
                   y2={pb.y}
-                  stroke={e.connected ? "#38bdf8" : "#ffffff"}
+                  stroke={lit ? "#38bdf8" : "#ffffff"}
                   strokeWidth={1}
-                  strokeOpacity={dim ? 0.04 : e.connected ? 0.32 : 0.14}
+                  strokeOpacity={lit ? 0.5 : highlight ? 0.03 : 0.06}
                   strokeDasharray={e.connected ? "4 6" : "2 4"}
-                  className={e.connected && !dim ? "u3d-flow" : undefined}
+                  className={lit && e.connected ? "u3d-flow" : undefined}
                 />
               );
             })}
@@ -447,21 +456,23 @@ export default function Universe3D({
               經過的每一層在交會點亮一顆該層顏色的點＝這一級讀得到。數點就知道權限。 */}
           {layers.knowledge &&
             world.probes.map((probe) => {
-              const dim = Boolean(highlight && !highlight.agents.has(probe.agent));
+              // 探針的線只是「路徑」，資訊在那幾顆點上——所以線壓到很淡，點維持飽和。
+              const lit = Boolean(highlight && highlight.agents.has(probe.agent));
+              const dim = Boolean(highlight && !lit);
               const pa = project(probe.from);
               const pb = project(probe.to);
               return (
-                <g key={`probe-${probe.agent}`} opacity={dim ? 0.12 : 1}>
+                <g key={`probe-${probe.agent}`} opacity={dim ? 0.1 : 1}>
                   <line
                     x1={pa.x}
                     y1={pa.y}
                     x2={pb.x}
                     y2={pb.y}
-                    stroke={probe.color}
-                    strokeWidth={1.2}
-                    strokeOpacity={0.5}
+                    stroke={lit ? probe.color : "#ffffff"}
+                    strokeWidth={lit ? 1.3 : 1}
+                    strokeOpacity={lit ? 0.55 : 0.12}
                     strokeDasharray="3 6"
-                    className={dim ? undefined : "u3d-flow"}
+                    className={lit ? "u3d-flow" : undefined}
                   />
                   {probe.hits.map((hit) => {
                     const p = project(hit.pos);
@@ -471,9 +482,9 @@ export default function Universe3D({
                         key={`probe-${probe.agent}-${hit.level}`}
                         cx={p.x}
                         cy={p.y}
-                        r={Math.max(2.4, 4 * p.k)}
+                        r={Math.max(2.2, (lit ? 4.4 : 3.4) * p.k)}
                         fill={hit.color}
-                        opacity={levelDimmed ? 0.25 : 1}
+                        opacity={levelDimmed ? 0.2 : lit ? 1 : 0.85}
                       />
                     );
                   })}
@@ -505,6 +516,8 @@ export default function Universe3D({
                         : { kind: "level", level: plate.info.level }
                     )
                   }
+                  onMouseEnter={() => setHover({ kind: "level", level: plate.info.level })}
+                  onMouseLeave={() => setHover(null)}
                   className="absolute flex -translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur transition-opacity"
                   style={{
                     left: 12,
@@ -570,6 +583,8 @@ export default function Universe3D({
                 key={src.id}
                 type="button"
                 onClick={() => onSelect(selection?.kind === "source" && selection.id === src.id ? null : { kind: "source", id: src.id })}
+                onMouseEnter={() => setHover({ kind: "source", id: src.id })}
+                onMouseLeave={() => setHover(null)}
                 className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 transition-opacity"
                 style={{
                   left: p.x,
@@ -585,7 +600,11 @@ export default function Universe3D({
                 >
                   <BrandLogo brand={src.icon} name={src.name} color={src.color} size={34} />
                 </span>
-                <span className="whitespace-nowrap text-[10px] text-white/50">{src.name}</span>
+                {/* 名稱只有指到才出現：八個服務名同時掛在畫面上太吵，logo 本身已經認得出來 */}
+                {(focus?.kind === "source" && focus.id === src.id) ||
+                (highlight?.sources.has(src.id) ?? false) ? (
+                  <span className="whitespace-nowrap text-[10px] text-white/70">{src.name}</span>
+                ) : null}
               </button>
             );
           })}
@@ -604,6 +623,8 @@ export default function Universe3D({
                 onClick={() =>
                   onSelect(selection?.kind === "agent" && selection.slug === agent.slug ? null : { kind: "agent", slug: agent.slug })
                 }
+                onMouseEnter={() => setHover({ kind: "agent", slug: agent.slug })}
+                onMouseLeave={() => setHover(null)}
                 className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 transition-opacity"
                 style={{
                   left: p.x,
@@ -629,39 +650,14 @@ export default function Universe3D({
             );
           })}
 
-        {/* 操作提示 */}
-        <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] tracking-[0.2em] text-white/25">
-          拖曳旋轉 · 滾輪縮放 · 點節點看關係
-        </p>
+
       </div>
 
-      {/* 圖例 */}
-      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-[10px] text-white/35">
-        <span className="flex items-center gap-1.5">
-          <span className="h-px w-5 bg-white/50" />
-          Team Lead 彙整
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-px w-5 bg-indigo-400" />
-          戰隊協作（資料流向）
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-px w-5 bg-sky-400" />
-          服務串接
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="flex items-center">
-            <span className="h-px w-4 border-t border-dashed border-white/50" />
-            <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-white/70" />
-          </span>
-          知識庫探針：插到讀取上限，經過的每一層亮一點＝讀得到
-        </span>
-        {KNOWLEDGE_LEVELS.map((lv) => (
-          <span key={lv.level} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: lv.color }} />
-            {lv.label}
-          </span>
-        ))}
+      {/* 底部一行把「這張圖在講什麼」與「怎麼操作」講完，不再分兩排文字 */}
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[10px] text-white/30">
+        <span>上層 服務 · 中層 Agent · 下層 四級知識庫</span>
+        <span className="text-white/20">探針插到哪一層，就讀得到哪一層</span>
+        <span className="text-white/20">滑過看關係 · 拖曳旋轉 · 滾輪縮放</span>
       </div>
     </div>
   );
