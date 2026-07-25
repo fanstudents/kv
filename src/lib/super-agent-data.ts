@@ -2,6 +2,7 @@
 // 注意：kpis / weekly / activity 目前為「示意資料」，正式接數據前請保留示意標記。
 
 import { avatarUrl } from "./agent-data";
+import type { AgentSlug } from "./types";
 
 export type MascotSpecies = "rabbit" | "bird" | "bear" | "owl" | "dog" | "cat";
 
@@ -27,6 +28,15 @@ export interface SuperAgentMeta {
   shortTitle: string;
   status: "active" | "preparing";
   principal: SuperPrincipal | null;
+  /**
+   * 這組超級 Agent 實際帶到後台哪幾位 Agent。
+   *
+   * team[] 裡的名字是插畫用的概念角色（「報表」「輿情」「LINE 客服」），
+   * 跟後台 AGENTS 的 12 位不是同一份名單，也對不起來——所以另外列一份對照，
+   * 節點宇宙才畫得出「主理人 → 他帶的隊員」那幾條線，而不是靠名字猜。
+   * 多個概念角色落到同一位（LINE 客服／網站客服／售後 → 客服 Amber）就併成一筆。
+   */
+  members: AgentSlug[];
   /** [欄位, 內容]，如 ['實績', '…'] */
   dossier: [string, string][];
   desc: string;
@@ -44,6 +54,8 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
     shortTitle: "電商營運",
     status: "active",
     principal: { name: "樊松蒲", title: "電商營運操盤手", photo: "/managers/fan.png", initials: "樊" },
+    // 訂單／客服／廣告／報表／輿情
+    members: ["orders", "support", "today", "report", "competitor"],
     dossier: [
       ["實績", "15 年電商全通路操盤，經手品牌年營收破億"],
       ["專長", "廣告投放、轉換率優化、會員經營"],
@@ -89,6 +101,8 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
     shortTitle: "客服業務",
     status: "active",
     principal: { name: "Joy", title: "客服暨銷售團隊教練", initials: "Joy" },
+    // LINE 客服／網站客服／售後 → 客服；訂單
+    members: ["support", "orders"],
     dossier: [
       ["實績", "十年客服與電銷團隊管理，長期改善 NPS 與轉單率"],
       ["專長", "服務流程設計、把對話變訂單的話術架構"],
@@ -127,6 +141,8 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
     shortTitle: "Threads 自媒體",
     status: "active",
     principal: { name: "Jane", title: "Threads 內容策略操盤", initials: "Jane" },
+    // 社群／文案 → 社群；SEO；競品 → 口碑
+    members: ["card", "expense", "competitor"],
     dossier: [
       ["實績", "Threads 萬粉帳號操盤，多篇貼文破百萬曝光"],
       ["專長", "選題策略、人設經營、演算法節奏"],
@@ -165,6 +181,8 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
     shortTitle: "SEO",
     status: "preparing",
     principal: null,
+    // SEO 內容 → SEO；文案 → 社群；報表；競品 → 口碑
+    members: ["expense", "card", "report", "competitor"],
     dossier: [
       ["範疇", "關鍵字研究、內容產出、技術健檢、排名追蹤"],
       ["交付", "每週內容草稿與排名週報，每月策略檢視"],
@@ -202,6 +220,8 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
     shortTitle: "Email 行銷",
     status: "preparing",
     principal: null,
+    // EDM／文案 → 社群；售後 → 客服；報表
+    members: ["card", "support", "report"],
     dossier: [
       ["範疇", "名單分眾、旅程設計、EDM 產出、成效歸因"],
       ["交付", "每週分眾發送與成效報告，每月旅程優化"],

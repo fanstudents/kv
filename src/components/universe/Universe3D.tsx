@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Layers, Move3d, Network, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
+import { Layers, Move3d, Network, RotateCw, UserCog, ZoomIn, ZoomOut } from "lucide-react";
 import Avatar from "@/components/agents/Avatar";
 import BrandLogo from "@/components/integrations/BrandLogo";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
+import { SUPER_AGENTS } from "@/lib/super-agent-data";
 import { INTEGRATION_SEEDS } from "@/lib/integrations-data";
 import { KNOWLEDGE_LEVELS, type KnowledgeLevel } from "@/lib/knowledge-base-data";
 import { AGENT_ACCESS_DEMO, KNOWLEDGE_DOMAINS, MARKETING_COLLAB_EDGES } from "@/lib/marketing-graph";
@@ -42,6 +43,16 @@ function plateY(level: KnowledgeLevel): number {
 }
 /** 探針從 Agent 往下插進盤面的水平收斂比例（要落在盤內才看得出插進哪一層） */
 const PROBE_INSET = (PLATE_R * 0.8) / AGENT_R;
+
+// 主理人（超級 Agent 的真人操盤者）：不進 Agent 星環，而是懸在自己那組隊員的斜上方。
+// 星環上的每個節點都是「會被執行的東西」，主理人是「帶隊的人」——混進同一圈會讓人
+// 以為他也是一隻 Agent。所以拉到更外圈、更高處，用實線垂下來連到組內成員：
+// 層級關係看得出來，又不會被誤讀。還沒有主理人的組（principal: null）不畫，位置自然空著。
+// 收在星環內側、抬高：半徑越大，透視下的深度散射越大，角度落在後方的主理人會被
+// 往上推進服務層裡。縮小半徑讓這一圈的垂直散射跟著變小，才能穩穩夾在
+// 星環（y=0）與服務冠冕（y=-430）中間，不論轉到哪個角度都不打架。
+const PRINCIPAL_R = 215;
+const PRINCIPAL_Y = -250;
 
 interface Vec3 {
   x: number;
@@ -95,7 +106,7 @@ export default function Universe3D({
   const [pitch, setPitch] = useState(32);
   const [zoom, setZoom] = useState(0.72);
   const [spin, setSpin] = useState(true);
-  const [layers, setLayers] = useState({ agents: true, sources: true, knowledge: true });
+  const [layers, setLayers] = useState({ agents: true, sources: true, knowledge: true, principals: true });
   // 滑過就預覽關係、點下去才鎖定：預設畫面保持安靜，指到誰才把那條路徑點亮
   const [hover, setHover] = useState<UniverseSelection>(null);
   const dragRef = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null);
@@ -211,7 +222,32 @@ export default function Universe3D({
       return { agent: a.slug, color: a.color, cap, from: from as Vec3, to, hits };
     });
 
-    return { visibleAgents, agentPos, sources, sourcePos, sourceEdges, plates, agentEdges, probes };
+    // 主理人：落在自己那組隊員的平均角度方向（跟服務層同一套算法），更外圈也更高。
+    // 只取有真人主理人、而且隊員在這個視角下看得到的組。
+    const principals = SUPER_AGENTS.filter((sa) => sa.principal !== null)
+      .map((sa) => {
+        const members = sa.members.filter((m) => agentPos.has(m));
+        if (members.length === 0) return null;
+        const angle = circularMeanDeg(members.map((m) => agentPos.get(m)?.angle ?? 0));
+        const rad = (angle * Math.PI) / 180;
+        return {
+          id: sa.id,
+          title: sa.shortTitle,
+          name: sa.principal!.name,
+          role: sa.principal!.title,
+          photo: sa.principal!.photo,
+          initials: sa.principal!.initials,
+          members,
+          pos: {
+            x: Math.cos(rad) * PRINCIPAL_R,
+            y: PRINCIPAL_Y,
+            z: Math.sin(rad) * PRINCIPAL_R,
+          } as Vec3,
+        };
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null);
+
+    return { visibleAgents, agentPos, sources, sourcePos, sourceEdges, plates, agentEdges, probes, principals };
   }, [marketingMode]);
 
   // ── 投影：yaw 繞 Y 軸、pitch 繞 X 軸，再做透視 ──
@@ -308,6 +344,7 @@ export default function Universe3D({
         {(
           [
             { key: "agents", label: "Agent 協作網", icon: Network },
+            { key: "principals", label: "主理人", icon: UserCog },
             { key: "sources", label: "服務串接", icon: Move3d },
             { key: "knowledge", label: "知識庫分級", icon: Layers },
           ] as const
@@ -447,6 +484,31 @@ export default function Universe3D({
                   className={lit ? "u3d-flow" : undefined}
                 />
               );
+            })}
+
+          {/* 主理人 → 他帶的隊員：實線垂下來，跟協作網的虛線區隔開 */}
+          {layers.principals &&
+            layers.agents &&
+            world.principals.flatMap((pr) => {
+              const pp = project(pr.pos);
+              return pr.members.map((m) => {
+                const a = world.agentPos.get(m);
+                if (!a) return null;
+                const pa = project(a);
+                const lit = hover?.kind === "agent" && pr.members.includes(hover.slug);
+                return (
+                  <line
+                    key={`pr-${pr.id}-${m}`}
+                    x1={pp.x}
+                    y1={pp.y}
+                    x2={pa.x}
+                    y2={pa.y}
+                    stroke="#F59E0B"
+                    strokeWidth={lit ? 1.5 : 1}
+                    strokeOpacity={lit ? 0.55 : highlight ? 0.06 : 0.18}
+                  />
+                );
+              });
             })}
 
           {/* Agent ↔ 服務 */}
@@ -674,6 +736,45 @@ export default function Universe3D({
             );
           })}
 
+        {/* 主理人：懸在自己那組隊員上方的真人。金環＋方形頭像，跟圓形的 Agent 頭像一眼分得開 */}
+        {layers.principals &&
+          world.principals.map((pr) => {
+            const p = project(pr.pos);
+            const lit = hover?.kind === "agent" && pr.members.includes(hover.slug);
+            const dim = Boolean(highlight) && !lit;
+            return (
+              <span
+                key={pr.id}
+                className="pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 transition-opacity"
+                style={{
+                  left: p.x,
+                  top: p.y,
+                  opacity: dim ? 0.25 : 1,
+                  transform: `translate(-50%,-50%) scale(${Math.max(0.55, p.k)})`,
+                  zIndex: Math.round(1000 - p.depth),
+                }}
+              >
+                <span
+                  className="flex items-center justify-center overflow-hidden rounded-xl border-2 bg-[#0b0d12]"
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderColor: "#F59E0B",
+                    boxShadow: lit ? "0 0 22px -2px #F59E0B" : "0 0 14px -6px #F59E0B",
+                  }}
+                >
+                  {pr.photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={pr.photo} alt={pr.name} className="h-full w-full object-cover object-top" />
+                  ) : (
+                    <span className="text-[13px] font-bold text-amber-400">{pr.initials}</span>
+                  )}
+                </span>
+                <span className="whitespace-nowrap text-[10.5px] font-semibold text-amber-300/90">{pr.name}</span>
+                <span className="whitespace-nowrap text-[9px] text-white/40">{pr.title}</span>
+              </span>
+            );
+          })}
 
         </>
         )}
