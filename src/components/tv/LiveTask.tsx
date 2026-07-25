@@ -123,6 +123,8 @@ function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
 
 export interface LiveInfo {
   active: boolean;
+  /** 執行紀錄裡的節點 id（agent_run_steps.node_id）——有值就直接對應流程圖上的節點 */
+  nodeId?: string | null;
   step: number;
   status: "active" | "waiting" | "done";
   caption: string | null;
@@ -184,7 +186,9 @@ export default function LiveTask({
   const isLive = Boolean(live?.active);
   const isWaiting = isLive && live!.status === "waiting";
   // 流程圖吃的推進狀態：有真實任務就照 live 的步驟走，否則整張圖以待命全貌呈現
-  const flowRun: FlowRun = isLive ? { mode: "live", step: live!.step, status: live!.status } : { mode: "idle" };
+  const flowRun: FlowRun = isLive
+    ? { mode: "live", step: live!.step, status: live!.status, nodeId: live!.nodeId ?? undefined }
+    : { mode: "idle" };
   const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
 
   return (

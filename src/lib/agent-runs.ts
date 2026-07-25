@@ -222,6 +222,71 @@ export async function claimTasks(agentSlug: AgentSlug, limit = 5) {
   }
 }
 
+/** 找出這位 Agent 目前還在跑的那一次執行（給多輪對話的流程接續用） */
+export async function findActiveRun(params: {
+  agentSlug: AgentSlug;
+  /** meta 裡的識別鍵，例如 LINE 使用者 id——同一個人的多輪對話屬於同一次執行 */
+  metaKey?: string;
+  metaValue?: string;
+  withinMinutes?: number;
+}): Promise<string | null> {
+  try {
+    const since = new Date(Date.now() - (params.withinMinutes ?? 60) * 60000).toISOString();
+    let query = getSupabase()
+      .from("agent_runs")
+      .select("id")
+      .eq("agent_slug", params.agentSlug)
+      .in("status", ["running", "waiting"])
+      .gte("started_at", since)
+      .order("started_at", { ascending: false })
+      .limit(1);
+    if (params.metaKey && params.metaValue) {
+      query = query.eq(`meta->>${params.metaKey}`, params.metaValue);
+    }
+    const { data } = await query.maybeSingle();
+    return (data?.id as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export interface LiveStep {
+  runId: string;
+  nodeId: string;
+  status: string;
+  outputSummary: string | null;
+  startedAt: string;
+}
+
+/**
+ * 這位 Agent 現在走到哪個流程節點——直接讀 agent_run_steps。
+ * 劇院模式的即時進度改吃這個之後，「流程圖」與「實際執行」就是同一份資料，
+ * 不再是兩套各自維護的東西。
+ */
+export async function currentStep(agentSlug: AgentSlug, withinMinutes = 30): Promise<LiveStep | null> {
+  try {
+    const runId = await findActiveRun({ agentSlug, withinMinutes });
+    if (!runId) return null;
+    const { data } = await getSupabase()
+      .from("agent_run_steps")
+      .select("run_id,node_id,status,output_summary,started_at")
+      .eq("run_id", runId)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      runId: data.run_id as string,
+      nodeId: data.node_id as string,
+      status: data.status as string,
+      outputSummary: (data.output_summary as string) ?? null,
+      startedAt: data.started_at as string,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export interface RunRow {
   id: string;
   agent_slug: string;

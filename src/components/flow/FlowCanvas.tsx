@@ -48,7 +48,7 @@ type NodeState =
 /** 流程目前的推進狀態：劇院模式吃真實 live 進度，一般模式吃最近一次執行結果 */
 export type FlowRun =
   | { mode: "idle" }
-  | { mode: "live"; step: number; status: "active" | "waiting" | "done" }
+  | { mode: "live"; step: number; status: "active" | "waiting" | "done"; nodeId?: string }
   | { mode: "run"; status: "success" | "failed" | "pending" };
 
 const KIND_ICON: Record<FlowNodeKind, LucideIcon> = {
@@ -105,6 +105,14 @@ interface Match {
 
 function resolveMatch(flow: FlowColumn[], run: FlowRun): Match | null {
   if (run.mode === "live") {
+    // 有節點 id 就直接對應（執行紀錄與流程圖用的是同一組 id）；
+    // 沒有才退回舊的「步驟編號 + 狀態」對照表。
+    if (run.nodeId) {
+      for (let c = 0; c < flow.length; c++) {
+        const node = flow[c].nodes.find((n) => n.id === run.nodeId);
+        if (node) return { col: c, id: node.id, status: run.status };
+      }
+    }
     const m = findLiveMatch(flow, run.step, run.status);
     return m ? { ...m, status: run.status } : null;
   }

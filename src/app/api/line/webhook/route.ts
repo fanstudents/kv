@@ -14,7 +14,7 @@ import { getVisitAgentSettings } from "@/lib/visit-settings";
 import { touchSubscriber } from "@/lib/subscribers";
 import { acquireLock, releaseLock } from "@/lib/conversation-lock";
 import { getSupabase } from "@/lib/supabase";
-import { setLiveTask } from "@/lib/live-task-store";
+import { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } from "@/lib/visit-run";
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
@@ -65,8 +65,17 @@ async function handleImageMessage(event: LineEvent, userId: string) {
       await replyLineMessage(replyToken, "這個檔案不是圖片格式，請直接傳名片照片給我。");
       return;
     }
+    // 一張名片＝一次執行。messageId 當冪等鍵：LINE webhook 重送不會變成第二次執行。
+    await startVisitRun({ userId, messageId, summary: "LINE 傳入名片，開始辨識" });
     // 劇院螢幕：名片一進來就進入「辨識中」，並帶上真實照片
-    await setLiveTask(VISIT_AGENT, { step: 0, status: "active", caption: "辨識名片中…", image: imageDataUrl });
+    await reportVisitStep({
+      userId,
+      nodeId: "scan",
+      step: 0,
+      status: "active",
+      caption: "辨識名片中…",
+      image: imageDataUrl,
+    });
     contact = await parseBusinessCard(imageDataUrl);
   } catch (err) {
     const message = err instanceof Error ? err.message : "名片辨識失敗";
@@ -75,6 +84,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
       summary: `LINE 名片辨識失敗：${message}（來自 ${userId}）`,
       status: "failed",
     });
+    await endVisitRun({ userId, status: "failed", summary: `名片辨識失敗：${message}`, errorDetail: message });
     await replyLineMessage(replyToken, "抱歉，名片辨識過程發生問題，請稍後再傳一次試試。").catch(() => {});
     return;
   }
@@ -93,16 +103,29 @@ async function handleImageMessage(event: LineEvent, userId: string) {
   const replyTexts = [formatCardReply(contact)];
 
   if (!recognized) {
-    await setLiveTask(VISIT_AGENT, { step: 0, status: "active", caption: "未辨識出名片資訊" });
+    await reportVisitStep({ userId, nodeId: "scan", step: 0, status: "active", caption: "未辨識出名片資訊" });
+    await endVisitRun({ userId, status: "failed", summary: "圖片中未辨識出名片資訊" });
     await replyLineMessage(replyToken, replyTexts[0]);
     return;
   }
 
   // 辨識成功 → 寫入聯絡人（辨識✓ 寫入✓），暫停等你回覆「要／不要」
-  await setLiveTask(VISIT_AGENT, {
+  // 辨識完就等於「寫入聯絡人」也走完了，兩步都記下來（畫面上會依序打勾）
+  await reportVisitStep({
+    userId,
+    nodeId: "write",
+    step: 1,
+    status: "active",
+    caption: `寫入聯絡人：${contact.name || "（未命名）"}`,
+    detail: [contact.company, contact.title, contact.email].filter(Boolean).join(" / "),
+  });
+  await reportVisitStep({
+    userId,
+    nodeId: "confirm",
     step: 2,
     status: "waiting",
     caption: `${contact.name || "名片"}${contact.company ? ` · ${contact.company}` : ""}`,
+    detail: "等待指揮官回覆要不要安排拜訪",
   });
 
   // 多輪對話即將開始，先搶下這個使用者的鎖（同一 Agent 重入會自動延長，不會卡住自己）。
@@ -247,11 +270,15 @@ async function handleVisitOfferReply(
       .from("visit_offers")
       .update({ status: "declined", resolved_at: new Date().toISOString() })
       .eq("id", offer.id);
-    await setLiveTask(VISIT_AGENT, {
+    await reportVisitStep({
+      userId,
+      nodeId: "tag",
       step: 2,
       status: "done",
       caption: `已依您的指示，這次不安排（${contact.name}）`,
+      detail: "改為標註客戶標籤，流程在此收尾",
     });
+    await endVisitRun({ userId, status: "cancelled", summary: `${contact.name} 這次不安排拜訪，已改標客戶標籤` });
     // 「要／不要」與「標籤選單」是一次跳出的兩張卡，使用者點了不要之後
     // 標籤選單（quickReply）會跟著這則回覆消失，所以在這裡接續再帶一次，
     // 讓使用者仍可順手替這位客戶分類。
@@ -303,7 +330,14 @@ async function handleVisitOfferReply(
 
   try {
     // 你已確認 → 開始比對雙方行事曆空檔
-    await setLiveTask(VISIT_AGENT, { step: 2, status: "active", caption: `比對行事曆空檔（${finalContact.name}）` });
+    await reportVisitStep({
+      userId,
+      nodeId: "match",
+      step: 2,
+      status: "active",
+      caption: `比對行事曆空檔（${finalContact.name}）`,
+      detail: "讀取與行程助理共用的 Google 日曆",
+    });
     const settings = await getVisitAgentSettings(supabase);
     const slots = await findFreeSlots({
       rangeStartDays: settings.rangeStartDays,
@@ -357,7 +391,13 @@ async function handleVisitOfferReply(
 
     if (settings.requireApproval) {
       // 邀約信草稿已備妥，等你核准後寄出
-      await setLiveTask(VISIT_AGENT, { step: 3, status: "active", caption: `邀約信草稿已備妥：${finalContact.name}` });
+      await reportVisitStep({
+        userId,
+        nodeId: "draft",
+        step: 3,
+        status: "active",
+        caption: `邀約信草稿已備妥：${finalContact.name}`,
+      });
       await replyLineMessage(
         event.replyToken,
         `邀約信草稿已經準備好，寄出前想先讓您過目：\n\n收件人：${finalContact.name}（${finalContact.email}）\n主旨：${draft.subject}\n內文：\n${draft.body}\n\n提議時段：${slots[0].label} 或 ${slots[1].label}\n\n內容 OK 的話請回覆「寄出」，不想寄了請回覆「取消」，想調整的話直接告訴我要怎麼改（例如「語氣正式一點」）。`
@@ -381,9 +421,29 @@ async function handleVisitOfferReply(
       respondUrl2: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=2`,
       respondUrlBoth: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=both`,
     });
-    await setLiveTask(VISIT_AGENT, { step: 3, status: "active", caption: `寄出邀約信給 ${finalContact.name}…` });
+    await reportVisitStep({
+      userId,
+      nodeId: "draft",
+      step: 3,
+      status: "active",
+      caption: `寄出邀約信給 ${finalContact.name}…`,
+    });
     await sendGmail({ to: finalContact.email, subject: draft.subject, body: html, html: true });
-    await setLiveTask(VISIT_AGENT, { step: 4, status: "done", caption: `已寄出邀約信給 ${finalContact.name}` });
+    await saveVisitArtifact({
+      userId,
+      title: `邀約信：${finalContact.name}`,
+      content: html,
+      meta: { to: finalContact.email, slots: [slots[0].label, slots[1].label] },
+    });
+    await reportVisitStep({
+      userId,
+      nodeId: "sent",
+      step: 4,
+      status: "done",
+      caption: `已寄出邀約信給 ${finalContact.name}`,
+      detail: `寄至 ${finalContact.email}`,
+    });
+    await endVisitRun({ userId, status: "success", summary: `已寄出邀約信給 ${finalContact.name}` });
     await replyLineMessage(
       event.replyToken,
       `已寄出邀約信給 ${finalContact.name}，提議 ${slots[0].label} 或 ${slots[1].label}，等對方選好時段後我會通知您。`
@@ -450,10 +510,30 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
         respondUrl2: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=2`,
         respondUrlBoth: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=both`,
       });
-      await setLiveTask(VISIT_AGENT, { step: 3, status: "active", caption: `寄出邀約信給 ${contact.name}…` });
+      await reportVisitStep({
+        userId,
+        nodeId: "draft",
+        step: 3,
+        status: "active",
+        caption: `寄出邀約信給 ${contact.name}…`,
+      });
       await sendGmail({ to: contact.email, subject: invite.subject, body: html, html: true });
       await supabase.from("pending_invites").update({ status: "pending" }).eq("id", invite.id);
-      await setLiveTask(VISIT_AGENT, { step: 4, status: "done", caption: `已寄出邀約信給 ${contact.name}` });
+      await saveVisitArtifact({
+        userId,
+        title: `邀約信：${contact.name}`,
+        content: html,
+        meta: { to: contact.email, slots: [invite.slot1, invite.slot2] },
+      });
+      await reportVisitStep({
+        userId,
+        nodeId: "sent",
+        step: 4,
+        status: "done",
+        caption: `已寄出邀約信給 ${contact.name}`,
+        detail: `寄至 ${contact.email}`,
+      });
+      await endVisitRun({ userId, status: "success", summary: `已寄出邀約信給 ${contact.name}` });
       await replyLineMessage(
         event.replyToken,
         `已寄出邀約信給 ${contact.name}，提議 ${invite.slot1} 或 ${invite.slot2}，等對方選好時段後我會通知您。`
