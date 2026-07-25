@@ -861,7 +861,16 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
       {
         title: "判斷",
         nodes: [
-          { id: "kb", label: "更新知識庫", branch: "正常", main: true, app: "supabase", kind: "store", detail: "補常見問答與 SOP" },
+          {
+            id: "kb",
+            label: "更新知識庫",
+            branch: "正常",
+            main: true,
+            app: "supabase",
+            kind: "store",
+            detail: "補常見問答與 SOP",
+            side: [{ label: "網址匯入抓正文", app: "firecrawl", kind: "source" }],
+          },
           { id: "blocker", label: "標記卡點待辦", branch: "卡點", kind: "decision", detail: "指派負責人與期限" },
         ],
       },

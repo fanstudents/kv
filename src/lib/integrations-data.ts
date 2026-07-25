@@ -38,8 +38,8 @@ export const INTEGRATION_CATEGORIES = [
   "其他",
 ] as const;
 
-// v3：加入 GA4／Search Console（今天接上的真實資料來源），提高版號讓舊快取重新載入種子
-export const INTEGRATIONS_STORAGE_KEY = "kv-integrations-v3";
+// v4：加入 Firecrawl（知識庫「從網址匯入」的抓取引擎），提高版號讓舊快取重新載入種子
+export const INTEGRATIONS_STORAGE_KEY = "kv-integrations-v4";
 
 export const INTEGRATION_SEEDS: Integration[] = [
   {
@@ -182,6 +182,19 @@ export const INTEGRATION_SEEDS: Integration[] = [
     uses: [
       { agent: "expense", feature: "關鍵字排名與點擊成效，指揮台圖表資料來源" },
     ],
+    builtin: true,
+  },
+  {
+    id: "firecrawl",
+    name: "Firecrawl",
+    provider: "Firecrawl",
+    category: "其他",
+    link: "https://www.firecrawl.dev/app",
+    status: "connected",
+    // 沒有內嵌官方 logo（BrandLogo 未收錄），以品牌色字首色塊呈現——跟 Teachify 一樣的處理方式
+    icon: "firecrawl",
+    color: "#FF6B35",
+    uses: [{ agent: "operations", feature: "知識庫「從網址匯入」：把網頁抓成乾淨正文" }],
     builtin: true,
   },
 ];
