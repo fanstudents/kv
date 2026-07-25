@@ -3,72 +3,88 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_GOALS, type AgentGoal } from "./agent-goals";
 
-// 目標設定的前端儲存：存在 localStorage、用自訂事件跨元件同步（跟行銷模式 marketing-mode.ts
-// 同一套寫法）。目標是「指揮官自己設定的管理目標」，不需要後端也能立刻設定與展示；
-// 之後要改存 Supabase，只要把 read/write 換成 API 呼叫、其餘元件不用動。
+// 目標的前端快取。資料本體存在 Supabase（agent_goals 表，見 agent-goals-server.ts）——
+// 以前存在 localStorage，換一台電腦或換瀏覽器，指揮官設的目標就不見了。
 //
-// useSyncExternalStore 需要「同一份資料要回傳同一個參考」，否則會無限重繪，
-// 所以這裡自己做一層快取：只有真的寫入時才重新 parse。
+// 這裡維持跟以前一樣的介面（useAgentGoals / saveGoal / removeGoal / resetGoals），
+// 所以頁面不用改：差別只在寫入時會打 API，並在成功後更新快取讓畫面立刻反應。
 
-const STORAGE_KEY = "kv-agent-goals";
-const CHANGE_EVENT = "kv-agent-goals-change";
+let cache: AgentGoal[] = DEFAULT_GOALS;
+let loaded = false;
+let loading: Promise<void> | null = null;
+const listeners = new Set<() => void>();
 
-let cache: AgentGoal[] | null = null;
-let cacheRaw: string | null = null;
-
-function read(): AgentGoal[] {
-  if (typeof window === "undefined") return DEFAULT_GOALS;
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw === null) return DEFAULT_GOALS;
-  if (raw === cacheRaw && cache) return cache;
-  try {
-    const parsed = JSON.parse(raw);
-    cache = Array.isArray(parsed) ? (parsed as AgentGoal[]) : DEFAULT_GOALS;
-  } catch {
-    cache = DEFAULT_GOALS;
-  }
-  cacheRaw = raw;
-  return cache;
+function emit() {
+  listeners.forEach((l) => l());
 }
 
-function write(goals: AgentGoal[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(goals));
-  window.dispatchEvent(new Event(CHANGE_EVENT));
+function setCache(next: AgentGoal[]) {
+  cache = next;
+  loaded = true;
+  emit();
+}
+
+async function load() {
+  if (loading) return loading;
+  loading = fetch("/api/goals")
+    .then((r) => (r.ok ? r.json() : { goals: DEFAULT_GOALS }))
+    .then((d) => setCache(Array.isArray(d.goals) ? d.goals : DEFAULT_GOALS))
+    .catch(() => {
+      // 讀不到就先用預設值撐著，畫面不會空白
+      setCache(DEFAULT_GOALS);
+    })
+    .finally(() => {
+      loading = null;
+    });
+  return loading;
 }
 
 function subscribe(callback: () => void) {
-  window.addEventListener(CHANGE_EVENT, callback);
-  window.addEventListener("storage", callback);
+  listeners.add(callback);
+  if (!loaded) void load();
   return () => {
-    window.removeEventListener(CHANGE_EVENT, callback);
-    window.removeEventListener("storage", callback);
+    listeners.delete(callback);
   };
+}
+
+function getSnapshot(): AgentGoal[] {
+  return cache;
 }
 
 function getServerSnapshot(): AgentGoal[] {
   return DEFAULT_GOALS;
 }
 
-/** 新增或更新一筆目標（id 已存在就覆蓋） */
-export function saveGoal(goal: AgentGoal) {
-  const goals = read();
-  const idx = goals.findIndex((g) => g.id === goal.id);
-  const next = idx >= 0 ? goals.map((g) => (g.id === goal.id ? goal : g)) : [...goals, goal];
-  write(next);
+/** 新增或更新一筆目標 */
+export async function saveGoal(goal: AgentGoal) {
+  // 先樂觀更新畫面，再送出；失敗就重新拉一次校正回來
+  const idx = cache.findIndex((g) => g.id === goal.id);
+  setCache(idx >= 0 ? cache.map((g) => (g.id === goal.id ? goal : g)) : [...cache, goal]);
+  const res = await fetch("/api/goals", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(goal),
+  }).catch(() => null);
+  if (!res?.ok) {
+    loaded = false;
+    await load();
+  }
 }
 
-export function removeGoal(id: string) {
-  write(read().filter((g) => g.id !== id));
+export async function removeGoal(id: string) {
+  setCache(cache.filter((g) => g.id !== id));
+  const res = await fetch(`/api/goals?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+  if (!res?.ok) {
+    loaded = false;
+    await load();
+  }
 }
 
 /** 回到示範用的預設目標（展示前重置很方便） */
-export function resetGoals() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(STORAGE_KEY);
-  cache = null;
-  cacheRaw = null;
-  window.dispatchEvent(new Event(CHANGE_EVENT));
+export async function resetGoals() {
+  const res = await fetch("/api/goals", { method: "POST" }).catch(() => null);
+  const data = res?.ok ? await res.json().catch(() => null) : null;
+  setCache(Array.isArray(data?.goals) ? data.goals : DEFAULT_GOALS);
 }
 
 export function newGoalId(): string {
@@ -76,5 +92,5 @@ export function newGoalId(): string {
 }
 
 export function useAgentGoals(): AgentGoal[] {
-  return useSyncExternalStore(subscribe, read, getServerSnapshot);
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

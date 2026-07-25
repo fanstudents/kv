@@ -19,20 +19,27 @@ interface ActivityRow {
 export default function AnomaliesPage() {
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // 資料抵達的當下取一次時間，render 期間就不必再讀時鐘（讀了會變成不純的渲染，
+  // 每次重繪算出來的「近 24 小時」都可能不一樣）
+  const [fetchedAt, setFetchedAt] = useState(0);
 
   useEffect(() => {
     fetch("/api/activity?limit=300")
       .then((res) => (res.ok ? res.json() : []))
-      .then((data: ActivityRow[]) => setRows(Array.isArray(data) ? data : []))
+      .then((data: ActivityRow[]) => {
+        setRows(Array.isArray(data) ? data : []);
+        setFetchedAt(Date.now());
+      })
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
 
   const failures = useMemo(() => rows.filter((r) => r.status === "failed"), [rows]);
   const last24h = useMemo(() => {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    if (!fetchedAt) return [];
+    const cutoff = fetchedAt - 24 * 60 * 60 * 1000;
     return failures.filter((r) => new Date(r.occurred_at).getTime() >= cutoff);
-  }, [failures]);
+  }, [failures, fetchedAt]);
 
   const perAgent = useMemo(() => {
     return AGENTS.map((agent) => {

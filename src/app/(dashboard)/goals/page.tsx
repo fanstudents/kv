@@ -122,7 +122,7 @@ export default function GoalsPage() {
             <button
               type="button"
               onClick={() => {
-                if (confirm("要把目標清單還原成預設的示範目標嗎？（自行設定的會被清掉）")) resetGoals();
+                if (confirm("要把目標清單還原成預設的示範目標嗎？（自行設定的會被清掉）")) void resetGoals();
               }}
               className="flex items-center gap-1.5 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >

@@ -173,6 +173,8 @@ function buildFlowSteps(contact: ContactRow): FlowStep[] {
 
 export default function OutputsPage() {
   const [rows, setRows] = useState<ActivityRow[]>([]);
+  // 資料抵達的當下取一次時間；render 期間讀時鐘會讓渲染變得不純
+  const [fetchedAt, setFetchedAt] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [contactsLoaded, setContactsLoaded] = useState(false);
@@ -182,7 +184,10 @@ export default function OutputsPage() {
   useEffect(() => {
     fetch("/api/activity?status=success&limit=500")
       .then((res) => (res.ok ? res.json() : []))
-      .then((data: ActivityRow[]) => setRows(Array.isArray(data) ? data : []))
+      .then((data: ActivityRow[]) => {
+        setRows(Array.isArray(data) ? data : []);
+        setFetchedAt(Date.now());
+      })
       .catch(() => {})
       .finally(() => setLoaded(true));
 
@@ -211,7 +216,7 @@ export default function OutputsPage() {
   };
 
   const table = useMemo(() => {
-    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const cutoff = fetchedAt - 30 * 24 * 60 * 60 * 1000;
     return AGENTS.map((agent) => {
       const agentRows = rows
         .filter((r) => r.agent_slug === agent.slug)
@@ -224,7 +229,7 @@ export default function OutputsPage() {
         latest: agentRows[0],
       };
     });
-  }, [rows]);
+  }, [rows, fetchedAt]);
 
   const totalOutputs = table.reduce((sum, t) => sum + t.total, 0);
   const mostActive = [...table].sort((a, b) => b.total - a.total)[0];
