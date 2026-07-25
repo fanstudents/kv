@@ -14,7 +14,10 @@ import type { AgentSlug } from "@/lib/types";
 // 3D 空間，讓人一次看懂整體架構——
 //   · 中層是 Agent 星環（Team Lead 在正中心），彼此的協作連線就是資料實際流動的方向
 //   · 上層是他們串接的外部服務（GA4、Meta、LINE…）
-//   · 下層是四片知識庫圓盤，愈往下愈敏感、盤面愈小，站得上去的 Agent 也愈少
+//   · 下層是四層「平行」的知識庫：等大、等距，不做成漏斗——因為分級治理的規則是
+//     「等級 ≤ 讀取上限就能讀」的門檻，不是包含關係；四層等重要，L4 也不該被畫得最小。
+//     每位 Agent 往下插一根探針，插到自己的讀取上限為止，經過的每一層亮一顆點＝讀得到，
+//     沒插到的層就是空的。數探針上有幾顆點，就知道這位 Agent 能讀到第幾級。
 //
 // 沒有引入 3D 函式庫：世界座標自己做 yaw/pitch 旋轉與透視投影，線用 SVG、節點用 HTML
 // 疊上去，依深度排序與淡化。這樣可以直接沿用專案既有的頭像、品牌 logo 與配色元件。
@@ -24,16 +27,19 @@ const FOV = 820;
 
 const AGENT_R = 380; // Agent 星環半徑
 /** 整個結構的重心（服務在上、知識庫在下）往上補正，畫面才不會整團偏下 */
-const WORLD_Y_OFFSET = 120;
+const WORLD_Y_OFFSET = 235;
 const SOURCE_R = 560; // 服務外環半徑
 const SOURCE_Y = -210; // 服務層高度（負值＝上方）
-/** 四片知識圓盤：往下愈深、盤面愈小（治理往下收斂） */
-const LEVEL_PLATES: Record<KnowledgeLevel, { y: number; r: number }> = {
-  1: { y: 165, r: 300 },
-  2: { y: 260, r: 255 },
-  3: { y: 355, r: 210 },
-  4: { y: 450, r: 165 },
-};
+/** 四層平行知識庫：等大、等距（誰能讀是規則問題，不是大小問題）。
+ * 層距要大於盤面投影後的高度（約 2R·sin(俯角)），四層才不會糊成一團。 */
+const PLATE_R = 190;
+const PLATE_TOP = 165;
+const PLATE_GAP = 210;
+function plateY(level: KnowledgeLevel): number {
+  return PLATE_TOP + (level - 1) * PLATE_GAP;
+}
+/** 探針從 Agent 往下插進盤面的水平收斂比例（要落在盤內才看得出插進哪一層） */
+const PROBE_INSET = (PLATE_R * 0.8) / AGENT_R;
 
 interface Vec3 {
   x: number;
@@ -82,7 +88,7 @@ export default function Universe3D({
   const [size, setSize] = useState({ w: 1200, h: 640 });
   const [yaw, setYaw] = useState(24);
   const [pitch, setPitch] = useState(32);
-  const [zoom, setZoom] = useState(1.3);
+  const [zoom, setZoom] = useState(0.9);
   const [spin, setSpin] = useState(true);
   const [layers, setLayers] = useState({ agents: true, sources: true, knowledge: true });
   const dragRef = useRef<{ x: number; y: number; yaw: number; pitch: number } | null>(null);
@@ -154,15 +160,16 @@ export default function Universe3D({
       sourcePos.set(s.id, { x: Math.cos(rad) * r, y: SOURCE_Y - (i % 2) * 40, z: Math.sin(rad) * r });
     });
 
-    // 知識庫：四片圓盤 + 盤面上的主題節點
-    const plates = KNOWLEDGE_LEVELS.map((lv) => {
-      const plate = LEVEL_PLATES[lv.level];
-      const topics = (KNOWLEDGE_DOMAINS.find((d) => d.level === lv.level)?.topics ?? []).map((t, i, arr) => ({
-        label: t,
-        pos: ringPos(i, arr.length, plate.r * 0.62, plate.y, -60),
-      }));
-      return { info: lv, y: plate.y, r: plate.r, topics, center: { x: 0, y: plate.y, z: 0 } as Vec3 };
-    });
+    // 知識庫：四層平行盤面。主題標籤不固定在盤上，而是每次繪製時排在「面向鏡頭的前緣」，
+    // 這樣上一層永遠不會蓋住下一層的字（見下方 topicPos）。
+    const plates = KNOWLEDGE_LEVELS.map((lv) => ({
+      info: lv,
+      y: plateY(lv.level),
+      r: PLATE_R,
+      topics: KNOWLEDGE_DOMAINS.find((d) => d.level === lv.level)?.topics ?? [],
+      center: { x: 0, y: plateY(lv.level), z: 0 } as Vec3,
+      readers: visibleAgents.filter((a) => (AGENT_ACCESS_DEMO[a.slug] ?? 1) >= lv.level),
+    }));
 
     // Agent ↔ Agent：Team Lead 彙整全隊、約拜訪與行程助理共用日曆、行銷戰隊互聯
     const agentEdges: { a: AgentSlug; b: AgentSlug; flow?: string; strong?: boolean }[] = [];
@@ -174,13 +181,28 @@ export default function Universe3D({
       agentEdges.push({ a: e.from, b: e.to, flow: e.flow, strong: true })
     );
 
-    // Agent ↔ 知識庫：預設連到「讀取上限」那一層，選取時再展開他能讀的每一層
-    const accessEdges = visibleAgents.map((a) => ({
-      agent: a.slug,
-      cap: (AGENT_ACCESS_DEMO[a.slug] ?? 1) as KnowledgeLevel,
-    }));
+    // Agent ↔ 知識庫：一位 Agent 一根探針，從他的位置直直往下插到自己的讀取上限那一層。
+    // 探針經過的每一層都在交會點亮一顆該層顏色的點＝這一級讀得到。
+    const probes = visibleAgents.map((a) => {
+      const from = agentPos.get(a.slug) ?? { x: 0, y: 0, z: 0 };
+      const cap = (AGENT_ACCESS_DEMO[a.slug] ?? 1) as KnowledgeLevel;
+      const to: Vec3 = { x: from.x * PROBE_INSET, y: plateY(cap), z: from.z * PROBE_INSET };
+      const hits = KNOWLEDGE_LEVELS.filter((lv) => lv.level <= cap).map((lv) => {
+        const t = to.y === from.y ? 1 : (plateY(lv.level) - from.y) / (to.y - from.y);
+        return {
+          level: lv.level,
+          color: lv.color,
+          pos: {
+            x: from.x + (to.x - from.x) * t,
+            y: plateY(lv.level),
+            z: from.z + (to.z - from.z) * t,
+          } as Vec3,
+        };
+      });
+      return { agent: a.slug, color: a.color, cap, from: from as Vec3, to, hits };
+    });
 
-    return { visibleAgents, agentPos, sources, sourcePos, sourceEdges, plates, agentEdges, accessEdges };
+    return { visibleAgents, agentPos, sources, sourcePos, sourceEdges, plates, agentEdges, probes };
   }, [marketingMode]);
 
   // ── 投影：yaw 繞 Y 軸、pitch 繞 X 軸，再做透視 ──
@@ -256,7 +278,8 @@ export default function Universe3D({
     const d = dragRef.current;
     if (!d) return;
     setYaw(d.yaw + (e.clientX - d.x) * 0.35);
-    setPitch(Math.max(-12, Math.min(72, d.pitch - (e.clientY - d.y) * 0.25)));
+    // 俯角不讓人壓到太平：太平的話 Agent 星環會塌成一條線、頭像互相重疊
+    setPitch(Math.max(18, Math.min(70, d.pitch - (e.clientY - d.y) * 0.25)));
   };
   const endDrag = () => {
     dragRef.current = null;
@@ -420,42 +443,42 @@ export default function Universe3D({
               );
             })}
 
-          {/* Agent ↔ 知識庫：預設只連到讀取上限那一層；選到某位時展開他能讀的每一層 */}
+          {/* 存取規則：一位 Agent 一根探針，插到自己的讀取上限為止；
+              經過的每一層在交會點亮一顆該層顏色的點＝這一級讀得到。數點就知道權限。 */}
           {layers.knowledge &&
-            world.accessEdges.flatMap((e) => {
-              const a = world.agentPos.get(e.agent);
-              if (!a) return [];
-              const expand = selection?.kind === "agent" && selection.slug === e.agent;
-              const levels = expand
-                ? KNOWLEDGE_LEVELS.filter((lv) => lv.level <= e.cap).map((lv) => lv.level)
-                : [e.cap];
-              return levels.map((lv) => {
-                const plate = world.plates.find((p) => p.info.level === lv);
-                if (!plate) return null;
-                const pa = project(a);
-                // 連到圓盤上「這位 Agent 方位」的邊緣，而不是盤心，線才不會全部糊在中央
-                const angle = Math.atan2(a.z, a.x);
-                const pb = project({
-                  x: Math.cos(angle) * plate.r * 0.8,
-                  y: plate.y,
-                  z: Math.sin(angle) * plate.r * 0.8,
-                });
-                const dim = Boolean(highlight && !(highlight.agents.has(e.agent) && highlight.levels.has(lv)));
-                return (
+            world.probes.map((probe) => {
+              const dim = Boolean(highlight && !highlight.agents.has(probe.agent));
+              const pa = project(probe.from);
+              const pb = project(probe.to);
+              return (
+                <g key={`probe-${probe.agent}`} opacity={dim ? 0.12 : 1}>
                   <line
-                    key={`ke-${e.agent}-${lv}`}
                     x1={pa.x}
                     y1={pa.y}
                     x2={pb.x}
                     y2={pb.y}
-                    stroke={plate.info.color}
-                    strokeWidth={1.1}
-                    strokeOpacity={dim ? 0.05 : 0.4}
+                    stroke={probe.color}
+                    strokeWidth={1.2}
+                    strokeOpacity={0.5}
                     strokeDasharray="3 6"
                     className={dim ? undefined : "u3d-flow"}
                   />
-                );
-              });
+                  {probe.hits.map((hit) => {
+                    const p = project(hit.pos);
+                    const levelDimmed = Boolean(highlight && !highlight.levels.has(hit.level));
+                    return (
+                      <circle
+                        key={`probe-${probe.agent}-${hit.level}`}
+                        cx={p.x}
+                        cy={p.y}
+                        r={Math.max(2.4, 4 * p.k)}
+                        fill={hit.color}
+                        opacity={levelDimmed ? 0.25 : 1}
+                      />
+                    );
+                  })}
+                </g>
+              );
             })}
         </svg>
 
@@ -465,10 +488,12 @@ export default function Universe3D({
             const dim = levelDim(plate.info.level);
             // 等級標籤固定貼在畫面左緣、只跟著該層的高度上下移動（跟著旋轉會撞到節點）
             const labelPos = project(plate.center);
-            const eligible = world.visibleAgents.filter(
-              (a) => (AGENT_ACCESS_DEMO[a.slug] ?? 1) >= plate.info.level
-            );
+            const eligible = plate.readers;
             const showTopics = selection?.kind === "level" && selection.level === plate.info.level;
+            // 主題排在「面向鏡頭的前緣」：世界角度 φ 投影後最靠近鏡頭的是 φ = -90 - yaw，
+            // 以它為中心攤開一段弧，四層的字就永遠落在各自盤面的近端、不會互相遮蓋。
+            const frontDeg = -90 - yaw;
+            const spread = 132;
             return (
               <div key={`plabel-${plate.info.level}`}>
                 <button
@@ -493,19 +518,31 @@ export default function Universe3D({
                 >
                   <span className="h-1.5 w-1.5 rounded-full" style={{ background: plate.info.color }} />
                   {plate.info.label}
-                  <span className="font-normal text-white/55">{eligible.length} 位可讀</span>
+                  <span className="font-normal text-white/55">
+                    {eligible.length}/{world.visibleAgents.length} 位可讀
+                  </span>
                 </button>
 
-                {plate.topics.map((t) => {
-                  const p = project(t.pos);
+                {/* 主題內容預設收起來（畫面先講清楚「誰能讀到第幾層」這條規則），
+                    點某一層才把那一層裝什麼攤開在盤面前緣 */}
+                {showTopics &&
+                  plate.topics.map((label, i, arr) => {
+                  const deg = frontDeg - spread / 2 + (spread / Math.max(1, arr.length - 1)) * i;
+                  const rad = (deg * Math.PI) / 180;
+                  const reach = i % 2 === 0 ? 0.72 : 1.05;
+                  const p = project({
+                    x: Math.cos(rad) * plate.r * reach,
+                    y: plate.y,
+                    z: Math.sin(rad) * plate.r * reach,
+                  });
                   return (
                     <span
-                      key={`${plate.info.level}-${t.label}`}
+                      key={`${plate.info.level}-${label}`}
                       className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px]"
                       style={{
                         left: p.x,
                         top: p.y,
-                        opacity: dim ? 0.15 : showTopics ? 0.95 : 0.5,
+                        opacity: dim ? 0.15 : 0.95,
                         color: "#fff",
                         background: `${plate.info.color}2b`,
                         border: `1px solid ${plate.info.color}55`,
@@ -513,7 +550,7 @@ export default function Universe3D({
                         zIndex: 4,
                       }}
                     >
-                      {t.label}
+                      {label}
                     </span>
                   );
                 })}
@@ -611,6 +648,13 @@ export default function Universe3D({
         <span className="flex items-center gap-1.5">
           <span className="h-px w-5 bg-sky-400" />
           服務串接
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="flex items-center">
+            <span className="h-px w-4 border-t border-dashed border-white/50" />
+            <span className="ml-0.5 h-1.5 w-1.5 rounded-full bg-white/70" />
+          </span>
+          知識庫探針：插到讀取上限，經過的每一層亮一點＝讀得到
         </span>
         {KNOWLEDGE_LEVELS.map((lv) => (
           <span key={lv.level} className="flex items-center gap-1.5">

@@ -10,6 +10,7 @@ import Avatar from "@/components/agents/Avatar";
 import FlowCanvas, { type FlowRun } from "@/components/flow/FlowCanvas";
 import GoalBar from "@/components/goals/GoalBar";
 import GoalDialog from "@/components/goals/GoalDialog";
+import RealStatusPanel from "@/components/agents/RealStatusPanel";
 import PhoneFrame from "@/components/agents/PhoneFrame";
 import {
   LineTextMessage,
@@ -20,6 +21,7 @@ import {
 import { AGENT_LIVE_TASKS } from "@/lib/agent-briefings";
 import { goalProgress, type AgentGoal } from "@/lib/agent-goals";
 import { removeGoal, useAgentGoals } from "@/lib/agent-goals-store";
+import { useDemoMode } from "@/lib/demo-mode";
 import { PUSH_STYLES, type PushStyle } from "@/lib/line-message-styles";
 import type { AgentMeta, AgentActivity } from "@/lib/types";
 
@@ -37,6 +39,7 @@ export default function AgentPageShell({
   testPushLabel = "傳送測試訊息",
   onSettingsLoaded,
   topPanel,
+  topPanelIsDemo = false,
 }: {
   agent: AgentMeta;
   settings: Record<string, unknown>;
@@ -49,6 +52,8 @@ export default function AgentPageShell({
   onSettingsLoaded?: (settings: Record<string, unknown>) => void;
   /** 頭像／身分列之後、任務流程節點之前的專屬內容(例如真實數據圖表) */
   topPanel?: React.ReactNode;
+  /** topPanel 裡是示範資料——關掉示範模式時改成如實顯示串接狀態 */
+  topPanelIsDemo?: boolean;
 }) {
   const [enabled, setEnabled] = useState(agent.status === "active");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -60,6 +65,7 @@ export default function AgentPageShell({
   const [testUserId, setTestUserId] = useState("");
   const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [testError, setTestError] = useState("");
+  const [demoMode] = useDemoMode();
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<AgentGoal | null>(null);
 
@@ -212,7 +218,13 @@ export default function AgentPageShell({
       />
 
       <div className="space-y-6">
-        {topPanel}
+        {topPanelIsDemo && !demoMode ? (
+          <Card>
+            <RealStatusPanel slug={agent.slug} color={agent.color} />
+          </Card>
+        ) : (
+          topPanel
+        )}
         <Card>
           <h2 className="mb-1 text-sm font-semibold text-neutral-700 dark:text-neutral-200">任務流程節點</h2>
           <p className="mb-4 text-xs text-neutral-400">

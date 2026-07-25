@@ -11,6 +11,7 @@ export default function DataAgentPage() {
       reportLabel="成效週報範本"
       previewText={"本週成效摘要 📊\n\n流量：—\n轉換：—\n整體 ROAS：—\n\nAI 洞察：待串接數據後自動產生。"}
       topPanel={<TrafficOverviewPanel />}
+      topPanelIsDemo
     />
   );
 }

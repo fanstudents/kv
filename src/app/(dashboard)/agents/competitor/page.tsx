@@ -11,6 +11,7 @@ export default function ReputationAgentPage() {
       reportLabel="口碑警示範本"
       previewText={"🗣️ 口碑監測提醒\n\n偵測到一則需要留意的負面聲量：—\n來源：— · 情緒：負面\n建議：儘快查看並回應。"}
       topPanel={<ReputationOverviewPanel />}
+      topPanelIsDemo
     />
   );
 }

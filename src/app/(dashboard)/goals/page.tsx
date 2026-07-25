@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, RotateCcw, Target } from "lucide-react";
+import { Info, Plus, RotateCcw, Target } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import Avatar from "@/components/agents/Avatar";
@@ -11,6 +11,7 @@ import { AGENTS, agentTeam } from "@/lib/agent-data";
 import { GOAL_STATUS_META, goalProgress, type AgentGoal, type GoalStatus } from "@/lib/agent-goals";
 import { removeGoal, resetGoals, useAgentGoals } from "@/lib/agent-goals-store";
 import { useMarketingMode } from "@/lib/marketing-mode";
+import { useDemoMode } from "@/lib/demo-mode";
 import type { AgentSlug } from "@/lib/types";
 
 // 目標達成率總覽：一眼看到全隊每位 Agent 背了什麼目標、走到哪、有沒有落後。
@@ -58,6 +59,7 @@ function Ring({ value, size = 84, color = "#06C755" }: { value: number; size?: n
 export default function GoalsPage() {
   const goals = useAgentGoals();
   const [marketingMode] = useMarketingMode();
+  const [demoMode] = useDemoMode();
   const [filter, setFilter] = useState<"all" | GoalStatus>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AgentGoal | null>(null);
@@ -138,6 +140,17 @@ export default function GoalsPage() {
           </>
         }
       />
+
+      {/* 關掉示範模式時要說清楚：目標是你設定的沒錯，但「目前值」還沒接上真實資料來源 */}
+      {!demoMode && (
+        <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-amber-400/30 bg-amber-400/[0.07] px-4 py-3 text-xs leading-relaxed text-amber-700 dark:text-amber-200">
+          <Info size={14} className="mt-0.5 shrink-0" />
+          <span>
+            示範模式已關閉。目標與期限是你實際設定的，但下方的「目前值」仍取自示範資料來源——
+            接上 GSC／GA4／Meta 等真實串接後，達成率才會是實際數字。
+          </span>
+        </div>
+      )}
 
       {/* 全隊總覽 */}
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[auto_1fr]">

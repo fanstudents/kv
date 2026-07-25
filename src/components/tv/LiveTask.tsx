@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import type { AgentLiveDef, PropKind } from "@/lib/agent-briefings";
 import type { AgentSlug } from "@/lib/types";
 import FlowCanvas, { type FlowRun } from "@/components/flow/FlowCanvas";
-import IdleScene from "./IdleScene";
+import IdleScene, { SCENE_HEIGHT_CLASS, SCENE_LAYOUT } from "./IdleScene";
+import { useDemoMode } from "@/lib/demo-mode";
 
 /* 各職務的道具視覺（真實任務進行中、但沒有實照可放時演出用） */
 function PropGraphic({ kind, color }: { kind: PropKind; color: string }) {
@@ -166,15 +167,20 @@ export default function LiveTask({
   def,
   color,
   live,
-  screenHeight = "h-80 sm:h-[26rem]",
+  screenHeight,
 }: {
   agentSlug: AgentSlug;
   def: AgentLiveDef;
   color: string;
   live?: LiveInfo | null;
-  /** 舞台（場景螢幕）高度，可由外層放大 */
+  /** 舞台（場景螢幕）高度；不指定就依這位 Agent 的任務型態決定（見 SCENE_LAYOUT） */
   screenHeight?: string;
 }) {
+  // 每位 Agent 的舞台排版不一樣：約拜訪要大取景框放名片，儀表板型的要橫向鋪開，
+  // 還在等接線的給個小卡就好——不再所有人共用同一個大空框。
+  const [demoMode] = useDemoMode();
+  const layout = SCENE_LAYOUT[agentSlug] ?? { height: "regular" as const, fill: true };
+  const stageHeight = screenHeight ?? SCENE_HEIGHT_CLASS[layout.height];
   const isLive = Boolean(live?.active);
   const isWaiting = isLive && live!.status === "waiting";
   // 流程圖吃的推進狀態：有真實任務就照 live 的步驟走，否則整張圖以待命全貌呈現
@@ -185,7 +191,7 @@ export default function LiveTask({
     <div>
       {/* 場景螢幕 */}
       <div
-        className={`relative ${screenHeight} overflow-hidden rounded-2xl border bg-[#06090d]`}
+        className={`relative ${stageHeight} overflow-hidden rounded-2xl border bg-[#06090d]`}
         style={{ borderColor: isLive ? `${color}66` : "rgba(255,255,255,0.08)" }}
       >
         {/* 細格線 */}
@@ -231,16 +237,23 @@ export default function LiveTask({
         ) : (
           <>
             {/* 待命：每位 Agent 桌上擺著自己的工作場景（報表、行事曆、監控盤……） */}
-            <div className="absolute inset-x-0 bottom-12 top-12 flex items-center justify-center overflow-y-auto px-5">
+            <div
+              className={`absolute inset-x-0 bottom-11 top-11 flex justify-center overflow-y-auto px-5 ${
+                layout.fill ? "items-start pt-1" : "items-center"
+              }`}
+            >
               <IdleScene slug={agentSlug} color={color} />
             </div>
             <span className="absolute left-4 top-4 flex max-w-[92%] items-center gap-2 truncate text-xs font-semibold tracking-[0.18em] text-white/45">
               <span className="tv-breathe h-2 w-2 rounded-full bg-amber-400" />
-              {def.idle}
+              {demoMode ? def.idle : "待命中"}
             </span>
-            <div className="absolute bottom-3.5 left-4 right-4">
-              <Ticker lines={def.ticker} color={color} />
-            </div>
+            {/* 待命跑馬燈是示範用的旁白，關掉示範模式就不演 */}
+            {demoMode && (
+              <div className="absolute bottom-3.5 left-4 right-4">
+                <Ticker lines={def.ticker} color={color} />
+              </div>
+            )}
           </>
         )}
       </div>

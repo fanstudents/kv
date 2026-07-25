@@ -20,12 +20,14 @@ import {
   BookLock,
   Megaphone,
   Target,
+  Presentation,
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
 import { SUPER_AGENTS, principalAvatar } from "@/lib/super-agent-data";
 import Avatar from "@/components/agents/Avatar";
 import { useMarketingMode } from "@/lib/marketing-mode";
+import { useDemoMode } from "@/lib/demo-mode";
 import type { AgentMeta } from "@/lib/types";
 
 interface ActivityRow {
@@ -40,6 +42,7 @@ export default function Sidebar() {
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
   const [marketingMode, setMarketingModeOn] = useMarketingMode();
+  const [demoMode, setDemoModeOn] = useDemoMode();
 
   // 換頁時自動收起行動版抽屜
   useEffect(() => {
@@ -341,6 +344,40 @@ export default function Sidebar() {
           LINE OA 連線設定
         </Link>
       </nav>
+
+      {/* 示範模式：開＝整個介面（含劇院模式）用示範資料呈現，展示給學員看用；
+          關＝如實呈現每位 Agent 真正接上的服務與跑過的紀錄 */}
+      <div className="border-t border-neutral-200 px-3 py-3 dark:border-neutral-800">
+        <button
+          type="button"
+          onClick={() => setDemoModeOn(!demoMode)}
+          title={
+            demoMode
+              ? "目前是示範模式：畫面用預備好的示範資料，適合展示給學員看"
+              : "目前是真實模式：只顯示實際接上的服務與真正跑過的紀錄"
+          }
+          className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+            demoMode
+              ? "border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-300"
+              : "border-neutral-200 text-neutral-600 hover:border-amber-300 hover:text-amber-600 dark:border-neutral-800 dark:text-neutral-300"
+          }`}
+        >
+          <Presentation size={18} />
+          <span className="min-w-0 flex-1 text-left">
+            示範模式
+            <span className="block text-[10px] font-normal text-neutral-400">
+              {demoMode ? "展示用示範數據" : "如實顯示串接狀態"}
+            </span>
+          </span>
+          <span
+            className={`flex h-5 w-9 shrink-0 items-center rounded-full px-0.5 transition-colors ${
+              demoMode ? "justify-end bg-amber-500" : "justify-start bg-neutral-300 dark:bg-neutral-700"
+            }`}
+          >
+            <span className="h-4 w-4 rounded-full bg-white shadow" />
+          </span>
+        </button>
+      </div>
 
       <div className="flex items-center justify-between border-t border-neutral-200 px-5 py-4 text-xs text-neutral-400 dark:border-neutral-800">
         <span>service@tbr.digital</span>

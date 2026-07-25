@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, Mail, Plug, Star } from "lucide-react";
 import { AGENTS } from "@/lib/agent-data";
+import RealStatusPanel from "@/components/agents/RealStatusPanel";
+import { useDemoMode } from "@/lib/demo-mode";
 import type { AgentSlug } from "@/lib/types";
 
 // 跟後端行事曆快取節奏對齊（10 分鐘）——場景可能一開就是好幾小時，
@@ -54,8 +56,31 @@ function Chip({ tone, children }: { tone: "ok" | "warn" | "dim"; children: React
 
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`w-full max-w-md rounded-xl border border-white/10 bg-white/[0.03] p-4 ${className}`}>
+    <div className={`w-full max-w-3xl rounded-xl border border-white/10 bg-white/[0.03] p-4 ${className}`}>
       {children}
+    </div>
+  );
+}
+
+/** 一列關鍵數字（儀表板型場景的抬頭），把橫向空間用起來 */
+function StatRow({
+  items,
+  color,
+}: {
+  items: { label: string; value: string; delta?: string; warn?: boolean }[];
+  color: string;
+}) {
+  return (
+    <div className="mb-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+      {items.map((s) => (
+        <div key={s.label} className="rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2">
+          <p className="text-[10px] text-white/40">{s.label}</p>
+          <p className="mt-0.5 font-mono text-lg font-light" style={{ color: s.warn ? "#F59E0B" : color }}>
+            {s.value}
+            {s.delta && <span className="ml-1 text-[11px] text-[#06C755]">{s.delta}</span>}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -166,6 +191,14 @@ function ReportScene({ color }: { color: string }) {
         <p className="text-sm font-medium text-white/85">本週成效總表</p>
         <Chip tone="ok">週 ROAS 3.4 ↑</Chip>
       </div>
+      <StatRow
+        color={color}
+        items={[
+          { label: "週 ROAS", value: "3.4", delta: "+0.3" },
+          { label: "轉換數", value: "438" },
+          { label: "洞察建議", value: "12" },
+        ]}
+      />
       <div className="overflow-hidden rounded-lg border border-white/8">
         <table className="w-full text-xs">
           <thead>
@@ -382,7 +415,15 @@ function TodayScene({ color }: { color: string }) {
         <p className="text-sm font-medium text-white/85">今日投放看板</p>
         <Chip tone="dim">下次抓取 明早 06:30</Chip>
       </div>
-      <ul className="space-y-3">
+      <StatRow
+        color={color}
+        items={[
+          { label: "今日花費", value: "11,960" },
+          { label: "整體 ROAS", value: "3.1" },
+          { label: "超標組合", value: "1", warn: true },
+        ]}
+      />
+      <ul className="grid gap-3 sm:grid-cols-2">
         {rows.map((r) => (
           <li key={r.ch} className="rounded-lg border border-white/8 bg-white/[0.02] px-3 py-2.5">
             <div className="mb-1.5 flex items-center justify-between text-xs">
@@ -524,7 +565,42 @@ function OrdersScene({ color }: { color: string }) {
   );
 }
 
+/** 每位 Agent 的舞台排版：任務不同，主要顯示區的大小與填法就不同。
+ * 約拜訪要放名片，所以要一個大取景框（tall＋置中）；儀表板型的（成效、投放、行事曆…）
+ * 要的是橫向鋪開的資訊密度（regular＋填滿）；還在等接線的（客服）給個小卡就夠（compact）。 */
+export type SceneHeight = "tall" | "regular" | "compact";
+export interface SceneLayout {
+  height: SceneHeight;
+  /** true＝場景自己撐滿舞台寬度並靠上排版；false＝小卡置中 */
+  fill: boolean;
+}
+
+export const SCENE_LAYOUT: Record<AgentSlug, SceneLayout> = {
+  visit: { height: "tall", fill: false }, // 名片取景框，主角就是那張圖
+  support: { height: "compact", fill: false }, // 等金鑰接入，資訊很少
+  teamlead: { height: "regular", fill: true },
+  notify: { height: "regular", fill: true },
+  report: { height: "regular", fill: true },
+  schedule: { height: "regular", fill: true },
+  card: { height: "regular", fill: true },
+  expense: { height: "regular", fill: true },
+  today: { height: "regular", fill: true },
+  competitor: { height: "regular", fill: true },
+  operations: { height: "compact", fill: true },
+  orders: { height: "regular", fill: true },
+};
+
+export const SCENE_HEIGHT_CLASS: Record<SceneHeight, string> = {
+  tall: "h-[42vh] lg:h-[50vh]",
+  regular: "h-[32vh] lg:h-[38vh]",
+  compact: "h-[24vh] lg:h-[27vh]",
+};
+
 export default function IdleScene({ slug, color }: { slug: AgentSlug; color: string }) {
+  const [demoMode] = useDemoMode();
+  // 關掉示範模式：舞台上不再演示範數字，改成如實顯示這位 Agent 接上了什麼、跑過什麼
+  if (!demoMode) return <RealStatusPanel slug={slug} color={color} tone="dark" />;
+
   switch (slug) {
     case "teamlead":
       return <TeamleadScene color={color} />;

@@ -28,6 +28,8 @@ import LiveTask, { type LiveInfo } from "@/components/tv/LiveTask";
 import { AGENTS, agentTeam, avatarUrl } from "@/lib/agent-data";
 import { AGENT_BRIEFINGS, AGENT_LIVE_TASKS, type OutputKind } from "@/lib/agent-briefings";
 import { useMarketingMode } from "@/lib/marketing-mode";
+import { useDemoMode } from "@/lib/demo-mode";
+import RealStatusPanel from "@/components/agents/RealStatusPanel";
 import type { AgentSlug } from "@/lib/types";
 
 type Agent = (typeof AGENTS)[number];
@@ -172,6 +174,7 @@ export default function TvModePage() {
   const [introDone, setIntroDone] = useState(false);
 
   const [marketingMode] = useMarketingMode();
+  const [demoMode] = useDemoMode();
   const visibleAgents = useMemo(
     () => (marketingMode ? AGENTS.filter((a) => agentTeam(a.slug) === "marketing") : AGENTS),
     [marketingMode]
@@ -262,6 +265,15 @@ export default function TvModePage() {
 
       {/* 右上控制列 */}
       <div className="absolute right-6 top-6 z-20 flex items-center gap-2.5">
+        {!demoMode && (
+          <span
+            title="示範模式已關閉：畫面只顯示每位 Agent 實際的串接狀態與真正跑過的紀錄"
+            className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/10 px-3.5 py-2 text-xs font-medium text-white/70"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-[#06C755]" />
+            真實模式
+          </span>
+        )}
         {marketingMode && (
           <span
             title="你是 AI 行銷指揮官，畫面只顯示行銷戰隊隊員"
@@ -933,6 +945,8 @@ function relTime(iso: string): string {
 /* ── 劇院式細節：一位 Agent 像真人同事跟你彙報最近七天 ── */
 function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) {
   const brief = AGENT_BRIEFINGS[agent.slug];
+  // 示範模式關掉時，右欄不再演「七天彙報」那套人設數字，改成如實顯示串接與執行狀態
+  const [demoMode] = useDemoMode();
   const fullReport = `${brief.greeting}${brief.report}`;
   const { shown, done, skip } = useTypewriter(fullReport);
 
@@ -1049,18 +1063,16 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
             </div>
 
             {/* 大舞台：現正處理的照片 + 階段流水線 */}
-            <LiveTask
-              agentSlug={agent.slug}
-              def={AGENT_LIVE_TASKS[agent.slug]}
-              color={agent.color}
-              live={live}
-              screenHeight="h-[42vh] lg:h-[50vh]"
-            />
+            {/* 舞台高度交給 LiveTask 依這位 Agent 的任務型態決定（名片要大、儀表板要寬、等接線的小） */}
+            <LiveTask agentSlug={agent.slug} def={AGENT_LIVE_TASKS[agent.slug]} color={agent.color} live={live} />
           </div>
 
           {/* 右：彙報內容（可捲動） */}
           <div className="flex min-h-0 flex-col gap-6 border-t border-white/8 p-5 sm:p-7 lg:flex-1 lg:overflow-y-auto lg:border-l lg:border-t-0">
+            {!demoMode && <RealStatusPanel slug={agent.slug} color={agent.color} tone="dark" />}
+
             {/* 最近七天彙報（打字機） */}
+            {demoMode && (
             <button
               type="button"
               onClick={skip}
@@ -1075,9 +1087,10 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
                 {!done && <span className="office-blink ml-0.5 text-[#06C755]">▍</span>}
               </p>
             </button>
+            )}
 
-            {/* 彙報完才揭曉：數字、任務重點、產出（滑入） */}
-            {done && (
+            {/* 彙報完才揭曉：數字、任務重點、產出（滑入）——只在示範模式呈現 */}
+            {demoMode && done && (
               <div className="space-y-6">
                 <LiveMetricsPanel slug={agent.slug} color={agent.color} />
 

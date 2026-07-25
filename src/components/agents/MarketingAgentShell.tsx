@@ -14,6 +14,7 @@ export default function MarketingAgentShell({
   previewText,
   reportLabel = "推播範本",
   topPanel,
+  topPanelIsDemo,
 }: {
   slug: AgentSlug;
   integration: string;
@@ -21,6 +22,8 @@ export default function MarketingAgentShell({
   reportLabel?: string;
   /** 頭像／身分列之後、任務流程節點之前的專屬內容(例如真實數據圖表) */
   topPanel?: React.ReactNode;
+  /** topPanel 是示範資料——關掉示範模式時改成如實顯示串接狀態 */
+  topPanelIsDemo?: boolean;
 }) {
   const agent = getAgent(slug)!;
   const [dataSource, setDataSource] = useState("");
@@ -39,6 +42,7 @@ export default function MarketingAgentShell({
       previewText={template}
       settings={{ dataSource, template }}
       topPanel={topPanel}
+      topPanelIsDemo={topPanelIsDemo}
       settingsForm={
         <div className="space-y-4">
           <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">

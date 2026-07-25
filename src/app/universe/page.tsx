@@ -276,7 +276,7 @@ export default function UniversePage() {
       </header>
       <p className="relative z-20 mx-auto mt-2 max-w-xl px-6 text-center text-[11px] text-white/30">
         {view === "3d"
-          ? "上層是串接的服務、中層是 Agent 的網狀協作、下層是四片知識庫圓盤——拖曳旋轉看全貌，點任一節點看它連到誰。"
+          ? "上層是串接的服務、中層是 Agent 的網狀協作、下層是四層平行的知識庫——每位 Agent 往下插一根探針，插到自己的讀取上限為止，經過的每一層亮一顆點就是讀得到。"
           : "點一位 Agent 或一張服務卡，看看真實的連通關係——資料跟「服務串接」管理頁同一份，不是另外畫的。"}
       </p>
 

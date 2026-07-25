@@ -11,6 +11,7 @@ export default function SeoAgentPage() {
       reportLabel="SEO 週報範本"
       previewText={"SEO 週報 🔍\n\n關鍵字排名變化：—\n自然流量：—\n本週優化建議：待串接後由 AI 提供。"}
       topPanel={<SeoOverviewPanel />}
+      topPanelIsDemo
     />
   );
 }
