@@ -158,6 +158,57 @@ async function convertChunk(chunk: Chunk): Promise<KbCandidate[]> {
     .filter((c: KbCandidate) => c.question.length > 1 && c.answer.length > 1);
 }
 
+/**
+ * 共用的下游：把一組頁面切塊 → 請 AI 轉成條目 → 全部存成草稿。
+ * PDF 匯入與網址匯入都走這裡，所以兩種來源的人審流程與分級把關完全一致。
+ */
+export async function ingestPages(params: {
+  sourceId: string;
+  pages: string[];
+  /** 顯示用的來源名稱（檔名或網址），會存進條目的 meta 方便追溯 */
+  label: string;
+}): Promise<{ chunkCount: number; processedChunks: number; candidateCount: number; truncated: boolean }> {
+  const supabase = getSupabase();
+  const allChunks = chunkPages(params.pages);
+  const chunks = allChunks.slice(0, MAX_CHUNKS);
+
+  // 逐塊轉換（序列跑，避免同時打爆 API；一塊失敗就跳過那塊，不整份失敗）
+  const candidates: KbCandidate[] = [];
+  for (const chunk of chunks) {
+    try {
+      candidates.push(...(await convertChunk(chunk)));
+    } catch {
+      /* 這一塊轉不出來就跳過，其他照常 */
+    }
+  }
+
+  await addKnowledgeDocs(
+    candidates.map((c) => ({
+      title: c.question,
+      content: c.answer,
+      category: c.category,
+      level: c.level,
+      kind: c.kind,
+      status: "draft" as const,
+      sourceDocId: params.sourceId,
+      sourcePage: c.page,
+      meta: { confidence: c.confidence, flags: c.flags, source: params.label },
+    }))
+  );
+
+  await supabase
+    .from("kb_sources")
+    .update({ status: "reviewing", updated_at: new Date().toISOString() })
+    .eq("id", params.sourceId);
+
+  return {
+    chunkCount: allChunks.length,
+    processedChunks: chunks.length,
+    candidateCount: candidates.length,
+    truncated: allChunks.length > chunks.length,
+  };
+}
+
 export interface ImportResult {
   sourceId: string;
   filename: string;
@@ -226,47 +277,14 @@ export async function importPdf(params: {
   if (srcError) throw new Error(srcError.message);
   const sourceId = source.id as string;
 
-  const allChunks = chunkPages(pages);
-  const chunks = allChunks.slice(0, MAX_CHUNKS);
-
   try {
-    // 逐塊轉換（序列跑，避免同時打爆 API；一塊失敗就跳過那塊，不整份失敗）
-    const candidates: KbCandidate[] = [];
-    for (const chunk of chunks) {
-      try {
-        candidates.push(...(await convertChunk(chunk)));
-      } catch {
-        /* 這一塊轉不出來就跳過，其他照常 */
-      }
-    }
-
-    await addKnowledgeDocs(
-      candidates.map((c) => ({
-        title: c.question,
-        content: c.answer,
-        category: c.category,
-        level: c.level,
-        kind: c.kind,
-        status: "draft" as const,
-        sourceDocId: sourceId,
-        sourcePage: c.page,
-        meta: { confidence: c.confidence, flags: c.flags, filename: params.filename },
-      }))
-    );
-
-    await supabase
-      .from("kb_sources")
-      .update({ status: "reviewing", updated_at: new Date().toISOString() })
-      .eq("id", sourceId);
+    const ingested = await ingestPages({ sourceId, pages, label: params.filename });
 
     return {
       sourceId,
       filename: params.filename,
       pageCount,
-      chunkCount: allChunks.length,
-      processedChunks: chunks.length,
-      candidateCount: candidates.length,
-      truncated: allChunks.length > chunks.length,
+      ...ingested,
     };
   } catch (err) {
     await supabase

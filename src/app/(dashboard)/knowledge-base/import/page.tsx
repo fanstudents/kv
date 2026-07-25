@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, FileUp, Loader2, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, ChevronLeft, FileUp, Globe, Loader2, Trash2, Upload } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
 import { Select, TextArea, TextInput } from "@/components/ui/Field";
@@ -15,7 +15,7 @@ import {
   type KnowledgeLevel,
 } from "@/lib/knowledge-base-data";
 
-// 匯入頁：傳一份 PDF 進來 → 系統抽文字、切塊、請 AI 轉成問答／步驟／事實條目 →
+// 匯入頁：傳一份 PDF、或給一個網址（Firecrawl 抓成乾淨正文）→ 系統切塊、請 AI 轉成問答／步驟／事實條目 →
 // 全部先當「草稿」列在這裡等你一條一條審 → 通過的才發布上線。
 // 沒按過發布的內容，永遠不會出現在任何 Agent 的 prompt 裡。
 
@@ -46,6 +46,12 @@ export default function KnowledgeImportPage() {
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [done, setDone] = useState("");
+  // 從網址匯入
+  const [url, setUrl] = useState("");
+  const [mode, setMode] = useState<"single" | "site">("single");
+  const [limit, setLimit] = useState(25);
+  const [preview, setPreview] = useState<string>("");
+  const [urlBusy, setUrlBusy] = useState(false);
 
   useEffect(() => {
     fetch("/api/knowledge-base/import")
@@ -77,6 +83,55 @@ export default function KnowledgeImportPage() {
       setError(err instanceof Error ? err.message : "匯入失敗");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const previewSite = async () => {
+    if (!url.trim()) return;
+    setPreview("");
+    setError("");
+    try {
+      const res = await fetch(`/api/knowledge-base/crawl?url=${encodeURIComponent(url.trim())}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "預覽失敗");
+      setPreview(`這個站大約有 ${data.count} 頁；整站匯入會依「頁數上限」抓前面幾頁`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "預覽失敗");
+    }
+  };
+
+  const importFromUrl = async () => {
+    if (!url.trim()) return;
+    setUrlBusy(true);
+    setError("");
+    setDone("");
+    setDrafts([]);
+    try {
+      const res = await fetch("/api/knowledge-base/crawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), mode, limit }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "匯入失敗");
+      if (data.unchanged) {
+        setDone("這個網址先前已匯入過，而且內容沒有變動——沒有產生新的待審條目。");
+      } else {
+        setResult({
+          sourceId: data.sourceId,
+          filename: data.url,
+          pageCount: data.pageCount,
+          chunkCount: data.chunkCount,
+          processedChunks: data.processedChunks,
+          candidateCount: data.candidateCount,
+          truncated: data.truncated,
+        });
+        setDrafts(data.docs ?? []);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "匯入失敗");
+    } finally {
+      setUrlBusy(false);
     }
   };
 
@@ -130,7 +185,7 @@ export default function KnowledgeImportPage() {
     <div>
       <PageHeader
         title="匯入知識"
-        description="傳一份 PDF，系統會抽出內容並整理成問答／步驟條目——全部先當草稿，你審過才會上線"
+        description="傳一份 PDF 或給一個網址，系統會整理成問答／步驟條目——全部先當草稿，你審過才會上線"
         actions={
           <Link
             href="/knowledge-base"
@@ -196,6 +251,77 @@ export default function KnowledgeImportPage() {
             {result.truncated && (
               <span className="text-amber-500">（單次上限，其餘段落未處理——可拆檔後再傳一次）</span>
             )}
+          </p>
+        )}
+      </Card>
+
+      {/* 從網址匯入 */}
+      <Card className="mb-6">
+        <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+          <Globe size={15} className="text-[#0EA5E9]" />
+          從網址匯入
+        </h2>
+        <p className="mb-4 text-xs text-neutral-400">
+          官網、課程頁、說明文章直接餵進來——會抓成乾淨的正文（去掉導覽列與頁尾），
+          再走跟 PDF 一樣的流程：轉條目 → 人審 → 發布。動態渲染的頁面也抓得到。
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com/service"
+            className="min-w-[16rem] flex-1 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#0EA5E9] dark:border-neutral-700 dark:bg-neutral-950"
+          />
+          <div className="flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700">
+            {(["single", "site"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  mode === m
+                    ? "bg-[#0EA5E9] text-white"
+                    : "text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                }`}
+              >
+                {m === "single" ? "單頁" : "整站"}
+              </button>
+            ))}
+          </div>
+          {mode === "site" && (
+            <>
+              <input
+                type="number"
+                value={limit}
+                min={1}
+                max={60}
+                onChange={(e) => setLimit(Number(e.target.value) || 25)}
+                title="頁數上限"
+                className="w-20 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 dark:bg-neutral-950"
+              />
+              <button
+                type="button"
+                onClick={previewSite}
+                className="rounded-lg border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+              >
+                先看有幾頁
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={importFromUrl}
+            disabled={urlBusy || !url.trim()}
+            className="flex items-center gap-1.5 rounded-lg bg-[#0EA5E9] px-3.5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            {urlBusy ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
+            {urlBusy ? "抓取中…" : "匯入"}
+          </button>
+        </div>
+        {preview && <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">{preview}</p>}
+        {mode === "site" && (
+          <p className="mt-2 text-[11px] text-amber-500">
+            整站會依頁數上限逐頁抓取並轉換，時間與額度都比單頁多——建議先用「先看有幾頁」確認範圍。
           </p>
         )}
       </Card>
