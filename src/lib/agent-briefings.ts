@@ -896,6 +896,11 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
     ticker: ["儀表板已同步 ✓", "知識庫本週 +6 條", "1 個流程卡點待處理"],
   },
   support: {
+    // 這位目前是「轉發＋記錄」，不是「理解＋回覆」——回覆客戶的責任在既有客服系統手上
+    // （這支帳號本來就是那套系統在用的既有頻道，一個 LINE 頻道只能設一個 Webhook URL，
+    // 這裡改成轉發式：驗完簽章原封不動轉給舊系統的 Webhook，讓它完全不知道中間多了一手）。
+    // 這裡不做意圖分類、不挑話術、不送回覆，只記錄留言＋每天彙整成一份晨報給你——
+    // 流程圖畫的是實際會發生的五步，不是「理想中一位客服 Agent 應該做的事」。
     prop: "chat",
     flow: [
       {
@@ -906,41 +911,44 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
             label: "接收進線",
             app: "line",
             kind: "source",
-            detail: "客服官方帳號 24h 值班",
-            data: "客戶訊息",
+            detail: "客服官方帳號的 Webhook 收到訊息",
+            data: "LINE 事件",
           },
         ],
       },
       {
-        title: "理解",
+        title: "驗證",
         nodes: [
           {
-            id: "understand",
-            label: "理解意圖",
-            kind: "ai",
-            detail: "分類問題並找出關鍵字",
-            data: "意圖分類",
-            side: [{ label: "查知識庫話術", app: "supabase", kind: "store" }],
+            id: "verify",
+            label: "驗證簽章",
+            kind: "decision",
+            detail: "確認真的是 LINE 送來的；驗不過就記一筆失敗、直接結束",
           },
         ],
       },
       {
-        title: "判斷",
+        title: "轉發",
         nodes: [
-          { id: "script", label: "話術回覆", branch: "常見題", main: true, kind: "process", detail: "照核可過的話術回" },
-          { id: "human", label: "轉真人＋附摘要", branch: "複雜題", kind: "decision", detail: "把前情摘要一起交接" },
+          {
+            id: "forward",
+            label: "轉發給舊系統",
+            kind: "process",
+            detail: "原始內容原封不動轉給既有客服系統，由它處理與回覆客戶",
+            data: "原始 Webhook 內容",
+          },
         ],
       },
       {
-        title: "回覆",
+        title: "記錄",
         nodes: [
           {
-            id: "send",
-            label: "送出回覆",
-            app: "line",
-            kind: "output",
-            detail: "平均 3 分鐘內回覆",
-            data: "回覆訊息",
+            id: "log",
+            label: "記錄留言＋建檔",
+            app: "supabase",
+            kind: "store",
+            detail: "留言存檔、客戶顯示名稱建檔",
+            data: "客戶留言",
           },
         ],
       },
@@ -948,18 +956,19 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
         title: "收尾",
         nodes: [
           {
-            id: "log",
-            label: "記錄對話",
+            id: "report",
+            label: "每日彙報",
+            app: "line",
+            kind: "output",
             terminal: true,
-            kind: "store",
-            detail: "整段對話留檔可查",
-            side: [{ label: "負面情緒轉口碑追蹤", handoff: "competitor" }],
+            detail: "隔天早上 9:00 把昨天所有客戶留言彙整推播給你",
+            data: "每日彙報",
           },
         ],
       },
     ],
     idle: "整備中・等待帳號金鑰",
-    ticker: ["等待 Channel 金鑰接入…", "客服話術庫已就緒", "隨時可以上線值班"],
+    ticker: ["等待 Channel 金鑰接入…", "每日彙報排程已就緒", "隨時可以上線值班"],
   },
   orders: {
     prop: "doc",
