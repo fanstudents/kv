@@ -732,19 +732,35 @@ const REALTIME_MODEL = "gpt-realtime-2.1";
  * - show_result：讓 Agent 在語音報告的同時，把負責項目的具體內容（表格、圖表、
  *   數字卡、結論…）結構化地推上畫面，不用你自己從逐字稿裡腦補。
  */
+/** slug（"card"、"operations"）本身不帶語意，模型只看代號猜不出「Sunny」或
+ * 「社群操盤手」該對到哪一個——同一份對照表要塞進工具說明跟系統指令兩處，
+ * 抽成共用函式才不會兩邊各自維護一份、日後改了名字漏改其中一邊。 */
+function colleagueRoster(): string {
+  return AGENTS.filter((a) => a.status === "active")
+    .map((a) => `${a.slug}＝${a.personEn} ${a.personZh}（${a.role}）`)
+    .join("；");
+}
+
 function realtimeTools() {
-  const slugs = AGENTS.filter((a) => a.status === "active").map((a) => a.slug);
+  const active = AGENTS.filter((a) => a.status === "active");
+  const slugs = active.map((a) => a.slug);
+  const roster = colleagueRoster();
   return [
     {
       type: "function",
       name: "switch_to_colleague",
       description:
-        "當老闆的話裡明確想找『另一位』同事講話時呼叫（提到別人的名字、或說「換下一位」「請 XXX 來」）。" +
-        "呼叫後你不用再回答問題內容，該同事會立刻接手對話。",
+        "當老闆的話裡明確想找『另一位』同事講話時呼叫（提到別人的名字、職稱，或說「換下一位」「請 XXX 來」）。" +
+        "呼叫後你不用再回答問題內容，該同事會立刻接手對話。\n" +
+        `同事代號對照表：${roster}`,
       parameters: {
         type: "object",
         properties: {
-          target: { type: "string", enum: slugs, description: "要交棒的同事代號（slug）" },
+          target: {
+            type: "string",
+            enum: slugs,
+            description: "要交棒的同事代號（slug）——依上面的對照表，用老闆提到的名字或職稱查出對應的 slug，不要用猜的。",
+          },
         },
         required: ["target"],
       },
@@ -811,8 +827,9 @@ export async function mintRealtimeSession(cfg: RealtimeSessionConfig): Promise<R
     "語氣自然有精神、語速正常偏快，說台灣腔繁體中文。\n" +
     "如果老闆問到你負責範圍內的具體資料或成效（數字、清單、比較、結論），呼叫 show_result 工具把內容" +
     "顯示在畫面上，語音只需要簡短講重點，不用把畫面上每個字都唸出來。\n" +
-    "如果老闆的話裡提到「別的同事的名字」（不是在跟你說話，而是要找別人），呼叫 switch_to_colleague 工具" +
-    "（帶該同事代號），同時只需要極簡短交棒，像「好，交給他」（不超過一句話），絕對不要真的回答問題內容。\n" +
+    "如果老闆的話裡提到「別的同事的名字或職稱」（不是在跟你說話，而是要找別人），呼叫 switch_to_colleague 工具" +
+    "（帶該同事代號），同時只需要極簡短交棒，像「好，交給他」（不超過一句話），絕對不要真的回答問題內容。" +
+    `同事代號對照表：${colleagueRoster()}。老闆可能用英文名、中文名或職稱稱呼，都要對照這份表查出正確代號，不要用猜的。\n` +
     "重要：下面「真實業務資料」區塊裡的內容才是你實際可以引用的記錄，要主動運用它回答問題——" +
     "老闆問的用詞不一定跟資料裡的說法一模一樣（例如問「邀約名單」，資料裡可能是「近期名片與回覆狀況」"+
     "這種形式），只要內容相關就要引用、換句話說給他聽，具體講出名字、公司、狀態，不要因為字面對不上" +
