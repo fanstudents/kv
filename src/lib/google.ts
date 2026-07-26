@@ -142,22 +142,28 @@ export async function sendGmail(params: { to: string; subject: string; body: str
   });
 }
 
+// 實際查詢的視窗拉到 3 個月，不是只看 7 天——upcoming／warnings 之前受限在 7 天內，
+// 下一場行程只要排在第 8 天以後就會整個消失不見（畫面看起來像「近期沒行程」，
+// 其實只是查詢範圍太窄），衝突偵測也一樣看不到更遠的撞期。dayCounts 這個小長條圖
+// 維持只看前 7 天（本來就是設計成一週的活動量指示，不需要跟著拉長）。
+const CALENDAR_LOOKAHEAD_DAYS = 90;
+
 export interface WeekOverview {
   /** 未來七天，每天的行程數（index 0 = 今天，台北時間） */
   dayCounts: number[];
-  /** 接下來幾筆行程（台北時間標籤 + 標題） */
+  /** 接下來幾筆行程（台北時間標籤 + 標題，取自未來 3 個月內） */
   upcoming: { label: string; title: string }[];
-  /** 注意事項（衝突、行程過密等） */
+  /** 注意事項（衝突、行程過密等，偵測範圍為未來 3 個月） */
   warnings: string[];
 }
 
-/** 行程助理待命場景用：讀取主行事曆未來七天的真實行程總覽。 */
+/** 行程助理待命場景用：讀取主行事曆未來 3 個月的真實行程總覽。 */
 export async function listWeekOverview(): Promise<WeekOverview> {
   const calendar = google.calendar({ version: "v3", auth: getGoogleOAuthClient() });
   const now = new Date();
   const todayParts = toTaipeiParts(now);
   const rangeStart = taipeiWallToUtc(todayParts.year, todayParts.month, todayParts.date, 0, 0);
-  const rangeEnd = new Date(rangeStart.getTime() + 7 * 86400000);
+  const rangeEnd = new Date(rangeStart.getTime() + CALENDAR_LOOKAHEAD_DAYS * 86400000);
 
   const calendarIds = ["primary", ...additionalCalendarIds()];
   const lists = await Promise.all(
@@ -169,7 +175,8 @@ export async function listWeekOverview(): Promise<WeekOverview> {
           timeMax: rangeEnd.toISOString(),
           singleEvents: true,
           orderBy: "startTime",
-          maxResults: 50,
+          // 3 個月的視窗比 7 天裝得下更多行程，50 筆很容易在旺季被塞滿而截斷
+          maxResults: 250,
         })
         // 其中一個日曆讀不到（例如分享權限被收回）不該讓整份週覽開天窗
         .catch(() => ({ data: { items: [] } }))
