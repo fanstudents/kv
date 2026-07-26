@@ -6,6 +6,7 @@ import BrandLogo from "@/components/integrations/BrandLogo";
 import { INTEGRATION_SEEDS } from "@/lib/integrations-data";
 import { getAgent } from "@/lib/agent-data";
 import type { AgentSlug } from "@/lib/types";
+import type { IntegrationStatusMap } from "@/lib/integration-status";
 
 // 關掉示範模式時，用這一塊取代所有示範數字：如實呈現這位 Agent 現在的狀態——
 // 啟用了沒有、接上了哪些服務（哪些還沒接）、過去七天真的跑過幾次、最後一次是什麼時候。
@@ -41,6 +42,18 @@ export default function RealStatusPanel({
   // 統計在「資料回來的當下」算好（而不是每次 render 都讀一次時鐘），
   // render 才是純函式、也不會因為重繪而數字跳動。
   const [stats, setStats] = useState<{ total: number; week: number; latest: string | null } | null>(null);
+  const [liveStatus, setLiveStatus] = useState<IntegrationStatusMap | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/integrations/status")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => alive && setLiveStatus(d))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -68,7 +81,12 @@ export default function RealStatusPanel({
 
   const agent = getAgent(slug);
   const services = INTEGRATION_SEEDS.filter((s) => s.uses.some((u) => u.agent === slug));
-  const connected = services.filter((s) => s.status === "connected");
+  // 連線與否、連的是誰，一律以即時查到的結果為準——INTEGRATION_SEEDS 的 status 只是
+  // 人手維護的種子資料，改個環境變數、金鑰過期，那份資料不會自己更新。查不到（liveStatus
+  // 還沒回來）時暫時沿用種子狀態，避免畫面在載入瞬間全部閃成「待連線」。
+  const liveOf = (id: string) => liveStatus?.[id];
+  const isConnected = (s: (typeof services)[number]) => liveOf(s.id)?.connected ?? s.status === "connected";
+  const connected = services.filter(isConnected);
 
   const dark = tone === "dark";
   const box = dark
@@ -108,19 +126,27 @@ export default function RealStatusPanel({
         </p>
       ) : (
         <ul className="mb-3 grid gap-1.5 sm:grid-cols-2">
-          {services.map((s) => (
-            <li key={s.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${dark ? "bg-white/[0.03]" : "bg-white dark:bg-neutral-950/40"}`}>
-              <BrandLogo brand={s.icon} name={s.name} color={s.color} size={20} />
-              <span className={`min-w-0 flex-1 truncate text-xs ${body}`}>{s.name}</span>
-              <span
-                className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                  s.status === "connected" ? "bg-[#06C755]/12 text-[#06C755]" : "bg-white/10 text-amber-400"
-                }`}
-              >
-                {s.status === "connected" ? "已連線" : "待連線"}
-              </span>
-            </li>
-          ))}
+          {services.map((s) => {
+            const live = liveOf(s.id);
+            const ok = isConnected(s);
+            const detail = live?.detail;
+            return (
+              <li key={s.id} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${dark ? "bg-white/[0.03]" : "bg-white dark:bg-neutral-950/40"}`}>
+                <BrandLogo brand={s.icon} name={s.name} color={s.color} size={20} />
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-xs ${body}`}>{s.name}</span>
+                  {detail && <span className={`block truncate text-[10px] ${muted}`}>{detail}</span>}
+                </span>
+                <span
+                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                    ok ? "bg-[#06C755]/12 text-[#06C755]" : "bg-white/10 text-amber-400"
+                  }`}
+                >
+                  {liveStatus === null ? "查詢中…" : ok ? "已連線" : "待連線"}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
 

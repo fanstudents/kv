@@ -11,6 +11,7 @@ import FlowCanvas, { type FlowRun } from "@/components/flow/FlowCanvas";
 import GoalBar from "@/components/goals/GoalBar";
 import GoalDialog from "@/components/goals/GoalDialog";
 import RealStatusPanel from "@/components/agents/RealStatusPanel";
+import ConnectionStatusList from "@/components/agents/ConnectionStatusList";
 import PhoneFrame from "@/components/agents/PhoneFrame";
 import {
   LineTextMessage,
@@ -400,9 +401,12 @@ export default function AgentPageShell({
             </span>
           </button>
           {settingsOpen && (
-            <fieldset disabled={!enabled} className={`mt-4 ${enabled ? "" : "opacity-50"}`}>
-              {settingsForm}
-            </fieldset>
+            <div className="mt-4">
+              <ConnectionStatusList slug={agent.slug} />
+              <fieldset disabled={!enabled} className={enabled ? "" : "opacity-50"}>
+                {settingsForm}
+              </fieldset>
+            </div>
           )}
         </Card>
       </div>
