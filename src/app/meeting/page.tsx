@@ -486,7 +486,13 @@ export default function MeetingPage() {
       } catch (err) {
         if (myToken !== switchTokenRef.current) return;
         setConnecting(false);
-        flashMicNotice(err instanceof Error ? err.message : "無法建立即時語音連線", 6000);
+        const message = err instanceof Error ? err.message : "無法建立即時語音連線";
+        // 換人失敗最常見的成因是 OpenAI 那一側（帳號用量上限、Realtime 連線速率限制），
+        // 不是這支程式本身的邏輯錯誤——但畫面上的提示只顯示幾秒就消失，事後很難回頭查。
+        // 錯誤訊息本身（session.connect 拋出的）已經帶著 HTTP 狀態碼與 OpenAI 回傳的原始內容，
+        // 印進 console 才留得住，下次卡住時開 devtools 找「[meeting] 換人失敗」就能看到實際原因。
+        console.error("[meeting] 換人失敗：", message);
+        flashMicNotice(message, 12000);
         // 新連線失敗、舊連線已經關了：自動退回重連原本那位，避免會議整個變啞。
         // 只退這一次（不會連環重試），若連退回都失敗，至少有錯誤提示可看。
         if (previousIndex !== next) connectAgentRef.current(previousIndex);
