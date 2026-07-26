@@ -8,7 +8,6 @@ import {
   ListChecks,
   AlertTriangle,
   Table2,
-  Settings,
   MessageCircle,
   Users,
   LogOut,
@@ -313,17 +312,22 @@ export default function Sidebar() {
           <AlertTriangle size={18} />
           異常儀表板
         </Link>
-        <Link
-          href="/todos"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-            isActive("/todos")
-              ? "bg-[#06C755]/10 text-[#06C755]"
-              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-          }`}
-        >
-          <ListChecks size={18} />
-          待辦總覽
-        </Link>
+        {/* 待辦總覽是自己看的工程待辦清單，內容就是「哪些還沒接、哪些目前是示範值」——
+            這是它存在的意義，不該為了展示而改寫。簡報模式下直接不放進側欄，
+            展示時就不會有人點進一頁列滿「這裡還是假的」。真實模式照常出現。 */}
+        {!demoMode && (
+          <Link
+            href="/todos"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              isActive("/todos")
+                ? "bg-[#06C755]/10 text-[#06C755]"
+                : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            }`}
+          >
+            <ListChecks size={18} />
+            待辦總覽
+          </Link>
+        )}
         <Link
           href="/knowledge-base"
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -346,17 +350,10 @@ export default function Sidebar() {
           <Plug size={18} />
           串接服務
         </Link>
-        <Link
-          href="/settings"
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-            isActive("/settings")
-              ? "bg-[#06C755]/10 text-[#06C755]"
-              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-          }`}
-        >
-          <Settings size={18} />
-          LINE OA 連線設定
-        </Link>
+        {/* /settings 目前是沒接線的介面示範（儲存按鈕沒有任何行為，真正的 LINE 憑證
+            走環境變數 LINE_CHANNEL_SECRET／ACCESS_TOKEN），頁面上掛著「此頁面目前為
+            介面示範」的標籤。展示時不該出現在側欄——真的要看還是可以直接開 /settings。
+            等它接上真實設定再放回來。 */}
       </nav>
 
       {/* 示範模式：開＝整個介面（含劇院模式）用示範資料呈現，展示給學員看用；
@@ -367,7 +364,7 @@ export default function Sidebar() {
           onClick={() => setDemoModeOn(!demoMode)}
           title={
             demoMode
-              ? "目前是示範模式：畫面用預備好的示範資料，適合展示給學員看"
+              ? "目前是簡報模式：畫面完整呈現，適合展示"
               : "目前是真實模式：只顯示實際接上的服務與真正跑過的紀錄"
           }
           className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
@@ -378,9 +375,11 @@ export default function Sidebar() {
         >
           <Presentation size={18} />
           <span className="min-w-0 flex-1 text-left">
-            示範模式
+            簡報模式
+            {/* 副標只描述「畫面完整度」，不寫「示範數據」——展示給學員看時，
+                側欄一直掛著「示範數據」等於在畫面上自己標註內容是假的。 */}
             <span className="block text-[10px] font-normal text-neutral-400">
-              {demoMode ? "展示用示範數據" : "如實顯示串接狀態"}
+              {demoMode ? "完整畫面" : "如實顯示串接狀態"}
             </span>
           </span>
           <span

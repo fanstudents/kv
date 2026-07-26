@@ -258,7 +258,7 @@ export default function KnowledgeBasePage() {
     <div>
       <PageHeader
         title="知識庫"
-        description="示範資料分級：內容依敏感度分為四級，只有被指派對應等級的 Agent 才能讀取"
+        description="資料分級：內容依敏感度分為四級，只有被指派對應等級的 Agent 才能讀取"
         actions={
           <>
             <Badge tone="success">{loaded ? "已接上真實資料庫" : "載入中…"}</Badge>
