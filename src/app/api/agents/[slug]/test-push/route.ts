@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pushLineRawMessages } from "@/lib/line";
+import { pushLineRawMessages, type LineChannel } from "@/lib/line";
 import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
 import { getSupabase } from "@/lib/supabase";
+
+// 客服 Agent（Amber）用的是獨立的 LINE 頻道（客服機器人既有帳號），不是其他 Agent
+// 共用的主頻道——測試推播沒有依 slug 分流的話，會拿主頻道的憑證發送，就算客服頻道
+// 的 LINE_SUPPORT_CHANNEL_* 完全沒設定，這個按鈕照樣「測試成功」，等於測不出真正
+// 會用到的那組憑證有沒有問題。
+function channelForAgent(slug: string): LineChannel {
+  return slug === "support" ? "support" : "primary";
+}
 
 const VALID_STYLES: PushStyle[] = ["text", "flex", "confirm", "buttons"];
 
@@ -28,7 +36,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const styleLabel = { text: "純文字", flex: "Flex 卡片", confirm: "確認按鈕", buttons: "按鈕選單" }[style];
 
   try {
-    await pushLineRawMessages(to, buildPushMessages({ style, text, title, accentColor }));
+    await pushLineRawMessages(to, buildPushMessages({ style, text, title, accentColor }), channelForAgent(slug));
   } catch (err) {
     const message = err instanceof Error ? err.message : "推播失敗";
     await supabase.from("line_agent_activity").insert({
