@@ -2,6 +2,18 @@ import "server-only";
 import { google } from "googleapis";
 import { getGoogleOAuthClient } from "./google-auth";
 
+// 查空檔／讀行程時，除了主帳號的 primary 日曆，也一併讀這裡列出的日曆——
+// 用途是「另一個帳號的日曆分享進了這組主帳號」（例如 service@tbr.digital 的
+// 日曆分享給 fanstudents@gmail.com），不需要為第二個帳號另外跑一次 OAuth、
+// 存第二組 refresh token。逗號分隔可以列多個。建立新行程仍然只寫回 primary——
+// 這裡只擴大「讀」的範圍，不假設老闆想把新邀約寫進哪個共用日曆。
+function additionalCalendarIds(): string[] {
+  return (process.env.GOOGLE_ADDITIONAL_CALENDAR_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 // 台北無日光節約時間，用固定 UTC+8 位移換算即可，不需要完整時區資料庫
 const TAIPEI_OFFSET_MINUTES = 8 * 60;
 
@@ -53,18 +65,23 @@ export async function findFreeSlots(params: {
   const timeMin = taipeiWallToUtc(rangeStartParts.year, rangeStartParts.month, rangeStartParts.date, 0, 0);
   const timeMax = taipeiWallToUtc(rangeEndParts.year, rangeEndParts.month, rangeEndParts.date, 23, 59);
 
+  const calendarIds = ["primary", ...additionalCalendarIds()];
   const { data } = await calendar.freebusy.query({
     requestBody: {
       timeMin: timeMin.toISOString(),
       timeMax: timeMax.toISOString(),
-      items: [{ id: "primary" }],
+      items: calendarIds.map((id) => ({ id })),
     },
   });
 
-  const busy = (data.calendars?.primary?.busy ?? []).map((b) => ({
-    start: new Date(b.start ?? "").getTime(),
-    end: new Date(b.end ?? "").getTime(),
-  }));
+  // 合併所有日曆的忙碌區間：任一個帳號有事，這個時段就不算空——
+  // 查空檔本來就該保守，寧可少推薦一個時段，也不要約到其中一邊其實有事的時間。
+  const busy = calendarIds.flatMap((id) =>
+    (data.calendars?.[id]?.busy ?? []).map((b) => ({
+      start: new Date(b.start ?? "").getTime(),
+      end: new Date(b.end ?? "").getTime(),
+    }))
+  );
 
   const slots: FreeSlot[] = [];
   const stepMinutes = 30;
@@ -142,16 +159,25 @@ export async function listWeekOverview(): Promise<WeekOverview> {
   const rangeStart = taipeiWallToUtc(todayParts.year, todayParts.month, todayParts.date, 0, 0);
   const rangeEnd = new Date(rangeStart.getTime() + 7 * 86400000);
 
-  const { data } = await calendar.events.list({
-    calendarId: "primary",
-    timeMin: now.toISOString(),
-    timeMax: rangeEnd.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime",
-    maxResults: 50,
-  });
+  const calendarIds = ["primary", ...additionalCalendarIds()];
+  const lists = await Promise.all(
+    calendarIds.map((calendarId) =>
+      calendar.events
+        .list({
+          calendarId,
+          timeMin: now.toISOString(),
+          timeMax: rangeEnd.toISOString(),
+          singleEvents: true,
+          orderBy: "startTime",
+          maxResults: 50,
+        })
+        // 其中一個日曆讀不到（例如分享權限被收回）不該讓整份週覽開天窗
+        .catch(() => ({ data: { items: [] } }))
+    )
+  );
 
-  const events = (data.items ?? [])
+  const events = lists
+    .flatMap((r) => r.data.items ?? [])
     .map((e) => {
       const startIso = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T00:00:00+08:00` : null);
       const endIso = e.end?.dateTime ?? (e.end?.date ? `${e.end.date}T00:00:00+08:00` : null);
@@ -163,7 +189,8 @@ export async function listWeekOverview(): Promise<WeekOverview> {
         end: endIso ? new Date(endIso) : new Date(startIso),
       };
     })
-    .filter((e): e is NonNullable<typeof e> => e !== null);
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
 
   const dayCounts = Array.from({ length: 7 }, (_, i) => {
     const dayParts = toTaipeiParts(new Date(rangeStart.getTime() + (i + 0.5) * 86400000));
