@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import LiveAvatar from "@/components/meeting/LiveAvatar";
 import { AGENTS } from "@/lib/agent-data";
+import { isDemoModeOn } from "@/lib/demo-mode";
 import { RealtimeVoiceSession } from "@/lib/realtime-voice";
 import type { AgentSlug } from "@/lib/types";
 
@@ -297,7 +298,13 @@ export default function MeetingPage() {
         const res = await fetchWithTimeout("/api/meeting/realtime-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug: agent.slug, meetingId: meetingIdRef.current, voice: voiceForSlug(agent.slug) }),
+          body: JSON.stringify({
+            slug: agent.slug,
+            meetingId: meetingIdRef.current,
+            voice: voiceForSlug(agent.slug),
+            // 示範模式存在 localStorage，伺服器端讀不到，跟著請求送過去
+            demo: isDemoModeOn(),
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "無法建立即時語音連線");

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mintRealtimeSession } from "@/lib/openai";
 import { getRecentHistory } from "@/lib/meeting-store";
 import { getAgentLiveContext } from "@/lib/meeting-context";
+import { getAgentDemoContext } from "@/lib/meeting-demo-context";
 import { AGENTS } from "@/lib/agent-data";
 
 const TEAM_LEAD_SLUG = "teamlead";
@@ -15,6 +16,8 @@ export async function POST(req: NextRequest) {
   const slug = typeof body.slug === "string" ? body.slug : "";
   const meetingId = typeof body.meetingId === "string" ? body.meetingId : "";
   const voice = typeof body.voice === "string" ? body.voice : "alloy";
+  // 示範模式由前端（localStorage）決定，伺服器端讀不到，所以跟著請求一起送上來
+  const demo = body.demo === true;
 
   const agent = AGENTS.find((a) => a.slug === slug && a.status === "active");
   if (!agent) return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });
@@ -28,11 +31,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // 示範模式：改餵一份寫死的業務現況，而且完全不去抓真實資料——
+  // 上台展示時 Agent 才有具體的名字與數字可以講，也不會不小心念出真實客戶資料。
   let liveContext = "";
-  try {
-    liveContext = await getAgentLiveContext(agent.slug);
-  } catch {
-    // 真實資料抓不到就讓 Agent 老實說沒有資料，而不是讓整支路由失敗
+  if (demo) {
+    liveContext = getAgentDemoContext(agent.slug);
+  } else {
+    try {
+      liveContext = await getAgentLiveContext(agent.slug);
+    } catch {
+      // 真實資料抓不到就讓 Agent 老實說沒有資料，而不是讓整支路由失敗
+    }
   }
 
   try {
