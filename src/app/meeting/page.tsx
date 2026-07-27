@@ -412,6 +412,18 @@ export default function MeetingPage() {
             if (myToken !== switchTokenRef.current) return;
             agentSpeakingRef.current = false;
             setAgentTalking(false);
+            // 這裡對應 response.done：這一輪不管是不是有聲音，模型都已經回應完了，
+            // 看門狗的任務結束。沒清掉的話，一輪只呼叫工具、沒開口說話的回應
+            // （show_result 那種）永遠不會走到上面 onAssistantSpeechStart／
+            // onAssistantTranscriptDelta 去清時鐘；submitFunctionResult 帶
+            // continueResponse:true 另外送出的第二輪 response.create 一旦要
+            // 5 秒才開始出聲，這個沒清乾淨的舊時鐘就會到時間又送一次
+            // response.create——這時第二輪還在生成，OpenAI 會回「已經有一個
+            // response 在跑」直接把整場對話卡死，就是這個錯誤訊息的來源。
+            if (noResponseWatchdogRef.current) {
+              clearTimeout(noResponseWatchdogRef.current);
+              noResponseWatchdogRef.current = null;
+            }
           },
           onUsage: (usage) => {
             // 成本記錄：跟對話本身無關，晚一點送到、送失敗都不影響會議進行
