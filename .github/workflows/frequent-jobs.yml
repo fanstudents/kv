@@ -1,0 +1,59 @@
+name: Frequent Jobs
+
+# 高頻的兩支 worker：
+#   retry        撿回到期該重跑的失敗執行（死信重跑）
+#   agent-tasks  消化 Agent 之間的委派佇列
+#   visit-timeout 名片辨識後逾時未回覆的自動判斷
+#
+# ⚠️ 誠實說明限制：GitHub Actions 的 schedule 最短就是 5 分鐘，而且在尖峰時段
+# 經常延遲 10～30 分鐘、偶爾整批被丟掉。這對「每天一次的晨報」沒差，
+# 但對 visit-timeout（承諾 3 分鐘）是不夠準的。真的要準時，應該改用
+# Zeabur 的 cron 或任何一個能保證頻率的排程器打同樣的端點——
+# 端點本身完全不需要改，只是換誰來按。
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+env:
+  APP_BASE: https://kva.zeabur.app
+
+jobs:
+  workers:
+    runs-on: ubuntu-latest
+    steps:
+      # 三支彼此獨立，任何一支失敗不該讓其他兩支不跑，所以各自 continue-on-error，
+      # 最後再統一判斷要不要告警。
+      - name: 死信重跑
+        id: retry
+        continue-on-error: true
+        run: |
+          curl -fsS --max-time 240 \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            "$APP_BASE/api/cron/retry"
+
+      - name: 消化委派佇列
+        id: tasks
+        continue-on-error: true
+        run: |
+          curl -fsS --max-time 240 \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            "$APP_BASE/api/cron/agent-tasks"
+
+      - name: 名片逾時判斷
+        id: visit
+        continue-on-error: true
+        run: |
+          curl -fsS --max-time 120 \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            "$APP_BASE/api/cron/visit-timeout"
+
+      - name: Notify on failure
+        if: steps.retry.outcome == 'failure' || steps.tasks.outcome == 'failure' || steps.visit.outcome == 'failure'
+        run: |
+          curl -fsS --max-time 30 -X POST \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"job":"frequent-jobs","detail":"retry=${{ steps.retry.outcome }} agent-tasks=${{ steps.tasks.outcome }} visit-timeout=${{ steps.visit.outcome }}"}' \
+            "$APP_BASE/api/cron/alert" || true

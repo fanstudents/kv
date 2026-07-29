@@ -11,6 +11,7 @@ import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth";
 // - 首頁串出去的其他銷售頁（知識庫導入／真人專家／團隊架構）——同樣是給潛在客戶看的，
 //   沒放進來就會被登入牆擋掉，首頁連過去的訪客與 Google 都進不去
 // - 客服機器人回報回覆內容的記錄端點（由既有客服系統呼叫，自己帶密鑰驗證，不是登入使用者）
+// - 健康檢查端點（uptime 監控要能在沒有 session 的情況下輪詢）
 const PUBLIC_PREFIXES = [
   "/login",
   "/api/auth/",
@@ -19,6 +20,8 @@ const PUBLIC_PREFIXES = [
   "/api/agents/visit/respond",
   "/api/agents/support/log-reply",
   "/api/cron/",
+  // 健康檢查：給 uptime 監控輪詢用，只回布林值與設定缺漏，沒有機密內容
+  "/api/health",
   "/agents-catalog",
   "/agent-config.html",
   "/knowledge-base.html",

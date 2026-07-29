@@ -1,8 +1,22 @@
 import "server-only";
 import { assertBudget, logAiUsage } from "@/lib/ai-usage";
 import { AGENTS } from "@/lib/agent-data";
+import { fetchWithRetry } from "@/lib/http";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
+
+// 逾時依端點性質分開：帶網路搜尋的 responses 會自己搜好幾輪，語音轉檔與合成本來就慢，
+// 用同一個 30 秒會把正常請求砍掉；反過來給聊天補完 120 秒又會讓卡住的請求佔著函式不放。
+function openaiTimeout(url: string): number {
+  if (url.includes("/responses")) return 120_000;
+  if (url.includes("/audio/")) return 90_000;
+  return 60_000;
+}
+
+/** 所有 OpenAI 呼叫的出口：帶逾時與 429／5xx 自動重試 */
+function openaiFetch(url: string, init: RequestInit) {
+  return fetchWithRetry(url, init, { label: "OpenAI", timeoutMs: openaiTimeout(url) });
+}
 
 async function chatCompletion(
   body: Record<string, unknown>,
@@ -13,7 +27,7 @@ async function chatCompletion(
   // 超出預算就在這裡擋下來，請求根本不會送出
   await assertBudget(meta.operation);
 
-  const res = await fetch(`${OPENAI_API_BASE}/chat/completions`, {
+  const res = await openaiFetch(`${OPENAI_API_BASE}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -87,7 +101,7 @@ export async function webSearchJson(params: {
   await assertBudget(params.operation);
 
   const call = async (toolType: string) => {
-    const res = await fetch(`${OPENAI_API_BASE}/responses`, {
+    const res = await openaiFetch(`${OPENAI_API_BASE}/responses`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
@@ -157,7 +171,7 @@ export async function embedTexts(texts: string[], operation = "知識庫向量�
   if (texts.length === 0) return [];
   await assertBudget(operation);
 
-  const res = await fetch(`${OPENAI_API_BASE}/embeddings`, {
+  const res = await openaiFetch(`${OPENAI_API_BASE}/embeddings`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({ model: "text-embedding-3-small", input: texts }),
@@ -632,7 +646,7 @@ export async function transcribeAudio(params: { file: Blob; promptHint?: string 
     form.append("language", "zh");
     if (params.promptHint) form.append("prompt", params.promptHint);
 
-    const res = await fetch(`${OPENAI_API_BASE}/audio/transcriptions`, {
+    const res = await openaiFetch(`${OPENAI_API_BASE}/audio/transcriptions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}` },
       body: form,
@@ -680,7 +694,7 @@ export async function synthesizeSpeech(params: {
     const voice = model.startsWith("tts-1")
       ? (TTS1_VOICE_FALLBACK[params.voice] ?? params.voice)
       : params.voice;
-    const res = await fetch(`${OPENAI_API_BASE}/audio/speech`, {
+    const res = await openaiFetch(`${OPENAI_API_BASE}/audio/speech`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -839,7 +853,7 @@ export async function mintRealtimeSession(cfg: RealtimeSessionConfig): Promise<R
     (cfg.liveContext ? `\n【真實業務資料】\n${cfg.liveContext}\n` : "\n【真實業務資料】目前沒有可用的真實資料。\n") +
     (cfg.history ? `\n先前會議脈絡（供你參考，不用主動複述）：\n${cfg.history}` : "");
 
-  const res = await fetch(`${OPENAI_API_BASE}/realtime/client_secrets`, {
+  const res = await openaiFetch(`${OPENAI_API_BASE}/realtime/client_secrets`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({

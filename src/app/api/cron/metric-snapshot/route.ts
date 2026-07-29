@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { GOAL_METRICS } from "@/lib/agent-goals";
 import { snapshotMetric } from "@/lib/agent-memory";
+import { runCronJob } from "@/lib/cron";
 
 // 每日指標快照：把每個目標指標當天的值寫進 metric_snapshots。
 //
@@ -12,18 +13,16 @@ import { snapshotMetric } from "@/lib/agent-memory";
 export const maxDuration = 120;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "server misconfigured: CRON_SECRET not set" }, { status: 503 });
-  }
-  if (req.headers.get("x-cron-key") !== secret) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  let written = 0;
-  for (const metric of GOAL_METRICS) {
-    await snapshotMetric({ metricId: metric.id, value: metric.current, source: "demo" });
-    written += 1;
-  }
-  return NextResponse.json({ ok: true, metrics: written });
+  return runCronJob(
+    req,
+    { agentSlug: "report", job: "metric-snapshot", daily: true, replay: "metric-snapshot" },
+    async () => {
+      let written = 0;
+      for (const metric of GOAL_METRICS) {
+        await snapshotMetric({ metricId: metric.id, value: metric.current, source: "demo" });
+        written += 1;
+      }
+      return { metrics: written, message: `已寫入 ${written} 個指標的今日快照` };
+    }
+  );
 }

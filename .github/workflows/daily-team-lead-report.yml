@@ -6,6 +6,9 @@ on:
     - cron: "0 1 * * *"
   workflow_dispatch: {}
 
+env:
+  APP_BASE: https://kva.zeabur.app
+
 jobs:
   trigger-report:
     runs-on: ubuntu-latest
@@ -14,4 +17,13 @@ jobs:
         run: |
           curl -fsS --max-time 120 \
             -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
-            "https://kva.zeabur.app/api/cron/team-lead-report"
+            "$APP_BASE/api/cron/team-lead-report"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -fsS --max-time 30 -X POST \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"job":"team-lead-report","detail":"GitHub Actions 呼叫失敗，請看 Actions 紀錄與應用日誌"}' \
+            "$APP_BASE/api/cron/alert" || true

@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabase } from "@/lib/supabase";
+import { currentRun } from "@/lib/run-context";
 
 // OpenAI 各模型定價（美元／每百萬 token），僅供成本估算，會依 OpenAI 官方調整。
 // input = prompt tokens，output = completion tokens。
@@ -35,14 +36,17 @@ export function estimateCost(model: string, usage: OpenAIUsage): number {
 // 查詢結果快取 60 秒——這是護欄不是計費系統，不需要每次呼叫都精確到分。
 
 export class BudgetExceededError extends Error {
-  constructor(
-    message: string,
-    readonly scope: "daily" | "monthly",
-    readonly spent: number,
-    readonly limit: number
-  ) {
+  readonly scope: "daily" | "monthly";
+  readonly spent: number;
+  readonly limit: number;
+
+  // 不用 constructor 參數屬性：Node 內建的型別剝除不支援，會讓這個檔案無法被測試載入
+  constructor(message: string, scope: "daily" | "monthly", spent: number, limit: number) {
     super(message);
     this.name = "BudgetExceededError";
+    this.scope = scope;
+    this.spent = spent;
+    this.limit = limit;
   }
 }
 
@@ -136,20 +140,30 @@ export async function logAiUsage(params: {
   try {
     const usage = params.usage ?? {};
     const cost = estimateCost(params.model, usage);
-    await getSupabase()
-      .from("ai_usage_logs")
-      .insert({
-        agent_slug: params.agentSlug ?? null,
-        operation: params.operation,
-        model: params.model,
-        prompt_tokens: usage.prompt_tokens ?? 0,
-        completion_tokens: usage.completion_tokens ?? 0,
-        total_tokens: usage.total_tokens ?? (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0),
-        cost_usd: cost,
-      });
+    const total = usage.total_tokens ?? (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0);
+    // 目前在哪一次執行裡——呼叫端不用傳，由 AsyncLocalStorage 帶著走。
+    // 這一行就是「這份報表花了多少錢」從猜測變成查得到的分界點。
+    const run = currentRun();
+
+    const supabase = getSupabase();
+    await supabase.from("ai_usage_logs").insert({
+      agent_slug: params.agentSlug ?? run?.agentSlug ?? null,
+      run_id: run?.runId ?? null,
+      operation: params.operation,
+      model: params.model,
+      prompt_tokens: usage.prompt_tokens ?? 0,
+      completion_tokens: usage.completion_tokens ?? 0,
+      total_tokens: total,
+      cost_usd: cost,
+    });
+
+    // 同一筆花費同步累加到執行上，後台不必每次都去 join 才算得出一次執行的總成本
+    if (run?.runId && (cost || total)) {
+      await supabase.rpc("add_run_cost", { p_run_id: run.runId, p_tokens: total, p_cost: cost });
+    }
     invalidateBudgetCache();
-  } catch {
-    // 記錄失敗不影響主流程
+  } catch (err) {
+    console.error("[ai-usage] logAiUsage 失敗", { operation: params.operation, err });
   }
 }
 
@@ -215,19 +229,26 @@ export async function logRealtimeUsage(params: {
 }) {
   try {
     const cost = estimateRealtimeCost(params.model, params.usage);
-    await getSupabase()
-      .from("ai_usage_logs")
-      .insert({
-        agent_slug: params.agentSlug ?? null,
-        operation: params.operation ?? "會議即時語音",
-        model: params.model,
-        prompt_tokens: params.usage.input_tokens ?? 0,
-        completion_tokens: params.usage.output_tokens ?? 0,
-        total_tokens:
-          params.usage.total_tokens ?? (params.usage.input_tokens ?? 0) + (params.usage.output_tokens ?? 0),
-        cost_usd: cost,
-      });
-  } catch {
-    // 記錄失敗不影響會議進行
+    const total =
+      params.usage.total_tokens ?? (params.usage.input_tokens ?? 0) + (params.usage.output_tokens ?? 0);
+    const run = currentRun();
+
+    const supabase = getSupabase();
+    await supabase.from("ai_usage_logs").insert({
+      agent_slug: params.agentSlug ?? run?.agentSlug ?? null,
+      run_id: run?.runId ?? null,
+      operation: params.operation ?? "會議即時語音",
+      model: params.model,
+      prompt_tokens: params.usage.input_tokens ?? 0,
+      completion_tokens: params.usage.output_tokens ?? 0,
+      total_tokens: total,
+      cost_usd: cost,
+    });
+    if (run?.runId && (cost || total)) {
+      await supabase.rpc("add_run_cost", { p_run_id: run.runId, p_tokens: total, p_cost: cost });
+    }
+    invalidateBudgetCache();
+  } catch (err) {
+    console.error("[ai-usage] logRealtimeUsage 失敗", err);
   }
 }

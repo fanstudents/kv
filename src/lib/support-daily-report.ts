@@ -3,6 +3,10 @@ import { getSupabase } from "@/lib/supabase";
 import { pushLineRawMessages } from "@/lib/line";
 import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
 import { logAiUsage } from "@/lib/ai-usage";
+import { remember } from "@/lib/agent-memory";
+import { saveArtifact } from "@/lib/agent-runs";
+import { currentRunId } from "@/lib/run-context";
+import { fetchWithRetry } from "@/lib/http";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
 
@@ -17,7 +21,7 @@ async function summarizeWithAI(rawBrief: string): Promise<string | null> {
   if (!key) return null;
 
   try {
-    const res = await fetch(`${OPENAI_API_BASE}/chat/completions`, {
+    const res = await fetchWithRetry(`${OPENAI_API_BASE}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
@@ -144,6 +148,25 @@ export async function runSupportDailyReport(): Promise<{ ok: boolean; message: s
     agent_slug: "support",
     summary: `已向老闆送出每日客服彙報（${customerCount} 位客戶、${messages.length} 則留言）`,
     status: "success",
+  });
+
+  // 彙報本文存成產出：推播出去的東西同時留一份在系統裡，
+  // 才回答得了「上週三那份彙報寫了什麼、是哪一次執行做的、花了多少錢」。
+  await saveArtifact({
+    agentSlug: "support",
+    kind: "report",
+    title: `${dateLabel} 客服彙報`,
+    content: reportText,
+    runId: currentRunId(),
+    meta: { customerCount, messageCount: messages.length },
+  });
+
+  await remember({
+    content: `${dateLabel} 客服彙報：${customerCount} 位客戶、${messages.length} 則留言`,
+    agentSlug: "support",
+    kind: "episodic",
+    sourceRunId: currentRunId(),
+    ttlDays: 60,
   });
 
   return { ok: true, message: `客服彙報已送出（${customerCount} 位客戶、${messages.length} 則留言）` };

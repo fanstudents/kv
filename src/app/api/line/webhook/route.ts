@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import {
   verifyLineSignature,
   replyLineMessage,
@@ -644,23 +644,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
 
-  await Promise.allSettled(
-    events.map(async (event) => {
-      if (!event.replyToken) return;
-      const userId = event.source?.userId ?? "未知使用者";
-      if (event.source?.userId) await touchSubscriber(event.source.userId, "primary").catch(() => {});
-
-      if (event.type === "message") {
-        if (event.message?.type === "image") {
-          await handleImageMessage(event, userId);
-        } else if (event.message?.type === "text") {
-          await handleTextMessage(event, userId, baseUrl);
+  // 先回 200，事情在背景做。
+  //
+  // 這條路徑上是「下載圖片 → OCR → LLM 擬信 → 查 Google 日曆 → 寄 Gmail」，
+  // 全部塞在請求週期裡的話，一旦某個外部服務慢下來，LINE 端會逾時並重送整批事件——
+  // 結果是同一張名片被辨識兩次、同一封邀約信寄兩遍。
+  // 立刻回 200 之後 LINE 就不會重送，after() 讓工作在回應送出後繼續跑完。
+  after(async () => {
+    const results = await Promise.allSettled(
+      events.map(async (event) => {
+        if (!event.replyToken) return;
+        const userId = event.source?.userId ?? "未知使用者";
+        if (event.source?.userId) {
+          await touchSubscriber(event.source.userId, "primary").catch((err) =>
+            console.error("[line-webhook] touchSubscriber 失敗", err)
+          );
         }
-      } else if (event.type === "postback") {
-        await handlePostback(event, userId, baseUrl);
-      }
-    })
-  );
+
+        if (event.type === "message") {
+          if (event.message?.type === "image") {
+            await handleImageMessage(event, userId);
+          } else if (event.message?.type === "text") {
+            await handleTextMessage(event, userId, baseUrl);
+          }
+        } else if (event.type === "postback") {
+          await handlePostback(event, userId, baseUrl);
+        }
+      })
+    );
+
+    // 背景處理的失敗沒有人會看到回應，一定要自己留下痕跡
+    for (const r of results) {
+      if (r.status === "rejected") console.error("[line-webhook] 事件處理失敗", r.reason);
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }

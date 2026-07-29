@@ -1,0 +1,55 @@
+name: CI
+
+# 在這之前 repo 只有排程用的 workflow——沒有任何一支在「程式碼被改動」時跑。
+# 這個專案有幾十個外部整合，而且大量使用 best-effort 的 catch（設計上是對的），
+# 代價是壞掉的東西不會叫。至少要有型別、測試與 build 三道關卡擋在合併之前。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: 型別檢查
+        run: npm run typecheck
+
+      - name: 單元測試
+        run: npm test
+
+      - name: 建置
+        run: npm run build
+        env:
+          # build 期間不該真的連任何外部服務，但 Next.js 會載入模組，
+          # 缺環境變數時某些模組會在 import 階段就丟例外。給假值讓建置能完成。
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+          AUTH_SECRET: ci-placeholder
+          ADMIN_PASSWORD: ci-placeholder
+
+  # lint 目前有三個既有的 react-hooks 錯誤（AgentPageShell、Sidebar、goal-history
+  # 在 effect 裡同步呼叫 setState），跟這次的改動無關。先讓它跑但不擋合併，
+  # 修掉那三處之後把 continue-on-error 拿掉。
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run lint

@@ -208,7 +208,8 @@ export async function setAgentAccess(slug: AgentSlug, level: KnowledgeLevel): Pr
   if (error) throw new Error(error.message);
 }
 
-async function getAgentMaxLevel(slug: string): Promise<KnowledgeLevel> {
+/** 這位 Agent 的知識讀取上限。記憶層共用同一個上限——L3 的記憶不該被 L2 的 Agent 讀到。 */
+export async function getAgentMaxLevel(slug: string): Promise<KnowledgeLevel> {
   const supabase = getSupabase();
   const { data } = await supabase
     .from("knowledge_access")

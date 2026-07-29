@@ -1,16 +1,20 @@
 name: Scheduled Jobs
 
-# 兩支新的排程：
+# 每日／每週的維護型排程：
 #   metric-snapshot 每天寫一次目標指標快照——達成率才會有趨勢，而不是只有「現在幾分」
+#   maintenance     每天清掉過期記憶、把卡住的委派放回佇列（沒有遺忘機制的記憶會慢慢中毒）
 #   kb-recheck      每週重爬一次知識庫的網址來源，內容變了就把相關知識標成待複檢
 #
-# 兩支都需要 repo secret CRON_SECRET，且必須與伺服器上的環境變數一致；
+# 全部需要 repo secret CRON_SECRET，且必須與伺服器上的環境變數一致；
 # 端點是 fail-closed 的，沒帶對密鑰會回 401。
+# 每支都有 failure() 步驟推 LINE 告警——排程默默失敗是最難發現的一種故障。
 
 on:
   schedule:
     # 每天 17:10 UTC = 台北時間隔日 01:10（挑離峰時段）
     - cron: "10 17 * * *"
+    # 每天 17:40 UTC = 台北時間隔日 01:40
+    - cron: "40 17 * * *"
     # 每週一 18:00 UTC = 台北時間週二 02:00
     - cron: "0 18 * * 1"
   workflow_dispatch:
@@ -20,7 +24,10 @@ on:
         required: true
         default: metric-snapshot
         type: choice
-        options: [metric-snapshot, kb-recheck]
+        options: [metric-snapshot, maintenance, kb-recheck]
+
+env:
+  APP_BASE: https://kva.zeabur.app
 
 jobs:
   metric-snapshot:
@@ -32,7 +39,33 @@ jobs:
         run: |
           curl -fsS --max-time 120 \
             -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
-            "https://kva.zeabur.app/api/cron/metric-snapshot"
+            "$APP_BASE/api/cron/metric-snapshot"
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -fsS --max-time 30 -X POST \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"job":"metric-snapshot","detail":"GitHub Actions 呼叫失敗"}' \
+            "$APP_BASE/api/cron/alert" || true
+
+  maintenance:
+    if: github.event.schedule == '40 17 * * *' || github.event.inputs.job == 'maintenance'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 清掉過期記憶、放回卡住的委派
+        run: |
+          curl -fsS --max-time 120 \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            "$APP_BASE/api/cron/maintenance"
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -fsS --max-time 30 -X POST \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"job":"maintenance","detail":"GitHub Actions 呼叫失敗"}' \
+            "$APP_BASE/api/cron/alert" || true
 
   kb-recheck:
     # 每週那條排程，或手動指定
@@ -43,4 +76,12 @@ jobs:
         run: |
           curl -fsS --max-time 300 \
             -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
-            "https://kva.zeabur.app/api/cron/kb-recheck"
+            "$APP_BASE/api/cron/kb-recheck"
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -fsS --max-time 30 -X POST \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{"job":"kb-recheck","detail":"GitHub Actions 呼叫失敗"}' \
+            "$APP_BASE/api/cron/alert" || true

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { verifyLineSignature } from "@/lib/line";
 import { touchSubscriber } from "@/lib/subscribers";
 import { getSupabase } from "@/lib/supabase";
@@ -60,32 +60,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
 
-  await Promise.allSettled([
-    // 轉發給舊系統：它繼續照原本的邏輯處理與回覆客戶，完全不用改它的程式碼
-    forwardToLegacySystem(rawBody, req).catch(async (err) => {
-      const message = err instanceof Error ? err.message : "轉發失敗";
-      await supabase.from("line_agent_activity").insert({
-        agent_slug: "support",
-        summary: `轉發給舊客服系統失敗：${message}（客戶仍會由舊系統處理，只是這筆沒轉發成功）`,
-        status: "failed",
-      });
-    }),
-    // 只記錄，不回覆——回覆的責任在舊系統那邊
-    ...events.map(async (event) => {
-      if (event.type !== "message" || event.message?.type !== "text") return;
-      const userId = event.source?.userId ?? "未知使用者";
-      const text = event.message.text ?? "";
-      if (event.source?.userId) await touchSubscriber(event.source.userId, "support").catch(() => {});
-      await Promise.allSettled([
-        supabase.from("line_agent_activity").insert({
+  // 先回 200 給 LINE，轉發與記錄在背景做。
+  // 轉發目標是外部系統，它慢下來時不應該連帶讓 LINE 端逾時重送整批事件。
+  after(async () => {
+    await Promise.allSettled([
+      // 轉發給舊系統：它繼續照原本的邏輯處理與回覆客戶，完全不用改它的程式碼
+      forwardToLegacySystem(rawBody, req).catch(async (err) => {
+        const message = err instanceof Error ? err.message : "轉發失敗";
+        console.error("[support-webhook] 轉發失敗", err);
+        await supabase.from("line_agent_activity").insert({
           agent_slug: "support",
-          summary: `收到客戶 ${userId} 的訊息：「${text.slice(0, 60)}」（已轉發給既有客服系統處理，這裡只記錄）`,
-          status: "success",
-        }),
-        logConversationMessage(userId, "customer", text),
-      ]);
-    }),
-  ]);
+          summary: `轉發給舊客服系統失敗：${message}（客戶仍會由舊系統處理，只是這筆沒轉發成功）`,
+          status: "failed",
+        });
+      }),
+      // 只記錄，不回覆——回覆的責任在舊系統那邊
+      ...events.map(async (event) => {
+        if (event.type !== "message" || event.message?.type !== "text") return;
+        const userId = event.source?.userId ?? "未知使用者";
+        const text = event.message.text ?? "";
+        if (event.source?.userId) {
+          await touchSubscriber(event.source.userId, "support").catch((err) =>
+            console.error("[support-webhook] touchSubscriber 失敗", err)
+          );
+        }
+        await Promise.allSettled([
+          supabase.from("line_agent_activity").insert({
+            agent_slug: "support",
+            summary: `收到客戶 ${userId} 的訊息：「${text.slice(0, 60)}」（已轉發給既有客服系統處理，這裡只記錄）`,
+            status: "success",
+          }),
+          logConversationMessage(userId, "customer", text),
+        ]);
+      }),
+    ]);
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -6,8 +6,10 @@ import { getTrafficOverview } from "@/lib/ga4";
 import { getOrderRevenueSummary } from "@/lib/teachify-order-stats";
 import { getPipelineOverview } from "@/lib/teaching-system";
 import { getAvailableTags } from "@/lib/contact-tags";
-import { knowledgeContext } from "@/lib/knowledge-base";
+import { knowledgeContext, getAgentMaxLevel } from "@/lib/knowledge-base";
+import { recall, memoryContext } from "@/lib/agent-memory";
 import { AGENTS } from "@/lib/agent-data";
+import type { AgentSlug } from "@/lib/types";
 
 // 會議室 Agent 人設的「真實資料」補丁：之前只餵了職稱／職掌的靜態說明，
 // Agent 自然答不出任何具體記錄（哪怕那筆資料明明存在 Supabase／Google 裡）。
@@ -257,20 +259,34 @@ export async function getAgentLiveContext(slug: string, question?: string): Prom
     else if (slug === "expense") parts.push(await expenseContext());
     else if (slug === "report") parts.push(await reportContext());
     else if (slug === "operations") parts.push(await operationsContext());
-  } catch {
-    /* 該 Agent 專屬的資料來源掛了，不影響下面的通用近期動態 */
+  } catch (err) {
+    // 該 Agent 專屬的資料來源掛了，不影響下面的通用近期動態——但要留下痕跡，
+    // 否則「資料源掛掉」跟「本來就沒資料」在後台長得一模一樣
+    console.error("[meeting-context] 專屬資料來源失敗", { slug, err });
   }
 
   try {
     parts.push(await ownRecentActivity(slug));
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.error("[meeting-context] 近期動態讀取失敗", { slug, err });
   }
 
   try {
     parts.push(await knowledgeContext(slug, question));
-  } catch {
-    /* 知識庫讀不到不影響其他真實資料 */
+  } catch (err) {
+    console.error("[meeting-context] 知識庫讀取失敗", { slug, err });
+  }
+
+  try {
+    // 記憶：這位 Agent 過去做過什麼、學到什麼、對象有什麼偏好。
+    //
+    // 在這之前，每位 Agent 每次開口都是失憶的——只看得到「現在的資料」，
+    // 看不到自己上週做過同一件事、也記不住老闆講過的偏好。
+    // 記憶跟知識庫共用同一個等級上限，L3 的記憶不會漏給只能讀 L2 的 Agent。
+    const maxLevel = await getAgentMaxLevel(slug);
+    parts.push(memoryContext(await recall({ agentSlug: slug as AgentSlug, maxLevel, limit: 12 })));
+  } catch (err) {
+    console.error("[meeting-context] 記憶讀取失敗", { slug, err });
   }
 
   return parts.filter(Boolean).join("\n\n");

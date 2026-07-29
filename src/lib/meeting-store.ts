@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabase } from "./supabase";
+import { startRun } from "./agent-runs";
 
 // 視訊會議室的持久化：meetings（一場會議）＋ meeting_turns（會議中每一句）。
 // 錄音檔存 Supabase Storage 的 meeting-recordings（私有）bucket，播放時才簽發 signed URL。
@@ -23,6 +24,24 @@ export async function createMeeting(title?: string): Promise<string | null> {
     .single();
   if (error || !data) return null;
   return data.id as string;
+}
+
+/**
+ * 這場會議對應的那一次執行。
+ *
+ * 會議跨很多個請求（開場、每一輪語音、結束上傳錄音），沒辦法用 tracked() 一次包起來。
+ * 改用 trigger_ref 當鍵：startRun 對同一個 triggerRef 是冪等的，
+ * 所以任何一支會議路由都可以呼叫這個函式拿到「同一次執行」，
+ * 語音的 token 成本才有地方歸屬——在這之前 Realtime 的花費是完全無主的。
+ */
+export async function meetingRunId(meetingId: string): Promise<string | null> {
+  return startRun({
+    agentSlug: "teamlead",
+    trigger: "manual",
+    triggerRef: `meeting:${meetingId}`,
+    meta: { surface: "meeting", meetingId },
+    summary: "視訊會議室",
+  });
 }
 
 /** 目前這場會議已有幾句（用來接續 turn_index）。 */

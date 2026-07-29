@@ -4,6 +4,11 @@ import { pushLineRawMessages } from "@/lib/line";
 import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
 import { logAiUsage } from "@/lib/ai-usage";
 import { AGENTS } from "@/lib/agent-data";
+import { remember } from "@/lib/agent-memory";
+import { delegate, saveArtifact } from "@/lib/agent-runs";
+import { currentRunId } from "@/lib/run-context";
+import { fetchWithRetry } from "@/lib/http";
+import type { AgentSlug } from "@/lib/types";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
 
@@ -24,7 +29,7 @@ async function summarizeWithAI(rawBrief: string): Promise<string | null> {
   if (!key) return null;
 
   try {
-    const res = await fetch(`${OPENAI_API_BASE}/chat/completions`, {
+    const res = await fetchWithRetry(`${OPENAI_API_BASE}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({
@@ -141,5 +146,45 @@ export async function runTeamLeadReport(): Promise<{ ok: boolean; message: strin
     status: "success",
   });
 
-  return { ok: true, message: `晨報已送出，彙整 ${meaningful.length} 筆團隊動態` };
+  // 晨報本文存成產出，才回答得了「上週三那份晨報寫了什麼、花了多少錢」
+  await saveArtifact({
+    agentSlug: "teamlead",
+    kind: "report",
+    title: `${dateLabel} 晨報`,
+    content: reportText,
+    runId: currentRunId(),
+    meta: { activityCount: meaningful.length },
+  });
+
+  // 晨報的結論存成「團隊記憶」：這是全隊共用的一層，其他 Agent 今天回話時
+  // 讀得到「昨天整體發生了什麼」，而不是各自只看得到自己那一角。
+  await remember({
+    content: `${dateLabel} 晨報結論：${reportText.replace(/\s+/g, " ").slice(0, 300)}`,
+    scope: "team",
+    kind: "semantic",
+    ttlDays: 14,
+    confidence: 0.8,
+  });
+
+  // 昨天失敗的動作，逐一派成待複檢的委派。
+  //
+  // 以前這些只是晨報最後一段文字——推播出去就沒了，沒有任何東西追蹤它們有沒有被處理。
+  // 現在會進 agent_tasks，被 worker 認領、留下產出，在執行紀錄頁看得到。
+  const failures = meaningful.filter((r) => r.status === "failed");
+  for (const row of failures.slice(0, 10)) {
+    await delegate({
+      fromAgent: "teamlead",
+      toAgent: row.agent_slug as AgentSlug,
+      title: `複檢昨日失敗項目：${row.summary.slice(0, 60)}`,
+      payload: {
+        kind: "review",
+        detail: `${new Date(row.occurred_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}\n${row.summary}`,
+      },
+    });
+  }
+
+  return {
+    ok: true,
+    message: `晨報已送出，彙整 ${meaningful.length} 筆團隊動態${failures.length ? `，派出 ${Math.min(failures.length, 10)} 筆複檢委派` : ""}`,
+  };
 }

@@ -1,17 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { runSupportDailyReport } from "@/lib/support-daily-report";
+import { runCronJob } from "@/lib/cron";
 
 // 每日排程觸發點（由 .github/workflows/daily-support-report.yml 呼叫）。
+//
+// 密鑰檢查、agent_runs 追蹤、失敗告警與重試都在 runCronJob 裡；
+// daily: true 代表同一天重複觸發不會再推一次彙報（手動測試帶 ?force=1）。
 export async function GET(req: NextRequest) {
-  // fail-closed：沒設定 CRON_SECRET 就直接拒絕，不讓這支會推播、燒 API 額度的端點對全世界開放。
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "server misconfigured: CRON_SECRET not set" }, { status: 503 });
-  }
-  if (req.headers.get("x-cron-key") !== secret) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const result = await runSupportDailyReport();
-  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
+  return runCronJob(
+    req,
+    { agentSlug: "support", job: "support-daily-report", daily: true, replay: "support-daily-report" },
+    () => runSupportDailyReport()
+  );
 }

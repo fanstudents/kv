@@ -426,11 +426,17 @@ export default function MeetingPage() {
             }
           },
           onUsage: (usage) => {
-            // 成本記錄：跟對話本身無關，晚一點送到、送失敗都不影響會議進行
+            // 成本記錄：跟對話本身無關，晚一點送到、送失敗都不影響會議進行。
+            // 帶上 meetingId，這輪語音的花費才會歸到這場會議的執行紀錄，而不是變成無主的帳。
             fetch("/api/meeting/log-usage", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ model: data.model, agentSlug: agent.slug, usage }),
+              body: JSON.stringify({
+                model: data.model,
+                agentSlug: agent.slug,
+                meetingId: meetingIdRef.current,
+                usage,
+              }),
             }).catch(() => {});
           },
           onFunctionCall: (name, argsJson, callId) => {

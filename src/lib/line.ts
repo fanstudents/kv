@@ -1,8 +1,14 @@
 import "server-only";
 import crypto from "node:crypto";
+import { fetchWithRetry } from "@/lib/http";
 
 const LINE_API_BASE = "https://api.line.me/v2/bot";
 const LINE_DATA_API_BASE = "https://api-data.line.me/v2/bot";
+
+// LINE 的 reply token 只有 30 秒壽命，逾時設短一點才留得下重試的空間。
+function lineFetch(url: string, init: RequestInit) {
+  return fetchWithRetry(url, init, { label: "LINE", timeoutMs: 15_000 });
+}
 
 // 支援多個 LINE 官方帳號：primary 是原本的控制台帳號，support 是客服帳號
 export type LineChannel = "primary" | "support";
@@ -32,7 +38,7 @@ export async function getLineMessageContentAsDataUrl(messageId: string, channel:
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);
 
-  const res = await fetch(`${LINE_DATA_API_BASE}/message/${messageId}/content`, {
+  const res = await lineFetch(`${LINE_DATA_API_BASE}/message/${messageId}/content`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -55,7 +61,7 @@ export async function getLineProfile(userId: string, channel: LineChannel = "pri
   const { token } = channelEnv(channel);
   if (!token) return null;
 
-  const res = await fetch(`${LINE_API_BASE}/profile/${userId}`, {
+  const res = await lineFetch(`${LINE_API_BASE}/profile/${userId}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) return null;
@@ -68,7 +74,7 @@ export async function pushLineMessage(to: string, text: string, channel: LineCha
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);
 
-  const res = await fetch(`${LINE_API_BASE}/message/push`, {
+  const res = await lineFetch(`${LINE_API_BASE}/message/push`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -93,7 +99,7 @@ export async function pushLineRawMessages(to: string, messages: unknown[], chann
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);
 
-  const res = await fetch(`${LINE_API_BASE}/message/push`, {
+  const res = await lineFetch(`${LINE_API_BASE}/message/push`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -115,7 +121,7 @@ export async function replyLineRawMessages(replyToken: string, messages: unknown
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);
 
-  const res = await fetch(`${LINE_API_BASE}/message/reply`, {
+  const res = await lineFetch(`${LINE_API_BASE}/message/reply`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -136,7 +142,7 @@ export async function replyLineMessage(replyToken: string, text: string, channel
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);
 
-  const res = await fetch(`${LINE_API_BASE}/message/reply`, {
+  const res = await lineFetch(`${LINE_API_BASE}/message/reply`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { getSupabase } from "@/lib/supabase";
 import { ingestPages } from "@/lib/kb-import";
+import { fetchWithRetry } from "@/lib/http";
 
 // 網站 → 知識庫：用 Firecrawl 把網頁抓成乾淨的 markdown，接上跟 PDF 完全相同的下游
 // （切塊 → AI 轉條目 → 敏感度預判 → 草稿 → 人審 → 發布）。
@@ -40,11 +41,16 @@ async function firecrawl<T>(
   method: "GET" | "POST" = "POST",
   retry = true
 ): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` },
-    body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
-  });
+  // 爬站本來就慢，逾時給到兩分鐘；429 這裡與底下都會處理，重試次數壓到 1 避免疊加太久
+  const res = await fetchWithRetry(
+    `${API_BASE}${path}`,
+    {
+      method,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey()}` },
+      body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
+    },
+    { label: "Firecrawl", timeoutMs: 120_000, retries: 1 }
+  );
   const data = await res.json().catch(() => ({}));
 
   if (res.ok) return data as T;
