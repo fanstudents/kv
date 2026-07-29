@@ -6,7 +6,7 @@ import { AGENT_CATALOG, agentsByTier } from "@/lib/agent-catalog";
 import { SUPER_AGENTS } from "@/lib/super-agent-data";
 
 export const metadata = {
-  title: "Agent 目錄｜TBR AI Studio",
+  title: "Agent 目錄｜MixAgent",
   description:
     "12 種以上可以聘任的 AI Agent，分通用型、專業型、超級 Agent 三個等級。每位點開都看得到實際運作流程節點——接什麼系統、做哪些判斷、交出什麼結果。",
 };
@@ -31,8 +31,8 @@ const TIERS = [
   {
     href: "/agents-catalog/super",
     tag: "超級 Agent",
-    title: "真人主理人帶隊的 Agent Team",
-    desc: "一整組 Agent Team，由實戰主理人帶領：前 3 個月親自帶隊調教，之後可轉交你公司內部主管接手管理。",
+    title: "真人主理人帶隊的 Agent 團隊",
+    desc: "一整組 Agent 團隊，由實戰主理人帶領：前 3 個月親自帶隊調教，之後可轉交你公司內部主管接手管理。",
     price: "NT$30,000／月起",
     count: SUPER_AGENTS.length,
   },

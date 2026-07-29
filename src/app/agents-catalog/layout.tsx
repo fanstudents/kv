@@ -12,7 +12,7 @@ export default function AgentsCatalogLayout({ children }: { children: React.Reac
               <MessageCircle size={16} />
             </span>
             <span className="hidden text-sm font-semibold text-neutral-900 dark:text-white sm:inline">
-              TBR AI Studio <span className="font-normal text-neutral-400">· Agent 目錄</span>
+              MixAgent <span className="font-normal text-neutral-400">· Agent 目錄</span>
             </span>
           </Link>
           <nav className="flex shrink-0 items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400">

@@ -1,14 +1,14 @@
 <meta charset="utf-8">
-<title>配置你的 Agent 團隊 — TBR AI Studio</title>
+<title>配置你的 Agent 團隊 — MixAgent</title>
 <meta name="description" content="互動示範：親手聘任或退訂 Agent，即時看到後台編制跟著變化。免註冊，體驗 AI Agent 團隊實際怎麼組建。">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="TBR AI Studio">
+<meta property="og:site_name" content="MixAgent">
 <meta property="og:locale" content="zh_TW">
-<meta property="og:title" content="配置你的 Agent 團隊 — TBR AI Studio">
+<meta property="og:title" content="配置你的 Agent 團隊 — MixAgent">
 <meta property="og:description" content="互動示範：親手聘任或退訂 Agent，即時看到後台編制跟著變化。免註冊，體驗 AI Agent 團隊實際怎麼組建。">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="配置你的 Agent 團隊 — TBR AI Studio">
+<meta name="twitter:title" content="配置你的 Agent 團隊 — MixAgent">
 <meta name="twitter:description" content="互動示範：親手聘任或退訂 Agent，即時看到後台編制跟著變化。">
 <style>
   :root{
@@ -209,8 +209,8 @@
     <a class="logo" href="/agent-team.html">
       <span class="logo-mark">T</span>
       <span>
-        <span class="logo-name">TBR AI Studio</span><br>
-        <span class="logo-sub">Agent Team</span>
+        <span class="logo-name">MixAgent</span><br>
+        <span class="logo-sub">Agent 團隊</span>
       </span>
     </a>
     <a class="back-link" href="/agent-team.html">← 回介紹頁</a>
@@ -245,7 +245,7 @@
           <div class="cfg-picks" id="cfgPicks"></div>
           <div class="cfg-foot">
             <span>已聘任 <b id="cfgCount">0</b> 位・預估月費 <b id="cfgTotal">NT$0</b></span>
-            <a class="btn btn-green btn-sm" id="cfgCta" href="mailto:service@tbr.digital?subject=預約 Agent Team 部署諮詢">帶著這份配置預約諮詢 →</a>
+            <a class="btn btn-green btn-sm" id="cfgCta" href="mailto:service@tbr.digital?subject=預約 MixAgent 部署諮詢">帶著這份配置預約諮詢 →</a>
           </div>
         </div>
       </div>
@@ -258,7 +258,7 @@
 <div class="cfg-bar" aria-live="polite">
   <div class="bar-faces" id="barFaces"></div>
   <div class="bar-sum" id="barSum">點名片試聘看看<b>NT$0／月</b></div>
-  <a class="btn btn-green" id="barCta" href="mailto:service@tbr.digital?subject=預約 Agent Team 部署諮詢">預約諮詢</a>
+  <a class="btn btn-green" id="barCta" href="mailto:service@tbr.digital?subject=預約 MixAgent 部署諮詢">預約諮詢</a>
 </div>
 
 <script>
@@ -361,7 +361,7 @@
   function fmt(n){return 'NT$'+n.toLocaleString('en-US')}
   function total(){return order.reduce(function(s,id){return s+TIERS[picked[id].tier].price},0)}
   function mailHref(){
-    var subject='預約 Agent Team 部署諮詢';
+    var subject='預約 MixAgent 部署諮詢';
     var body='';
     if(order.length){
       body='我想聘任：'+order.map(function(id){return shortName(picked[id])}).join('、')+

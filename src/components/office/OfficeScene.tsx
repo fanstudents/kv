@@ -212,7 +212,7 @@ function DoorPlate({ sceneId }: { sceneId: (typeof SCENES)[number]["id"] }) {
           className="rounded-lg border-4 border-[#6E4527] px-5 py-1.5 shadow-lg"
           style={{ background: "linear-gradient(180deg, #A9744A 0%, #8F5F3B 100%)" }}
         >
-          <p className="whitespace-nowrap text-base font-black tracking-widest text-white drop-shadow">原騰數位科技</p>
+          <p className="whitespace-nowrap text-base font-black tracking-widest text-white drop-shadow">MixAgent</p>
           <p className="text-center text-[8px] font-medium tracking-[0.3em] text-[#F7EDDD]">AI AGENT OFFICE</p>
         </div>
       </div>
@@ -268,7 +268,7 @@ function TeamList({ counts, agents, marketingMode }: { counts: Record<string, nu
 
   return (
     <div className="flex h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-black/70 px-3 py-5 backdrop-blur-xl">
-      <p className="px-2.5 pb-1 text-sm font-semibold text-white">{marketingMode ? "行銷戰隊" : "Agent Team"}</p>
+      <p className="px-2.5 pb-1 text-sm font-semibold text-white">{marketingMode ? "行銷戰隊" : "Agent 團隊"}</p>
       <p className="px-2.5 pb-4 text-xs text-white/40">
         {marketingMode ? `你是 AI 行銷指揮官，率領 ${agents.length} 位隊員` : `${agents.length} 位隊友，點名字查看細節`}
       </p>

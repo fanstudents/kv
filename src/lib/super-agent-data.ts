@@ -1,4 +1,4 @@
-// 超級 Agent：由真人專業經理人（主理人）帶領的 Agent Team。
+// 超級 Agent：由真人專業經理人（主理人）帶領的 Agent 團隊。
 // 注意：kpis / weekly / activity 目前為「示意資料」，正式接數據前請保留示意標記。
 
 import { avatarUrl } from "./agent-data";
@@ -186,7 +186,7 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
     dossier: [
       ["範疇", "關鍵字研究、內容產出、技術健檢、排名追蹤"],
       ["交付", "每週內容草稿與排名週報，每月策略檢視"],
-      ["帶隊", "主理人遴選中——現由 TBR 內容團隊代管調教"],
+      ["帶隊", "主理人遴選中——現由 MixAgent 內容團隊代管調教"],
     ],
     desc: "從關鍵字研究、內容產出到排名追蹤，把官網養成穩定的自然流量入口。",
     team: [
@@ -225,7 +225,7 @@ export const SUPER_AGENTS: SuperAgentMeta[] = [
     dossier: [
       ["範疇", "名單分眾、旅程設計、EDM 產出、成效歸因"],
       ["交付", "每週分眾發送與成效報告，每月旅程優化"],
-      ["帶隊", "主理人遴選中——現由 TBR 行銷團隊代管調教"],
+      ["帶隊", "主理人遴選中——現由 MixAgent 行銷團隊代管調教"],
     ],
     desc: "名單分眾、旅程設計、開信與轉換數據覆盤，把名單變成穩定回購的通路。",
     team: [

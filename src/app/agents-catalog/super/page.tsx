@@ -8,7 +8,7 @@ import { SUPER_AGENTS, principalAvatar } from "@/lib/super-agent-data";
 
 export const metadata = {
   title: "超級 Agent｜Agent 目錄",
-  description: "由真人專業經理人帶隊的 Agent Team，前 3 個月親自帶隊調教，之後可轉交企業內部主管接手管理。",
+  description: "由真人專業經理人帶隊的 Agent 團隊，前 3 個月親自帶隊調教，之後可轉交企業內部主管接手管理。",
 };
 
 const SERVICE_MODEL: FlowStep[] = [
@@ -29,7 +29,7 @@ export default function SuperAgentCatalogPage() {
       </Link>
       <p className="text-xs font-bold tracking-[0.2em] text-amber-600 dark:text-amber-400">超級 AGENT・業界獨家</p>
       <h1 className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-white sm:text-3xl">
-        一整組 Agent Team，由真人主理人帶隊。
+        一整組 Agent 團隊，由真人主理人帶隊。
       </h1>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
         超級 Agent 不只是軟體，是把「真人專業經理人」編進服務模式：主理人把多年方法論寫進 Agent 團隊，
