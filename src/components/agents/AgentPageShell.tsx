@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Send, Save, Loader2, ChevronDown, ChevronRight, Plus, Target } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import Card from "@/components/ui/Card";
@@ -29,6 +29,22 @@ import type { AgentMeta, AgentActivity } from "@/lib/types";
 
 const TEST_USER_ID_KEY = "line-agent-console:test-user-id";
 const DEFAULT_TEST_USER_ID = "U00cbec1389dcf7d4c8802fafc2cc9951";
+
+function subscribeToStoredTestUserId(onStoreChange: () => void) {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === TEST_USER_ID_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", handleStorage);
+  return () => window.removeEventListener("storage", handleStorage);
+}
+
+function getStoredTestUserId() {
+  return localStorage.getItem(TEST_USER_ID_KEY) ?? DEFAULT_TEST_USER_ID;
+}
+
+function getServerTestUserId() {
+  return DEFAULT_TEST_USER_ID;
+}
 
 export default function AgentPageShell({
   agent,
@@ -64,7 +80,13 @@ export default function AgentPageShell({
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [testUserId, setTestUserId] = useState("");
+  const storedTestUserId = useSyncExternalStore(
+    subscribeToStoredTestUserId,
+    getStoredTestUserId,
+    getServerTestUserId
+  );
+  const [editedTestUserId, setEditedTestUserId] = useState<string | null>(null);
+  const testUserId = editedTestUserId ?? storedTestUserId;
   const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [testError, setTestError] = useState("");
   const [demoMode] = useDemoMode();
@@ -72,8 +94,6 @@ export default function AgentPageShell({
   const [editingGoal, setEditingGoal] = useState<AgentGoal | null>(null);
 
   useEffect(() => {
-    setTestUserId(localStorage.getItem(TEST_USER_ID_KEY) ?? DEFAULT_TEST_USER_ID);
-
     fetch(`/api/agents/${agent.slug}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -368,7 +388,7 @@ export default function AgentPageShell({
               <input
                 type="text"
                 value={testUserId}
-                onChange={(e) => setTestUserId(e.target.value)}
+                onChange={(e) => setEditedTestUserId(e.target.value)}
                 placeholder="您的 LINE User ID（U 開頭）"
                 className="mb-2 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-[#06C755] focus:ring-2 focus:ring-[#06C755]/20 dark:border-neutral-700 dark:bg-neutral-950"
               />

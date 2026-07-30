@@ -6,10 +6,24 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typegen": "next typegen",
+    "typecheck": "npm run typegen && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration --passWithNoTests",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:smoke": "npm run build && playwright test --grep-invert @visual",
+    "test:e2e:run:smoke": "playwright test --grep-invert @visual",
+    "test:e2e:update": "npm run build && playwright test --grep @visual --update-snapshots",
+    "schema:start": "supabase db start --yes",
+    "schema:rehearse": "supabase db start --yes && supabase db reset --local --no-seed --yes",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build",
+    "verify:full": "npm run verify && npm run test:e2e:run:smoke"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.110.6",
+    "@supabase/supabase-js": "2.110.6",
     "clsx": "^2.1.1",
     "googleapis": "^173.0.0",
     "lucide-react": "^1.24.0",
@@ -21,13 +35,16 @@
     "unpdf": "^1.8.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "supabase": "2.110.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

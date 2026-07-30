@@ -12,6 +12,20 @@ import type { SnapshotRow } from "./agent-memory";
 const cache = new Map<string, SnapshotRow[]>();
 const inflight = new Map<string, Promise<SnapshotRow[]>>();
 
+interface HistoryState {
+  key: string;
+  points: SnapshotRow[];
+  loading: boolean;
+}
+
+function getHistoryState(key: string): HistoryState {
+  return {
+    key,
+    points: cache.get(key) ?? [],
+    loading: !cache.has(key),
+  };
+}
+
 async function fetchHistory(metricId: string, days: number): Promise<SnapshotRow[]> {
   const key = `${metricId}:${days}`;
   if (cache.has(key)) return cache.get(key)!;
@@ -35,27 +49,21 @@ async function fetchHistory(metricId: string, days: number): Promise<SnapshotRow
 /** 某個指標近 N 天的快照走勢（目標卡上的 sparkline 用） */
 export function useMetricHistory(metricId: string, days = 30) {
   const key = `${metricId}:${days}`;
-  const [points, setPoints] = useState<SnapshotRow[]>(() => cache.get(key) ?? []);
-  const [loading, setLoading] = useState(!cache.has(key));
+  const [state, setState] = useState<HistoryState>(() => getHistoryState(key));
+  const current = state.key === key ? state : getHistoryState(key);
 
   useEffect(() => {
     let cancelled = false;
-    if (cache.has(key)) {
-      setPoints(cache.get(key)!);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (cache.has(key)) return;
+
     fetchHistory(metricId, days).then((p) => {
-      if (!cancelled) {
-        setPoints(p);
-        setLoading(false);
-      }
+      if (!cancelled) setState({ key, points: p, loading: false });
     });
+
     return () => {
       cancelled = true;
     };
   }, [key, metricId, days]);
 
-  return { points, loading };
+  return { points: current.points, loading: current.loading };
 }

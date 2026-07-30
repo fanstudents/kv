@@ -41,16 +41,12 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [dayCounts, setDayCounts] = useState<Record<string, number>>({});
-  const [open, setOpen] = useState(false);
+  const [openPathname, setOpenPathname] = useState<string | null>(null);
+  const open = openPathname === pathname;
   const [marketingMode, setMarketingModeOn] = useMarketingMode();
   const [demoMode, setDemoModeOn] = useDemoMode();
   // 啟用狀態以資料庫為準（後台按下停用，這顆燈會跟著滅）
   const agentEnabled = useAgentStatus();
-
-  // 換頁時自動收起行動版抽屜
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     const load = () =>
@@ -125,13 +121,13 @@ export default function Sidebar() {
           </div>
           <p className="text-sm font-semibold text-neutral-900 dark:text-white">LINE Agent 控制台</p>
         </div>
-        <button type="button" onClick={() => setOpen(true)} aria-label="開啟選單" className="p-1 text-neutral-600 dark:text-neutral-300">
+        <button type="button" onClick={() => setOpenPathname(pathname)} aria-label="開啟選單" className="p-1 text-neutral-600 dark:text-neutral-300">
           <Menu size={22} />
         </button>
       </header>
 
       {/* 行動版遮罩 */}
-      {open && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setOpen(false)} />}
+      {open && <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setOpenPathname(null)} />}
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white transition-transform duration-300 dark:border-neutral-800 dark:bg-neutral-900 lg:static lg:translate-x-0 ${
@@ -148,7 +144,7 @@ export default function Sidebar() {
               <p className="text-xs text-neutral-400">tbr.digital</p>
             </div>
           </div>
-          <button type="button" onClick={() => setOpen(false)} aria-label="關閉選單" className="p-1 text-neutral-400 lg:hidden">
+          <button type="button" onClick={() => setOpenPathname(null)} aria-label="關閉選單" className="p-1 text-neutral-400 lg:hidden">
             <X size={20} />
           </button>
         </div>
