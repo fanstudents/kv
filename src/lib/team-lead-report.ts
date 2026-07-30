@@ -4,15 +4,15 @@ import { pushLineRawMessages } from "@/lib/line";
 import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
 import { logAiUsage } from "@/lib/ai-usage";
 import { AGENTS } from "@/lib/agent-data";
+import {
+  finalizeTeamLeadReport,
+  planTeamLeadDelivery,
+  prepareTeamLeadReport,
+  teamLeadActivityCutoff,
+  type ReportingActivity,
+} from "@/modules/reporting/daily-report";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
-
-interface ActivityRow {
-  agent_slug: string | null;
-  occurred_at: string;
-  summary: string;
-  status: "success" | "failed" | "pending";
-}
 
 function agentDisplayName(slug: string): string {
   const agent = AGENTS.find((a) => a.slug === slug);
@@ -55,20 +55,12 @@ export async function runTeamLeadReport(): Promise<{ ok: boolean; message: strin
   const supabase = getSupabase();
 
   const { data: agentRow } = await supabase.from("line_agents").select("enabled, settings").eq("slug", "teamlead").single();
-  if (agentRow && agentRow.enabled === false) {
-    return { ok: false, message: "總管 Agent 已停用，略過匯報" };
-  }
-  const settings = (agentRow?.settings ?? {}) as Record<string, unknown>;
-  const reportTo = typeof settings.reportTo === "string" ? settings.reportTo.trim() : "";
-  const pushStyle: PushStyle = ["text", "flex", "confirm", "buttons"].includes(settings.pushStyle as string)
-    ? (settings.pushStyle as PushStyle)
-    : "flex";
-
-  if (!reportTo) {
-    return { ok: false, message: "尚未設定匯報對象（reportTo）" };
+  const deliveryPlan = planTeamLeadDelivery(agentRow);
+  if (deliveryPlan.type !== "deliver") {
+    return { ok: false, message: deliveryPlan.message };
   }
 
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const cutoff = teamLeadActivityCutoff(Date.now());
   const { data: rows } = await supabase
     .from("line_agent_activity")
     .select("agent_slug, occurred_at, summary, status")
@@ -77,52 +69,22 @@ export async function runTeamLeadReport(): Promise<{ ok: boolean; message: strin
     .order("occurred_at", { ascending: false })
     .limit(200);
 
-  const activity = (rows ?? []) as ActivityRow[];
-  const meaningful = activity.filter((r) => r.agent_slug && !r.summary.includes("草稿狀態"));
-
-  const dateLabel = new Date().toLocaleDateString("zh-TW", {
-    timeZone: "Asia/Taipei",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  });
-
-  let reportText: string;
-
-  if (meaningful.length === 0) {
-    reportText = `${dateLabel} 晨報\n\n過去 24 小時團隊沒有新的執行紀錄，各位成員待命中。有新任務進來我會隨時盯著，請老闆放心。`;
-  } else {
-    const bySlug = new Map<string, ActivityRow[]>();
-    for (const row of meaningful) {
-      const list = bySlug.get(row.agent_slug as string) ?? [];
-      list.push(row);
-      bySlug.set(row.agent_slug as string, list);
-    }
-
-    const successCount = meaningful.filter((r) => r.status === "success").length;
-    const failedCount = meaningful.filter((r) => r.status === "failed").length;
-
-    const lines: string[] = [`統計：完成 ${successCount} 件、失敗 ${failedCount} 件、共 ${meaningful.length} 筆動作`];
-    for (const [slug, list] of bySlug) {
-      lines.push(`\n${agentDisplayName(slug)}：`);
-      for (const row of list.slice(0, 6)) {
-        lines.push(`- [${row.status}] ${row.summary}`);
-      }
-    }
-
-    const rawBrief = lines.join("\n");
-    const aiSummary = await summarizeWithAI(rawBrief);
-    reportText = `${dateLabel} 晨報\n\n${aiSummary ?? rawBrief}`;
-  }
+  const prepared = prepareTeamLeadReport(
+    (rows ?? []) as ReportingActivity[],
+    new Date(),
+    agentDisplayName
+  );
+  const aiSummary = prepared.rawBrief ? await summarizeWithAI(prepared.rawBrief) : null;
+  const reportText = finalizeTeamLeadReport(prepared, aiSummary);
 
   try {
     await pushLineRawMessages(
-      reportTo,
+      deliveryPlan.recipient,
       buildPushMessages({
-        style: pushStyle,
+        style: deliveryPlan.style as PushStyle,
         text: reportText,
-        title: "總管 Agent・每日晨報",
-        accentColor: "#475569",
+        title: deliveryPlan.title,
+        accentColor: deliveryPlan.accentColor,
       })
     );
   } catch (err) {
@@ -137,9 +99,9 @@ export async function runTeamLeadReport(): Promise<{ ok: boolean; message: strin
 
   await supabase.from("line_agent_activity").insert({
     agent_slug: "teamlead",
-    summary: `已向老闆送出每日晨報（彙整 ${meaningful.length} 筆團隊動態）`,
+    summary: `已向老闆送出每日晨報（彙整 ${prepared.meaningful.length} 筆團隊動態）`,
     status: "success",
   });
 
-  return { ok: true, message: `晨報已送出，彙整 ${meaningful.length} 筆團隊動態` };
+  return { ok: true, message: `晨報已送出，彙整 ${prepared.meaningful.length} 筆團隊動態` };
 }
