@@ -82,6 +82,9 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
 15. Cancellation is classified before confirmation/send because phrases such
     as `不要` contain a positive keyword.
 16. Unknown or incomplete LINE payloads become explicit ignored reasons.
+17. LINE invite approval updates preserve the exact legacy patch shapes:
+    status-only for cancellation, delivery, and failure; subject/body-only for
+    revision.
 
 ## Test Mapping
 
@@ -121,6 +124,9 @@ test_mapping:
   9, `findFreeSlots` 6, and `acquireLock` 5. Their existing implementations
   remain untouched behind the future handler adapters.
 - Pre-change Chrome check on 2026-07-31 confirmed `/login`.
+- LINE invite approval persistence is routed through pure compatibility
+  mappers with exact-shape unit assertions; Supabase call order and filters stay
+  in the existing route adapter.
 
 ## Intentional Changes
 

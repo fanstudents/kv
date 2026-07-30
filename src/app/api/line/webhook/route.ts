@@ -23,6 +23,8 @@ import {
 import {
   toLegacyContactInsert,
   toLegacyPendingInviteInsert,
+  toLegacyPendingInviteRevisionPatch,
+  toLegacyPendingInviteStatusPatch,
   toLegacyVisitOfferInsert,
   toLegacyVisitOfferResolution,
 } from "@/modules/visit/legacy-schema";
@@ -486,7 +488,10 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
   const approvalIntent = classifyVisitApprovalText(text);
 
   if (approvalIntent.type === "cancel") {
-    await supabase.from("pending_invites").update({ status: "cancelled" }).eq("id", invite.id);
+    await supabase
+      .from("pending_invites")
+      .update(toLegacyPendingInviteStatusPatch("cancelled"))
+      .eq("id", invite.id);
     await replyLineMessage(event.replyToken, "好的，已取消，不會寄出這封信。");
     await releaseLock(supabase, userId, VISIT_AGENT);
     return true;
@@ -511,7 +516,10 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
         caption: `寄出邀約信給 ${contact.name}…`,
       });
       await sendGmail({ to: contact.email, subject: invite.subject, body: html, html: true });
-      await supabase.from("pending_invites").update({ status: "pending" }).eq("id", invite.id);
+      await supabase
+        .from("pending_invites")
+        .update(toLegacyPendingInviteStatusPatch("pending"))
+        .eq("id", invite.id);
       await saveVisitArtifact({
         userId,
         title: `邀約信：${contact.name}`,
@@ -538,7 +546,10 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "寄信失敗";
-      await supabase.from("pending_invites").update({ status: "failed" }).eq("id", invite.id);
+      await supabase
+        .from("pending_invites")
+        .update(toLegacyPendingInviteStatusPatch("failed"))
+        .eq("id", invite.id);
       await supabase.from("line_agent_activity").insert({
         agent_slug: "visit",
         summary: `核准後寄信失敗：${message}`,
@@ -563,7 +574,10 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
       previousBody: invite.body,
       instruction: text,
     });
-    await supabase.from("pending_invites").update({ subject: revised.subject, body: revised.body }).eq("id", invite.id);
+    await supabase
+      .from("pending_invites")
+      .update(toLegacyPendingInviteRevisionPatch(revised.subject, revised.body))
+      .eq("id", invite.id);
     await replyLineMessage(
       event.replyToken,
       `已依您的要求調整 ✏️\n\n主旨：${revised.subject}\n內文：\n${revised.body}\n\n提議時段：${invite.slot1} 或 ${invite.slot2}\n\n這樣可以的話請回覆「寄出」，還要調整請繼續告訴我，不寄了請回覆「取消」。`

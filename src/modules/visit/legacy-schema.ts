@@ -137,6 +137,16 @@ export function toLegacyPendingInviteInsert(
   };
 }
 
+export function toLegacyPendingInviteStatusPatch(
+  status: Extract<LegacyPendingInviteStatus, "pending" | "cancelled" | "failed">
+) {
+  return { status };
+}
+
+export function toLegacyPendingInviteRevisionPatch(subject: string, body: string) {
+  return { subject, body };
+}
+
 /**
  * Rehydrates only states that Dennis's current rows persist durably. Transient
  * provider activity (parsing, drafting, sending, calendar creation) must resume

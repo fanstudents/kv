@@ -4,6 +4,8 @@ import {
   fromLegacyVisitSnapshot,
   toLegacyContactInsert,
   toLegacyPendingInviteInsert,
+  toLegacyPendingInviteRevisionPatch,
+  toLegacyPendingInviteStatusPatch,
   toLegacyVisitOfferInsert,
   toLegacyVisitOfferResolution,
   type LegacyPendingInviteRow,
@@ -118,6 +120,16 @@ describe("Visit legacy schema compatibility", () => {
       slot2_start: "2026-08-04T01:00:00.000Z",
       slot2_end: "2026-08-04T02:00:00.000Z",
       status: "awaiting_approval",
+    });
+  });
+
+  it("writes exact LINE approval status and revision patches", () => {
+    expect(toLegacyPendingInviteStatusPatch("cancelled")).toEqual({ status: "cancelled" });
+    expect(toLegacyPendingInviteStatusPatch("pending")).toEqual({ status: "pending" });
+    expect(toLegacyPendingInviteStatusPatch("failed")).toEqual({ status: "failed" });
+    expect(toLegacyPendingInviteRevisionPatch("Updated subject", "Updated body")).toEqual({
+      subject: "Updated subject",
+      body: "Updated body",
     });
   });
 
