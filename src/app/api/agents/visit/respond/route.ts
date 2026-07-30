@@ -10,6 +10,11 @@ import {
   toLegacyPendingInviteFulfilmentPatch,
   toLegacyPendingInviteStatusPatch,
 } from "@/modules/visit/legacy-schema";
+import {
+  normalizeVisitLocation,
+  parseVisitInviteChoice,
+  selectVisitInviteSlot,
+} from "@/modules/visit/public-response";
 
 type ContactInfo = { name?: string; title?: string; email?: string; company?: string } | null;
 
@@ -71,26 +76,9 @@ function locationFormPage(params: { inviteId: string; chosenLabel: string }) {
   return new NextResponse(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
-function chosenSlotFields(row: {
-  chosen_slot: string | null;
-  slot1: string;
-  slot2: string;
-  slot1_start: string;
-  slot1_end: string;
-  slot2_start: string;
-  slot2_end: string;
-}) {
-  const useSlot2 = row.chosen_slot === "2";
-  return {
-    label: useSlot2 ? row.slot2 : row.slot1,
-    startISO: useSlot2 ? row.slot2_start : row.slot1_start,
-    endISO: useSlot2 ? row.slot2_end : row.slot1_end,
-  };
-}
-
 export async function GET(req: NextRequest) {
   const inviteId = req.nextUrl.searchParams.get("invite");
-  const choice = req.nextUrl.searchParams.get("choice");
+  const choice = parseVisitInviteChoice(req.nextUrl.searchParams.get("choice"));
   const supabase = getSupabase();
 
   if (!inviteId) {
@@ -105,16 +93,13 @@ export async function GET(req: NextRequest) {
   let row = existing;
 
   if (row.status === "pending") {
-    if (!choice || !["1", "2", "both"].includes(choice)) {
+    if (!choice) {
       return page("連結無效", "這個邀約連結不完整，請直接聯繫對方確認時間。", "error");
     }
     const { data: claimed } = await supabase
       .from("pending_invites")
       .update(
-        toLegacyPendingInviteConfirmationPatch(
-          choice as "1" | "2" | "both",
-          new Date().toISOString()
-        )
+        toLegacyPendingInviteConfirmationPatch(choice, new Date().toISOString())
       )
       .eq("id", inviteId)
       .eq("status", "pending")
@@ -130,12 +115,12 @@ export async function GET(req: NextRequest) {
   }
 
   if (row.status === "confirmed" && !row.calendar_event_id) {
-    const { label } = chosenSlotFields(row);
+    const { label } = selectVisitInviteSlot(row);
     return locationFormPage({ inviteId, chosenLabel: label });
   }
 
   if (row.status === "confirmed" && row.calendar_event_id) {
-    const { label } = chosenSlotFields(row);
+    const { label } = selectVisitInviteSlot(row);
     return page("已經確認過囉", `這個邀約先前已經確認為 ${label}，如需更改時間請直接聯繫對方。`);
   }
 
@@ -151,8 +136,7 @@ export async function POST(req: NextRequest) {
   }
 
   const formData = await req.formData().catch(() => null);
-  const rawLocation = typeof formData?.get("location") === "string" ? (formData.get("location") as string) : "";
-  const location = rawLocation.trim().slice(0, 100) || undefined;
+  const location = normalizeVisitLocation(formData?.get("location") ?? null);
 
   const { data: row } = await supabase.from("pending_invites").select("*, contacts(name, title, email, company)").eq("id", inviteId).maybeSingle();
 
@@ -161,13 +145,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (row.status !== "confirmed" || row.calendar_event_id) {
-    const { label } = chosenSlotFields(row);
+    const { label } = selectVisitInviteSlot(row);
     return page("已經確認過囉", `這個邀約先前已經確認為 ${label}，如需更改時間請直接聯繫對方。`);
   }
 
   const contact = row.contacts as ContactInfo;
   const contactName = contact?.name || "對方";
-  const { label: chosenLabel, startISO, endISO } = chosenSlotFields(row);
+  const { label: chosenLabel, startISO, endISO } = selectVisitInviteSlot(row);
 
   try {
     const settings = await getVisitAgentSettings(supabase);

@@ -54,6 +54,8 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
   record-only intent plan without reaching persistence or providers.
 - `line-inbound.ts` normalizes LINE image, text, and postback payloads into
   provider-free input and preserves the existing decision-word precedence.
+- `public-response.ts` validates invite choices, normalizes the optional
+  location, and selects the persisted slot without importing Next or Supabase.
 - Intents describe persistence, AI, calendar, mail, LINE, lock, artifact, and
   research work; the reducer performs none of them.
 - No legacy source file is imported by the Visit module.
@@ -88,6 +90,10 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
 18. Public invite response writes preserve the current compare-and-set claim,
     confirmation timestamp, chosen-slot vocabulary, nullable location, and
     status-only failure patch.
+19. Only `1`, `2`, and `both` are valid choices. Choice `both` intentionally
+    keeps the legacy behavior of using slot one for calendar fulfilment.
+20. Location is trimmed before being capped at 100 characters; blank and
+    non-string form values remain absent.
 
 ## Test Mapping
 
@@ -101,6 +107,7 @@ test_mapping:
     - tests/unit/visit-legacy-schema.test.ts
     - tests/unit/visit-application.test.ts
     - tests/unit/visit-line-inbound.test.ts
+    - tests/unit/visit-public-response.test.ts
     - tests/unit/workflow-composition.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   manual:
