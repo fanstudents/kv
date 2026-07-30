@@ -148,6 +148,10 @@ test_mapping:
 - Public invite confirmation and calendar fulfilment writes use the same
   compatibility boundary. The route still owns request validation, the
   `status = pending` claim filter, provider ordering, and error rendering.
+- `docs/refactor-checkpoints.md` records the commit-by-commit source handoff and
+  the mandatory Chrome, CodeGraph, test, build, and commit gate for each stage.
+- Full verification after the provider-port cutover passed 18 Vitest files /
+  156 tests, a 93-page production build, and 130 Playwright smoke cases.
 
 ## Intentional Changes
 
