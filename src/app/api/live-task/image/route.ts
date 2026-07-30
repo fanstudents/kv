@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLiveImage } from "@/lib/live-task-store";
+import { createLegacyLiveTaskImageAdapter } from "@/adapters/live-task/legacy-image-adapter";
+import { runLiveTaskImage } from "@/modules/live-task/image-application";
+import { parseLiveTaskImageRequest } from "@/modules/live-task/image-rules";
 
 // 回傳目前這位 Agent 正在處理的實際圖片（例如剛上傳的名片照）位元組
 export async function GET(req: NextRequest) {
-  const agent = req.nextUrl.searchParams.get("agent") ?? "";
-  const image = await getLiveImage(agent);
-  if (!image) return new NextResponse(null, { status: 404 });
+  const result = await runLiveTaskImage(
+    parseLiveTaskImageRequest(req.nextUrl.searchParams.get("agent")),
+    createLegacyLiveTaskImageAdapter(),
+  );
+  if (result.kind === "not-found") return new NextResponse(null, { status: 404 });
 
-  const match = /^data:([^;]+);base64,([\s\S]*)$/.exec(image);
-  if (!match) return new NextResponse(null, { status: 404 });
-
-  const [, contentType, b64] = match;
-  const buffer = Buffer.from(b64, "base64");
+  const buffer = Buffer.from(result.base64, "base64");
   return new NextResponse(buffer, {
     status: 200,
-    headers: { "content-type": contentType, "cache-control": "no-store" },
+    headers: { "content-type": result.contentType, "cache-control": "no-store" },
   });
 }
