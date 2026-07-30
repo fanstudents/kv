@@ -18,6 +18,7 @@ import { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } from "
 import {
   classifyVisitApprovalText,
   classifyVisitDecisionText,
+  normalizeVisitLineInbound,
 } from "@/modules/visit/line-inbound";
 
 export async function GET() {
@@ -645,14 +646,16 @@ export async function POST(req: NextRequest) {
       if (!event.replyToken) return;
       const userId = event.source?.userId ?? "未知使用者";
       if (event.source?.userId) await touchSubscriber(event.source.userId, "primary").catch(() => {});
+      const inbound = normalizeVisitLineInbound({
+        ...event,
+        source: { ...event.source, userId },
+      });
 
-      if (event.type === "message") {
-        if (event.message?.type === "image") {
-          await handleImageMessage(event, userId);
-        } else if (event.message?.type === "text") {
-          await handleTextMessage(event, userId, baseUrl);
-        }
-      } else if (event.type === "postback") {
+      if (inbound.kind === "image") {
+        await handleImageMessage(event, userId);
+      } else if (inbound.kind === "text") {
+        await handleTextMessage(event, userId, baseUrl);
+      } else if (inbound.kind === "postback") {
         await handlePostback(event, userId, baseUrl);
       }
     })
