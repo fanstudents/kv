@@ -52,6 +52,8 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
   shadow evaluation, and new-intent ownership explicit.
 - `evaluateVisitEvent` produces domain truth, compatibility projection, and a
   record-only intent plan without reaching persistence or providers.
+- `line-inbound.ts` normalizes LINE image, text, and postback payloads into
+  provider-free input and preserves the existing decision-word precedence.
 - Intents describe persistence, AI, calendar, mail, LINE, lock, artifact, and
   research work; the reducer performs none of them.
 - No legacy source file is imported by the Visit module.
@@ -76,6 +78,9 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
 13. Legacy mode is the default. Shadow evaluates new logic but owns no effects.
 14. An invalid rollout mode fails configuration validation instead of silently
     enabling a different path.
+15. Cancellation is classified before confirmation/send because phrases such
+    as `不要` contain a positive keyword.
+16. Unknown or incomplete LINE payloads become explicit ignored reasons.
 
 ## Test Mapping
 
@@ -88,6 +93,7 @@ test_mapping:
     - tests/unit/visit-intent-executor.test.ts
     - tests/unit/visit-legacy-schema.test.ts
     - tests/unit/visit-application.test.ts
+    - tests/unit/visit-line-inbound.test.ts
     - tests/unit/workflow-composition.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   manual:
