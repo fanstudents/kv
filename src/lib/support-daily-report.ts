@@ -3,14 +3,16 @@ import { getSupabase } from "@/lib/supabase";
 import { pushLineRawMessages } from "@/lib/line";
 import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
 import { logAiUsage } from "@/lib/ai-usage";
+import {
+  finalizeSupportReport,
+  planSupportReportDelivery,
+  prepareSupportReport,
+  supportCustomerIds,
+  supportReportCutoff,
+  type SupportConversation,
+} from "@/modules/support/daily-report";
 
 const OPENAI_API_BASE = "https://api.openai.com/v1";
-
-interface ConversationRow {
-  line_user_id: string;
-  text: string;
-  occurred_at: string;
-}
 
 async function summarizeWithAI(rawBrief: string): Promise<string | null> {
   const key = process.env.OPENAI_API_KEY;
@@ -50,20 +52,12 @@ export async function runSupportDailyReport(): Promise<{ ok: boolean; message: s
   const supabase = getSupabase();
 
   const { data: agentRow } = await supabase.from("line_agents").select("enabled, settings").eq("slug", "support").single();
-  if (agentRow && agentRow.enabled === false) {
-    return { ok: false, message: "客服 Agent 已停用，略過匯報" };
-  }
-  const settings = (agentRow?.settings ?? {}) as Record<string, unknown>;
-  const reportTo = typeof settings.reportTo === "string" ? settings.reportTo.trim() : "";
-  const pushStyle: PushStyle = ["text", "flex", "confirm", "buttons"].includes(settings.pushStyle as string)
-    ? (settings.pushStyle as PushStyle)
-    : "flex";
-
-  if (!reportTo) {
-    return { ok: false, message: "尚未設定匯報對象（reportTo）" };
+  const deliveryPlan = planSupportReportDelivery(agentRow);
+  if (deliveryPlan.type !== "deliver") {
+    return { ok: false, message: deliveryPlan.message };
   }
 
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const cutoff = supportReportCutoff(Date.now());
   const { data: rows } = await supabase
     .from("line_support_conversations")
     .select("line_user_id, text, occurred_at")
@@ -72,24 +66,10 @@ export async function runSupportDailyReport(): Promise<{ ok: boolean; message: s
     .order("occurred_at", { ascending: true })
     .limit(500);
 
-  const messages = (rows ?? []) as ConversationRow[];
-
-  const dateLabel = new Date().toLocaleDateString("zh-TW", {
-    timeZone: "Asia/Taipei",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  });
-
-  let reportText: string;
-  let customerCount = 0;
-
-  if (messages.length === 0) {
-    reportText = `${dateLabel} 客服彙報\n\n過去 24 小時客服官方帳號沒有收到新的客戶留言。`;
-  } else {
-    const uniqueIds = [...new Set(messages.map((m) => m.line_user_id))];
-    customerCount = uniqueIds.length;
-
+  const messages = (rows ?? []) as SupportConversation[];
+  const displayNames = new Map<string, string | null>();
+  if (messages.length > 0) {
+    const uniqueIds = supportCustomerIds(messages);
     // 補上顯示名稱：line_support_conversations 只存 line_user_id，
     // 名字要另外從 line_subscribers 查（客戶第一次進線時 touchSubscriber 已經抓過 LINE 顯示名稱）。
     const { data: subs } = await supabase
@@ -97,37 +77,28 @@ export async function runSupportDailyReport(): Promise<{ ok: boolean; message: s
       .select("line_user_id, display_name")
       .eq("channel", "support")
       .in("line_user_id", uniqueIds);
-    const nameOf = new Map((subs ?? []).map((s) => [s.line_user_id as string, s.display_name as string | null]));
-
-    const byCustomer = new Map<string, ConversationRow[]>();
-    for (const m of messages) {
-      const list = byCustomer.get(m.line_user_id) ?? [];
-      list.push(m);
-      byCustomer.set(m.line_user_id, list);
+    for (const subscriber of subs ?? []) {
+      displayNames.set(
+        subscriber.line_user_id as string,
+        subscriber.display_name as string | null
+      );
     }
-
-    const lines: string[] = [`統計：${customerCount} 位客戶、共 ${messages.length} 則留言`];
-    for (const [userId, list] of byCustomer) {
-      const label = nameOf.get(userId) || `未命名客戶（${userId.slice(0, 10)}…）`;
-      lines.push(`\n${label}（${list.length} 則）：`);
-      for (const m of list.slice(0, 8)) {
-        lines.push(`- ${m.text.slice(0, 120)}`);
-      }
-    }
-
-    const rawBrief = lines.join("\n");
-    const aiSummary = await summarizeWithAI(rawBrief);
-    reportText = `${dateLabel} 客服彙報\n\n${aiSummary ?? rawBrief}`;
   }
+
+  const prepared = prepareSupportReport(messages, displayNames, new Date());
+  const aiSummary = prepared.rawBrief
+    ? await summarizeWithAI(prepared.rawBrief)
+    : null;
+  const reportText = finalizeSupportReport(prepared, aiSummary);
 
   try {
     await pushLineRawMessages(
-      reportTo,
+      deliveryPlan.recipient,
       buildPushMessages({
-        style: pushStyle,
+        style: deliveryPlan.style as PushStyle,
         text: reportText,
-        title: "客服 Agent・每日彙報",
-        accentColor: "#EC4899",
+        title: deliveryPlan.title,
+        accentColor: deliveryPlan.accentColor,
       })
     );
   } catch (err) {
@@ -142,9 +113,12 @@ export async function runSupportDailyReport(): Promise<{ ok: boolean; message: s
 
   await supabase.from("line_agent_activity").insert({
     agent_slug: "support",
-    summary: `已向老闆送出每日客服彙報（${customerCount} 位客戶、${messages.length} 則留言）`,
+    summary: `已向老闆送出每日客服彙報（${prepared.customerCount} 位客戶、${prepared.messageCount} 則留言）`,
     status: "success",
   });
 
-  return { ok: true, message: `客服彙報已送出（${customerCount} 位客戶、${messages.length} 則留言）` };
+  return {
+    ok: true,
+    message: `客服彙報已送出（${prepared.customerCount} 位客戶、${prepared.messageCount} 則留言）`,
+  };
 }
