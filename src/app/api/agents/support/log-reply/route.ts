@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logConversationMessage } from "@/lib/support-conversations";
+import { createLegacySupportLogReplyAdapter } from "@/adapters/support/legacy-log-reply-adapter";
+import { runSupportLogReply } from "@/modules/support/log-reply-application";
+import { parseSupportLogReplyRequest } from "@/modules/support/log-reply-rules";
 
 // 給既有客服機器人（多租戶架構）呼叫用：它每回覆客戶一則訊息，就順手打一次這支 API，
 // 讓客服助手(Amber)這邊能留下「完整的客戶對話紀錄」（客戶說的話已經在 LINE Webhook
@@ -20,17 +22,15 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const userId = typeof body.userId === "string" ? body.userId : "";
-  const text = typeof body.text === "string" ? body.text : "";
-  if (!userId || !text) {
-    return NextResponse.json({ error: "缺少 userId 或 text" }, { status: 400 });
+  const result = await runSupportLogReply(
+    parseSupportLogReplyRequest(body),
+    createLegacySupportLogReplyAdapter(),
+  );
+  if (result.kind === "invalid") {
+    return NextResponse.json({ error: result.message }, { status: 400 });
   }
-
-  try {
-    await logConversationMessage(userId, "bot", text);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "寫入失敗";
-    return NextResponse.json({ error: message }, { status: 502 });
+  if (result.kind === "provider-failed") {
+    return NextResponse.json({ error: result.message }, { status: 502 });
   }
 
   return NextResponse.json({ ok: true });
