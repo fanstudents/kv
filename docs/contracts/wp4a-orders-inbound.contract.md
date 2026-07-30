@@ -31,6 +31,7 @@ configuration, LINE delivery, activity logging, and HTTP responses.
 - `src/modules/orders/notification.ts#planOrderNotification`
 - `src/modules/orders/legacy-schema.ts#toLegacyTeachifyOrderUpsert`
 - `src/modules/orders/ports.ts`
+- `src/modules/orders/application.ts#processOrderPayload`
 - `src/adapters/orders/legacy-orders-adapters.ts#createLegacyOrdersAdapters`
 - `teachify_orders`, `line_agents`, and `line_agent_activity` remain legacy
   adapter concerns.
@@ -73,6 +74,9 @@ frozen.
 8. The route depends on Orders repository and delivery ports; the legacy
    adapter preserves table names, upsert conflict key, Agent selector, activity
    rows, LINE renderer, and provider errors.
+9. Application ordering remains: normalize, persist, load Agent config, plan,
+   deliver, then record success. Only delivery errors become the current
+   `delivery_failed` outcome; earlier adapter errors still propagate.
 
 ## Acceptance Examples
 
@@ -95,6 +99,7 @@ test_mapping:
     - tests/unit/orders-inbound.test.ts
     - tests/unit/orders-notification.test.ts
     - tests/unit/orders-legacy-adapters.test.ts
+    - tests/unit/orders-application.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   browser:
     - tests/e2e/protected-surfaces.spec.ts
