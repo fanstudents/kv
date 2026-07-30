@@ -60,17 +60,21 @@ Every stage must:
 | `4f9fa4e` | Meeting storage request rules | start JSON, finish multipart, recording query, and audio descriptor rules |
 | `c16dd4c` | Meeting storage ports | Meeting creation, finish/upload, and signed-recording legacy adapters |
 | `1dbfebb` | Meeting storage application | Start/finish/recording orchestration and HTTP-preserving cutover |
+| `3d47695` | Meeting audio request rules | speak defaults, text coercion, multipart audio, and prompt hint rules |
+| `b20b886` | Meeting audio provider ports | OpenAI TTS/transcription legacy adapters behind provider ports |
+| `508d0b9` | Meeting audio application | Speak/transcribe validation, provider failure mapping, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `1dbfebb` plus this documentation stage:
+At `508d0b9` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 46 Vitest files / 299 tests passed;
+- 49 Vitest files / 311 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
-- Chrome retained the Agent catalog count and tier labels, with an identical
-  before/after DOM snapshot;
+- Chrome retained the Agent catalog count and tier labels before and after the
+  audio application cutover; reload-only Next.js development-tool nodes were
+  normalized out of the snapshot comparison;
 - CodeGraph maps `processOrderPayload`, `OrdersPorts`, and
   `createLegacyOrdersAdapters` only through the Orders module, legacy adapter,
   and Teachify route;
@@ -116,6 +120,11 @@ At `1dbfebb` plus this documentation stage:
   Meeting modules and routes; legacy adapters are the only callers of
   `createMeeting`, `finishMeeting`, `uploadRecording`, and
   `getSignedRecordingUrl` in the new boundary;
+- CodeGraph maps `parseMeetingSpeakRequest`/`runMeetingSpeak` and
+  `parseMeetingTranscribeForm`/`runMeetingTranscribe` through the audio modules
+  and routes; `createLegacyMeetingSpeakAdapter` and
+  `createLegacyMeetingTranscribeAdapter` remain the only new callers of the
+  existing OpenAI audio helpers;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
