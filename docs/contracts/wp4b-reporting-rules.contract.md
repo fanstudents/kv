@@ -34,6 +34,8 @@ mapping until later Reporting port and application stages.
 - `POST /api/agents/teamlead/report-now`
 - `src/lib/team-lead-report.ts#runTeamLeadReport`
 - `src/modules/reporting/daily-report.ts`
+- `src/modules/reporting/ports.ts`
+- `src/adapters/reporting/legacy-reporting-adapters.ts`
 - `line_agents` and `line_agent_activity` remain legacy adapter concerns.
 
 ## Inputs And State
@@ -120,6 +122,9 @@ test_mapping:
 
 - Deterministic reporting rules become Reporting-owned pure functions.
 - The legacy server function delegates to those rules while retaining all I/O.
+- Reporting-owned ports now describe repository, summary, delivery, and roster
+  capabilities; the legacy adapter preserves Dennis's current Supabase,
+  OpenAI, LINE, usage-log, and roster implementations.
 
 ## Open Questions
 
