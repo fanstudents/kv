@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MixAgent",
+  title: "原騰科技 MixAgent",
   description: "管理 LINE 官方帳號內埋設的通知／報表／行程／名片／報帳 Agent",
 };
 

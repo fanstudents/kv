@@ -124,7 +124,7 @@ export default function Sidebar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#06C755] text-white">
             <MessageCircle size={16} />
           </div>
-          <p className="text-sm font-semibold text-neutral-900 dark:text-white">MixAgent</p>
+          <p className="text-sm font-semibold text-neutral-900 dark:text-white">原騰科技 MixAgent</p>
         </div>
         <button type="button" onClick={() => setOpen(true)} aria-label="開啟選單" className="p-1 text-neutral-600 dark:text-neutral-300">
           <Menu size={22} />
@@ -145,7 +145,7 @@ export default function Sidebar() {
               <MessageCircle size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-neutral-900 dark:text-white">MixAgent</p>
+              <p className="text-sm font-semibold text-neutral-900 dark:text-white">原騰科技 MixAgent</p>
               <p className="text-xs text-neutral-400">tbr.digital</p>
             </div>
           </div>

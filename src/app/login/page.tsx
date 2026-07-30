@@ -53,7 +53,7 @@ export default function LoginPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#06C755] shadow-lg shadow-[#06C755]/30">
             <MessageCircle size={30} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold tracking-wide text-white">MixAgent</h1>
+          <h1 className="text-2xl font-bold tracking-wide text-white">原騰科技 MixAgent</h1>
           <p className="mt-1 text-sm text-[#9ED8B8]">AI Agent 控制台 · 請登入以繼續</p>
         </div>
 
