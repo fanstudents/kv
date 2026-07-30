@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formatOrderText } from "@/lib/teachify-orders";
-import { parseOrderPayload, verifyTeachifyWebhook } from "@/lib/teachify-webhook-server";
+import { verifyTeachifyWebhook } from "@/lib/teachify-webhook-server";
+import { parseOrderPayload } from "@/modules/orders/inbound";
 import { pushLineRawMessages } from "@/lib/line";
 import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
 import { getSupabase } from "@/lib/supabase";

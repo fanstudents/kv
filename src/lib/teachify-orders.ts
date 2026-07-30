@@ -1,17 +1,7 @@
 // 純資料處理，不含伺服器專用邏輯，安全供 client 端（設定頁預覽）使用。
+import type { NormalizedOrder } from "@/modules/orders/domain";
 
-export interface NormalizedOrder {
-  id: string;
-  tradeNo: string;
-  amount: number;
-  currency: string;
-  userName: string;
-  userEmail: string;
-  itemNames: string[];
-  couponCode: string | null;
-  isRefund: boolean;
-  paidAt: string | null;
-}
+export type { NormalizedOrder } from "@/modules/orders/domain";
 
 export function formatOrderText(order: NormalizedOrder): string {
   const itemLine = order.itemNames.join("、");
