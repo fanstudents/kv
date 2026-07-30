@@ -48,13 +48,16 @@ Every stage must:
 | `515f7d9` | Agent chat deterministic rules | Exact request coercion and empty-reply fallback |
 | `956fb01` | Agent chat legacy adapters | Catalog identity, context, OpenAI reply, and canvas provider ports |
 | `3acdad6` | Agent chat application | Context/reply/canvas orchestration and existing failure isolation |
+| `cda34a3` | Meeting command deterministic rules | Request coercion, roster selection, display mapping, and fallback |
+| `c8a5763` | Meeting command legacy adapters | History, OpenAI round/reply, and turn persistence ports |
+| `4027383` | Meeting command application | Batch/one-to-one orchestration and persistence failure isolation |
 
 ## Current Verification
 
-At `3acdad6` plus this documentation stage:
+At `4027383` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 34 Vitest files / 244 tests passed;
+- 37 Vitest files / 262 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels, with an identical
@@ -75,6 +78,10 @@ At `3acdad6` plus this documentation stage:
   `createLegacyAgentChatAdapters` only through the Agent chat module, legacy
   adapter, and `src/app/api/agent-chat/route.ts`; `getAgentLiveContext` remains
   shared with Meeting realtime through the existing helper;
+- CodeGraph maps `parseMeetingCommandRequest`, `runMeetingCommand`, and
+  `createLegacyMeetingCommandAdapter` only through the Meeting command module,
+  legacy adapter, and `src/app/api/meeting/command/route.ts`; `getRecentHistory`
+  remains shared with Meeting realtime;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary

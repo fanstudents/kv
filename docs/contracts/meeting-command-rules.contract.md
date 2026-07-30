@@ -52,6 +52,8 @@ response mapping, and the realtime session route remain outside this stage.
 test_mapping:
   unit:
     - tests/unit/meeting-command-rules.test.ts
+    - tests/unit/meeting-command-legacy-adapter.test.ts
+    - tests/unit/meeting-command-application.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   browser:
     - tests/e2e/api-access.spec.ts
@@ -80,3 +82,14 @@ test_mapping:
 - Application orchestration is executable against fake ports while preserving
   history and turn-write failure isolation, one-to-one and batch response
   shapes, and existing HTTP result categories.
+- Checkpoints: `cda34a3` (rules), `c8a5763` (legacy adapter), and `4027383`
+  (application orchestration).
+- Post-change CodeGraph maps the Meeting command parser, application, and
+  adapter only to the command route; the shared history helper still has the
+  realtime-session consumer.
+- `npm run verify:full` passed with 37 Vitest files / 262 tests, a 93-page
+  production build, and 130 Playwright smoke cases.
+- The real Chrome Agent catalog retained the count and all three tier labels
+  before and after the refactor.
+- No meeting schema, row format, provider endpoint, audio flow, or browser UI
+  changed.
