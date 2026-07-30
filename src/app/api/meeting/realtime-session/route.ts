@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AGENTS } from "@/lib/agent-data";
 import { createLegacyRealtimeSessionAdapter } from "@/adapters/meeting/legacy-realtime-session-adapter";
+import { runRealtimeSession } from "@/modules/meeting/realtime-session-application";
 import {
   findActiveRealtimeAgent,
   parseRealtimeSessionRequest,
@@ -17,44 +18,14 @@ export async function POST(req: NextRequest) {
   const ports = createLegacyRealtimeSessionAdapter();
 
   const agent = findActiveRealtimeAgent(AGENTS, input.slug);
-  if (!agent) return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });
+  const profile = agent ? toRealtimeAgentProfile(agent) : null;
+  const result = await runRealtimeSession(input, profile, ports);
 
-  let history = "";
-  if (input.meetingId) {
-    try {
-      history = await ports.history.load(input.meetingId, 8);
-    } catch {
-      // 脈絡取不到不影響開新的一輪
-    }
+  if (result.kind === "agent-not-found") {
+    return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });
   }
-
-  // 示範模式：改餵一份寫死的業務現況，而且完全不去抓真實資料——
-  // 上台展示時 Agent 才有具體的名字與數字可以講，也不會不小心念出真實客戶資料。
-  let liveContext = "";
-  if (input.demo) {
-    liveContext = ports.context.demo(agent.slug);
-  } else {
-    try {
-      liveContext = await ports.context.live(agent.slug);
-    } catch {
-      // 真實資料抓不到就讓 Agent 老實說沒有資料，而不是讓整支路由失敗
-    }
+  if (result.kind === "mint-failed") {
+    return NextResponse.json({ error: result.message }, { status: 502 });
   }
-
-  try {
-    const profile = toRealtimeAgentProfile(agent);
-    const session = await ports.provider.mint({
-      agentName: profile.name,
-      role: profile.role,
-      description: profile.description,
-      voice: input.voice,
-      isTeamLead: profile.isTeamLead,
-      history,
-      liveContext,
-    });
-    return NextResponse.json(session);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "無法建立即時語音連線";
-    return NextResponse.json({ error: message }, { status: 502 });
-  }
+  return NextResponse.json(result.session);
 }
