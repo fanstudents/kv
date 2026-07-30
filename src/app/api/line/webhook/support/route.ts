@@ -3,6 +3,11 @@ import { verifyLineSignature } from "@/lib/line";
 import { touchSubscriber } from "@/lib/subscribers";
 import { getSupabase } from "@/lib/supabase";
 import { logConversationMessage } from "@/lib/support-conversations";
+import {
+  parseSupportRelayPayload,
+  planSupportRelayCapture,
+  type SupportRelayLineEvent,
+} from "@/modules/support/relay-inbound";
 
 // 這支帳號實際上是既有客服機器人（多租戶架構，不方便改它的程式碼）在用的 LINE 官方帳號。
 // 因為 LINE 每個頻道只能設一個 Webhook URL，這裡改成「轉發式」設計：
@@ -14,12 +19,6 @@ import { logConversationMessage } from "@/lib/support-conversations";
 //          SUPPORT_RELAY_TARGET_URL（舊系統原本的 Webhook URL，例如 https://tbrchat.zeabur.app/api/webhooks/line）
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-support-webhook-relay" });
-}
-
-interface LineEvent {
-  type: string;
-  source?: { userId?: string };
-  message?: { type: string; text?: string };
 }
 
 async function forwardToLegacySystem(rawBody: string, req: NextRequest) {
@@ -53,12 +52,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 
-  let events: LineEvent[] = [];
-  try {
-    events = JSON.parse(rawBody).events ?? [];
-  } catch {
+  const payload = parseSupportRelayPayload(rawBody);
+  if (payload.type === "invalid") {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
+  const events = payload.events as SupportRelayLineEvent[];
 
   await Promise.allSettled([
     // 轉發給舊系統：它繼續照原本的邏輯處理與回覆客戶，完全不用改它的程式碼
@@ -72,17 +70,22 @@ export async function POST(req: NextRequest) {
     }),
     // 只記錄，不回覆——回覆的責任在舊系統那邊
     ...events.map(async (event) => {
-      if (event.type !== "message" || event.message?.type !== "text") return;
-      const userId = event.source?.userId ?? "未知使用者";
-      const text = event.message.text ?? "";
-      if (event.source?.userId) await touchSubscriber(event.source.userId, "support").catch(() => {});
+      const capture = planSupportRelayCapture(event);
+      if (capture.type === "skip") return;
+      if (capture.sourceUserId) {
+        await touchSubscriber(capture.sourceUserId, "support").catch(() => {});
+      }
       await Promise.allSettled([
         supabase.from("line_agent_activity").insert({
           agent_slug: "support",
-          summary: `收到客戶 ${userId} 的訊息：「${text.slice(0, 60)}」（已轉發給既有客服系統處理，這裡只記錄）`,
+          summary: capture.activitySummary,
           status: "success",
         }),
-        logConversationMessage(userId, "customer", text),
+        logConversationMessage(
+          capture.userId,
+          capture.conversationRole,
+          capture.text
+        ),
       ]);
     }),
   ]);
