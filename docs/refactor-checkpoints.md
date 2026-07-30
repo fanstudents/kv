@@ -65,13 +65,14 @@ Every stage must:
 | `508d0b9` | Meeting audio application | Speak/transcribe validation, provider failure mapping, and HTTP-preserving cutover |
 | `13daf2d` | AI usage read boundary | Usage aggregation, budget lookup port, and HTTP-preserving read cutover |
 | `8b6af78` | Support log-reply boundary | Callback payload rules, bot conversation port, and HTTP-preserving cutover |
+| `1bb02b4` | Live Task image boundary | Data URL parsing, image lookup port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `8b6af78` plus this documentation stage:
+At `1bb02b4` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 55 Vitest files / 325 tests passed;
+- 58 Vitest files / 330 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -134,6 +135,9 @@ At `8b6af78` plus this documentation stage:
 - CodeGraph maps `parseSupportLogReplyRequest`, `runSupportLogReply`, and
   `createLegacySupportLogReplyAdapter` through the Support callback modules and
   route; `logConversationMessage` remains shared with the Support LINE relay;
+- CodeGraph maps `parseLiveTaskImageDataUrl`, `runLiveTaskImage`, and
+  `createLegacyLiveTaskImageAdapter` through the Live Task image modules and
+  route; the existing `getLiveImage` helper remains behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
