@@ -36,6 +36,7 @@ because both produce a daily report.
 - `src/lib/support-daily-report.ts#runSupportDailyReport`
 - `src/modules/support/daily-report.ts`
 - `src/modules/support/reporting-ports.ts`
+- `src/modules/support/reporting-application.ts#runSupportReport`
 - `src/adapters/support/legacy-support-report-adapters.ts`
 - `line_agents`, `line_support_conversations`, `line_subscribers`, and
   `line_agent_activity` remain legacy adapter concerns.
@@ -78,6 +79,10 @@ presentation remain frozen.
    remain byte-for-byte compatible.
 9. Empty days skip subscriber and AI work; null AI summaries use the raw brief.
 10. The Support relay webhook remains outside this change.
+11. Application ordering remains: config, cutoff, customer messages, optional
+    subscriber names, preparation, optional summary, delivery, then success
+    activity. Only delivery errors become the current failed result; earlier
+    port errors still propagate.
 
 ## Acceptance Examples
 
@@ -100,6 +105,8 @@ zero customers and no raw brief.
 test_mapping:
   unit:
     - tests/unit/support-reporting-rules.test.ts
+    - tests/unit/support-reporting-legacy-adapters.test.ts
+    - tests/unit/support-reporting-application.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   browser:
     - tests/e2e/protected-surfaces.spec.ts
@@ -124,6 +131,8 @@ test_mapping:
 - Support-owned ports now describe repository, summary, and delivery
   capabilities; the legacy adapter preserves Dennis's current Supabase,
   OpenAI, LINE, and usage-log implementations.
+- Support application orchestration is executable against fake ports; the
+  legacy server owner only binds adapters and the system clock.
 
 ## Open Questions
 
