@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { draftInviteEmail } from "@/lib/openai";
+import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
+
+const { draftInviteEmail } = legacyVisitProviders;
 import { getSupabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {

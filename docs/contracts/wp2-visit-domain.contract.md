@@ -56,6 +56,10 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
   provider-free input and preserves the existing decision-word precedence.
 - `public-response.ts` validates invite choices, normalizes the optional
   location, and selects the persisted slot without importing Next or Supabase.
+- `provider-port.ts` defines the Visit-owned capabilities for card parsing,
+  reply interpretation, email drafting, availability, delivery, and calendar
+  creation. `adapters/visit/legacy-provider-adapter.ts` binds those capabilities
+  to Dennis's current OpenAI and Google implementations.
 - Intents describe persistence, AI, calendar, mail, LINE, lock, artifact, and
   research work; the reducer performs none of them.
 - No legacy source file is imported by the Visit module.
@@ -94,6 +98,9 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
     keeps the legacy behavior of using slot one for calendar fulfilment.
 20. Location is trimmed before being capped at 100 characters; blank and
     non-string form values remain absent.
+21. Visit routes depend on the Visit provider port. The legacy adapter delegates
+    to the same functions with the same arguments, ordering, return values, and
+    thrown errors.
 
 ## Test Mapping
 
@@ -108,6 +115,7 @@ test_mapping:
     - tests/unit/visit-application.test.ts
     - tests/unit/visit-line-inbound.test.ts
     - tests/unit/visit-public-response.test.ts
+    - tests/unit/visit-legacy-provider-adapter.test.ts
     - tests/unit/workflow-composition.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   manual:

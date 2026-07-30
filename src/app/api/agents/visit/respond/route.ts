@@ -1,7 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { researchContact } from "@/lib/contact-research";
-import { createCalendarEvent, sendGmail } from "@/lib/google";
 import { pushLineMessage } from "@/lib/line";
 import { buildThankYouEmailHtml, escapeHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
@@ -15,6 +14,9 @@ import {
   parseVisitInviteChoice,
   selectVisitInviteSlot,
 } from "@/modules/visit/public-response";
+import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
+
+const { createCalendarEvent, sendEmail } = legacyVisitProviders;
 
 type ContactInfo = { name?: string; title?: string; email?: string; company?: string } | null;
 
@@ -171,7 +173,7 @@ export async function POST(req: NextRequest) {
       .update(toLegacyPendingInviteFulfilmentPatch(eventId, location))
       .eq("id", inviteId);
 
-    await sendGmail({
+    await sendEmail({
       to: row.to_email,
       subject: `已確認見面時間：${chosenLabel}`,
       body: buildThankYouEmailHtml({

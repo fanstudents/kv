@@ -7,8 +7,6 @@ import {
 } from "@/lib/line";
 import { getAvailableTags, addContactTag } from "@/lib/contact-tags";
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
-import { parseBusinessCard, draftInviteEmail, interpretCardReply, reviseInviteEmail, type ParsedCard } from "@/lib/openai";
-import { findFreeSlots, sendGmail } from "@/lib/google";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
 import { touchSubscriber } from "@/lib/subscribers";
@@ -28,6 +26,17 @@ import {
   toLegacyVisitOfferInsert,
   toLegacyVisitOfferResolution,
 } from "@/modules/visit/legacy-schema";
+import type { VisitBusinessCard } from "@/modules/visit/provider-port";
+import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
+
+const {
+  parseBusinessCard,
+  draftInviteEmail,
+  interpretCardReply,
+  reviseInviteEmail,
+  findFreeSlots,
+  sendEmail,
+} = legacyVisitProviders;
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
@@ -44,7 +53,7 @@ interface LineEvent {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VISIT_AGENT = "visit";
 
-function formatCardReply(contact: ParsedCard): string {
+function formatCardReply(contact: VisitBusinessCard): string {
   const fields = [
     ["姓名", contact.name],
     ["公司", contact.company],
@@ -68,7 +77,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
   const replyToken = event.replyToken;
   if (!messageId || !replyToken) return;
 
-  let contact: ParsedCard;
+  let contact: VisitBusinessCard;
   try {
     const imageDataUrl = await getLineMessageContentAsDataUrl(messageId);
     if (!imageDataUrl.startsWith("data:image/")) {
@@ -291,7 +300,7 @@ async function handleVisitOfferReply(
 
   if (intent.type === "correction") {
     await supabase.from("contacts").update({ [intent.field]: intent.value }).eq("id", contact.id);
-    const updated: ParsedCard = {
+    const updated: VisitBusinessCard = {
       name: intent.field === "name" ? intent.value : contact.name ?? "",
       company: intent.field === "company" ? intent.value : contact.company ?? "",
       title: intent.field === "title" ? intent.value : contact.title ?? "",
@@ -424,7 +433,7 @@ async function handleVisitOfferReply(
       status: "active",
       caption: `寄出邀約信給 ${finalContact.name}…`,
     });
-    await sendGmail({ to: finalContact.email, subject: draft.subject, body: html, html: true });
+    await sendEmail({ to: finalContact.email, subject: draft.subject, body: html, html: true });
     await saveVisitArtifact({
       userId,
       title: `邀約信：${finalContact.name}`,
@@ -515,7 +524,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
         status: "active",
         caption: `寄出邀約信給 ${contact.name}…`,
       });
-      await sendGmail({ to: contact.email, subject: invite.subject, body: html, html: true });
+      await sendEmail({ to: contact.email, subject: invite.subject, body: html, html: true });
       await supabase
         .from("pending_invites")
         .update(toLegacyPendingInviteStatusPatch("pending"))
