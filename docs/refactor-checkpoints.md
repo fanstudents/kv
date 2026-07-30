@@ -64,13 +64,14 @@ Every stage must:
 | `b20b886` | Meeting audio provider ports | OpenAI TTS/transcription legacy adapters behind provider ports |
 | `508d0b9` | Meeting audio application | Speak/transcribe validation, provider failure mapping, and HTTP-preserving cutover |
 | `13daf2d` | AI usage read boundary | Usage aggregation, budget lookup port, and HTTP-preserving read cutover |
+| `8b6af78` | Support log-reply boundary | Callback payload rules, bot conversation port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `13daf2d` plus this documentation stage:
+At `8b6af78` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 52 Vitest files / 319 tests passed;
+- 55 Vitest files / 325 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -130,6 +131,9 @@ At `13daf2d` plus this documentation stage:
   `createLegacyAiUsageReadAdapter` through the AI usage rules/application,
   adapter, and route; the existing Supabase read and `budgetStatus` helper
   remain behind that adapter;
+- CodeGraph maps `parseSupportLogReplyRequest`, `runSupportLogReply`, and
+  `createLegacySupportLogReplyAdapter` through the Support callback modules and
+  route; `logConversationMessage` remains shared with the Support LINE relay;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
