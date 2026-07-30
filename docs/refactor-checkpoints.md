@@ -45,13 +45,16 @@ Every stage must:
 | `97157f4` | Support relay inbound rules | Exact LINE payload parsing, text-event filtering, and capture planning |
 | `805ac0e` | Support relay legacy adapters | Raw relay transport and existing activity, subscriber, and conversation writes |
 | `52758ac` | Support relay application | Concurrent relay and isolated side-channel capture orchestration |
+| `515f7d9` | Agent chat deterministic rules | Exact request coercion and empty-reply fallback |
+| `956fb01` | Agent chat legacy adapters | Catalog identity, context, OpenAI reply, and canvas provider ports |
+| `3acdad6` | Agent chat application | Context/reply/canvas orchestration and existing failure isolation |
 
 ## Current Verification
 
-At `52758ac` plus this documentation stage:
+At `3acdad6` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 31 Vitest files / 222 tests passed;
+- 34 Vitest files / 244 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels, with an identical
@@ -68,6 +71,10 @@ At `52758ac` plus this documentation stage:
 - CodeGraph maps `parseSupportRelayPayload`, `processSupportRelay`, and
   `createLegacySupportRelayAdapters` only through the Support relay module,
   legacy adapter, and Support LINE webhook;
+- CodeGraph maps `parseAgentChatRequest`, `runAgentChat`, and
+  `createLegacyAgentChatAdapters` only through the Agent chat module, legacy
+  adapter, and `src/app/api/agent-chat/route.ts`; `getAgentLiveContext` remains
+  shared with Meeting realtime through the existing helper;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary

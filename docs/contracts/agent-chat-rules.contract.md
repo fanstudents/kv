@@ -82,6 +82,8 @@ fallback copy.
 test_mapping:
   unit:
     - tests/unit/agent-chat-rules.test.ts
+    - tests/unit/agent-chat-legacy-adapters.test.ts
+    - tests/unit/agent-chat-application.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   browser:
     - tests/e2e/api-access.spec.ts
@@ -97,6 +99,16 @@ test_mapping:
   their provider/helper files and `src/app/api/agent-chat/route.ts`.
 - `getAgentLiveContext` is shared by Agent chat and Meeting realtime session,
   so this refactor must not move or alter that implementation.
+- Checkpoints: `515f7d9` (rules), `956fb01` (legacy adapters), and `3acdad6`
+  (application orchestration).
+- Post-change CodeGraph maps the Agent chat parser, application, and adapter
+  only to the Agent chat route; the context helper retains its separate
+  Meeting realtime consumer.
+- `npm run verify:full` passed with 34 Vitest files / 244 tests, a 93-page
+  production build, and 130 Playwright smoke cases.
+- The real Chrome Agent catalog retained the count and all three tier labels
+  before and after the refactor.
+- No production schema, row, provider endpoint, prompt, or browser UI changed.
 
 ## Intentional Changes
 
