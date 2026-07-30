@@ -24,6 +24,7 @@ import {
   toLegacyContactInsert,
   toLegacyPendingInviteInsert,
   toLegacyVisitOfferInsert,
+  toLegacyVisitOfferResolution,
 } from "@/modules/visit/legacy-schema";
 
 export async function GET() {
@@ -263,7 +264,7 @@ async function handleVisitOfferReply(
   if (intent.type === "cancel") {
     await supabase
       .from("visit_offers")
-      .update({ status: "declined", resolved_at: new Date().toISOString() })
+      .update(toLegacyVisitOfferResolution("declined", new Date().toISOString()))
       .eq("id", offer.id);
     await reportVisitStep({
       userId,
@@ -320,7 +321,7 @@ async function handleVisitOfferReply(
 
   await supabase
     .from("visit_offers")
-    .update({ status: "accepted", resolved_at: new Date().toISOString() })
+    .update(toLegacyVisitOfferResolution("accepted", new Date().toISOString()))
     .eq("id", offer.id);
 
   try {

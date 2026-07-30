@@ -73,6 +73,7 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
    completed receipts for reconciliation.
 10. Delivery and fulfilment idempotency keys survive planning and execution.
 11. Existing database column names and legacy status strings remain unchanged.
+    Offer timeout intentionally remains `declined` in the legacy row.
 12. Rehydration maps only durable states; transient provider activity is never
     guessed from incomplete rows.
 13. Legacy mode is the default. Shadow evaluates new logic but owns no effects.

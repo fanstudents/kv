@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { pushLineMessage } from "@/lib/line";
 import { releaseLock } from "@/lib/conversation-lock";
+import { toLegacyVisitOfferResolution } from "@/modules/visit/legacy-schema";
 import { addContactTag } from "@/lib/contact-tags";
 import { setLiveTask } from "@/lib/live-task-store";
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     await supabase
       .from("visit_offers")
-      .update({ status: "declined", resolved_at: new Date().toISOString() })
+      .update(toLegacyVisitOfferResolution("timed_out", new Date().toISOString()))
       .eq("id", offer.id);
 
     if (offer.contact_id) await addContactTag(supabase, offer.contact_id, "待跟進");

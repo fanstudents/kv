@@ -106,6 +106,16 @@ export function toLegacyVisitOfferInsert(
   };
 }
 
+export function toLegacyVisitOfferResolution(
+  outcome: "accepted" | "declined" | "timed_out",
+  resolvedAt: string
+) {
+  return {
+    status: outcome === "accepted" ? ("accepted" as const) : ("declined" as const),
+    resolved_at: resolvedAt,
+  };
+}
+
 export function toLegacyPendingInviteInsert(
   lineUserId: string,
   invite: LegacyPreparedInvite

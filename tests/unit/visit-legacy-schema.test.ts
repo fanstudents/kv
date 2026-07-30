@@ -5,6 +5,7 @@ import {
   toLegacyContactInsert,
   toLegacyPendingInviteInsert,
   toLegacyVisitOfferInsert,
+  toLegacyVisitOfferResolution,
   type LegacyPendingInviteRow,
 } from "@/modules/visit/legacy-schema";
 
@@ -64,6 +65,22 @@ describe("Visit legacy schema compatibility", () => {
       line_user_id: "line-1",
       contact_id: null,
       status: "pending",
+    });
+  });
+
+  it("preserves the legacy offer status used for timeout", () => {
+    const resolvedAt = "2026-07-31T20:00:00.000Z";
+    expect(toLegacyVisitOfferResolution("accepted", resolvedAt)).toEqual({
+      status: "accepted",
+      resolved_at: resolvedAt,
+    });
+    expect(toLegacyVisitOfferResolution("declined", resolvedAt)).toEqual({
+      status: "declined",
+      resolved_at: resolvedAt,
+    });
+    expect(toLegacyVisitOfferResolution("timed_out", resolvedAt)).toEqual({
+      status: "declined",
+      resolved_at: resolvedAt,
     });
   });
 
