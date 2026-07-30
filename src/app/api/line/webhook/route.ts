@@ -15,6 +15,10 @@ import { touchSubscriber } from "@/lib/subscribers";
 import { acquireLock, releaseLock } from "@/lib/conversation-lock";
 import { getSupabase } from "@/lib/supabase";
 import { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } from "@/lib/visit-run";
+import {
+  classifyVisitApprovalText,
+  classifyVisitDecisionText,
+} from "@/modules/visit/line-inbound";
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
@@ -28,9 +32,6 @@ interface LineEvent {
   postback?: { data?: string };
 }
 
-const CONFIRM_WORDS = ["要", "確認", "確定", "好的", "好", "沒問題", "ok", "OK", "yes", "Yes"];
-const CANCEL_WORDS = ["不要", "先不要", "算了", "不用", "取消", "cancel", "Cancel"];
-const SEND_WORDS = ["寄出", "寄", "送出", "可以寄", "send", "Send"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VISIT_AGENT = "visit";
 
@@ -250,11 +251,7 @@ async function handleVisitOfferReply(
     });
   } catch {
     // AI 判讀失敗時退回關鍵字比對，至少不會讓使用者完全沒有回應。
-    // 檢查順序很重要："不要" 這類否定詞本身就包含 CONFIRM_WORDS 裡的「要」，
-    // 必須先比對 CANCEL_WORDS，否則會被誤判成確認。
-    const isCancel = CANCEL_WORDS.some((w) => text.includes(w));
-    const isConfirm = !isCancel && CONFIRM_WORDS.some((w) => text.includes(w));
-    intent = isCancel ? { type: "cancel" } : isConfirm ? { type: "confirm" } : { type: "other" };
+    intent = classifyVisitDecisionText(text);
   }
 
   if (intent.type === "other") {
@@ -489,17 +486,16 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
   const contact = invite.contacts as { id: string; name: string; title?: string; company?: string; email: string } | null;
   if (!contact) return false;
 
-  const isCancel = CANCEL_WORDS.some((w) => text.includes(w));
-  const isSend = !isCancel && SEND_WORDS.some((w) => text.includes(w));
+  const approvalIntent = classifyVisitApprovalText(text);
 
-  if (isCancel) {
+  if (approvalIntent.type === "cancel") {
     await supabase.from("pending_invites").update({ status: "cancelled" }).eq("id", invite.id);
     await replyLineMessage(event.replyToken, "好的，已取消，不會寄出這封信。");
     await releaseLock(supabase, userId, VISIT_AGENT);
     return true;
   }
 
-  if (isSend) {
+  if (approvalIntent.type === "send") {
     try {
       const html = buildInviteEmailHtml({
         introText: invite.body,
