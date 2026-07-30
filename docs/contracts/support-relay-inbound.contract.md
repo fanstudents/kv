@@ -31,6 +31,7 @@ signature and only records text messages.
 - `POST /api/line/webhook/support`
 - `src/modules/support/relay-inbound.ts`
 - `src/modules/support/relay-ports.ts`
+- `src/modules/support/relay-application.ts#processSupportRelay`
 - `src/adapters/support/legacy-support-relay-adapters.ts`
 - Existing `touchSubscriber` and `logConversationMessage` integrations remain
   server/adapter concerns.
@@ -115,6 +116,8 @@ test_mapping:
 - Support-owned ports describe relay, activity, subscriber, and conversation
   capabilities; the legacy adapter preserves the raw fetch and existing
   Supabase/helper implementations.
+- Support relay orchestration is executable against fake ports while retaining
+  the existing nested settled-failure boundaries.
 
 ## Open Questions
 
