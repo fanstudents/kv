@@ -35,6 +35,7 @@ mapping until later Reporting port and application stages.
 - `src/lib/team-lead-report.ts#runTeamLeadReport`
 - `src/modules/reporting/daily-report.ts`
 - `src/modules/reporting/ports.ts`
+- `src/modules/reporting/application.ts#runDailyTeamLeadReport`
 - `src/adapters/reporting/legacy-reporting-adapters.ts`
 - `line_agents` and `line_agent_activity` remain legacy adapter concerns.
 
@@ -81,6 +82,10 @@ frozen.
 8. A null AI summary uses the raw brief; an empty activity day never requests
    an AI summary.
 9. Cron and manual routes keep their current security and HTTP mapping.
+10. Application ordering remains: config, cutoff, activity query, report
+    preparation, optional summary, delivery, then success activity. Only
+    delivery errors become the current failed result; earlier port errors still
+    propagate.
 
 ## Acceptance Examples
 
@@ -103,6 +108,8 @@ test_mapping:
   unit:
     - tests/unit/reporting-rules.test.ts
     - tests/unit/platform-import-boundaries.test.ts
+    - tests/unit/reporting-legacy-adapters.test.ts
+    - tests/unit/reporting-application.test.ts
   browser:
     - tests/e2e/protected-surfaces.spec.ts
     - tests/e2e/public-surfaces.spec.ts
@@ -125,6 +132,8 @@ test_mapping:
 - Reporting-owned ports now describe repository, summary, delivery, and roster
   capabilities; the legacy adapter preserves Dennis's current Supabase,
   OpenAI, LINE, usage-log, and roster implementations.
+- Reporting application orchestration is now executable against fake ports;
+  the legacy server owner only binds adapters and the system clock.
 
 ## Open Questions
 
