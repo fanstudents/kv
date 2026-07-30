@@ -27,6 +27,8 @@ response mapping, and the realtime session route remain outside this stage.
 
 - `POST /api/meeting/command`
 - `src/modules/meeting/command-rules.ts`
+- `src/modules/meeting/command-ports.ts`
+- `src/adapters/meeting/legacy-command-adapter.ts`
 - Existing `runMeetingRound`, `replyAsAgent`, `getRecentHistory`, and
   `appendTurns` integrations remain unchanged.
 
@@ -71,3 +73,6 @@ test_mapping:
   Meeting-owned pure functions.
 - The route delegates those decisions while retaining all provider, storage,
   failure-isolation, and HTTP behavior.
+- Meeting-owned ports describe history, one-to-one reply, batch round, and turn
+  persistence capabilities. The legacy adapter preserves the existing OpenAI
+  and meeting-store calls and row shapes.

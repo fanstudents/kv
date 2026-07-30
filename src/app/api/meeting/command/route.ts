@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runMeetingRound, replyAsAgent } from "@/lib/openai";
-import { appendTurns, getRecentHistory } from "@/lib/meeting-store";
 import { AGENTS } from "@/lib/agent-data";
+import { createLegacyMeetingCommandAdapter } from "@/adapters/meeting/legacy-command-adapter";
 import {
   displayName,
   findActiveMeetingAgent,
@@ -11,6 +10,7 @@ import {
   toMeetingAgentInput,
   withMeetingReplyFallback,
 } from "@/modules/meeting/command-rules";
+import type { MeetingCommandRoundResult } from "@/modules/meeting/command-ports";
 
 // 老闆下了一句語音指令 → 相關 Agent 各自回覆、Team Lead 統整，並寫進會議紀錄。
 // 帶 targetSlug 時＝一對一輪流模式：只讓「目前這位」Agent 回覆（並語音朗讀）。
@@ -21,13 +21,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "缺少 meetingId 或 command" }, { status: 400 });
   }
   const { meetingId, command, targetSlug } = input;
+  const ports = createLegacyMeetingCommandAdapter();
 
   const { teamLead: teamLeadMeta, responders } = selectMeetingRoster(AGENTS);
   if (!teamLeadMeta) return NextResponse.json({ error: "找不到 Team Lead" }, { status: 500 });
 
   let history = "";
   try {
-    history = await getRecentHistory(meetingId);
+      history = await ports.history.load(meetingId);
   } catch {
     // 脈絡取不到不影響回應
   }
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (!target) return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });
     let text: string;
     try {
-      text = await replyAsAgent({
+      text = await ports.replies.oneToOne({
         agent: toMeetingAgentInput(target),
         command,
         history,
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
     const name = displayName(target);
     text = withMeetingReplyFallback(text);
     try {
-      await appendTurns(meetingId, [
+      await ports.turns.append(meetingId, [
         { role: "boss", speaker: "老闆", content: command },
         {
           role: target.slug === TEAM_LEAD_SLUG ? "teamlead" : "agent",
@@ -66,9 +67,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply: { slug: target.slug, name, text } });
   }
 
-  let result: Awaited<ReturnType<typeof runMeetingRound>>;
+  let result: MeetingCommandRoundResult;
   try {
-    result = await runMeetingRound({
+    result = await ports.replies.round({
       command,
       teamLead: toMeetingAgentInput(teamLeadMeta),
       agents: responders.map(toMeetingAgentInput),
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   // 寫進會議紀錄：老闆指令 → 各 Agent 回覆 → Team Lead 統整
   try {
-    await appendTurns(meetingId, [
+    await ports.turns.append(meetingId, [
       { role: "boss", speaker: "老闆", content: command },
       ...replies.map((r) => ({ role: "agent" as const, agentSlug: r.slug, speaker: r.name, content: r.text })),
       {
