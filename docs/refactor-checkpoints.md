@@ -39,13 +39,16 @@ Every stage must:
 | `58a53e7` | Reporting deterministic rules | Settings, rolling window, filtering, grouping, copy, and AI fallback |
 | `8db06d3` | Reporting legacy adapters | Existing Supabase, OpenAI, LINE, usage, and roster implementations |
 | `e403819` | Reporting application flow | Config, query, preparation, summary, delivery, and activity orchestration |
+| `7447a32` | Support reporting rules | Customer identity, grouping, truncation, copy, and AI fallback |
+| `3d403b4` | Support reporting adapters | Existing Supabase, OpenAI, LINE, and usage implementations |
+| `d6a0821` | Support reporting application | Config, messages, names, summary, delivery, and activity orchestration |
 
 ## Current Verification
 
-At `e403819` plus this documentation stage:
+At `d6a0821` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 25 Vitest files / 193 tests passed;
+- 28 Vitest files / 209 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels;
@@ -55,6 +58,9 @@ At `e403819` plus this documentation stage:
 - CodeGraph maps `runDailyTeamLeadReport`, `ReportingClock`, `ReportingPorts`,
   and `createLegacyReportingAdapters` through the Reporting module, legacy
   adapter, and server compatibility facade;
+- CodeGraph maps `runSupportReport`, `SupportReportClock`,
+  `SupportReportPorts`, and `createLegacySupportReportAdapters` through the
+  Support module, legacy adapter, and server compatibility facade;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary

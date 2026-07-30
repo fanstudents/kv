@@ -123,6 +123,15 @@ test_mapping:
   those routes.
 - Direct source mapping records `line_agents`, `line_support_conversations`,
   `line_subscribers`, `line_agent_activity`, OpenAI, and LINE ownership.
+- Post-change CodeGraph maps `runSupportReport` to the Support application and
+  server compatibility facade; `SupportReportPorts` maps to the module, legacy
+  adapter, and facade. Direct `rg` retains both routes as
+  `runSupportDailyReport` consumers.
+- `npm run verify:full` passed with 28 Vitest files / 209 tests, a 93-page
+  production build, and 130 Playwright smoke cases.
+- Real Chrome checks before and after every Support reporting stage retained
+  the Agent catalog count and the `通用型`, `專業型`, and `超級 Agent` tier labels.
+- Checkpoint commits: `7447a32`, `3d403b4`, `d6a0821`.
 
 ## Intentional Changes
 
