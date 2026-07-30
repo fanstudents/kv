@@ -124,6 +124,16 @@ test_mapping:
 - The generic name `summarizeWithAI` is ambiguous in CodeGraph because Support
   owns a separate symbol; direct source mapping keeps this change scoped to
   `src/lib/team-lead-report.ts`.
+- Post-change CodeGraph maps `runDailyTeamLeadReport` to the Reporting
+  application and server compatibility facade; `ReportingPorts` maps to the
+  module, legacy adapter, and facade. Direct `rg` confirms both routes retain
+  `runTeamLeadReport` as their public server entrypoint despite the current
+  graph omitting those final route edges after incremental sync.
+- `npm run verify:full` passed with 25 Vitest files / 193 tests, a 93-page
+  production build, and 130 Playwright smoke cases.
+- Real Chrome checks before and after every Reporting stage retained the Agent
+  catalog count and the `通用型`, `專業型`, and `超級 Agent` tier labels.
+- Checkpoint commits: `58a53e7`, `8db06d3`, `e403819`.
 
 ## Intentional Changes
 

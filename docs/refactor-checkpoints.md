@@ -36,19 +36,25 @@ Every stage must:
 | `1b5b2b4` | Orders notification plan | Exact enablement, recipient, copy, title, accent, and activity rules |
 | `aadaae3` | Orders legacy adapters | Existing Supabase rows, selector, LINE delivery, and activity writes |
 | `06597b8` | Orders application flow | Normalize, persist, configure, plan, deliver, and record orchestration |
+| `58a53e7` | Reporting deterministic rules | Settings, rolling window, filtering, grouping, copy, and AI fallback |
+| `8db06d3` | Reporting legacy adapters | Existing Supabase, OpenAI, LINE, usage, and roster implementations |
+| `e403819` | Reporting application flow | Config, query, preparation, summary, delivery, and activity orchestration |
 
 ## Current Verification
 
-At `06597b8` plus this documentation stage:
+At `e403819` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 22 Vitest files / 178 tests passed;
+- 25 Vitest files / 193 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels;
 - CodeGraph maps `processOrderPayload`, `OrdersPorts`, and
   `createLegacyOrdersAdapters` only through the Orders module, legacy adapter,
   and Teachify route;
+- CodeGraph maps `runDailyTeamLeadReport`, `ReportingClock`, `ReportingPorts`,
+  and `createLegacyReportingAdapters` through the Reporting module, legacy
+  adapter, and server compatibility facade;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
