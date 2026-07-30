@@ -5,6 +5,11 @@ import { createCalendarEvent, sendGmail } from "@/lib/google";
 import { pushLineMessage } from "@/lib/line";
 import { buildThankYouEmailHtml, escapeHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
+import {
+  toLegacyPendingInviteConfirmationPatch,
+  toLegacyPendingInviteFulfilmentPatch,
+  toLegacyPendingInviteStatusPatch,
+} from "@/modules/visit/legacy-schema";
 
 type ContactInfo = { name?: string; title?: string; email?: string; company?: string } | null;
 
@@ -105,7 +110,12 @@ export async function GET(req: NextRequest) {
     }
     const { data: claimed } = await supabase
       .from("pending_invites")
-      .update({ status: "confirmed", chosen_slot: choice, resolved_at: new Date().toISOString() })
+      .update(
+        toLegacyPendingInviteConfirmationPatch(
+          choice as "1" | "2" | "both",
+          new Date().toISOString()
+        )
+      )
       .eq("id", inviteId)
       .eq("status", "pending")
       .select("*")
@@ -172,7 +182,10 @@ export async function POST(req: NextRequest) {
       attendeeEmail: row.to_email,
     });
 
-    await supabase.from("pending_invites").update({ calendar_event_id: eventId, location: location ?? null }).eq("id", inviteId);
+    await supabase
+      .from("pending_invites")
+      .update(toLegacyPendingInviteFulfilmentPatch(eventId, location))
+      .eq("id", inviteId);
 
     await sendGmail({
       to: row.to_email,
@@ -224,7 +237,10 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "建立行事曆或寄信失敗";
-    await supabase.from("pending_invites").update({ status: "failed" }).eq("id", inviteId);
+    await supabase
+      .from("pending_invites")
+      .update(toLegacyPendingInviteStatusPatch("failed"))
+      .eq("id", inviteId);
     await supabase.from("line_agent_activity").insert({
       agent_slug: "visit",
       summary: `對方確認時段後，自動排程失敗：${message}`,

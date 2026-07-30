@@ -147,6 +147,27 @@ export function toLegacyPendingInviteRevisionPatch(subject: string, body: string
   return { subject, body };
 }
 
+export function toLegacyPendingInviteConfirmationPatch(
+  choice: NonNullable<LegacyPendingInviteRow["chosen_slot"]>,
+  resolvedAt: string
+) {
+  return {
+    status: "confirmed" as const,
+    chosen_slot: choice,
+    resolved_at: resolvedAt,
+  };
+}
+
+export function toLegacyPendingInviteFulfilmentPatch(
+  calendarEventId: string,
+  location: string | undefined
+) {
+  return {
+    calendar_event_id: calendarEventId,
+    location: location ?? null,
+  };
+}
+
 /**
  * Rehydrates only states that Dennis's current rows persist durably. Transient
  * provider activity (parsing, drafting, sending, calendar creation) must resume

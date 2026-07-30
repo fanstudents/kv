@@ -85,6 +85,9 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
 17. LINE invite approval updates preserve the exact legacy patch shapes:
     status-only for cancellation, delivery, and failure; subject/body-only for
     revision.
+18. Public invite response writes preserve the current compare-and-set claim,
+    confirmation timestamp, chosen-slot vocabulary, nullable location, and
+    status-only failure patch.
 
 ## Test Mapping
 
@@ -127,6 +130,9 @@ test_mapping:
 - LINE invite approval persistence is routed through pure compatibility
   mappers with exact-shape unit assertions; Supabase call order and filters stay
   in the existing route adapter.
+- Public invite confirmation and calendar fulfilment writes use the same
+  compatibility boundary. The route still owns request validation, the
+  `status = pending` claim filter, provider ordering, and error rendering.
 
 ## Intentional Changes
 

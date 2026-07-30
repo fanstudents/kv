@@ -3,6 +3,8 @@ import {
   fromLegacyContactRow,
   fromLegacyVisitSnapshot,
   toLegacyContactInsert,
+  toLegacyPendingInviteConfirmationPatch,
+  toLegacyPendingInviteFulfilmentPatch,
   toLegacyPendingInviteInsert,
   toLegacyPendingInviteRevisionPatch,
   toLegacyPendingInviteStatusPatch,
@@ -130,6 +132,23 @@ describe("Visit legacy schema compatibility", () => {
     expect(toLegacyPendingInviteRevisionPatch("Updated subject", "Updated body")).toEqual({
       subject: "Updated subject",
       body: "Updated body",
+    });
+  });
+
+  it("writes exact public response confirmation and fulfilment patches", () => {
+    const resolvedAt = "2026-07-31T21:00:00.000Z";
+    expect(toLegacyPendingInviteConfirmationPatch("both", resolvedAt)).toEqual({
+      status: "confirmed",
+      chosen_slot: "both",
+      resolved_at: resolvedAt,
+    });
+    expect(toLegacyPendingInviteFulfilmentPatch("calendar-1", "台北辦公室")).toEqual({
+      calendar_event_id: "calendar-1",
+      location: "台北辦公室",
+    });
+    expect(toLegacyPendingInviteFulfilmentPatch("calendar-2", undefined)).toEqual({
+      calendar_event_id: "calendar-2",
+      location: null,
     });
   });
 
