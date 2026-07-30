@@ -48,6 +48,10 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
 - `legacy-schema.ts` is the anti-corruption boundary for the current
   `contacts`, `visit_offers`, and `pending_invites` row shapes. The domain does
   not import or expose those rows.
+- `parseVisitFlowMode` defaults to `legacy`, rejects typos, and makes legacy,
+  shadow evaluation, and new-intent ownership explicit.
+- `evaluateVisitEvent` produces domain truth, compatibility projection, and a
+  record-only intent plan without reaching persistence or providers.
 - Intents describe persistence, AI, calendar, mail, LINE, lock, artifact, and
   research work; the reducer performs none of them.
 - No legacy source file is imported by the Visit module.
@@ -69,6 +73,9 @@ parsing, persistence, provider calls, HTML/LINE rendering, and delivery.
 11. Existing database column names and legacy status strings remain unchanged.
 12. Rehydration maps only durable states; transient provider activity is never
     guessed from incomplete rows.
+13. Legacy mode is the default. Shadow evaluates new logic but owns no effects.
+14. An invalid rollout mode fails configuration validation instead of silently
+    enabling a different path.
 
 ## Test Mapping
 
@@ -80,6 +87,7 @@ test_mapping:
     - tests/unit/visit-replay.test.ts
     - tests/unit/visit-intent-executor.test.ts
     - tests/unit/visit-legacy-schema.test.ts
+    - tests/unit/visit-application.test.ts
     - tests/unit/workflow-composition.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   manual:
