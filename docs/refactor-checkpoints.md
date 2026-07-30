@@ -54,13 +54,16 @@ Every stage must:
 | `761974a` | Meeting realtime-session deterministic rules | Request coercion, active-Agent selection, profile mapping, and defaults |
 | `c063d9b` | Meeting realtime-session provider ports | History, demo/live context, and opaque token provider ports with legacy adapter |
 | `50e1f38` | Meeting realtime-session application | Session orchestration, context fallback, and provider error mapping |
+| `a63cd6f` | Meeting lifecycle request rules | log-turn and log-usage coercion, trimming, and defaults |
+| `e7778a6` | Meeting lifecycle ports | Turn persistence and realtime usage legacy adapters |
+| `526382a` | Meeting lifecycle application | Validation, persistence failure isolation, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `50e1f38` plus this documentation stage:
+At `526382a` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 40 Vitest files / 273 tests passed;
+- 43 Vitest files / 285 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels, with an identical
@@ -95,6 +98,15 @@ At `50e1f38` plus this documentation stage:
 - CodeGraph maps `runRealtimeSession` through the realtime-session application
   module and `src/app/api/meeting/realtime-session/route.ts`; the route retains
   only transport parsing, catalog binding, and HTTP result mapping;
+- CodeGraph maps `parseMeetingTurnLogRequest`, `runMeetingTurnLog`, and
+  `createLegacyMeetingTurnLogAdapter` only through the log-turn module, adapter,
+  and `src/app/api/meeting/log-turn/route.ts`; `appendTurns` remains shared with
+  Meeting command;
+- CodeGraph maps `parseMeetingRealtimeUsageLogRequest`,
+  `runMeetingRealtimeUsageLog`, and
+  `createLegacyMeetingRealtimeUsageAdapter` only through the log-usage module,
+  adapter, and `src/app/api/meeting/log-usage/route.ts`; `logRealtimeUsage`
+  retains its existing helper owner;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
