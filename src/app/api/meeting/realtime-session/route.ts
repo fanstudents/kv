@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mintRealtimeSession } from "@/lib/openai";
-import { getRecentHistory } from "@/lib/meeting-store";
-import { getAgentLiveContext } from "@/lib/meeting-context";
-import { getAgentDemoContext } from "@/lib/meeting-demo-context";
 import { AGENTS } from "@/lib/agent-data";
+import { createLegacyRealtimeSessionAdapter } from "@/adapters/meeting/legacy-realtime-session-adapter";
 import {
   findActiveRealtimeAgent,
   parseRealtimeSessionRequest,
@@ -17,6 +14,7 @@ import {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const input = parseRealtimeSessionRequest(body);
+  const ports = createLegacyRealtimeSessionAdapter();
 
   const agent = findActiveRealtimeAgent(AGENTS, input.slug);
   if (!agent) return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });
@@ -24,7 +22,7 @@ export async function POST(req: NextRequest) {
   let history = "";
   if (input.meetingId) {
     try {
-      history = await getRecentHistory(input.meetingId, 8);
+      history = await ports.history.load(input.meetingId, 8);
     } catch {
       // 脈絡取不到不影響開新的一輪
     }
@@ -34,10 +32,10 @@ export async function POST(req: NextRequest) {
   // 上台展示時 Agent 才有具體的名字與數字可以講，也不會不小心念出真實客戶資料。
   let liveContext = "";
   if (input.demo) {
-    liveContext = getAgentDemoContext(agent.slug);
+    liveContext = ports.context.demo(agent.slug);
   } else {
     try {
-      liveContext = await getAgentLiveContext(agent.slug);
+      liveContext = await ports.context.live(agent.slug);
     } catch {
       // 真實資料抓不到就讓 Agent 老實說沒有資料，而不是讓整支路由失敗
     }
@@ -45,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const profile = toRealtimeAgentProfile(agent);
-    const session = await mintRealtimeSession({
+    const session = await ports.provider.mint({
       agentName: profile.name,
       role: profile.role,
       description: profile.description,

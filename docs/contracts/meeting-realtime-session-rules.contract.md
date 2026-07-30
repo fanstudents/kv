@@ -22,6 +22,10 @@ demo defaults, and selecting an active Agent. History loading, context source,
 OpenAI token minting, HTTP mapping, and the browser's WebRTC flow remain outside
 the pure module during this stage.
 
+The Meeting-owned ports also describe history, demo/live context, and token
+minting capabilities. The legacy adapter preserves the existing helper calls
+and realtime token configuration.
+
 ## Invariants
 
 1. `slug` and `meetingId` accept strings; non-strings become empty strings.
