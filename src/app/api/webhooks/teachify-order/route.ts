@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { formatOrderText } from "@/lib/teachify-orders";
 import { verifyTeachifyWebhook } from "@/lib/teachify-webhook-server";
 import { parseOrderPayload } from "@/modules/orders/inbound";
+import { toLegacyTeachifyOrderUpsert } from "@/modules/orders/legacy-schema";
+import { planOrderNotification } from "@/modules/orders/notification";
 import { pushLineRawMessages } from "@/lib/line";
-import { buildPushMessages, type PushStyle } from "@/lib/line-message-styles";
+import { buildPushMessages } from "@/lib/line-message-styles";
 import { getSupabase } from "@/lib/supabase";
 
 // Teachify 訂單 webhook 接收端點。請在 Teachify 後台把訂單 webhook 網址
@@ -49,51 +50,33 @@ export async function POST(req: NextRequest) {
   // 讓數據 Agent 之後可以直接查詢營收/轉換數字，而不用回頭解析文字摘要。
   // order_id 有 unique 約束，同一筆訂單重送 webhook 只會更新、不會產生重複列。
   await supabase.from("teachify_orders").upsert(
-    {
-      order_id: order.id,
-      trade_no: order.tradeNo || null,
-      amount: order.amount,
-      currency: order.currency,
-      user_name: order.userName,
-      user_email: order.userEmail || null,
-      item_names: order.itemNames,
-      coupon_code: order.couponCode,
-      is_refund: order.isRefund,
-      paid_at: order.paidAt,
-      source: "webhook",
-    },
+    toLegacyTeachifyOrderUpsert(order),
     { onConflict: "order_id" }
   );
 
   const { data: agentRow } = await supabase.from("line_agents").select("enabled, settings").eq("slug", "orders").single();
-  if (agentRow?.enabled === false) {
+  const notification = planOrderNotification(order, agentRow);
+  if (notification.type === "disabled") {
     return NextResponse.json({ ok: true, note: "orders agent disabled, notification skipped" });
   }
-  const settings = (agentRow?.settings ?? {}) as Record<string, unknown>;
-  const reportTo = typeof settings.reportTo === "string" ? settings.reportTo.trim() : "";
-  const pushStyle: PushStyle = ["text", "flex", "confirm", "buttons"].includes(settings.pushStyle as string)
-    ? (settings.pushStyle as PushStyle)
-    : "flex";
 
-  if (!reportTo) {
+  if (notification.type === "missing_recipient") {
     await supabase.from("line_agent_activity").insert({
       agent_slug: "orders",
-      summary: `收到新訂單（${order.tradeNo}）但尚未設定通知對象，請到訂單 Agent 設定頁補上`,
+      summary: notification.activitySummary,
       status: "failed",
     });
     return NextResponse.json({ ok: true, note: "reportTo not configured" });
   }
 
-  const text = formatOrderText(order);
-
   try {
     await pushLineRawMessages(
-      reportTo,
-      buildPushMessages({ style: pushStyle, text, title: order.isRefund ? "訂單退款通知" : "新訂單通知", accentColor: "#F59E0B" })
+      notification.recipient,
+      buildPushMessages(notification)
     );
     await supabase.from("line_agent_activity").insert({
       agent_slug: "orders",
-      summary: `${order.isRefund ? "退款" : "新訂單"}通知已送出：${order.userName} / ${order.itemNames.join("、")} / ${order.currency} ${order.amount}`,
+      summary: notification.successSummary,
       status: "success",
     });
   } catch (err) {

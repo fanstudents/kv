@@ -28,6 +28,8 @@ configuration, LINE delivery, activity logging, and HTTP responses.
 - `POST /api/webhooks/teachify-order`
 - `src/modules/orders/inbound.ts#parseOrderPayload`
 - `src/lib/teachify-orders.ts#formatOrderText`
+- `src/modules/orders/notification.ts#planOrderNotification`
+- `src/modules/orders/legacy-schema.ts#toLegacyTeachifyOrderUpsert`
 - `teachify_orders`, `line_agents`, and `line_agent_activity` remain legacy
   adapter concerns.
 
@@ -62,6 +64,10 @@ frozen.
    module.
 5. Signature verification still occurs against the raw body before JSON
    parsing or normalization.
+6. The persistence mapper preserves every current column, nullable fallback,
+   and `source = webhook`.
+7. Agent disablement, recipient trimming, push-style fallback, notification
+   copy, title, accent, and activity summary remain deterministic pure rules.
 
 ## Acceptance Examples
 
@@ -82,6 +88,7 @@ route retains its current acknowledged-but-unrecognized response.
 test_mapping:
   unit:
     - tests/unit/orders-inbound.test.ts
+    - tests/unit/orders-notification.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   browser:
     - tests/e2e/protected-surfaces.spec.ts
