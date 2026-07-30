@@ -28,6 +28,9 @@ remain outside the pure module during this stage.
 
 - `POST /api/agent-chat`
 - `src/modules/agent-chat/rules.ts`
+- `src/modules/agent-chat/ports.ts`
+- `src/modules/agent-chat/application.ts#runAgentChat`
+- `src/adapters/agent-chat/legacy-agent-chat-adapters.ts`
 - Existing `AGENTS`, `getAgentLiveContext`, `replyToChat`, and
   `buildCanvasForReply` integrations remain unchanged.
 
@@ -99,7 +102,12 @@ test_mapping:
 
 - Deterministic request coercion and empty-reply fallback become owned by the
   Agent chat product module.
-- The route delegates only those decisions during this stage.
+- Agent identity, context, reply, and opaque canvas capabilities are described
+  by Agent chat-owned ports.
+- The legacy adapter preserves the existing catalog, meeting-context, OpenAI,
+  and canvas implementations.
+- Application orchestration is executable against fake ports while retaining
+  context and canvas failure isolation and required reply error behavior.
 
 ## Open Questions
 
