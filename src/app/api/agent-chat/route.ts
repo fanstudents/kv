@@ -3,19 +3,21 @@ import { AGENTS } from "@/lib/agent-data";
 import { getAgentLiveContext } from "@/lib/meeting-context";
 import { replyToChat } from "@/lib/openai";
 import { buildCanvasForReply } from "@/lib/chat-canvas";
+import {
+  parseAgentChatRequest,
+  withAgentChatReplyFallback,
+} from "@/modules/agent-chat/rules";
 
 const TEAM_LEAD_SLUG = "teamlead";
 
 // 網站聊天視窗：老闆 @ 一位 Agent 傳訊息，該 Agent 依真實業務資料用日常口語回覆。
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const agentSlug = typeof body.agentSlug === "string" ? body.agentSlug : "";
-  const message = typeof body.message === "string" ? body.message.trim() : "";
-  const history = typeof body.history === "string" ? body.history : "";
-
-  if (!agentSlug || !message) {
+  const input = parseAgentChatRequest(body);
+  if (!input) {
     return NextResponse.json({ error: "缺少 agentSlug 或 message" }, { status: 400 });
   }
+  const { agentSlug, message, history } = input;
 
   const agent = AGENTS.find((a) => a.slug === agentSlug);
   if (!agent) return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });
@@ -59,5 +61,5 @@ export async function POST(req: NextRequest) {
     // 畫布資料抓不到就不附畫布，不影響文字回覆
   }
 
-  return NextResponse.json({ reply: text || "收到，我確認後回覆您。", canvas });
+  return NextResponse.json({ reply: withAgentChatReplyFallback(text), canvas });
 }
