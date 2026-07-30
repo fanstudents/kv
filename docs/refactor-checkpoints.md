@@ -57,13 +57,16 @@ Every stage must:
 | `a63cd6f` | Meeting lifecycle request rules | log-turn and log-usage coercion, trimming, and defaults |
 | `e7778a6` | Meeting lifecycle ports | Turn persistence and realtime usage legacy adapters |
 | `526382a` | Meeting lifecycle application | Validation, persistence failure isolation, and HTTP-preserving cutover |
+| `4f9fa4e` | Meeting storage request rules | start JSON, finish multipart, recording query, and audio descriptor rules |
+| `c16dd4c` | Meeting storage ports | Meeting creation, finish/upload, and signed-recording legacy adapters |
+| `1dbfebb` | Meeting storage application | Start/finish/recording orchestration and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `526382a` plus this documentation stage:
+At `1dbfebb` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 43 Vitest files / 285 tests passed;
+- 46 Vitest files / 299 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels, with an identical
@@ -107,6 +110,12 @@ At `526382a` plus this documentation stage:
   `createLegacyMeetingRealtimeUsageAdapter` only through the log-usage module,
   adapter, and `src/app/api/meeting/log-usage/route.ts`; `logRealtimeUsage`
   retains its existing helper owner;
+- CodeGraph maps `parseMeetingStartRequest`/`runMeetingStart`,
+  `parseMeetingFinishForm`/`runMeetingFinish`, and
+  `parseMeetingRecordingRequest`/`runMeetingRecording` through their respective
+  Meeting modules and routes; legacy adapters are the only callers of
+  `createMeeting`, `finishMeeting`, `uploadRecording`, and
+  `getSignedRecordingUrl` in the new boundary;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
