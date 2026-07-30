@@ -51,13 +51,16 @@ Every stage must:
 | `cda34a3` | Meeting command deterministic rules | Request coercion, roster selection, display mapping, and fallback |
 | `c8a5763` | Meeting command legacy adapters | History, OpenAI round/reply, and turn persistence ports |
 | `4027383` | Meeting command application | Batch/one-to-one orchestration and persistence failure isolation |
+| `761974a` | Meeting realtime-session deterministic rules | Request coercion, active-Agent selection, profile mapping, and defaults |
+| `c063d9b` | Meeting realtime-session provider ports | History, demo/live context, and opaque token provider ports with legacy adapter |
+| `50e1f38` | Meeting realtime-session application | Session orchestration, context fallback, and provider error mapping |
 
 ## Current Verification
 
-At `4027383` plus this documentation stage:
+At `50e1f38` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 37 Vitest files / 262 tests passed;
+- 40 Vitest files / 273 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels, with an identical
@@ -82,6 +85,16 @@ At `4027383` plus this documentation stage:
   `createLegacyMeetingCommandAdapter` only through the Meeting command module,
   legacy adapter, and `src/app/api/meeting/command/route.ts`; `getRecentHistory`
   remains shared with Meeting realtime;
+- CodeGraph maps `parseRealtimeSessionRequest`, `findActiveRealtimeAgent`, and
+  `toRealtimeAgentProfile` only through the realtime-session rules module and
+  `src/app/api/meeting/realtime-session/route.ts`;
+- CodeGraph maps `RealtimeSessionPorts` and
+  `createLegacyRealtimeSessionAdapter` through the Meeting realtime module,
+  legacy adapter, and realtime-session route; `getRecentHistory` remains shared
+  with Meeting command and `getAgentLiveContext` remains shared with Agent chat;
+- CodeGraph maps `runRealtimeSession` through the realtime-session application
+  module and `src/app/api/meeting/realtime-session/route.ts`; the route retains
+  only transport parsing, catalog binding, and HTTP result mapping;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary

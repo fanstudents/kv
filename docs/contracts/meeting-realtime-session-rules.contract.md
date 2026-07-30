@@ -17,10 +17,11 @@ change_context:
 
 ## Behavior Boundary
 
-In scope is coercing the request body, applying the existing `alloy` voice and
-demo defaults, and selecting an active Agent. History loading, context source,
-OpenAI token minting, HTTP mapping, and the browser's WebRTC flow remain outside
-the pure module during this stage.
+The deterministic rules module owns request coercion, the existing `alloy` voice
+and demo defaults, active-Agent selection, and profile mapping. The adjacent
+application module owns the existing history/context/provider sequencing and
+failure isolation through provider-neutral ports. HTTP mapping and the browser's
+WebRTC flow remain at the route/client boundary.
 
 The Meeting-owned ports also describe history, demo/live context, and token
 minting capabilities. The legacy adapter preserves the existing helper calls
@@ -35,6 +36,12 @@ and realtime token configuration.
 5. Display name remains `${personEn} ${personZh}`.
 6. Missing/inactive Agent retains the route's 404 response.
 7. The pure module performs no provider, storage, environment, or browser I/O.
+8. History loads only when `meetingId` is non-empty, with the existing limit of
+   `8`; history failure falls back to an empty string.
+9. Demo mode calls only the demo context provider; live-context failure falls
+   back to an empty string without blocking session minting.
+10. Provider success returns its opaque session unchanged; provider failures map
+    to the existing message and route-level 502 response.
 
 ## Test Mapping
 
@@ -57,10 +64,18 @@ test_mapping:
   realtime-session route and their existing helper files.
 - `getAgentLiveContext` and `getRecentHistory` have other Meeting/Agent chat
   consumers, so this stage does not move or alter either helper.
+- CodeGraph maps the new rules, ports, legacy adapter, and application only to
+  the realtime-session route; shared context/history helpers retain their other
+  consumers.
+- Full verification at `50e1f38`: 40 Vitest files / 273 tests, 93-page
+  production build, 130 Playwright smoke cases, and identical Chrome catalog
+  DOM before/after.
 
 ## Intentional Changes
 
 - Realtime-session request coercion, active-Agent selection, and display mapping
   become Meeting-owned pure functions.
-- The route delegates these decisions while retaining all context, history,
-  token, and HTTP behavior.
+- History, demo/live context, and token minting become provider-neutral ports
+  with a legacy adapter that preserves Dennis's helper calls and arguments.
+- The route delegates orchestration while retaining all request, response,
+  context, history, token, and browser behavior.
