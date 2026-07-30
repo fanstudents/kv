@@ -20,6 +20,10 @@ import {
   classifyVisitDecisionText,
   normalizeVisitLineInbound,
 } from "@/modules/visit/line-inbound";
+import {
+  toLegacyContactInsert,
+  toLegacyVisitOfferInsert,
+} from "@/modules/visit/legacy-schema";
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
@@ -135,15 +139,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
 
   const { data: contactRow } = await supabase
     .from("contacts")
-    .insert({
-      name: contact.name || "（未命名聯絡人）",
-      company: contact.company || null,
-      title: contact.title || null,
-      email: contact.email || null,
-      phone: contact.phone || null,
-      source: "line_card",
-      line_user_id: userId,
-    })
+    .insert(toLegacyContactInsert(contact, userId))
     .select()
     .single();
 
@@ -161,7 +157,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
 
   const { data: offerRow } = await supabase
     .from("visit_offers")
-    .insert({ line_user_id: userId, contact_id: contactRow?.id ?? null, status: "pending" })
+    .insert(toLegacyVisitOfferInsert(userId, contactRow?.id))
     .select()
     .single();
 
