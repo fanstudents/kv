@@ -35,6 +35,8 @@ because both produce a daily report.
 - `POST /api/agents/support/report-now`
 - `src/lib/support-daily-report.ts#runSupportDailyReport`
 - `src/modules/support/daily-report.ts`
+- `src/modules/support/reporting-ports.ts`
+- `src/adapters/support/legacy-support-report-adapters.ts`
 - `line_agents`, `line_support_conversations`, `line_subscribers`, and
   `line_agent_activity` remain legacy adapter concerns.
 
@@ -119,6 +121,9 @@ test_mapping:
 
 - Deterministic Support report rules become Support-owned pure functions.
 - The legacy server function delegates to those rules while retaining all I/O.
+- Support-owned ports now describe repository, summary, and delivery
+  capabilities; the legacy adapter preserves Dennis's current Supabase,
+  OpenAI, LINE, and usage-log implementations.
 
 ## Open Questions
 
