@@ -22,6 +22,7 @@ import {
 } from "@/modules/visit/line-inbound";
 import {
   toLegacyContactInsert,
+  toLegacyPendingInviteInsert,
   toLegacyVisitOfferInsert,
 } from "@/modules/visit/legacy-schema";
 
@@ -363,23 +364,21 @@ async function handleVisitOfferReply(
       senderName: settings.senderName,
     });
 
-    const inviteStatus = settings.requireApproval ? "awaiting_approval" : "pending";
     const { data: invite } = await supabase
       .from("pending_invites")
-      .insert({
-        line_user_id: userId,
-        contact_id: finalContact.id,
-        to_email: finalContact.email,
-        subject: draft.subject,
-        body: draft.body,
-        slot1: slots[0].label,
-        slot2: slots[1].label,
-        slot1_start: slots[0].start,
-        slot1_end: slots[0].end,
-        slot2_start: slots[1].start,
-        slot2_end: slots[1].end,
-        status: inviteStatus,
-      })
+      .insert(
+        toLegacyPendingInviteInsert(userId, {
+          contactId: finalContact.id,
+          toEmail: finalContact.email,
+          subject: draft.subject,
+          body: draft.body,
+          slots: [
+            { label: slots[0].label, start: slots[0].start, end: slots[0].end },
+            { label: slots[1].label, start: slots[1].start, end: slots[1].end },
+          ],
+          requiresApproval: settings.requireApproval,
+        })
+      )
       .select()
       .single();
 
