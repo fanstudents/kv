@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyLineSignature } from "@/lib/line";
-import { touchSubscriber } from "@/lib/subscribers";
 import { getSupabase } from "@/lib/supabase";
-import { logConversationMessage } from "@/lib/support-conversations";
+import { createLegacySupportRelayAdapters } from "@/adapters/support/legacy-support-relay-adapters";
 import {
   parseSupportRelayPayload,
   planSupportRelayCapture,
@@ -21,31 +20,14 @@ export async function GET() {
   return NextResponse.json({ ok: true, service: "line-support-webhook-relay" });
 }
 
-async function forwardToLegacySystem(rawBody: string, req: NextRequest) {
-  const targetUrl = process.env.SUPPORT_RELAY_TARGET_URL;
-  if (!targetUrl) throw new Error("Missing SUPPORT_RELAY_TARGET_URL environment variable");
-
-  const signature = req.headers.get("x-line-signature") ?? "";
-  const res = await fetch(targetUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": req.headers.get("content-type") ?? "application/json",
-      "X-Line-Signature": signature,
-    },
-    body: rawBody,
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) throw new Error(`舊系統回應 ${res.status}`);
-}
-
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-line-signature");
   const supabase = getSupabase();
+  const ports = createLegacySupportRelayAdapters(supabase);
 
   if (!verifyLineSignature(rawBody, signature, "support")) {
-    await supabase.from("line_agent_activity").insert({
-      agent_slug: "support",
+    await ports.repository.recordActivity({
       summary: "客服 Webhook 收到簽章驗證失敗的請求",
       status: "failed",
     });
@@ -60,10 +42,13 @@ export async function POST(req: NextRequest) {
 
   await Promise.allSettled([
     // 轉發給舊系統：它繼續照原本的邏輯處理與回覆客戶，完全不用改它的程式碼
-    forwardToLegacySystem(rawBody, req).catch(async (err) => {
+    ports.relay.forward({
+      rawBody,
+      signature: signature ?? "",
+      contentType: req.headers.get("content-type") ?? "application/json",
+    }).catch(async (err) => {
       const message = err instanceof Error ? err.message : "轉發失敗";
-      await supabase.from("line_agent_activity").insert({
-        agent_slug: "support",
+      await ports.repository.recordActivity({
         summary: `轉發給舊客服系統失敗：${message}（客戶仍會由舊系統處理，只是這筆沒轉發成功）`,
         status: "failed",
       });
@@ -73,19 +58,14 @@ export async function POST(req: NextRequest) {
       const capture = planSupportRelayCapture(event);
       if (capture.type === "skip") return;
       if (capture.sourceUserId) {
-        await touchSubscriber(capture.sourceUserId, "support").catch(() => {});
+        await ports.subscribers.touch(capture.sourceUserId).catch(() => {});
       }
       await Promise.allSettled([
-        supabase.from("line_agent_activity").insert({
-          agent_slug: "support",
+        ports.repository.recordActivity({
           summary: capture.activitySummary,
           status: "success",
         }),
-        logConversationMessage(
-          capture.userId,
-          capture.conversationRole,
-          capture.text
-        ),
+        ports.conversations.recordCustomerMessage(capture.userId, capture.text),
       ]);
     }),
   ]);

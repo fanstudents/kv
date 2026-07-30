@@ -30,6 +30,8 @@ signature and only records text messages.
 - `GET /api/line/webhook/support`
 - `POST /api/line/webhook/support`
 - `src/modules/support/relay-inbound.ts`
+- `src/modules/support/relay-ports.ts`
+- `src/adapters/support/legacy-support-relay-adapters.ts`
 - Existing `touchSubscriber` and `logConversationMessage` integrations remain
   server/adapter concerns.
 
@@ -110,6 +112,9 @@ test_mapping:
 - Deterministic payload and capture decisions become Support-owned pure
   functions.
 - The route delegates those decisions while retaining transport and all I/O.
+- Support-owned ports describe relay, activity, subscriber, and conversation
+  capabilities; the legacy adapter preserves the raw fetch and existing
+  Supabase/helper implementations.
 
 ## Open Questions
 
