@@ -107,6 +107,16 @@ test_mapping:
   is therefore required.
 - `logConversationMessage` reaches the Support route and manual bot-reply
   route; `touchSubscriber` reaches both LINE webhook routes.
+- Checkpoints: `97157f4` (inbound rules), `805ac0e` (legacy adapters), and
+  `52758ac` (application orchestration).
+- Post-change CodeGraph maps `parseSupportRelayPayload`,
+  `createLegacySupportRelayAdapters`, and `processSupportRelay` only through
+  their Support-owned files and `src/app/api/line/webhook/support/route.ts`.
+- `npm run verify:full` passed with 31 Vitest files / 222 tests, a 93-page
+  production build, and 130 Playwright smoke cases.
+- The real Chrome Agent catalog snapshot retained all four protected markers
+  and was byte-for-byte identical before and after verification.
+- No production schema, row, provider endpoint, or live LINE traffic changed.
 
 ## Intentional Changes
 

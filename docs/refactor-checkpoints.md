@@ -42,16 +42,20 @@ Every stage must:
 | `7447a32` | Support reporting rules | Customer identity, grouping, truncation, copy, and AI fallback |
 | `3d403b4` | Support reporting adapters | Existing Supabase, OpenAI, LINE, and usage implementations |
 | `d6a0821` | Support reporting application | Config, messages, names, summary, delivery, and activity orchestration |
+| `97157f4` | Support relay inbound rules | Exact LINE payload parsing, text-event filtering, and capture planning |
+| `805ac0e` | Support relay legacy adapters | Raw relay transport and existing activity, subscriber, and conversation writes |
+| `52758ac` | Support relay application | Concurrent relay and isolated side-channel capture orchestration |
 
 ## Current Verification
 
-At `d6a0821` plus this documentation stage:
+At `52758ac` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 28 Vitest files / 209 tests passed;
+- 31 Vitest files / 222 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
-- Chrome retained the Agent catalog count and tier labels;
+- Chrome retained the Agent catalog count and tier labels, with an identical
+  before/after DOM snapshot;
 - CodeGraph maps `processOrderPayload`, `OrdersPorts`, and
   `createLegacyOrdersAdapters` only through the Orders module, legacy adapter,
   and Teachify route;
@@ -61,6 +65,9 @@ At `d6a0821` plus this documentation stage:
 - CodeGraph maps `runSupportReport`, `SupportReportClock`,
   `SupportReportPorts`, and `createLegacySupportReportAdapters` through the
   Support module, legacy adapter, and server compatibility facade;
+- CodeGraph maps `parseSupportRelayPayload`, `processSupportRelay`, and
+  `createLegacySupportRelayAdapters` only through the Support relay module,
+  legacy adapter, and Support LINE webhook;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
