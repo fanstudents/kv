@@ -30,6 +30,8 @@ configuration, LINE delivery, activity logging, and HTTP responses.
 - `src/lib/teachify-orders.ts#formatOrderText`
 - `src/modules/orders/notification.ts#planOrderNotification`
 - `src/modules/orders/legacy-schema.ts#toLegacyTeachifyOrderUpsert`
+- `src/modules/orders/ports.ts`
+- `src/adapters/orders/legacy-orders-adapters.ts#createLegacyOrdersAdapters`
 - `teachify_orders`, `line_agents`, and `line_agent_activity` remain legacy
   adapter concerns.
 
@@ -68,6 +70,9 @@ frozen.
    and `source = webhook`.
 7. Agent disablement, recipient trimming, push-style fallback, notification
    copy, title, accent, and activity summary remain deterministic pure rules.
+8. The route depends on Orders repository and delivery ports; the legacy
+   adapter preserves table names, upsert conflict key, Agent selector, activity
+   rows, LINE renderer, and provider errors.
 
 ## Acceptance Examples
 
@@ -89,6 +94,7 @@ test_mapping:
   unit:
     - tests/unit/orders-inbound.test.ts
     - tests/unit/orders-notification.test.ts
+    - tests/unit/orders-legacy-adapters.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   browser:
     - tests/e2e/protected-surfaces.spec.ts
