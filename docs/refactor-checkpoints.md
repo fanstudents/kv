@@ -32,16 +32,23 @@ Every stage must:
 | `f7feda9` | Visit public response write mapping | Compare-and-set confirmation and fulfilment patches |
 | `4657680` | Visit public response rules | Choice, location, and slot selection pure logic |
 | `7efd8de` | Visit provider port | Visit-owned provider contract and legacy OpenAI/Google adapter |
+| `0a0b60c` | Orders inbound normalization | Existing Teachify order and enrollment payload coercion |
+| `1b5b2b4` | Orders notification plan | Exact enablement, recipient, copy, title, accent, and activity rules |
+| `aadaae3` | Orders legacy adapters | Existing Supabase rows, selector, LINE delivery, and activity writes |
+| `06597b8` | Orders application flow | Normalize, persist, configure, plan, deliver, and record orchestration |
 
 ## Current Verification
 
-At `7efd8de` plus this documentation stage:
+At `06597b8` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 18 Vitest files / 156 tests passed;
+- 22 Vitest files / 178 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels;
+- CodeGraph maps `processOrderPayload`, `OrdersPorts`, and
+  `createLegacyOrdersAdapters` only through the Orders module, legacy adapter,
+  and Teachify route;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary

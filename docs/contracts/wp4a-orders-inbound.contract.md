@@ -114,6 +114,14 @@ test_mapping:
   entrypoint; route-local upsert logic has no independently indexed symbol.
 - Direct source mapping identifies all current DB, settings, LINE, activity,
   and response branches in the webhook route.
+- Post-change CodeGraph maps `processOrderPayload` to the application module
+  and webhook route, `createLegacyOrdersAdapters` to the adapter and route, and
+  `OrdersPorts` to the module, adapter, application flow, and route.
+- `npm run verify:full` passed with 22 Vitest files / 178 tests, a 93-page
+  production build, and 130 Playwright smoke cases.
+- Real Chrome checks before and after the Orders stages retained the Agent
+  catalog count and the `通用型`, `專業型`, and `超級 Agent` tier labels.
+- Checkpoint commits: `0a0b60c`, `1b5b2b4`, `aadaae3`, `06597b8`.
 
 ## Intentional Changes
 
