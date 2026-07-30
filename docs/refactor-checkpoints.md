@@ -63,13 +63,14 @@ Every stage must:
 | `3d47695` | Meeting audio request rules | speak defaults, text coercion, multipart audio, and prompt hint rules |
 | `b20b886` | Meeting audio provider ports | OpenAI TTS/transcription legacy adapters behind provider ports |
 | `508d0b9` | Meeting audio application | Speak/transcribe validation, provider failure mapping, and HTTP-preserving cutover |
+| `13daf2d` | AI usage read boundary | Usage aggregation, budget lookup port, and HTTP-preserving read cutover |
 
 ## Current Verification
 
-At `508d0b9` plus this documentation stage:
+At `13daf2d` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 49 Vitest files / 311 tests passed;
+- 52 Vitest files / 319 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -125,6 +126,10 @@ At `508d0b9` plus this documentation stage:
   and routes; `createLegacyMeetingSpeakAdapter` and
   `createLegacyMeetingTranscribeAdapter` remain the only new callers of the
   existing OpenAI audio helpers;
+- CodeGraph maps `summarizeAiUsage`, `runAiUsageRead`, and
+  `createLegacyAiUsageReadAdapter` through the AI usage rules/application,
+  adapter, and route; the existing Supabase read and `budgetStatus` helper
+  remain behind that adapter;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
