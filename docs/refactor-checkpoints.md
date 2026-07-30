@@ -66,13 +66,14 @@ Every stage must:
 | `13daf2d` | AI usage read boundary | Usage aggregation, budget lookup port, and HTTP-preserving read cutover |
 | `8b6af78` | Support log-reply boundary | Callback payload rules, bot conversation port, and HTTP-preserving cutover |
 | `1bb02b4` | Live Task image boundary | Data URL parsing, image lookup port, and HTTP-preserving cutover |
+| `6dda162` | Live Task update boundary | POST payload rules, state update port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `1bb02b4` plus this documentation stage:
+At `6dda162` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 58 Vitest files / 330 tests passed;
+- 61 Vitest files / 335 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -138,6 +139,10 @@ At `1bb02b4` plus this documentation stage:
 - CodeGraph maps `parseLiveTaskImageDataUrl`, `runLiveTaskImage`, and
   `createLegacyLiveTaskImageAdapter` through the Live Task image modules and
   route; the existing `getLiveImage` helper remains behind the adapter;
+- CodeGraph maps `parseLiveTaskUpdateRequest`, `runLiveTaskUpdate`, and
+  `createLegacyLiveTaskUpdateAdapter` through the Live Task update modules and
+  route; `setLiveTask` remains shared with existing Visit, LINE, and cron
+  callers;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
