@@ -738,6 +738,7 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 後為 402 files／3,408 nodes／7,071 edges；`startVisitRun`、`reportVisitStep`、`saveVisitArtifact`、`endVisitRun` 的 live consumers 仍只落在原本的 image／offer／invite-approval handlers，沒有新增 route business logic owner。
 - production/test import 搜尋確認 `legacy-runtime-adapter`、factory 與 forwarding-only test 均為零；`VisitRuntimePort` 仍由三個 handler dependency contract 使用。
 - 同一驗證批通過：95 test files／473 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。此批未執行真實 LINE、Supabase、provider 或 Chrome functional journey；它們仍在跨批次最終驗收。
+- 跨批次自動 browser smoke `npm run test:e2e:run:smoke` 為 132/132 passed；它驗證 test-env 下的登入、匿名 access、public/protected render 與 page-error guard。期間出現既有缺少 Supabase credential 的 server log，因 `.env.local` 尚未提供 Supabase key；這是 U-01 已知環境缺口，不是通過 real-data journey 的證據。
 - `docs/` 現在只保留本 canonical TODO；稽核的穩定規則與 evidence levels 已在本文件，歷史快照由 Git 追溯。
 
 ### WP-05 — Visit LINE text vertical slice
