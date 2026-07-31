@@ -805,6 +805,30 @@ At `cafa912` plus this documentation stage:
 - Provider schema changes, credential rotation, cross-project repository
   cutover, reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AT Orders test-notification compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/orders-test-notification.contract.md`.
+- `src/modules/orders/test-notification-rules.ts` owns the existing demo order,
+  recipient trim/validation, push-style fallback, and LINE message plan;
+  `test-notification-application.ts` owns delivery/activity ordering and
+  error mapping; `src/adapters/orders/legacy-orders-test-notification-adapter.ts`
+  keeps the `line_agents`, LINE, and `line_agent_activity` operations behind
+  the port.
+- The `/api/agents/orders/test-notify` POST route preserves the exact settings
+  query, missing-recipient 400, supported-style/flex fallback, demo message
+  text/title/accent, success response, activity vocabulary, provider-failure
+  502, and the existing behavior of not checking `enabled` for this test-only
+  action.
+- Checkpoint: `8732ded`.
+- Full verification: 158 Vitest files / 493 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the test
+  notification rules, port, application, adapter, and route.
+- Teachify/LINE schema evolution, provider credential rotation, notification
+  template redesign, reconciliation, and production traffic evidence remain
+  deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
