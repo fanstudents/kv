@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { importPdf, listKbSources } from "@/lib/kb-import";
-import { listKnowledgeDocs, publishKnowledgeDocs, removeKnowledgeDoc } from "@/lib/knowledge-base";
+import { createLegacyKnowledgeBaseImportReadAdapter } from "@/adapters/knowledge-base/legacy-import-read-adapter";
+import { importPdf } from "@/lib/kb-import";
+import { publishKnowledgeDocs, removeKnowledgeDoc } from "@/lib/knowledge-base";
+import { runKnowledgeBaseImportRead } from "@/modules/knowledge-base/import-read-application";
+import { parseKnowledgeBaseImportReadQuery } from "@/modules/knowledge-base/import-read-rules";
 
 // 匯入一份 PDF：抽文字 → 切塊 → AI 轉條目 → 全部存成「草稿」等人審。
 // 轉換要跑好幾次 AI，時間比一般請求久，所以放寬執行時間上限。
@@ -32,12 +35,8 @@ export async function POST(req: NextRequest) {
 
 /** 列出待審的草稿（帶 sourceId 就只看那一份檔案轉出來的），或列出匯入過的檔案 */
 export async function GET(req: NextRequest) {
-  const sourceId = req.nextUrl.searchParams.get("sourceId");
-  if (!sourceId) {
-    return NextResponse.json({ sources: await listKbSources() });
-  }
-  const docs = await listKnowledgeDocs({ status: "draft", sourceDocId: sourceId });
-  return NextResponse.json({ docs });
+  const query = parseKnowledgeBaseImportReadQuery(req.nextUrl.searchParams.get("sourceId"));
+  return NextResponse.json(await runKnowledgeBaseImportRead(query, createLegacyKnowledgeBaseImportReadAdapter()));
 }
 
 /** 人審通過：把選到的草稿發布上線（沒按過這一步，AI 產的內容永遠不會進 Agent 的 prompt） */
