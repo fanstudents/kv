@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createLegacyKnowledgeBaseCreateAdapter } from "@/adapters/knowledge-base/legacy-create-adapter";
 import { createLegacyKnowledgeBaseReadAdapter } from "@/adapters/knowledge-base/legacy-read-adapter";
 import {
-  addKnowledgeDoc,
   removeKnowledgeDoc,
   updateKnowledgeDoc,
 } from "@/lib/knowledge-base";
+import { runKnowledgeBaseCreate } from "@/modules/knowledge-base/create-application";
+import {
+  KNOWLEDGE_KINDS,
+  KNOWLEDGE_STATUSES,
+  parseKnowledgeBaseCreateRequest,
+} from "@/modules/knowledge-base/create-rules";
 import { runKnowledgeBaseRead } from "@/modules/knowledge-base/read-application";
 import { parseKnowledgeBaseReadQuery } from "@/modules/knowledge-base/read-rules";
 import type { KnowledgeKind, KnowledgeLevel, KnowledgeStatus } from "@/lib/knowledge-base-data";
-
-const KINDS = ["faq", "sop", "fact", "table", "doc"];
-const STATUSES = ["draft", "published", "archived"];
 
 export async function GET(req: NextRequest) {
   const filter = parseKnowledgeBaseReadQuery({
@@ -22,23 +25,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const title = typeof body.title === "string" ? body.title.trim() : "";
-  const category = typeof body.category === "string" ? body.category.trim() : "";
-  const level = Number(body.level) as KnowledgeLevel;
+  const parsed = parseKnowledgeBaseCreateRequest(await req.json().catch(() => ({})));
+  if (parsed.kind === "invalid") return NextResponse.json({ error: parsed.message }, { status: 400 });
 
-  if (!title || ![1, 2, 3, 4].includes(level)) {
-    return NextResponse.json({ error: "缺少 title 或 level 不合法" }, { status: 400 });
-  }
-
-  const doc = await addKnowledgeDoc({
-    title,
-    category: category || "未分類",
-    level,
-    content: typeof body.content === "string" ? body.content.trim() : undefined,
-    kind: KINDS.includes(body.kind) ? (body.kind as KnowledgeKind) : "doc",
-    status: STATUSES.includes(body.status) ? (body.status as KnowledgeStatus) : "published",
-  });
+  const doc = await runKnowledgeBaseCreate(parsed.input, createLegacyKnowledgeBaseCreateAdapter());
   return NextResponse.json(doc);
 }
 
@@ -52,10 +42,10 @@ export async function PATCH(req: NextRequest) {
   if (level !== undefined && ![1, 2, 3, 4].includes(level)) {
     return NextResponse.json({ error: "level 不合法" }, { status: 400 });
   }
-  if (body.status !== undefined && !STATUSES.includes(body.status)) {
+  if (body.status !== undefined && !KNOWLEDGE_STATUSES.includes(body.status)) {
     return NextResponse.json({ error: "status 不合法" }, { status: 400 });
   }
-  if (body.kind !== undefined && !KINDS.includes(body.kind)) {
+  if (body.kind !== undefined && !KNOWLEDGE_KINDS.includes(body.kind)) {
     return NextResponse.json({ error: "kind 不合法" }, { status: 400 });
   }
 
