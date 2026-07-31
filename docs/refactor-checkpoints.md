@@ -785,6 +785,26 @@ At `cafa912` plus this documentation stage:
 - Agent schema evolution, provider credential rotation, message-template
   redesign, reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AS Agent overview read compatibility boundaries — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/agent-overview-read.contract.md`.
+- `src/modules/agents/overview-read-rules.ts` preserves the existing
+  `Number(days) || 7` query behavior; `overview-read-application.ts` owns the
+  shared success/error envelope; the four `legacy-*overview-adapter.ts` files
+  keep Search Console, GA4, teaching-system, and Google Calendar helpers
+  behind one typed read port.
+- The SEO, traffic, operations pipeline, and schedule week-overview routes
+  preserve their provider calls, optional day ranges, `{ ok, data }` success
+  envelopes, `502` error mapping, payloads, and all Agent UI/data formats.
+- Checkpoint: `4a81bd8`.
+- Full verification: 155 Vitest files / 487 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the shared
+  application to all four routes and each provider through its adapter.
+- Provider schema changes, credential rotation, cross-project repository
+  cutover, reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
