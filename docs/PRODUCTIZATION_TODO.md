@@ -579,11 +579,27 @@ Then the existing report artifact is retried without creating a second scheduled
 
 **Goals:** G-03～G-06
 
+**Status（2026-07-31）：** in progress。Orders 的 pre-runtime domain owner consolidation 已完成（`Contract tested` + `Render smoke passed`）；它只收斂既有 Webhook／測試通知行為，不把既有 `order_id` upsert 說成 delivery dedupe，也沒有實作 transaction、outbox 或 runtime cutover。Reporting 與第二 execution profile 尚未開始。
+
+**Orders behavior contract (`behavior-contract/v1`, `orders.notifications`)**
+
+- Scope：`GET/POST /api/webhooks/teachify-order`、`POST /api/agents/orders/test-notify`、`/agents/orders`；既有 `teachify_orders`、`line_agents`、`line_agent_activity`、LINE push message renderer。
+- Invariants：Teachify verifier、invalid signature 的 `401` activity、invalid JSON 的 `400`、先 upsert 再讀 Agent config、disabled／missing recipient／delivery failure 的 response 與 activity 文案、測試通知的 recipient validation 與 LINE 內容均不變。
+- Intentional limit：沒有改 payload/schema、驗簽策略、`onConflict: "order_id"`、寫入／推播順序或前端操作；upsert 不能保證 external delivery exactly-once，這必須等 WP-04/05 的 transaction + outbox 才能處理。
+
+- [x] 收斂 Orders webhook 與測試通知：單一 `orders.ts` 擁有 normalize、notification planning、兩條 orchestration；兩個 API façade 共用 Supabase repository 與 LINE delivery adapter。
 - [ ] Teachify event normalize、signature/payload contract、duplicate suppression。
 - [ ] order persistence與notification用 transaction/outbox semantics。
 - [ ] scheduled/manual report 共用同一 generation workflow。
 - [ ] report artifact與delivery receipt可追溯到run。
 - [ ] 第二種 execution profile 重用 WP-04/05 runtime，驗證抽象不是 Visit 特例。
+
+**Orders evidence（2026-07-31）**
+
+- Owner delta：11 個 production files、371 LOC 收為 1 個 Orders capability module + 2 個真正的 Supabase／LINE adapters、313 LOC；7 份薄測試收為 3 份（433→447 LOC，新增的是 route contract，非重複 wrapper）。
+- CodeGraph sync：`processOrderPayload` 與 `runOrderTestNotification` 各只由其 API façade 呼叫；兩條 route 都共用同一 Supabase repository 與 LINE delivery；舊 Orders route-slice import 為零。
+- 3 份 Orders focused test files、23 assertions 通過，涵蓋 parsing、寫入／delivery ordering、fallback、兩個 adapter mapping、401／400／test-notify route contract；`npm run typecheck`、`npm run lint` 通過。
+- 已登入 Chrome 的 `/agents/orders` 改前後 DOM snapshot 完全一致（6,373 chars）、console 無 error/warn。未點「傳送測試訂單通知」，避免真正 LINE side effect；因此不宣稱 real delivery journey 已驗。
 
 **Verification:** duplicate/invalid webhook、partial provider failure、same-period cron dedupe、artifact parity、replay；Orders/Support dashboard actions。
 

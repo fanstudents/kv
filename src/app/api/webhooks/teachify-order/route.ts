@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createLineOrdersDelivery } from "@/adapters/orders/line-orders-delivery";
+import { createSupabaseOrdersRepository } from "@/adapters/orders/supabase-orders-repository";
 import { verifyTeachifyWebhook } from "@/lib/teachify-webhook-server";
-import { processOrderPayload } from "@/modules/orders/application";
 import { getSupabase } from "@/lib/supabase";
-import { createLegacyOrdersAdapters } from "@/adapters/orders/legacy-orders-adapters";
+import { processOrderPayload } from "@/modules/orders/orders";
 
 // Teachify 訂單 webhook 接收端點。請在 Teachify 後台把訂單 webhook 網址
 // 設成：https://<你的網域>/api/webhooks/teachify-order
@@ -11,8 +12,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = getSupabase();
-  const { repository, delivery } = createLegacyOrdersAdapters(supabase);
+  const repository = createSupabaseOrdersRepository(getSupabase());
+  const delivery = createLineOrdersDelivery();
   const rawBody = await req.text();
 
   const verification = verifyTeachifyWebhook(rawBody, req.headers.get("x-teachify-signature"));
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
   const result = await processOrderPayload({
     payload,
     rawBody,
-    ports: { repository, delivery },
+    dependencies: { repository, delivery },
   });
 
   switch (result.type) {

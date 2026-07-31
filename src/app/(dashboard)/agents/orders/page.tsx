@@ -5,22 +5,9 @@ import { AlertTriangle, Loader2, Send } from "lucide-react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput } from "@/components/ui/Field";
-import { formatOrderText, type NormalizedOrder } from "@/lib/teachify-orders";
+import { DEMO_ORDER, formatOrderText } from "@/lib/teachify-orders";
 
 const agent = getAgent("orders")!;
-
-const DEMO_ORDER: NormalizedOrder = {
-  id: "demo",
-  tradeNo: "DEN26071757D27ECED16",
-  amount: 2180,
-  currency: "TWD",
-  userName: "黃晴",
-  userEmail: "sonia8265@gmail.com",
-  itemNames: ["Claude 實戰工作坊課程 - 7/19(日) 13:00~17:00 台中席次"],
-  couponCode: null,
-  isRefund: false,
-  paidAt: null,
-};
 
 export default function OrdersAgentPage() {
   const [reportTo, setReportTo] = useState("");
