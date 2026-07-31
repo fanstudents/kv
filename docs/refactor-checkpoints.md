@@ -970,6 +970,23 @@ At `cafa912` plus this documentation stage:
 - Visit fulfilment orchestration, provider/schema evolution, reconciliation,
   and production traffic evidence remain deferred.
 
+### WP6-BB Visit public response fulfilment compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-respond-read.contract.md`.
+- `VisitRespondFulfilmentPort` and
+  `src/adapters/visit/legacy-respond-fulfilment-adapter.ts` now own Visit
+  settings, calendar/email/LINE providers, pending invite fulfilment/failed
+  writes, activity rows, and background research delegation. The route keeps
+  the existing provider call order, best-effort catches, HTML, and workflow.
+- Checkpoint: `13bf09e`.
+- Full verification: 173 Vitest files / 525 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps read and
+  fulfilment ports/adapters to both Visit respond methods.
+- Visit workflow application orchestration, provider/schema evolution,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may

@@ -20,8 +20,10 @@ change_context:
 `VisitRespondReadPort` owns the pending-invite read/confirm/refetch contract
 used by both public GET and POST. `legacy-respond-read-adapter.ts` owns the
 existing Supabase table projections, optimistic status filter, refetch query,
-and POST's joined contacts projection. The route retains the existing public
-page rendering/control flow and POST fulfilment side effects.
+and POST's joined contacts projection. `VisitRespondFulfilmentPort` and
+`legacy-respond-fulfilment-adapter.ts` own settings, calendar/email/LINE
+providers, invite/activity writes, and background research delegation. The
+route retains public page rendering/control flow.
 
 ## Invariants
 
@@ -40,6 +42,11 @@ page rendering/control flow and POST fulfilment side effects.
    unchanged.
 6. Existing pending_invites/contacts schema assumptions and public Visit
    behavior remain unchanged.
+7. Fulfilment preserves provider call order: settings → calendar event → invite
+   fulfilment update → thank-you email → best-effort LINE confirmation →
+   activity success; failures preserve failed invite/activity/LINE handling,
+   and successful named contacts still schedule the same best-effort research
+   callback.
 
 ## Test Mapping
 
@@ -47,6 +54,7 @@ page rendering/control flow and POST fulfilment side effects.
 test_mapping:
   unit:
     - tests/unit/visit-respond-read-legacy-adapter.test.ts
+    - tests/unit/visit-respond-fulfilment-legacy-adapter.test.ts
     - tests/unit/visit-legacy-schema.test.ts
     - tests/unit/platform-import-boundaries.test.ts
   browser:
@@ -59,10 +67,11 @@ test_mapping:
 
 ## Evidence
 
-- CodeGraph maps `createLegacyVisitRespondReadAdapter` and
-  `VisitRespondReadPort` to both Visit respond route methods; the existing
-  `selectVisitInviteSlot` remains shared by GET and POST.
-- Full verification at `a02797a`: 172 Vitest files / 524 tests, 93-page
+- CodeGraph maps `createLegacyVisitRespondReadAdapter` / `VisitRespondReadPort`
+  and `createLegacyVisitRespondFulfilmentAdapter` /
+  `VisitRespondFulfilmentPort` to both Visit respond route methods; the
+  existing `selectVisitInviteSlot` remains shared by GET and POST.
+- Full verification at `13bf09e`: 173 Vitest files / 525 tests, 93-page
   production build, and 130 Playwright smoke cases passed.
 - Chrome retained the Agent catalog count and tier labels before and after the
   Visit response read boundary; the normalized DOM snapshot was unchanged.
@@ -70,6 +79,7 @@ test_mapping:
 ## Intentional Changes
 
 - The GET and POST routes no longer own pending_invites read/join/update query
-  syntax; those reads are isolated behind a replaceable port/legacy adapter.
+  syntax or provider/data side-effect ownership; those are isolated behind
+  replaceable ports/legacy adapters.
 - Public HTML/POST behavior, row shapes, status transitions, and UI behavior
   remain unchanged.
