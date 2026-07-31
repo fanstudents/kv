@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createLegacySupportLogReplyAdapter } from "@/adapters/support/legacy-log-reply-adapter";
-import { runSupportLogReply } from "@/modules/support/log-reply-application";
-import { parseSupportLogReplyRequest } from "@/modules/support/log-reply-rules";
+import { logConversationMessage } from "@/lib/support-conversations";
+import { parseSupportLogReplyRequest, recordSupportLogReply } from "@/modules/support/log-reply";
 
 // 給既有客服機器人（多租戶架構）呼叫用：它每回覆客戶一則訊息，就順手打一次這支 API，
 // 讓客服助手(Amber)這邊能留下「完整的客戶對話紀錄」（客戶說的話已經在 LINE Webhook
@@ -22,9 +21,9 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const result = await runSupportLogReply(
+  const result = await recordSupportLogReply(
     parseSupportLogReplyRequest(body),
-    createLegacySupportLogReplyAdapter(),
+    (userId, text) => logConversationMessage(userId, "bot", text),
   );
   if (result.kind === "invalid") {
     return NextResponse.json({ error: result.message }, { status: 400 });

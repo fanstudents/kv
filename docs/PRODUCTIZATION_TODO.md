@@ -761,6 +761,29 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實 `createTvIdleReadModel`、`createTvIdleDataSources` 與 `parseTvIdleAgent` 都只由既有 `/api/tv/idle` façade 使用；Google overview 與 Visit operations repository 仍各有其他 production consumer；舊 idle-rules／idle-ports／idle-application／legacy-idle-adapter import 為零。
 - focused `npx vitest run`（3 files／10 tests）、full `npm test`（107 files／514 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 實際進入 `/tv`、切換「此刻」場景並檢視畫面：console 無 error/warn；移除預期動態的 clock、autoplay label 與 Next dev-tools 後，前後產品 DOM 均為 1,353 chars 且完全一致。這是 UI render evidence，不把它誇大成具真實 Google/Supabase credentials 的 provider acceptance。
 
+#### 進場清理 — Support bot reply callback
+
+**狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；這是既有 public callback 的內部結構收斂，不改 shared-secret auth、客服對話資料格式或任何舊客服系統流程。
+
+**Behavior contract (`behavior-contract/v1`, `support.log-reply.callback`)**
+
+- Scope：`GET/POST /api/agents/support/log-reply`、`line_support_conversations` 的 bot message append、既有 support conversation helper。
+- Non-goals：不改 public route URL/method/status/payload、`SUPPORT_LOG_SECRET`、header 名稱、proxy public exemption、資料表、message text/whitespace、LINE relay 或 UI/UX。
+- Invariants：GET health payload 不變；missing secret 500、wrong secret 401、invalid payload 400、writer failure 502、success `{ ok:true }` 不變；只把 bot role 的一則文字 append 到既有 conversation log，Error/non-Error failure message 不變。
+- Design：這是同一條 callback capability，直接 composition 既有 conversation persistence helper；移除 rules／port／application／legacy adapter 的 single-route forwarding layers，不新增抽象 writer framework。
+- Verification：CodeGraph caller/import map、capability/public-callback contract tests、typecheck/lint/build，以及 Chrome 對 `/agents/support` 展開設定的 before/after DOM + console comparison；不送出任何真實 callback 或 LINE message。
+
+- [x] 收斂 parse、validation、error mapping 與 bot append capability。
+- [x] 以 public route contract 固定 auth、status/payload 與 bot role。
+- [x] 以 CodeGraph/Chrome parity 與 full verification 完成證據。
+
+**Evidence（2026-07-31）：**
+
+- 三個 module 與一個 `legacy` adapter 收斂為單一 support log-reply capability；route 直接 composition 既有 support conversation persistence helper，bot role 轉換被 route contract 明確固定，沒有新增 writer/adapter framework。
+- 三個 focused test files／6 cases 收斂為一個 capability + public-callback contract file／9 cases；保留 string/no-trim parsing、validation、Error/non-Error mapping、bot role，並補 health、missing/wrong secret、malformed payload、502/success response。
+- CodeGraph sync 證實 `recordSupportLogReply` 與 parser 都只有原本 public callback POST caller；conversation persistence helper 仍僅由 callback 與既有 support relay 共用；舊 rules／ports／application／legacy adapter import 為零。
+- focused `npx vitest run`（1 file／9 tests）、full `npm test`（105 files／517 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 對 `/agents/support` 實際展開 Agent 設定與串接狀態，before/after DOM 都為 7,274 chars、console 無 error/warn；未執行任何真實 callback 或 LINE message。
+
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。
