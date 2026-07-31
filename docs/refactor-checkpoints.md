@@ -81,13 +81,14 @@ Every stage must:
 | `dd14d67` | Knowledge access update boundary | Catalog/level validation, access port, and HTTP-preserving cutover |
 | `8c12d78` | Goals update boundary | Goal payload validation, upsert port, and HTTP-preserving cutover |
 | `24ce542` | Goals read boundary | Goal list port, default-seed preservation, and HTTP-preserving cutover |
+| `b3f33ae` | Goals delete boundary | Query-id validation, delete port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `24ce542` plus this documentation stage:
+At `b3f33ae` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 96 Vitest files / 396 tests passed;
+- 99 Vitest files / 401 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -204,6 +205,9 @@ At `24ce542` plus this documentation stage:
 - CodeGraph maps `runGoalsRead`, `GoalsReadPort`, and
   `createLegacyGoalsReadAdapter` through the Goals read modules, adapter, and
   route; the existing `listGoals` helper remains behind the adapter;
+- CodeGraph maps `parseGoalDeleteRequest`, `runGoalDelete`, and
+  `createLegacyGoalDeleteAdapter` through the Goals delete modules, adapter,
+  and route; the existing `deleteGoal` helper remains behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -374,6 +378,25 @@ At `24ce542` plus this documentation stage:
   and 130 Playwright smoke cases passed. Chrome retained the protected Agent
   catalog count and tier labels before and after; CodeGraph maps the Goals read
   port, application, adapter, and route.
+- Goals schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-Y Goals delete compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/goals-delete.contract.md`.
+- `src/modules/goals/delete-rules.ts` preserves query-id validation;
+  `delete-application.ts` owns provider invocation;
+  `src/adapters/goals/legacy-delete-adapter.ts` keeps the existing `deleteGoal`
+  helper behind the delete port.
+- The route preserves HTTP 400 validation, `{ ok: true }` success, and existing
+  provider exception behavior; Goals UI/cache, row formats, retention, and
+  schema/data behavior are untouched.
+- Checkpoint: `b3f33ae`.
+- Full verification: 99 Vitest files / 401 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Goals
+  delete rules, port, application, adapter, and route.
 - Goals schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
