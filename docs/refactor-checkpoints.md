@@ -1043,6 +1043,23 @@ At code checkpoint `116885b` plus documentation checkpoint `fdcd0f7`:
 - Image-flow application decomposition, provider replacement, schema
   migration, reconciliation, and production traffic evidence remain deferred.
 
+### WP6-BF LINE card persistence compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-card-persistence.contract.md`.
+- `VisitLineCardPersistencePort` and
+  `src/adapters/visit/legacy-line-card-adapter.ts` now own the exact legacy
+  `contacts` and `visit_offers` insert mappings/queries. The route keeps row
+  projections, null behavior, locks, reports, tags, replies, provider calls,
+  and ordering unchanged.
+- Checkpoint: `7fcf1af`.
+- Full verification: 177 Vitest files / 532 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the adapter to
+  the route and `rg` confirms no direct mapping-helper imports remain.
+- Image-flow application decomposition, schema migration, reconciliation, and
+  production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
