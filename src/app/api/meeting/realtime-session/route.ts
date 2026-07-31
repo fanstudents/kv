@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AGENTS } from "@/lib/agent-data";
-import { createLegacyRealtimeSessionAdapter } from "@/adapters/meeting/legacy-realtime-session-adapter";
-import { runRealtimeSession } from "@/modules/meeting/realtime-session-application";
+import { createMeetingRealtimeContextProvider } from "@/adapters/meeting/meeting-realtime-context-provider";
+import { createMeetingSessionRepository } from "@/adapters/meeting/meeting-session-repository";
+import { createOpenAiMeetingRealtimeProvider } from "@/adapters/meeting/openai-meeting-realtime-provider";
 import {
   findActiveRealtimeAgent,
   parseRealtimeSessionRequest,
+  runRealtimeSession,
   toRealtimeAgentProfile,
-} from "@/modules/meeting/realtime-session-rules";
+} from "@/modules/meeting/realtime";
 
 // 開一場即時語音對談（WebRTC）：幫指定 Agent 的人設向 OpenAI 換一組短效期
 // ephemeral token，瀏覽器直接用這組 token 跟 OpenAI 建立語音連線，正式的
@@ -15,11 +17,13 @@ import {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const input = parseRealtimeSessionRequest(body);
-  const ports = createLegacyRealtimeSessionAdapter();
-
   const agent = findActiveRealtimeAgent(AGENTS, input.slug);
   const profile = agent ? toRealtimeAgentProfile(agent) : null;
-  const result = await runRealtimeSession(input, profile, ports);
+  const result = await runRealtimeSession(input, profile, {
+    meetingSessions: createMeetingSessionRepository(),
+    context: createMeetingRealtimeContextProvider(),
+    provider: createOpenAiMeetingRealtimeProvider(),
+  });
 
   if (result.kind === "agent-not-found") {
     return NextResponse.json({ error: "找不到這位 Agent" }, { status: 404 });

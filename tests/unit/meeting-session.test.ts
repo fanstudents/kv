@@ -27,6 +27,7 @@ import {
   parseMeetingFinishForm,
   parseMeetingRecordingRequest,
   parseMeetingStartRequest,
+  parseMeetingTurnLogRequest,
   recordingDescriptor,
   startMeeting,
 } from "@/modules/meeting/session";
@@ -82,6 +83,32 @@ describe("Meeting session request parsing", () => {
     });
     expect(parseMeetingRecordingRequest("meeting-1")).toEqual({ meetingId: "meeting-1" });
     expect(parseMeetingRecordingRequest(null)).toEqual({ meetingId: "" });
+  });
+
+  it("preserves turn request coercion, trim, and role defaults", () => {
+    expect(
+      parseMeetingTurnLogRequest({
+        meetingId: "meeting-1",
+        role: "agent",
+        content: "  hello  ",
+        agentSlug: "report",
+        speaker: "Ivy",
+      })
+    ).toEqual({
+      meetingId: "meeting-1",
+      role: "agent",
+      content: "hello",
+      agentSlug: "report",
+      speaker: "Ivy",
+    });
+    expect(parseMeetingTurnLogRequest({ role: "invalid", content: "x" }).role).toBe("boss");
+    expect(parseMeetingTurnLogRequest({ meetingId: 1, content: 2, agentSlug: null, speaker: false })).toEqual({
+      meetingId: "",
+      role: "boss",
+      content: "",
+      agentSlug: undefined,
+      speaker: undefined,
+    });
   });
 });
 

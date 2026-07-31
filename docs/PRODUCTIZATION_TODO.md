@@ -541,7 +541,7 @@ Then the existing report artifact is retried without creating a second scheduled
 
 **Goals:** G-02～G-04
 
-**Status（2026-07-31）：** in progress。此包只做 domain-level ownership consolidation；不改 meetings／meeting_turns／Storage schema、不觸發真實會議或 provider side effect。session lifecycle（start／finish／turn log／recording）、audio（TTS／transcribe）與 conversation command 已完成收斂；realtime 尚未切入。
+**Status（2026-07-31）：** structural consolidation complete（`Contract tested` + `Render smoke passed`）。此包只做 domain-level ownership consolidation；不改 meetings／meeting_turns／Storage schema、不觸發真實會議或 provider side effect。session lifecycle（start／finish／turn log／recording）、audio（TTS／transcribe）、conversation command、realtime session／usage 已收斂；有憑證的完整功能旅程與 production-like acceptance 留在 WP-11。
 
 **Behavior contract (`behavior-contract/v1`, `meeting.capabilities`)**
 
@@ -556,35 +556,24 @@ Then the existing report artifact is retried without creating a second scheduled
 - [x] 收斂 session lifecycle：start／finish／turn log／recording 共用 `session.ts` 與一個 Supabase/Storage repository；四條 route 維持 façade。
 - [x] 收斂 audio：TTS／transcribe 共用 `audio.ts`、保留原始 defaults/error semantics，並以一個 OpenAI provider service 供兩條 route 重用。
 - [x] 收斂 conversation command：roster、fallback、round/one-to-one 編排進 `conversation.ts`；history/turn persistence 重用 session repository，OpenAI conversation 為獨立 provider。
-- [ ] 收斂 realtime session／usage 成少量 capability modules。
-- [ ] 依真實替換邊界整理 storage、OpenAI realtime provider adapters；audio/conversation provider 已完成。
-- [ ] 統一 meeting/turn lifecycle、failure與cleanup。
-- [ ] 保持 meeting page request/response與UI state。
+- [x] 收斂 realtime session／usage：`realtime.ts` 擁有 request、roster、mint orchestration 與 usage log；session history 重用既有 repository。
+- [x] 依真實替換邊界整理 adapters：Supabase/Storage session repository、meeting context provider、OpenAI audio/conversation/realtime provider、AI usage repository；無 route action alias。
+- [x] 統一 meeting／turn lifecycle與既有 failure semantics，並刪除所有 Meeting route-specific四件組。
+- [x] 保持 Meeting page request／response contract與 first-paint UI state。
 
-**Verification:** start→command/voice→turn→finish、recording upload/read、provider timeout/error、authenticated visual/interaction。
+**Evidence（2026-07-31）**
 
-**Session lifecycle evidence（2026-07-31）**
+- Owner delta：Realtime／usage 的 8 個 production files、206 LOC 收為 1 個 capability module + 3 個真實外部邊界 adapter、194 LOC；6 份薄測試（354 LOC）收為 1 份 Realtime suite（311 LOC），turn parsing 併回 session suite。不是增加 framework。
+- CodeGraph sync 後，`runRealtimeSession`／`runMeetingRealtimeUsageLog` 各只由相應 API façade 呼叫；`mintRealtimeSession`、`logRealtimeUsage`、demo/live context 各只經其命名 adapter；舊 route-slice import 為零。`rg` 另確認 session repository 持續為 start／finish／log-turn／recording／command／realtime 的唯一 meeting-store owner。
+- 5 份 Meeting focused test files、39 assertions，包含 Realtime 404／502／400 route contract、provider/context/usage forwarding、既有 fallback 與 uncaught usage failure；`npm run typecheck`、`npm run lint` 通過。
+- 已登入 Chrome 的 `/meeting` 改前後 DOM snapshot 完全一致（804 chars）、console 無 error/warn。未點「開會」或送 command，避免建立真實 session／取得麥克風／呼叫 provider。
+- 證據等級止於 contract + render smoke：沒有 Supabase/OpenAI credentials，shell API 會被 middleware 回 `401`，Chrome 直接開 API URL 又受 client blocker 影響；因此不把 route tests 或 first paint 描述成真實語音、持久化或完整互動旅程。
 
-- CodeGraph sync 後，`startMeeting`／`finishMeetingSession`／`logMeetingTurn`／`getMeetingRecording` 各只由對應 route 呼叫；共用 repository 只由四條 session route 使用，舊 route-slice import 歸零。
-- 22 個 focused tests（session behavior、repository forwarding、route handler contract、turn/usage parsing）通過；`npm run typecheck` 與 `npm run lint` 通過。
-- 已登入 Chrome 的 `/meeting` 改前後 DOM snapshot 完全一致（804 chars）、console 無 error/warn。未點「開會」以避免建立真實 session／取得麥克風；無 Supabase／OpenAI credentials，故未宣稱 real voice or persistence journey 已驗。
-- shell 直接呼叫 API 被 middleware 回 `401`；Chrome 直接開 API URL 被 client blocker 擋下，故 API status evidence 採 route handler contract test，auth middleware lifecycle 仍以 WP-01 evidence 為準。
+**Functional verification gate:** 有憑證 staging 需執行 start→command/voice→turn→finish、recording upload/read、provider timeout/error、authenticated visual/interaction；列為 WP-11 acceptance，不阻塞本次結構收斂。
 
-**Audio capability evidence（2026-07-31）**
+**Rollback:** 此 commit 可整體 revert；API façade、payload、schema 與外部 provider 呼叫 shape 均未改，無 dual-write 或資料 migration。
 
-- CodeGraph sync 後，`speakMeeting`／`transcribeMeeting` 各只由對應 route 呼叫；`createOpenAiMeetingAudioProvider` 由兩條 route 共用，舊 speak/transcribe route-slice import 歸零。
-- 12 份 Meeting focused test files、57 assertions 通過；`npm run typecheck` 與 `npm run lint` 通過。
-- 已登入 Chrome 的 `/meeting` 改前後 DOM snapshot 仍完全一致（804 chars）、console 無 error/warn；未觸發 TTS／轉錄 provider，故仍不宣稱真實 audio journey 已驗。
-
-**Conversation capability evidence（2026-07-31）**
-
-- CodeGraph sync 後，`runMeetingConversation` 與 OpenAI conversation provider 都只由 command route 直接消費；舊 command route-slice import 歸零。history／turn 對 Supabase 的讀寫仍經同一個 session repository。
-- 10 份 Meeting focused test files、45 assertions 通過；`npm run typecheck` 與 `npm run lint` 通過。
-- 已登入 Chrome 的 `/meeting` 改前後 DOM snapshot 仍完全一致（804 chars）、console 無 error/warn；未送出 command，避免觸發 provider／資料寫入，故不宣稱 real command journey 已驗。
-
-**Rollback:** API façade 可回接 legacy function；storage/schema change 必須 additive。
-
-**Done when:** route-specific四件組移除，session lifecycle唯一且可測。
+**Done when:** Meeting 的 domain-level owner consolidation 已完成；完成整體重構前仍須通過 WP-11 的有憑證 functional／production-like acceptance。
 
 ### WP-08 — Orders and Reporting production slices
 

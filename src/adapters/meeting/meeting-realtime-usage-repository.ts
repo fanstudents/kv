@@ -1,8 +1,9 @@
 import "server-only";
-import { logRealtimeUsage, type RealtimeUsage } from "@/lib/ai-usage";
-import type { MeetingRealtimeUsageLogPort } from "@/modules/meeting/log-usage-ports";
 
-export function createLegacyMeetingRealtimeUsageAdapter(): MeetingRealtimeUsageLogPort {
+import { logRealtimeUsage, type RealtimeUsage } from "@/lib/ai-usage";
+import type { MeetingRealtimeUsageRepository } from "@/modules/meeting/realtime";
+
+export function createMeetingRealtimeUsageRepository(): MeetingRealtimeUsageRepository {
   return {
     record(input) {
       return logRealtimeUsage({
