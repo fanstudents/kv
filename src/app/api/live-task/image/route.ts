@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createLegacyLiveTaskImageAdapter } from "@/adapters/live-task/legacy-image-adapter";
-import { runLiveTaskImage } from "@/modules/live-task/image-application";
-import { parseLiveTaskImageRequest } from "@/modules/live-task/image-rules";
+import { createLiveTaskStateRepository } from "@/adapters/live-task/live-task-state-repository";
+import { parseLiveTaskImageRequest, readLiveTaskImage } from "@/modules/live-task/state";
 
 // 回傳目前這位 Agent 正在處理的實際圖片（例如剛上傳的名片照）位元組
 export async function GET(req: NextRequest) {
-  const result = await runLiveTaskImage(
+  const result = await readLiveTaskImage(
     parseLiveTaskImageRequest(req.nextUrl.searchParams.get("agent")),
-    createLegacyLiveTaskImageAdapter(),
+    createLiveTaskStateRepository(),
   );
   if (result.kind === "not-found") return new NextResponse(null, { status: 404 });
 

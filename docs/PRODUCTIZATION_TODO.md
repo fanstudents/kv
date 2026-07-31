@@ -669,6 +669,29 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實 `runAgentChat` 與 `createAgentChatComposition` 各只有同一個 API façade caller；舊 application/ports/rules/legacy-adapter import 為零。
 - focused `npx vitest run`（3 files／22 tests）、full `npm test`（116 files／505 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome before/after：`/goals` 11,077 chars 完全一致；`/tv/console` 產品 DOM 593 chars 完全一致，唯一原始差異為 baseline 的 Next dev `Open Next.js Dev Tools` + alert 注入。兩頁 console 無 error/warn；未送出任何真實 chat message。
 
+#### 進場清理 — Live task state and Visit history projections
+
+**狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；這是既有 TV read model 的 consolidation，不是 RuntimeKernel/Outbox migration，也沒有改寫 Visit workflow。
+
+**Behavior contract (`behavior-contract/v1`, `live-task.projections`)**
+
+- Scope：`GET/POST /api/live-task`、`GET /api/live-task/{history,image}`、`/tv` 的 polling/read image，以及 `GET /api/cron/visit-timeout` 對 live state 的更新；`agent_live_task`、`agent_runs` current step、Visit contacts/offers/invites。
+- Non-goals：不改 UI/UX、route URL/method/status/payload、TTL、`agent_live_task`/Visit schema、current-step lookup、cron auth/timeout behavior、RuntimeKernel/Outbox 或任何資料 migration。
+- Ownership：state／current-step／image 是同一個 live-state repository，已由 API POST 與 Visit timeout 兩條 production flow 共用；Visit-only history projection 因讀取 contacts/offers/invites 保持獨立 repository。不可把 Visit history 偽裝成通用 Agent history。
+- Invariants：read 同時無 live-state/current step 仍回 `{ active:false }`；step 對 status/caption/run/node 的 precedence、task image/TTL metadata、date fallback 不變；POST 的 patch coercion、missing agent `400`、store failure best-effort 不變；history 非 Visit/provider failure 均 `{items:[]}`、limit=8/outcome precedence 不變；缺 image 仍是 body-less `404`，success content type/cache header 不變；cron 仍只經由同一 state writer 更新 Visit UI。
+- Verification：CodeGraph consumer map、state/history/image/route contract tests、typecheck/lint/build，並以 Chrome 對 `/tv` 做 before/after DOM + console comparison；不觸發 webhook、cron 或任何寫入操作。
+
+- [x] 將 live state／step／image 收斂為一個兩-consumer state boundary，保留 Visit timeout compatibility。
+- [x] 將 Visit history 留為獨立 projection repository，移除四組 single-route forwarding layer。
+- [x] 補 route contract 並以 CodeGraph/Chrome parity 證明 compatibility。
+
+**Evidence（2026-07-31）：**
+
+- 12 個 live-task route-slice module 與 4 個 legacy adapter 收斂為 `state.ts` + `visit-history.ts`、live-state repository + Supabase Visit-history repository。state repository 是 `/api/live-task` GET/POST、image route、Visit timeout cron 共四個 production caller 的真實共享邊界；history 仍明確只有 Visit projection。
+- 12 個切碎 test files／22 cases 收斂為 5 個 capability/adapter/route contract files／26 cases；保留 state/current-step precedence、TTL/image metadata、patch coercion、Visit outcome precedence、error fallback 與 image body/header，並新增 GET/POST/history/image response contract。
+- CodeGraph sync 證實四個 API orchestration function 各只有原 API façade caller，state repository 四個 caller 與 Visit-history repository 一個 caller 都符合設計；舊 live-task application/port/rules/legacy-adapter import 為零。
+- focused `npx vitest run`（5 files／26 tests）、full `npm test`（109 files／509 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome `/tv` before/after DOM 1,476 chars 完全一致，console 無 error/warn；未觸發 webhook、cron 或任何寫入控制項。
+
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。

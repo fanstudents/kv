@@ -1,8 +1,8 @@
 import "server-only";
 import { getSupabase } from "@/lib/supabase";
-import type { LiveTaskHistoryPort } from "@/modules/live-task/history-ports";
+import type { VisitLiveTaskHistoryRepository } from "@/modules/live-task/visit-history";
 
-export function createLegacyLiveTaskHistoryAdapter(): LiveTaskHistoryPort {
+export function createSupabaseVisitLiveTaskHistoryRepository(): VisitLiveTaskHistoryRepository {
   return {
     async listContacts(limit) {
       const { data } = await getSupabase()

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
-import { createLegacyLiveTaskUpdateAdapter } from "@/adapters/live-task/legacy-update-adapter";
+import { createLiveTaskStateRepository } from "@/adapters/live-task/live-task-state-repository";
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     workflow: lineWorkflowPort,
     tags: contactTagPort,
     activity: createLegacyVisitLineActivityAdapter(),
-    liveTask: createLegacyLiveTaskUpdateAdapter(),
+    liveTask: createLiveTaskStateRepository(),
     delivery: lineDeliveryPort,
     lock: conversationLockPort,
   });

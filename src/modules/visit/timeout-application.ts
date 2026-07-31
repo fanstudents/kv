@@ -1,6 +1,6 @@
 import type { ConversationLockPort } from "@/modules/conversation/lock-ports";
 import type { ContactTagPort } from "@/modules/operations/service";
-import type { LiveTaskUpdatePort } from "@/modules/live-task/update-ports";
+import type { LiveTaskStateRepository } from "@/modules/live-task/state";
 import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
 import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
 import type { VisitLineWorkflowPersistencePort } from "@/modules/visit/line-workflow-ports";
@@ -17,7 +17,7 @@ export interface VisitTimeoutApplicationDependencies {
   workflow: Pick<VisitLineWorkflowPersistencePort, "findStaleOffers" | "resolveOffer">;
   tags: Pick<ContactTagPort, "add">;
   activity: VisitLineActivityPort;
-  liveTask: Pick<LiveTaskUpdatePort, "setState">;
+  liveTask: Pick<LiveTaskStateRepository, "setState">;
   delivery: Pick<VisitLineDeliveryPort, "pushText">;
   lock: Pick<ConversationLockPort, "release">;
   clock?: VisitTimeoutClock;
