@@ -662,6 +662,26 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, import write-owner migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AM Knowledge Base crawl preview compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-crawl-preview.contract.md`.
+- `src/modules/knowledge-base/crawl-preview-rules.ts` owns URL and branch
+  parsing; `crawl-preview-application.ts` owns credit/site orchestration;
+  `src/adapters/knowledge-base/legacy-crawl-preview-adapter.ts` keeps
+  `mapSite`, `getCreditUsage`, and quota classification behind the port.
+- The `/api/knowledge-base/crawl` GET route preserves credit-only responses,
+  HTTP(S) validation, the 200-link provider limit, first-30 response slice,
+  quota 429/other-error 502 mapping, and all Knowledge Base UI/data formats.
+  Crawl POST remains on the legacy import pipeline.
+- Checkpoint: `d3a0858`.
+- Full verification: 138 Vitest files / 455 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the preview
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, crawl import write-owner migration,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
