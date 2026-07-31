@@ -16,10 +16,10 @@ import { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } from "
 import {
   classifyVisitApprovalText,
   classifyVisitDecisionText,
-  normalizeVisitLineInbound,
   parseVisitLineWebhookPayload,
   type LineInboundEvent,
 } from "@/modules/visit/line-inbound";
+import { dispatchVisitLineWebhookEvents } from "@/modules/visit/line-webhook-application";
 import {
   toLegacyContactInsert,
   toLegacyPendingInviteInsert,
@@ -655,25 +655,17 @@ export async function POST(req: NextRequest) {
   }
   const events = payload.events;
 
-  await Promise.allSettled(
-    events.map(async (event) => {
-      if (!event.replyToken) return;
-      const userId = event.source?.userId ?? "未知使用者";
-      if (event.source?.userId) await touchSubscriber(event.source.userId, "primary").catch(() => {});
-      const inbound = normalizeVisitLineInbound({
-        ...event,
-        source: { ...event.source, userId },
-      });
-
-      if (inbound.kind === "image") {
-        await handleImageMessage(event, userId);
-      } else if (inbound.kind === "text") {
-        await handleTextMessage(event, userId, baseUrl);
-      } else if (inbound.kind === "postback") {
-        await handlePostback(event, userId, baseUrl);
-      }
-    })
-  );
+  await dispatchVisitLineWebhookEvents({
+    events,
+    baseUrl,
+    fallbackUserId: "未知使用者",
+    handlers: {
+      touchSubscriber: (userId) => touchSubscriber(userId, "primary"),
+      handleImageMessage,
+      handleTextMessage,
+      handlePostback,
+    },
+  });
 
   return NextResponse.json({ ok: true });
 }
