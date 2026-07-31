@@ -9,7 +9,6 @@ import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
 import { touchSubscriber } from "@/lib/subscribers";
-import { acquireLock, releaseLock } from "@/lib/conversation-lock";
 import { getSupabase } from "@/lib/supabase";
 import {
   classifyVisitApprovalText,
@@ -29,6 +28,7 @@ import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
+import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
 import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
 
 const {
@@ -41,6 +41,7 @@ const {
 const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 const lineActivityPort = createLegacyVisitLineActivityAdapter();
+const conversationLockPort = createLegacyConversationLockAdapter();
 const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
 
 export async function GET() {
@@ -147,7 +148,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
   });
 
   // 多輪對話即將開始，先搶下這個使用者的鎖（同一 Agent 重入會自動延長，不會卡住自己）。
-  await acquireLock(supabase, userId, VISIT_AGENT, { context: { stage: "card_review" } });
+  await conversationLockPort.acquire(userId, VISIT_AGENT, { context: { stage: "card_review" } });
 
   const contactRow = await lineCardPersistencePort.createContact(contact, userId);
 
@@ -159,7 +160,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     ];
     if (contactRow?.id) noEmailMsgs.push(buildTagQuickReply({ contactId: contactRow.id, tags: availableTags }));
     await replyLineRawMessages(replyToken, noEmailMsgs);
-    await releaseLock(supabase, userId, VISIT_AGENT);
+    await conversationLockPort.release(userId, VISIT_AGENT);
     return;
   }
 
@@ -285,7 +286,7 @@ async function handleVisitOfferReply(
       { type: "text", text: "好的，這次先不安排，需要的話再傳名片給我一次即可。" },
       buildTagQuickReply({ contactId: contact.id, tags: availableTags }),
     ]);
-    await releaseLock(supabase, userId, VISIT_AGENT);
+    await conversationLockPort.release(userId, VISIT_AGENT);
     return true;
   }
 
@@ -353,7 +354,7 @@ async function handleVisitOfferReply(
         summary: `查詢行事曆空檔不足，無法幫 ${finalContact.name} 產生邀約信`,
         status: "failed",
       });
-      await releaseLock(supabase, userId, VISIT_AGENT);
+      await conversationLockPort.release(userId, VISIT_AGENT);
       return true;
     }
 
@@ -449,7 +450,7 @@ async function handleVisitOfferReply(
       summary: `已寄出邀約信給 ${finalContact.name}（${finalContact.email}），等待對方選擇時段`,
       status: "pending",
     });
-    await releaseLock(supabase, userId, VISIT_AGENT);
+    await conversationLockPort.release(userId, VISIT_AGENT);
   } catch (err) {
     const message = err instanceof Error ? err.message : "排程或寄信失敗";
     await lineActivityPort.record({
@@ -460,7 +461,7 @@ async function handleVisitOfferReply(
     await replyLineMessage(event.replyToken, "抱歉，自動排程或寄信時遇到問題，請手動與對方聯繫安排時間。").catch(
       () => {}
     );
-    await releaseLock(supabase, userId, VISIT_AGENT);
+    await conversationLockPort.release(userId, VISIT_AGENT);
   }
 
   return true;
@@ -493,7 +494,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
       .update(toLegacyPendingInviteStatusPatch("cancelled"))
       .eq("id", invite.id);
     await replyLineMessage(event.replyToken, "好的，已取消，不會寄出這封信。");
-    await releaseLock(supabase, userId, VISIT_AGENT);
+    await conversationLockPort.release(userId, VISIT_AGENT);
     return true;
   }
 
@@ -557,7 +558,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
       });
       await replyLineMessage(event.replyToken, "抱歉，寄信時遇到問題，請手動與對方聯繫安排時間。").catch(() => {});
     }
-    await releaseLock(supabase, userId, VISIT_AGENT);
+    await conversationLockPort.release(userId, VISIT_AGENT);
     return true;
   }
 

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { pushLineMessage } from "@/lib/line";
-import { releaseLock } from "@/lib/conversation-lock";
 import { toLegacyVisitOfferResolution } from "@/modules/visit/legacy-schema";
 import { addContactTag } from "@/lib/contact-tags";
 import { setLiveTask } from "@/lib/live-task-store";
 import { parseCronAuth } from "@/modules/cron/auth-rules";
+import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
+
+const conversationLockPort = createLegacyConversationLockAdapter();
 
 // 約拜訪逾時自動判斷：名片辨識後 3 分鐘還沒回「要／不要」→ 依設定「一律先略過」，
 // 標記客戶「待跟進」存起來、通知使用者，不自動寄邀約。
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
         offer.line_user_id,
         `名片「${name}」等了 3 分鐘沒收到你的指示，我先幫你標記「待跟進」存起來了 📌\n要安排拜訪的話再跟我說，或重新傳一次名片即可。`
       ).catch(() => {});
-      await releaseLock(supabase, offer.line_user_id, "visit").catch(() => {});
+      await conversationLockPort.release(offer.line_user_id, "visit").catch(() => {});
     }
 
     handled++;
