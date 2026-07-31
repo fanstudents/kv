@@ -83,13 +83,14 @@ Every stage must:
 | `24ce542` | Goals read boundary | Goal list port, default-seed preservation, and HTTP-preserving cutover |
 | `b3f33ae` | Goals delete boundary | Query-id validation, delete port, and HTTP-preserving cutover |
 | `edcd8c9` | Goals reset boundary | Default-goal reset port and HTTP-preserving cutover |
+| `cafa912` | Auth login boundary | Password parsing, auth decision port, and cookie-preserving cutover |
 
 ## Current Verification
 
-At `edcd8c9` plus this documentation stage:
+At `cafa912` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 101 Vitest files / 403 tests passed;
+- 104 Vitest files / 408 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -212,6 +213,9 @@ At `edcd8c9` plus this documentation stage:
 - CodeGraph maps `runGoalsReset`, `GoalsResetPort`, and
   `createLegacyGoalsResetAdapter` through the Goals reset modules, adapter, and
   route; the existing `resetGoalsToDefault` helper remains behind the adapter;
+- CodeGraph maps `parseLoginRequest`, `runLogin`, and
+  `createLegacyLoginAdapter` through the Auth login modules, adapter, and
+  route; the existing password/session helpers remain behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -421,6 +425,24 @@ At `edcd8c9` plus this documentation stage:
   port, application, adapter, and route.
 - Goals schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
+
+### WP6-AA Auth login compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/auth-login.contract.md`.
+- `src/modules/auth/login-rules.ts` owns password input normalization;
+  `login-application.ts` owns configured/invalid/success decisions;
+  `src/adapters/auth/legacy-login-adapter.ts` keeps the existing environment
+  checks and auth helpers behind the login port.
+- The route preserves HTTP 500 configuration errors, HTTP 401 password errors,
+  successful `{ ok: true }`, and the existing `kv_session` cookie attributes;
+  login UI, middleware, token format, and data behavior are untouched.
+- Checkpoint: `cafa912`.
+- Full verification: 104 Vitest files / 408 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Auth login
+  rules, port, application, adapter, and route.
+- Auth provider migration and production traffic evidence remain deferred.
 
 ## Current Boundary
 
