@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/auth";
-import { runLogout } from "@/modules/auth/logout-application";
+import { buildLogoutCookiePolicy } from "@/modules/auth/auth";
 
 export async function POST() {
-  const result = runLogout(process.env.NODE_ENV === "production");
+  const cookie = buildLogoutCookiePolicy(process.env.NODE_ENV === "production");
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE, result.cookie.value, result.cookie);
+  res.cookies.set(SESSION_COOKIE, cookie.value, cookie);
   return res;
 }

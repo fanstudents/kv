@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
-import { createLegacyLoginAdapter } from "@/adapters/auth/legacy-login-adapter";
-import { runLogin } from "@/modules/auth/login-application";
-import { parseLoginRequest } from "@/modules/auth/login-rules";
+import { createSessionToken, SESSION_COOKIE, SESSION_MAX_AGE, verifyPassword } from "@/lib/auth";
+import { parseLoginRequest, runLogin } from "@/modules/auth/auth";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const result = runLogin(parseLoginRequest(body), createLegacyLoginAdapter());
+  const result = runLogin(parseLoginRequest(body), {
+    isConfigured: () => Boolean(process.env.AUTH_SECRET && process.env.ADMIN_PASSWORD),
+    verifyPassword,
+    createSessionToken,
+  });
   if (result.kind === "config-error") {
     return NextResponse.json({ error: result.message }, { status: 500 });
   }

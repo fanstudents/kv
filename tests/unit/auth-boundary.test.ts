@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runLogin } from "@/modules/auth/login-application";
+import { buildLogoutCookiePolicy, parseLoginRequest, runLogin } from "@/modules/auth/auth";
 
 describe("runLogin", () => {
   it("keeps the missing-configuration response", () => {
@@ -19,5 +19,33 @@ describe("runLogin", () => {
     verifyPassword.mockReturnValue(true);
     expect(runLogin({ password: "secret" }, port)).toEqual({ kind: "ok", token: "token" });
     expect(createSessionToken).toHaveBeenCalledOnce();
+  });
+});
+
+describe("parseLoginRequest", () => {
+  it("keeps string passwords", () => {
+    expect(parseLoginRequest({ password: "secret" })).toEqual({ password: "secret" });
+  });
+
+  it("normalizes missing or non-object bodies", () => {
+    expect(parseLoginRequest({ password: 123 })).toEqual({ password: "" });
+    expect(parseLoginRequest(null)).toEqual({ password: "" });
+  });
+});
+
+describe("buildLogoutCookiePolicy", () => {
+  it("keeps the development cookie-expiration attributes", () => {
+    expect(buildLogoutCookiePolicy(false)).toEqual({
+      value: "",
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+  });
+
+  it("enables secure transport for production", () => {
+    expect(buildLogoutCookiePolicy(true).secure).toBe(true);
   });
 });

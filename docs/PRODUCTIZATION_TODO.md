@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 417 files／3,447 nodes／7,129 edges |
+| Last verified | 2026-07-31；CodeGraph index 408 files／3,417 nodes／7,084 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -313,6 +313,28 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 **Rollback:** 不修改產品 behavior；若環境不可得，保留 Unknown，禁止宣稱 functional verified。
 
 **Done when:** 新成員依 README 能登入同一資料環境，且 baseline 可重複。
+
+#### 進場清理 — Auth route boundary
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；這是同一個 Auth domain 的 internal consolidation，不是 auth policy 或登入牆變更。Chrome authentication lifecycle 仍留在跨批次集中驗收。
+
+**Behavior contract (`behavior-contract/v1`, `auth.route-boundary`)**
+
+- Scope：`POST /api/auth/login`、`POST /api/auth/logout` 的 body normalization、登入結果、cookie policy 與 helper composition。
+- Non-goals：不改 `proxy.ts`、session token／password verification 演算法、`SESSION_COOKIE`／TTL、URL/method/status/payload、登入畫面或任何 UI/UX。
+- CodeGraph evidence：`runLogin`、`runLogout`、`createLegacyLoginAdapter` 各只有一個 route caller；login port、rules、application、logout wrapper 與 adapter 沒有第二個 production consumer。
+- Invariants：缺設定仍回既有 `500`；錯誤或空密碼仍回既有 `401`；成功仍只設定同一個 httpOnly/lax/30-day session cookie；logout 仍以相同 secure 判斷清除同一 cookie。
+- Design：保留可注入的 login dependencies 以固定 success/failure contract，但把單一 caller 的 port、thin adapter、rules/application 檔案收斂為一個 named Auth boundary；route 是 composition root。
+- Acceptance：parser、missing-config、wrong-password、success token、development/production logout cookie 與 route response 不變；full automated verification 後才宣告 `Contract tested`，Chrome auth lifecycle 留在跨批驗收。
+- Intentional changes：只有檔案/owner/import path；不更動認證能力或資料流。
+
+**Evidence（2026-07-31）：**
+
+- 將 5 個 Auth modules 加 1 個只轉傳 helper 的 adapter 收斂為 `modules/auth/auth.ts`；兩個 route 保持 composition root，未把 token/password 演算法帶進 UI 或改到 proxy。
+- CodeGraph sync 後 `runLogin` 仍只由 login `POST` 呼叫，`buildLogoutCookiePolicy` 仍只由 logout `POST` 呼叫；舊 port/rules/application/adapter/import 搜尋為零。全 repo 為 408 files／3,417 nodes／7,084 edges。
+- `npm test` 94 files／465 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。5 個 dedicated unit files 收斂為 1 個 boundary test；保留 6 個可觀察行為案例，移除 2 個只驗證 thin adapter／永遠成功 wrapper 的 tests。
+- [x] 保留可注入 login dependencies 與所有 route-visible success/failure/cookie contract。
+- [ ] 在後續跨批次 Playwright/Chrome 驗收中重跑真實 login → dashboard → logout lifecycle；本批沒有 UI source change。
 
 ### WP-02 — Operations consolidation pilot
 
