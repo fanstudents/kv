@@ -87,14 +87,15 @@ Every stage must:
 | `d538b52` | Conversation lock boundary | Shared lock port for LINE webhook and timeout cron |
 | `8143732` | Contact tag boundary | Shared tag port for LINE, timeout, TV, and Meeting consumers |
 | `be5c294` | Visit LINE workflow persistence boundary | Offer, invite, and contact correction persistence port |
+| `079f17c` | Visit settings boundary | Settings port and legacy adapter for the LINE webhook |
 
 ## Current Verification
 
-At code checkpoint `be5c294` plus the pending documentation checkpoint for
-WP6-BK:
+At code checkpoint `079f17c` plus the pending documentation checkpoint for
+WP6-BL:
 
 - `npm run verify:full` passed;
-- 182 Vitest files / 542 tests passed;
+- 183 Vitest files / 543 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -112,6 +113,9 @@ WP6-BK:
 - CodeGraph maps `createLegacyVisitLineWorkflowAdapter` and its port through the
   LINE webhook route; `rg` confirms no direct offer/invite table writes or
   legacy mapping-helper imports remain in that route;
+- CodeGraph maps `createLegacyVisitSettingsAdapter` through the LINE webhook;
+  `rg` confirms the route has no direct `getVisitAgentSettings` or Supabase
+  imports;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1158,6 +1162,24 @@ WP6-BK:
   matched exactly before and after; CodeGraph maps the port/adapter to the
   route and `rg` confirms no direct offer/invite writes remain there.
 - Workflow repository replacement, schema migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-BL Visit settings compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-settings.contract.md`.
+- `VisitSettingsPort` and
+  `src/adapters/visit/legacy-settings-adapter.ts` now own the existing
+  `line_agents.settings` binding for the LINE webhook. The route keeps the
+  exact defaults, lookup order, calendar request, invite rendering/revision,
+  provider behavior, and failure boundaries.
+- Checkpoint: `079f17c`.
+- Full verification: 183 Vitest files / 543 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the settings adapter to the
+  route and `rg` confirms no direct settings-helper or Supabase imports remain
+  there.
+- Settings repository replacement, schema migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
