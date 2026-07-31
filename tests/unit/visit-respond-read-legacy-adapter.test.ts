@@ -21,7 +21,8 @@ describe("legacy Visit respond read adapter", () => {
     query.eq.mockReturnValue(query);
     query.maybeSingle
       .mockResolvedValueOnce({ data: { id: "i1", status: "pending" } })
-      .mockResolvedValueOnce({ data: { id: "i1", status: "confirmed", chosen_slot: "1" } });
+      .mockResolvedValueOnce({ data: { id: "i1", status: "confirmed", chosen_slot: "1" } })
+      .mockResolvedValueOnce({ data: { id: "i1", status: "confirmed", contacts: { name: "Dennis" } } });
     query.single.mockResolvedValue({ data: { id: "i1", status: "confirmed", chosen_slot: "1" } });
     const client = { from: vi.fn(() => query) };
     getSupabase.mockReturnValue(client);
@@ -34,9 +35,15 @@ describe("legacy Visit respond read adapter", () => {
       chosen_slot: "1",
     });
     await expect(adapter.refetchInvite("i1")).resolves.toEqual({ id: "i1", status: "confirmed", chosen_slot: "1" });
+    await expect(adapter.findInviteForFulfilment("i1")).resolves.toEqual({
+      id: "i1",
+      status: "confirmed",
+      contacts: { name: "Dennis" },
+    });
     expect(client.from).toHaveBeenCalledWith("pending_invites");
     expect(query.select).toHaveBeenCalledWith("*");
     expect(query.update).toHaveBeenCalledWith({ status: "confirmed", chosen_slot: "1", resolved_at: "2026-07-31T00:00:00.000Z" });
     expect(query.eq).toHaveBeenCalledWith("status", "pending");
+    expect(query.select).toHaveBeenCalledWith("*, contacts(name, title, email, company)");
   });
 });

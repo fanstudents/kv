@@ -123,6 +123,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const inviteId = req.nextUrl.searchParams.get("invite");
   const supabase = getSupabase();
+  const readPort = createLegacyVisitRespondReadAdapter();
 
   if (!inviteId) {
     return page("連結無效", "這個邀約連結不完整，請直接聯繫對方確認時間。", "error");
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData().catch(() => null);
   const location = normalizeVisitLocation(formData?.get("location") ?? null);
 
-  const { data: row } = await supabase.from("pending_invites").select("*, contacts(name, title, email, company)").eq("id", inviteId).maybeSingle();
+  const row = await readPort.findInviteForFulfilment(inviteId);
 
   if (!row) {
     return page("連結無效", "找不到這個邀約，請直接聯繫對方確認時間。", "error");

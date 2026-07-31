@@ -5,7 +5,7 @@ import {
   type LegacyPendingInviteRow,
 } from "@/modules/visit/legacy-schema";
 import type { VisitInviteChoice } from "@/modules/visit/public-response";
-import type { VisitRespondReadPort } from "@/modules/visit/respond-ports";
+import type { VisitRespondFulfilmentRow, VisitRespondReadPort } from "@/modules/visit/respond-ports";
 
 export function createLegacyVisitRespondReadAdapter(): VisitRespondReadPort {
   let supabase: ReturnType<typeof getSupabase> | null = null;
@@ -32,6 +32,14 @@ export function createLegacyVisitRespondReadAdapter(): VisitRespondReadPort {
     async refetchInvite(inviteId) {
       const { data } = await getClient().from("pending_invites").select("*").eq("id", inviteId).single();
       return data as LegacyPendingInviteRow;
+    },
+    async findInviteForFulfilment(inviteId) {
+      const { data } = await getClient()
+        .from("pending_invites")
+        .select("*, contacts(name, title, email, company)")
+        .eq("id", inviteId)
+        .maybeSingle();
+      return data as VisitRespondFulfilmentRow | null;
     },
   };
 }
