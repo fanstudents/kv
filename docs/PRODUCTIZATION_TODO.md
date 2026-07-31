@@ -646,6 +646,29 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實 `readAgentInstance`、`updateAgentInstance`、`readAgentStatuses`、`runAgentTestPush` 各只由原本 API façade 呼叫，`readOverview` 則由四個 overview route 共用；舊 application/port/legacy-adapter import 為零。
 - focused `npx vitest run`（6 files／14 tests）、full `npm test`（116 files／505 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome before/after：`/agents/support` 6,078、`/agents/operations` 6,656、`/agents/schedule` 6,224 chars 完全一致；`/goals` 11,042 chars 的產品 DOM 一致，唯一原始差異為 Next dev 的 `Open Next.js Dev Tools` 按鈕。四頁 console 無 error/warn；未點擊任何會發 LINE 或第三方 provider side effect 的控制項。
 
+#### 進場清理 — Agent chat capability
+
+**狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；它仍是目前 static roster 的相容 consumer，並不是 canonical Agent model mapper，也沒有改動 roster、prompt 或 UI 行為。
+
+**Behavior contract (`behavior-contract/v1`, `agent-chat.capability`)**
+
+- Scope：`POST /api/agent-chat`、dashboard `AgentChatWidget`、TV `CommandConsole`；static `AGENTS` roster projection、live context、OpenAI chat reply、canvas enrichment。
+- Non-goals：不改 UI/UX、route URL/method/status/payload、Agent roster/name/role/teamlead 判斷、prompt、history 格式、OpenAI/canvas provider、資料表或 canonical Agent identity。
+- Invariants：payload 仍只接受 string `agentSlug`/`message`/`history`；message trim 但 slug 不 trim；missing input `400`、unknown Agent `404`、reply failure `502`；context/canvas failure 均 best-effort、不可中斷 reply；empty reply 仍回既有 fallback；reply/canvas 的 provider payload 和 roster projection 不變。
+- Design：把 rules、ports、application 收斂為一個 cohesive chat capability；保留一個真正負責 static roster／context／OpenAI／canvas translation 的 composition adapter，移除 `legacy` 命名與每個 single-route layer。
+- Verification：CodeGraph caller map、capability/adapter/route contract tests、typecheck/lint/build，並以 Chrome 對 `/goals` 與 `/tv/console` 做 before/after DOM + console comparison；不送出任何真實 chat message。
+
+- [x] 收斂 Agent chat capability 與 composition adapter，維持 API façade。
+- [x] 以 route contract 補齊 `400`/`404`/`502`/success response。
+- [x] CodeGraph 舊 caller/import 歸零與 Chrome parity 通過。
+
+**Evidence（2026-07-31）：**
+
+- 原本 3 個 route-slice module + 1 個 `legacy` adapter 收斂為單一 `chat.ts` capability 與一個具實際 static roster／context／OpenAI／canvas translation 的 composition adapter；`/api/agent-chat` façade 與兩個前端 consumer 未改。
+- 3 個 focused test files 維持 22 個 cases，並補上原本沒有的 route `400`／malformed JSON／`404`／`502`／success contract；parser 的所有 invalid shape、slug/message/history semantics、context/canvas best-effort、fallback、provider payload、static roster projection 全數保留。
+- CodeGraph sync 證實 `runAgentChat` 與 `createAgentChatComposition` 各只有同一個 API façade caller；舊 application/ports/rules/legacy-adapter import 為零。
+- focused `npx vitest run`（3 files／22 tests）、full `npm test`（116 files／505 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome before/after：`/goals` 11,077 chars 完全一致；`/tv/console` 產品 DOM 593 chars 完全一致，唯一原始差異為 baseline 的 Next dev `Open Next.js Dev Tools` + alert 注入。兩頁 console 無 error/warn；未送出任何真實 chat message。
+
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。

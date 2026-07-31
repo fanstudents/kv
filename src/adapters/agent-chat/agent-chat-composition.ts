@@ -3,11 +3,11 @@ import { AGENTS } from "@/lib/agent-data";
 import { buildCanvasForReply } from "@/lib/chat-canvas";
 import { getAgentLiveContext } from "@/lib/meeting-context";
 import { replyToChat } from "@/lib/openai";
-import type { AgentChatPorts } from "@/modules/agent-chat/ports";
+import type { AgentChatPorts } from "@/modules/agent-chat/chat";
 
 const TEAM_LEAD_SLUG = "teamlead";
 
-export function createLegacyAgentChatAdapters(): AgentChatPorts {
+export function createAgentChatComposition(): AgentChatPorts {
   return {
     agents: {
       find(slug) {
