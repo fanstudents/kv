@@ -3,7 +3,6 @@ import {
   verifyLineSignature,
   replyLineMessage,
   replyLineRawMessages,
-  getLineMessageContentAsDataUrl,
 } from "@/lib/line";
 import { getAvailableTags, addContactTag } from "@/lib/contact-tags";
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
@@ -30,15 +29,16 @@ import {
 } from "@/modules/visit/legacy-schema";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
+import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
 
 const {
-  parseBusinessCard,
   draftInviteEmail,
   interpretCardReply,
   reviseInviteEmail,
   findFreeSlots,
   sendEmail,
 } = legacyVisitProviders;
+const lineImagePort = createLegacyVisitLineImageAdapter();
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
@@ -75,7 +75,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
 
   let contact: VisitBusinessCard;
   try {
-    const imageDataUrl = await getLineMessageContentAsDataUrl(messageId);
+    const imageDataUrl = await lineImagePort.getImageDataUrl(messageId);
     if (!imageDataUrl.startsWith("data:image/")) {
       await replyLineMessage(replyToken, "這個檔案不是圖片格式，請直接傳名片照片給我。");
       return;
@@ -91,7 +91,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
       caption: "辨識名片中…",
       image: imageDataUrl,
     });
-    contact = await parseBusinessCard(imageDataUrl);
+    contact = await lineImagePort.parseBusinessCard(imageDataUrl);
   } catch (err) {
     const message = err instanceof Error ? err.message : "名片辨識失敗";
     await supabase.from("line_agent_activity").insert({
