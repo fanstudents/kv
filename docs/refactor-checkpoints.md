@@ -703,6 +703,26 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, crawl import write-owner migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AO Knowledge Base recheck cron compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-recheck.contract.md`.
+- `src/modules/knowledge-base/recheck-rules.ts` owns fail-closed cron
+  authorization; `recheck-application.ts` owns the fixed ten-source schedule
+  and response envelope; `src/adapters/knowledge-base/legacy-recheck-adapter.ts`
+  keeps `recheckUrlSources` behind the port.
+- The `/api/cron/kb-recheck` GET route preserves missing-secret 503,
+  mismatched-header 401, exact-secret authorization, limit `10`,
+  `{ ok: true, checked, changed }`, `maxDuration`, and all Knowledge Base
+  freshness side effects and data formats.
+- Checkpoint: `aac9964`.
+- Full verification: 144 Vitest files / 466 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the recheck
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, recheck write-owner migration,
+  reconciliation, and production scheduler evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
