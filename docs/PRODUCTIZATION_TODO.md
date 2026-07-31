@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 446 files／3,660 nodes／7,698 edges |
+| Last verified | 2026-07-31；CodeGraph index 433 files／3,565 nodes／7,451 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -558,6 +558,34 @@ Then the existing report artifact is retried without creating a second scheduled
 - `research-rules.ts`、`research-ports.ts`、`research-application.ts` 收斂為 `research.ts`；真正的 Supabase contact lookup + `contact-research` provider translation 保留為 one named source。production files 淨少 2 個，沒有把 query 或 provider call 塞回 route。
 - CodeGraph sync 後全 repo 為 446 files／3,660 nodes／7,698 edges；舊 research rules/port/application/adapter import 為零。GET/POST 維持唯一 callers：POST 呼叫 `runVisitResearch`，GET 呼叫 `runVisitResearchRead`，兩者皆仍使用同一 legacy research source。
 - `npm test` 106 files／521 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。此為 fixture/static contract evidence；真實 Supabase/OpenAI-like provider 與 authenticated UI interaction 仍延至 cross-batch acceptance。
+
+#### 進場清理 — Inactive Visit runtime scaffold
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；CodeGraph preflight 已確認這組 prospective runtime modules 沒有任何 production caller，僅在彼此與專屬 fixture/unit tests 間循環。它不應與已運作的 LINE workflow 並列為第二條 truth。Chrome cross-batch evidence 仍待集中驗收。
+
+**Behavior contract (`behavior-contract/v1`, `visit.inactive-runtime-scaffold.cleanup`)**
+
+- Scope：刪除無 production consumer 的 Visit state-machine／intent executor／replay／projection／mode／workflow draft，以及只服務該 draft 的 fixture/tests。
+- Non-goals：不改 LINE webhook、timeout、research、public invite response、legacy schema write mapper、`agent_runs`／`agent_run_steps`／`agent_artifacts`、UI/UX 或 WP-05/06 runtime roadmap。
+- Entrypoints／consumers：CodeGraph 對 `evaluateVisitEvent`、`replayVisit`、`planVisitFlow`、`VISIT_WORKFLOW` 均無 production caller；唯一 live schema import 是未使用 snapshot rehydration type/mappers，會一併移除但保留寫入 mapper。
+- Inputs／outputs／side effects：沒有任何 route、DB、provider、event、timer 或 UI side effect；刪除後仍保留現行 legacy contact/offer/invite rows 的 insert/update patch payload。
+- UI states：無 browser-visible owner；受影響 UI 只在後續跨批次 Visit/TV/Outputs smoke 中確認未回歸。
+- Invariants：不以 test-only state machine 假裝 canonical runtime；未來 runtime 只能在 U-02 關閉且有真實 production consumer 後，依 WP-04/05 的 event/idempotency/outbox contract 建立。
+- Acceptance examples：production import map 對 targets 為零；legacy LINE card insert 和 invite/offer patch contract 持續通過；build 不再將任何 route 解析到 draft module。
+- Test mapping：保留 legacy schema/LINE handler/timeout tests；移除只測未接線 draft 的 tests；以 CodeGraph, full test/typecheck/lint/build 及下一次 Chrome cross-batch evidence 驗收。
+- Intentional changes：刪除 inactive implementation 與其專屬 tests，這是刻意減少虛假 coverage，不是功能刪除。
+- Open questions：真實 runtime persistence 仍受 U-01/U-02/U-04 阻擋，不能由刪除草稿推論已完成。
+
+- [x] 刪除沒有 production caller 的 Visit runtime draft、parity fixture 與專屬 tests。
+- [x] 將 legacy schema 改為只保留 production row write mapper，不再依賴 draft state-machine type。
+- [x] 完成 CodeGraph/import audit 與 full automated verification。
+- [ ] 下一次跨批次集中驗證 authenticated Visit／TV／Outputs UI，並保留 U-01/U-02/U-04 的 real-data/provider gates。
+
+**Evidence（2026-07-31）：**
+
+- 移除 7 個未接線 production modules（state machine、intent executor、projection、replay、mode、workflow）、1 個專屬 parity fixture、5 個專屬 unit tests；`legacy-schema.ts` 保留真正在 LINE contact/offer/invite adapter 使用的 insert/update payload mapper，並以 `LegacyContactInput` 取代錯誤的 draft-state dependency。
+- CodeGraph sync 後全 repo 為 433 files／3,565 nodes／7,451 edges；對已刪 symbol 與 `modules/visit/{domain,application,intent-executor,projection,replay,mode,workflow}` 的 source/test import 搜尋皆為零。沒有 route、DB/provider、timer 或 UI consumer 曾指向它們。
+- `npm test` 101 files／484 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。減少的 5 test files／37 tests 只驗證 inactive draft；保留的 `visit-legacy-schema.test.ts` 直接覆蓋 live LINE row mappers。這仍不替代 real LINE/Supabase/authenticated browser acceptance。
 
 ### WP-05 — Visit LINE text vertical slice
 

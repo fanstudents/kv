@@ -1,5 +1,3 @@
-import type { VisitContact, VisitState } from "@/modules/visit/domain";
-
 export type LegacyVisitOfferStatus = "pending" | "accepted" | "declined";
 export type LegacyPendingInviteStatus =
   | "awaiting_approval"
@@ -17,6 +15,15 @@ export interface LegacyContactRow {
   phone: string | null;
   source?: string | null;
   line_user_id?: string | null;
+}
+
+/** Input accepted by the legacy contact row mapper; it is intentionally not a runtime state-machine entity. */
+export interface LegacyContactInput {
+  name: string;
+  company?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface LegacyVisitOfferRow {
@@ -61,29 +68,7 @@ export interface LegacyPreparedInvite {
   requiresApproval: boolean;
 }
 
-export interface LegacyVisitSnapshot {
-  runId?: string;
-  contact?: LegacyContactRow | null;
-  offer?: LegacyVisitOfferRow | null;
-  invite?: LegacyPendingInviteRow | null;
-}
-
-function optional(value: string | null | undefined): string | undefined {
-  return value ?? undefined;
-}
-
-export function fromLegacyContactRow(row: LegacyContactRow): VisitContact {
-  return {
-    id: row.id,
-    name: row.name,
-    company: optional(row.company),
-    title: optional(row.title),
-    email: optional(row.email),
-    phone: optional(row.phone),
-  };
-}
-
-export function toLegacyContactInsert(contact: VisitContact, lineUserId: string) {
+export function toLegacyContactInsert(contact: LegacyContactInput, lineUserId: string) {
   return {
     name: contact.name || "（未命名聯絡人）",
     company: contact.company || null,
@@ -166,50 +151,4 @@ export function toLegacyPendingInviteFulfilmentPatch(
     calendar_event_id: calendarEventId,
     location: location ?? null,
   };
-}
-
-/**
- * Rehydrates only states that Dennis's current rows persist durably. Transient
- * provider activity (parsing, drafting, sending, calendar creation) must resume
- * through Runtime attempts rather than being guessed from a row.
- */
-export function fromLegacyVisitSnapshot(snapshot: LegacyVisitSnapshot): VisitState {
-  const contact = snapshot.contact ? fromLegacyContactRow(snapshot.contact) : undefined;
-  const base = {
-    runId: snapshot.runId,
-    contact,
-    offerId: snapshot.offer?.id,
-    inviteId: snapshot.invite?.id,
-    chosenSlot: snapshot.invite?.chosen_slot ?? undefined,
-  };
-
-  if (snapshot.invite) {
-    switch (snapshot.invite.status) {
-      case "awaiting_approval":
-        return { ...base, status: "waiting_invite_approval" };
-      case "pending":
-        return { ...base, status: "waiting_contact_response" };
-      case "confirmed":
-        return snapshot.invite.calendar_event_id
-          ? { ...base, status: "succeeded" }
-          : { ...base, status: "waiting_location" };
-      case "cancelled":
-        return { ...base, status: "cancelled" };
-      case "failed":
-        return { ...base, status: "failed" };
-    }
-  }
-
-  if (snapshot.offer) {
-    switch (snapshot.offer.status) {
-      case "pending":
-        return { ...base, status: "waiting_visit_decision" };
-      case "accepted":
-        return { ...base, status: "preparing_invite" };
-      case "declined":
-        return { ...base, status: "cancelled" };
-    }
-  }
-
-  return contact ? { ...base, status: "succeeded" } : { status: "idle", runId: snapshot.runId };
 }
