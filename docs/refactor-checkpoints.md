@@ -580,6 +580,27 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, index write-owner migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AI Knowledge Base import read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-import-read.contract.md`.
+- `src/modules/knowledge-base/import-read-rules.ts` owns sourceId branch
+  parsing; `import-read-application.ts` owns source/draft response
+  orchestration; `src/adapters/knowledge-base/legacy-import-read-adapter.ts`
+  keeps `listKbSources` and draft-filtered `listKnowledgeDocs` behind the
+  read port.
+- The `/api/knowledge-base/import` GET route preserves `{ sources }` and
+  `{ docs }`, exact draft/source filtering, source/document mapping,
+  `maxDuration`, and all import UI/data formats. PDF POST, review PUT, and
+  discard DELETE remain unchanged.
+- Checkpoint: `ceb22b8`.
+- Full verification: 126 Vitest files / 439 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the import
+  read rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, import write-owner migration,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
