@@ -78,13 +78,14 @@ Every stage must:
 | `698ffd0` | Agent status read boundary | Static registry fallback, enabled override, and HTTP-preserving cutover |
 | `4f3c8aa` | Checklist update boundary | PATCH coercion, timestamped upsert port, and HTTP-preserving cutover |
 | `78d5ce2` | Subscribers update boundary | PATCH field filtering, update port, and HTTP-preserving cutover |
+| `dd14d67` | Knowledge access update boundary | Catalog/level validation, access port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `78d5ce2` plus this documentation stage:
+At `dd14d67` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 88 Vitest files / 384 tests passed;
+- 91 Vitest files / 389 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -190,6 +191,11 @@ At `78d5ce2` plus this documentation stage:
   `createLegacySubscribersUpdateAdapter` through the Subscribers update
   modules, adapter, and `[id]` route; the existing `line_subscribers` write
   remains behind the adapter;
+- CodeGraph maps `parseKnowledgeAccessUpdateRequest`,
+  `runKnowledgeAccessUpdate`, and
+  `createLegacyKnowledgeAccessUpdateAdapter` through the Knowledge Base access
+  modules, adapter, and route; the existing `setAgentAccess` helper remains
+  behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -304,6 +310,25 @@ At `78d5ce2` plus this documentation stage:
   catalog count and tier labels before and after; CodeGraph maps the Subscribers
   update rules, port, application, adapter, and `[id]` route.
 - Subscribers schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-V Knowledge access update compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-access-update.contract.md`.
+- `src/modules/knowledge-base/access-rules.ts` preserves catalog membership and
+  level coercion; `access-application.ts` owns invalid-input branching;
+  `src/adapters/knowledge-base/legacy-access-update-adapter.ts` keeps the
+  existing `setAgentAccess` helper behind the access port.
+- The route preserves HTTP 400 validation, `{ ok: true }` success, and existing
+  provider exception behavior; Knowledge Base UI, Agent context reads, row
+  formats, retention, and schema/data behavior are untouched.
+- Checkpoint: `dd14d67`.
+- Full verification: 91 Vitest files / 389 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Knowledge
+  Base access rules, port, application, adapter, and route.
+- Knowledge access schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
