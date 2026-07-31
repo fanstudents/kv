@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLegacyKnowledgeBaseImportReadAdapter } from "@/adapters/knowledge-base/legacy-import-read-adapter";
+import { createLegacyKnowledgeBaseImportPublishAdapter } from "@/adapters/knowledge-base/legacy-import-publish-adapter";
 import { importPdf } from "@/lib/kb-import";
-import { publishKnowledgeDocs, removeKnowledgeDoc } from "@/lib/knowledge-base";
+import { removeKnowledgeDoc } from "@/lib/knowledge-base";
 import { runKnowledgeBaseImportRead } from "@/modules/knowledge-base/import-read-application";
 import { parseKnowledgeBaseImportReadQuery } from "@/modules/knowledge-base/import-read-rules";
+import { runKnowledgeBaseImportPublish } from "@/modules/knowledge-base/import-publish-application";
+import { parseKnowledgeBaseImportPublishRequest } from "@/modules/knowledge-base/import-publish-rules";
 
 // 匯入一份 PDF：抽文字 → 切塊 → AI 轉條目 → 全部存成「草稿」等人審。
 // 轉換要跑好幾次 AI，時間比一般請求久，所以放寬執行時間上限。
@@ -42,10 +45,11 @@ export async function GET(req: NextRequest) {
 /** 人審通過：把選到的草稿發布上線（沒按過這一步，AI 產的內容永遠不會進 Agent 的 prompt） */
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const ids: string[] = Array.isArray(body.ids) ? body.ids.filter((x: unknown) => typeof x === "string") : [];
-  if (ids.length === 0) return NextResponse.json({ error: "沒有指定要發布的條目" }, { status: 400 });
-  const count = await publishKnowledgeDocs(ids);
-  return NextResponse.json({ published: count });
+  const parsed = parseKnowledgeBaseImportPublishRequest(body);
+  if (parsed.kind === "invalid") return NextResponse.json({ error: parsed.message }, { status: 400 });
+  return NextResponse.json(
+    await runKnowledgeBaseImportPublish(parsed.ids, createLegacyKnowledgeBaseImportPublishAdapter())
+  );
 }
 
 /** 丟棄草稿 */
