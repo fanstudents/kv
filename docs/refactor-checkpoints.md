@@ -1060,6 +1060,23 @@ At code checkpoint `116885b` plus documentation checkpoint `fdcd0f7`:
 - Image-flow application decomposition, schema migration, reconciliation, and
   production traffic evidence remain deferred.
 
+### WP6-BG Visit runtime tracking adapter compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-runtime-adapter.contract.md`.
+- `VisitRuntimePort` and
+  `src/adapters/visit/legacy-runtime-adapter.ts` now bind the existing
+  `startVisitRun`, `reportVisitStep`, `endVisitRun`, and `saveVisitArtifact`
+  facade. The route keeps all arguments, status vocabulary, ordering, run/live
+  task/artifact behavior, and handler orchestration unchanged.
+- Checkpoint: `e6a530d`.
+- Full verification: 178 Vitest files / 533 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the runtime
+  adapter/facade through the webhook route.
+- Runtime implementation replacement, schema migration, reconciliation, and
+  production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
