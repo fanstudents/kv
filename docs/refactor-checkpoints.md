@@ -77,13 +77,14 @@ Every stage must:
 | `c88c47f` | Subscribers read boundary | Subscriber query port, ordering, and HTTP-preserving cutover |
 | `698ffd0` | Agent status read boundary | Static registry fallback, enabled override, and HTTP-preserving cutover |
 | `4f3c8aa` | Checklist update boundary | PATCH coercion, timestamped upsert port, and HTTP-preserving cutover |
+| `78d5ce2` | Subscribers update boundary | PATCH field filtering, update port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `4f3c8aa` plus this documentation stage:
+At `78d5ce2` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 85 Vitest files / 379 tests passed;
+- 88 Vitest files / 384 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -185,6 +186,10 @@ At `4f3c8aa` plus this documentation stage:
   `createLegacyChecklistUpdateAdapter` through the Checklist update modules,
   adapter, and `[id]` route; the existing `checklist_status` write remains
   behind the adapter;
+- CodeGraph maps `parseSubscribersUpdateRequest`, `runSubscribersUpdate`, and
+  `createLegacySubscribersUpdateAdapter` through the Subscribers update
+  modules, adapter, and `[id]` route; the existing `line_subscribers` write
+  remains behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -280,6 +285,25 @@ At `4f3c8aa` plus this documentation stage:
   catalog count and tier labels before and after; CodeGraph maps the Checklist
   update rules, port, application, adapter, and `[id]` route.
 - Checklist schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-U Subscribers update compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/subscribers-update.contract.md`.
+- `src/modules/subscribers/update-rules.ts` preserves recognized-field
+  filtering; `update-application.ts` owns invalid-input and provider-result
+  mapping; `src/adapters/subscribers/legacy-update-adapter.ts` keeps the exact
+  update/equality/select/single chain.
+- The route preserves HTTP 400 error mapping and raw success data for
+  Subscribers; UI, broadcast/relay behavior, row formats, retention, and
+  schema/data behavior are untouched.
+- Checkpoint: `78d5ce2`.
+- Full verification: 88 Vitest files / 384 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Subscribers
+  update rules, port, application, adapter, and `[id]` route.
+- Subscribers schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
