@@ -1333,6 +1333,30 @@ WP6-BS:
   runtime shadow/canary, provider replacement, schema migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-BT Visit timeout application and shared Visit capability consolidation — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-timeout-application.contract.md`.
+- `runVisitTimeoutApplication` now owns stale-offer selection, timeout
+  resolution, tag/activity/live-task side effects, and best-effort LINE
+  notification/lock release. The cron route only authenticates, composes the
+  existing Visit workflow/delivery capabilities, and delegates.
+- The first timeout-specific adapter split was consolidated before checkpoint:
+  stale-offer lookup extends `VisitLineWorkflowPersistencePort`, and text push
+  extends `VisitLineDeliveryPort`. No timeout-specific repository or delivery
+  adapter was retained.
+- Checkpoint: `e03012d`.
+- Full verification: 191 Vitest files / 566 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; the `專業型` interaction opened and
+  returned without an error marker. A real `/agents/visit` attempt currently
+  redirects to `/login` because this Chrome session is no longer authenticated.
+- CodeGraph maps the new application and shared legacy adapters to the cron
+  route; `rg` confirms direct Supabase, LINE push, live-task, activity, and
+  legacy schema calls are absent from the route.
+- Provider replacement, schema migration, reconciliation, outbox/retry,
+  authenticated backend traffic, and full Visit flow cutover remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
