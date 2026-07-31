@@ -17,11 +17,11 @@ change_context:
 
 ## Behavior Boundary
 
-`VisitRespondReadPort` owns the minimal pending-invite read/confirm/refetch
-contract. `legacy-respond-read-adapter.ts` owns the existing Supabase table
-projection, optimistic status filter, and refetch query. The route retains
-the existing public page rendering and GET control flow; the POST path remains
-unchanged.
+`VisitRespondReadPort` owns the pending-invite read/confirm/refetch contract
+used by both public GET and POST. `legacy-respond-read-adapter.ts` owns the
+existing Supabase table projections, optimistic status filter, refetch query,
+and POST's joined contacts projection. The route retains the existing public
+page rendering/control flow and POST fulfilment side effects.
 
 ## Invariants
 
@@ -33,11 +33,13 @@ unchanged.
    `maybeSingle()`.
 3. If the optimistic confirmation returns no row, the route still refetches
    the same invite with `select("*").eq("id", inviteId).single()`.
-4. Existing pending/confirmed/terminal status branches, selected-slot labels,
+4. POST still reads `select("*, contacts(name, title, email, company)")` with
+   the same id filter and `maybeSingle()` before settings/provider/write work.
+5. Existing pending/confirmed/terminal status branches, selected-slot labels,
    HTML copy, response headers, query parameters, and POST side effects remain
    unchanged.
-5. Existing pending_invites schema assumptions and public Visit behavior remain
-   unchanged.
+6. Existing pending_invites/contacts schema assumptions and public Visit
+   behavior remain unchanged.
 
 ## Test Mapping
 
@@ -58,16 +60,16 @@ test_mapping:
 ## Evidence
 
 - CodeGraph maps `createLegacyVisitRespondReadAdapter` and
-  `VisitRespondReadPort` to the Visit respond GET route; the existing
+  `VisitRespondReadPort` to both Visit respond route methods; the existing
   `selectVisitInviteSlot` remains shared by GET and POST.
-- Full verification at `3f7a9b0`: 172 Vitest files / 524 tests, 93-page
+- Full verification at `a02797a`: 172 Vitest files / 524 tests, 93-page
   production build, and 130 Playwright smoke cases passed.
 - Chrome retained the Agent catalog count and tier labels before and after the
   Visit response read boundary; the normalized DOM snapshot was unchanged.
 
 ## Intentional Changes
 
-- The GET route no longer owns the pending_invites query/update syntax; those
-  are isolated behind a replaceable port/legacy adapter.
+- The GET and POST routes no longer own pending_invites read/join/update query
+  syntax; those reads are isolated behind a replaceable port/legacy adapter.
 - Public HTML/POST behavior, row shapes, status transitions, and UI behavior
   remain unchanged.

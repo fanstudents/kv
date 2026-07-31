@@ -953,6 +953,23 @@ At `cafa912` plus this documentation stage:
 - Public response workflow evolution, schema migration, POST cutover,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-BA Visit public response joined-read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-respond-read.contract.md`.
+- The existing `VisitRespondReadPort` now covers both GET's `select("*")`
+  read/confirm/refetch and POST's joined `contacts(name, title, email,
+  company)` read; `legacy-respond-read-adapter.ts` owns those exact queries.
+  POST settings, calendar/email/LINE providers, writes, background research,
+  and public HTML remain unchanged.
+- Checkpoint: `a02797a`.
+- Full verification: 172 Vitest files / 524 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the shared
+  port/adapter to both Visit respond methods.
+- Visit fulfilment orchestration, provider/schema evolution, reconciliation,
+  and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
