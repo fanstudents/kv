@@ -75,13 +75,14 @@ Every stage must:
 | `84cca97` | Contacts read boundary | Nested contact/offers/invites query port and HTTP-preserving cutover |
 | `f8c5992` | Checklist read boundary | Checklist projection port and HTTP-preserving cutover |
 | `c88c47f` | Subscribers read boundary | Subscriber query port, ordering, and HTTP-preserving cutover |
+| `698ffd0` | Agent status read boundary | Static registry fallback, enabled override, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `c88c47f` plus this documentation stage:
+At `698ffd0` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 79 Vitest files / 369 tests passed;
+- 82 Vitest files / 374 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -176,6 +177,9 @@ At `c88c47f` plus this documentation stage:
 - CodeGraph maps `runSubscribersRead`, `SubscribersReadPort`, and
   `createLegacySubscribersReadAdapter` through the Subscribers module, adapter,
   and route; the existing `line_subscribers` query remains behind the adapter;
+- CodeGraph maps `buildAgentStatusMap`, `runAgentStatusRead`, and
+  `createLegacyAgentStatusReadAdapter` through the Agents module, adapter, and
+  route; the existing `AGENTS` fallback and `line_agents` query remain explicit;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -233,6 +237,25 @@ At `c88c47f` plus this documentation stage:
   catalog count and tier labels before and after; CodeGraph maps the Subscribers
   port, application, adapter, and route.
 - Subscribers schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-S Agent status read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/agent-status-read.contract.md`.
+- `src/modules/agents/status-rules.ts` preserves the static-catalog merge,
+  Boolean coercion, and unknown-slug behavior. `status-read-application.ts`
+  owns provider-throw fallback, while
+  `src/adapters/agents/legacy-status-read-adapter.ts` keeps the exact
+  `line_agents` `slug,enabled` query.
+- The route preserves `{ enabled }`; Sidebar, Dashboard, TV, registry data,
+  writes, and schema/data behavior are untouched.
+- Checkpoint: `698ffd0`.
+- Full verification: 82 Vitest files / 374 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Agent
+  status rules, port, application, adapter, and route.
+- Agent registry/schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
