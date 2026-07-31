@@ -9,7 +9,7 @@ export async function runActivityRead(
   input: ActivityReadRequest,
   port: ActivityReadPort,
 ): Promise<ActivityReadResult> {
-  const { data, error } = await port.list(input.status, input.limit);
+  const { data, error } = await port.list(input.status, input.limit, input.agentSlug);
   if (error) return { kind: "error", message: error.message };
   return { kind: "ok", data };
 }

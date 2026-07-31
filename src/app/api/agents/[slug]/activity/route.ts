@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { createLegacyActivityReadAdapter } from "@/adapters/activity/legacy-read-adapter";
+import { runActivityRead } from "@/modules/activity/read-application";
+import { parseAgentActivityReadRequest } from "@/modules/activity/read-rules";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from("line_agent_activity")
-    .select("*")
-    .eq("agent_slug", slug)
-    .order("occurred_at", { ascending: false })
-    .limit(20);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  return NextResponse.json(data);
+  const result = await runActivityRead(
+    parseAgentActivityReadRequest(slug),
+    createLegacyActivityReadAdapter(),
+  );
+  if (result.kind === "error") return NextResponse.json({ error: result.message }, { status: 400 });
+  return NextResponse.json(result.data);
 }

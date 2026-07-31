@@ -35,6 +35,25 @@ describe("legacy activity read adapter", () => {
     expect(query.eq).toHaveBeenCalledWith("status", "failed");
   });
 
+  it("keeps the agent activity filter before ordering", async () => {
+    const response = Promise.resolve({ data: [{ id: "a1" }], error: null });
+    const query = {
+      limit: vi.fn(),
+      eq: vi.fn(),
+      order: vi.fn(),
+      then: response.then.bind(response),
+    };
+    query.limit.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.order.mockReturnValue(query);
+    getSupabase.mockReturnValue({ from: vi.fn(() => ({ select: vi.fn(() => query) })) });
+
+    await expect(createLegacyActivityReadAdapter().list(null, 20, "visit")).resolves.toEqual({ data: [{ id: "a1" }], error: null });
+    expect(query.eq).toHaveBeenCalledWith("agent_slug", "visit");
+    expect(query.order).toHaveBeenCalledWith("occurred_at", { ascending: false });
+    expect(query.limit).toHaveBeenCalledWith(20);
+  });
+
   it("does not add an empty status filter", async () => {
     const response = Promise.resolve({ data: [], error: null });
     const query = {
