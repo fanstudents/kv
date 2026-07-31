@@ -322,10 +322,11 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 - [x] CodeGraph 建 consumer map與 boundary allowlist/collapse list。
 - [x] Goals 收斂 read/update/delete/reset/history 到單一 domain service + repository。
-- [ ] Checklist 收斂 read/update；Subscribers 收斂 read/update，broadcast 保留為 application use case。
+- [x] Checklist 收斂 read/update。
+- [ ] Subscribers 收斂 read/update，broadcast 保留為 application use case。
 - [ ] Contacts/Activity 建共享 repository/read model，不複製 query port。
-- [ ] route 只保留 parse/auth/HTTP mapping（Goals 已完成，其餘 domain 待辦）。
-- [ ] 刪除 forwarding applications、single-consumer ports、alias adapters與低訊號 tests（Goals 已完成，其餘 domain 待辦）。
+- [ ] route 只保留 parse/auth/HTTP mapping（Goals／Checklist 已完成，其餘 domain 待辦）。
+- [ ] 刪除 forwarding applications、single-consumer ports、alias adapters與低訊號 tests（Goals／Checklist 已完成，其餘 domain 待辦）。
 - [x] 記錄 pilot 的 production files/LOC、owner、consumer before/after。
 
 **Goals pilot evidence（2026-07-31）**
@@ -338,6 +339,16 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 | Dead owner scan | 10 個 forwarding application／alias adapter symbols | CodeGraph sync 後全部 0 live result | cleanup passed |
 | Authenticated API parity | baseline／after：login `200`、invalid PUT `400`、missing DELETE id `400`、missing history metric `400`、無 Supabase GET `500` | status sequence exact match | Contract tested；real DB write 仍 blocked |
 | Authenticated UI parity | commit `86a5f58` 舊版與 working tree 新版實際登入 `/goals` | DOM snapshot 均 11,042 chars 且 exact match；無 page error | Render smoke passed；UI/UX 未變 |
+
+**Checklist slice evidence（2026-07-31）**
+
+| Measure | Before | After | Result |
+|---|---:|---:|---|
+| Production owners | 7 files／96 LOC | 2 files／64 LOC（service + Supabase repository） | -5 files／-32 LOC；小 domain 不機械保留 rules 檔 |
+| Unit tests | 5 files／132 LOC | 2 files／118 LOC | -3 files／-14 LOC；保留 projection、write chain、timestamp、error semantics |
+| Consumers | read／update 各一個 route caller | 兩個 routes 共用單一 service/repository owner | forwarding owner 已移除 |
+| Authenticated UI parity | 修改前後實際登入 `/todos` | DOM snapshot 均 6,550 chars 且 exact match；無 page error | Render smoke passed |
+| API without data env | login `200`；read `500`；update `500` | 缺 Supabase 的既有 failure boundary 未被 fallback 掩蓋 | Real DB read/write 仍 blocked |
 
 **Verification:** focused rules/repository integration、API parity、authenticated Todos/Subscribers/Outputs/TV interactions、CodeGraph dead caller scan。
 
