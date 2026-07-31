@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 402 files／3,395 nodes／7,030 edges |
+| Last verified | 2026-07-31；CodeGraph index 404 files／3,417 nodes／7,085 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -678,6 +678,25 @@ Then the existing report artifact is retried without creating a second scheduled
 - `respond-ports.ts` 與 `respond-fulfilment-ports.ts` 收斂為一份 workflow contract；`legacy-respond-read-adapter.ts` 與 `legacy-respond-fulfilment-adapter.ts` 收斂為一份 legacy sources file。read/fulfilment 的 method surface、Supabase query、provider binding 與 route HTML 都未改，production files 淨少 2 個。
 - CodeGraph sync 後全 repo 為 431 files／3,558 nodes／7,466 edges；舊 contract/adapter import 為零。`createLegacyVisitRespondReadSource` 仍只有同 route GET/POST 兩個 caller，`createLegacyVisitRespondFulfilmentSource` 仍只有同 route POST caller。
 - `npm test` 101 files／484 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。這固定 mock/static contract，不把它說成真實 Calendar/Email/LINE delivery 或 browser journey acceptance。
+
+#### 進場清理 — Visit public invite response capability
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；將既有 public response route 的 decision/side-effect orchestration 收斂為一個 Visit capability，route 僅保留 HTML renderer 與 Next `after()` background scheduling。
+
+**Behavior contract (`behavior-contract/v1`, `visit.public-response.capability`)**
+
+- Scope：`GET/POST /api/agents/visit/respond` 的 invite validation、pending claim/refetch、confirmed/duplicate branches、calendar/email/LINE/activity/failure sequencing，與 success 後的 background research handoff。
+- Non-goals：不改 URL/method/query/form/status/HTML、legacy source schemas/queries、optimistic update condition、calendar/email/LINE/research provider、email template、文案、`after()` timing、UI/UX 或任何 real delivery。
+- Invariants：missing/malformed/unknown invite 的頁面不變；pending choice 的 CAS claim/refetch 不變；calendar-created invite 不重送副作用；success 固定 settings → calendar → invite update → email → best-effort LINE → activity；failure 固定 mark failed → failed activity → best-effort LINE；only named contact handoff research，且仍在 response 之後。
+- Design：`respond.ts` 是此 bounded workflow 唯一 application owner；route 保留 HTTP/form/HTML mapping，legacy read/fulfilment sources 保留 infrastructure translation。不是建立 generic public callback framework。
+- Verification：CodeGraph caller/impact map、capability branches/side-effect-order contract tests、existing source tests、full typecheck/lint/build；真實 calendar/email/LINE 與 public browser flow 留到 provider-safe cross-batch acceptance。
+
+**Evidence（2026-07-31）：**
+
+- CodeGraph sync 後為 404 files／3,417 nodes／7,085 edges。`resolveVisitPublicInviteGet` 與 `fulfilVisitPublicInvite` 各只有原本 route 的 GET／POST caller；legacy read source 仍是 GET/POST 兩個 caller、fulfilment source 仍只由 POST 使用。
+- route 從 197 行的 HTTP + workflow 混合物收斂成 transport/form/HTML mapping 與既有 `after()` scheduler；pending claim/refetch、duplicate gating、calendar/email/LINE/activity/failure branch 都由 `respond.ts` 唯一擁有。route 沒有再直接 import invitation parser/slot/location helpers 或直接執行 calendar/email/activity failure workflow。
+- 新 capability test 7 cases 固定 missing link、pending claim、lost claim refetch、duplicate POST、success side-effect order / exact background-research payload、calendar failure，以及 synchronous scheduler failure 仍進入原有 failed activity/fallback boundary；既有 public-response 與 legacy source adapter tests 留存。
+- 完整自動驗證通過：96 test files／474 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。此為 mock/static contract；沒有觸發真實 Calendar、Email、LINE、Supabase 或 public browser flow，仍待 U-04 和跨批次驗收。
 
 ### WP-05 — Visit LINE text vertical slice
 
