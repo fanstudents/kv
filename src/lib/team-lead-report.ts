@@ -1,13 +1,25 @@
 import "server-only";
+import { createLineDailyReportDelivery } from "@/adapters/reporting/line-daily-report-delivery";
+import { createOpenAiDailyReportSummaryProvider } from "@/adapters/reporting/openai-daily-report-summary-provider";
+import { createSupabaseTeamLeadReportRepository } from "@/adapters/reporting/supabase-team-lead-report-repository";
+import { AGENTS } from "@/lib/agent-data";
 import { getSupabase } from "@/lib/supabase";
-import { createLegacyReportingAdapters } from "@/adapters/reporting/legacy-reporting-adapters";
-import { runDailyTeamLeadReport } from "@/modules/reporting/application";
+import {
+  runDailyTeamLeadReport,
+  TEAM_LEAD_REPORT_SUMMARY_CONFIG,
+} from "@/modules/reporting/team-lead";
 
 export async function runTeamLeadReport(): Promise<{ ok: boolean; message: string }> {
-  const supabase = getSupabase();
-  const ports = createLegacyReportingAdapters(supabase);
   return runDailyTeamLeadReport({
-    ports,
+    dependencies: {
+      repository: createSupabaseTeamLeadReportRepository(getSupabase()),
+      summary: createOpenAiDailyReportSummaryProvider(TEAM_LEAD_REPORT_SUMMARY_CONFIG),
+      delivery: createLineDailyReportDelivery(),
+      displayName(slug) {
+        const agent = AGENTS.find((candidate) => candidate.slug === slug);
+        return agent ? `${agent.personZh}（${agent.name}）` : slug;
+      },
+    },
     clock: {
       nowMs: () => Date.now(),
       nowDate: () => new Date(),

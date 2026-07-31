@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { runSupportReport } from "@/modules/support/reporting-application";
-import type { SupportConversation } from "@/modules/support/daily-report";
+import { runSupportReport } from "@/modules/support/report";
 import type {
+  SupportConversation,
   SupportReportActivity,
+  SupportReportDependencies,
   SupportReportDelivery,
-  SupportReportPorts,
-} from "@/modules/support/reporting-ports";
+} from "@/modules/support/report";
 
 const fixedNow = new Date("2026-07-31T01:00:00.000Z");
 
@@ -18,8 +18,8 @@ function createPorts(options?: {
 }) {
   const calls: string[] = [];
   const activities: SupportReportActivity[] = [];
-  const deliveries: SupportReportDelivery[] = [];
-  const ports: SupportReportPorts = {
+  const deliveries: Array<Parameters<SupportReportDelivery["deliver"]>[0]> = [];
+  const dependencies: SupportReportDependencies = {
     repository: {
       async getAgentConfig() {
         calls.push("config");
@@ -55,7 +55,7 @@ function createPorts(options?: {
       },
     },
   };
-  return { ports, calls, activities, deliveries };
+  return { dependencies, calls, activities, deliveries };
 }
 
 const clock = {
@@ -74,7 +74,7 @@ describe("Amber Support reporting application", () => {
     const fixture = createPorts({ config: { enabled: false } });
 
     await expect(
-      runSupportReport({ ports: fixture.ports, clock })
+      runSupportReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "客服 Agent 已停用，略過匯報" });
     expect(fixture.calls).toEqual(["config"]);
   });
@@ -83,7 +83,7 @@ describe("Amber Support reporting application", () => {
     const fixture = createPorts({ config: { settings: {} } });
 
     await expect(
-      runSupportReport({ ports: fixture.ports, clock })
+      runSupportReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "尚未設定匯報對象（reportTo）" });
     expect(fixture.calls).toEqual(["config"]);
   });
@@ -92,7 +92,7 @@ describe("Amber Support reporting application", () => {
     const fixture = createPorts({ messages: [] });
 
     await expect(
-      runSupportReport({ ports: fixture.ports, clock })
+      runSupportReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({
       ok: true,
       message: "客服彙報已送出（0 位客戶、0 則留言）",
@@ -116,7 +116,7 @@ describe("Amber Support reporting application", () => {
     });
 
     await expect(
-      runSupportReport({ ports: fixture.ports, clock })
+      runSupportReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({
       ok: true,
       message: "客服彙報已送出（1 位客戶、1 則留言）",
@@ -150,7 +150,7 @@ describe("Amber Support reporting application", () => {
     });
 
     await expect(
-      runSupportReport({ ports: fixture.ports, clock })
+      runSupportReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "LINE unavailable" });
     expect(fixture.activities).toEqual([
       {
@@ -164,7 +164,7 @@ describe("Amber Support reporting application", () => {
     const fixture = createPorts({ deliveryError: "offline" });
 
     await expect(
-      runSupportReport({ ports: fixture.ports, clock })
+      runSupportReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "推播失敗" });
   });
 });

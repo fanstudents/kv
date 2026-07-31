@@ -579,7 +579,7 @@ Then the existing report artifact is retried without creating a second scheduled
 
 **Goals:** G-03～G-06
 
-**Status（2026-07-31）：** in progress。Orders 的 pre-runtime domain owner consolidation 已完成（`Contract tested` + `Render smoke passed`）；它只收斂既有 Webhook／測試通知行為，不把既有 `order_id` upsert 說成 delivery dedupe，也沒有實作 transaction、outbox 或 runtime cutover。Reporting 與第二 execution profile 尚未開始。
+**Status（2026-07-31）：** in progress。Orders 與兩條 daily-report 的 pre-runtime domain owner consolidation 已完成（`Contract tested` + `Render smoke passed`）；它只收斂既有 Webhook／測試通知／晨報行為，不把既有 `order_id` upsert 說成 delivery dedupe，也沒有實作 transaction、outbox、artifact receipt 或 runtime cutover。
 
 **Orders behavior contract (`behavior-contract/v1`, `orders.notifications`)**
 
@@ -590,7 +590,7 @@ Then the existing report artifact is retried without creating a second scheduled
 - [x] 收斂 Orders webhook 與測試通知：單一 `orders.ts` 擁有 normalize、notification planning、兩條 orchestration；兩個 API façade 共用 Supabase repository 與 LINE delivery adapter。
 - [ ] Teachify event normalize、signature/payload contract、duplicate suppression。
 - [ ] order persistence與notification用 transaction/outbox semantics。
-- [ ] scheduled/manual report 共用同一 generation workflow。
+- [x] 收斂 Team Lead／Support daily report：各自維持 domain workflow，cron 與 manual route 共用各自 composition root；只共用已具兩 consumer 的 OpenAI summary provider 與 LINE delivery，不建立假泛型 runner。
 - [ ] report artifact與delivery receipt可追溯到run。
 - [ ] 第二種 execution profile 重用 WP-04/05 runtime，驗證抽象不是 Visit 特例。
 
@@ -600,6 +600,19 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync：`processOrderPayload` 與 `runOrderTestNotification` 各只由其 API façade 呼叫；兩條 route 都共用同一 Supabase repository 與 LINE delivery；舊 Orders route-slice import 為零。
 - 3 份 Orders focused test files、23 assertions 通過，涵蓋 parsing、寫入／delivery ordering、fallback、兩個 adapter mapping、401／400／test-notify route contract；`npm run typecheck`、`npm run lint` 通過。
 - 已登入 Chrome 的 `/agents/orders` 改前後 DOM snapshot 完全一致（6,373 chars）、console 無 error/warn。未點「傳送測試訂單通知」，避免真正 LINE side effect；因此不宣稱 real delivery journey 已驗。
+
+**Daily report behavior contract (`behavior-contract/v1`, `reports.daily`)**
+
+- Scope：Team Lead／Support 的 cron 與 manual report-now route、`line_agents`、`line_agent_activity`、`line_support_conversations`、`line_subscribers`、OpenAI summary、LINE push。
+- Invariants：disabled／missing recipient 仍在讀取資料前退出；兩種 24-hour query、customer/Agent grouping、fallback、AI unavailable fallback、delivery failure activity 與所有既有文案不變；prompt、usage operation／agent slug 與 renderer payload 保留原值。
+- Design：Team Lead 的團隊活動與 Support 的客戶對話各自擁有 prepare／run workflow；只有同一 OpenAI protocol + AI usage logging、同一 LINE renderer 是已驗證的兩 consumer provider 邊界。沒有建立跨 domain report framework。
+
+**Daily report evidence（2026-07-31）**
+
+- Owner delta：8 個 production files、600 LOC 收為 2 個 domain modules + 2 個 Supabase repository + 2 個雙 consumer provider、518 LOC；6 份測試收為 5 份（592→686 LOC，增加的是兩個 repository mapping 與 shared provider protocol assertion）。
+- CodeGraph sync：兩個 domain runner 各只由自己的 composition root 呼叫；OpenAI summary provider 和 LINE delivery 各由 Team Lead／Support 兩條 flow 共用；舊 report route-slice import 為零。
+- 5 份 focused test files、31 assertions，涵蓋兩個 domain 的 rules／ordering／fallback、Supabase table mapping、OpenAI request + usage identity、LINE renderer；`npm run typecheck`、`npm run lint` 通過。
+- 已登入 Chrome：`/agents/support` DOM 完全一致（6,111 chars）；`/agents/teamlead` 的產品 DOM 一致（6,253 chars），唯一原始 snapshot 差異是 Next dev 工具注入的 `Open Next.js Dev Tools` 按鈕出現／消失；兩頁 console 無 error/warn。未按兩個「立即產生並送出」按鈕，避免真實 OpenAI／LINE side effect。
 
 **Verification:** duplicate/invalid webhook、partial provider failure、same-period cron dedupe、artifact parity、replay；Orders/Support dashboard actions。
 

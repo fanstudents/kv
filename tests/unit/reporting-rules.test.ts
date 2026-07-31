@@ -4,16 +4,16 @@ import {
   planTeamLeadDelivery,
   prepareTeamLeadReport,
   teamLeadActivityCutoff,
-  type ReportingActivity,
-} from "@/modules/reporting/daily-report";
+  type TeamLeadReportActivity,
+} from "@/modules/reporting/team-lead";
 
 const now = new Date("2026-07-31T01:00:00.000Z");
 
 function row(
   agentSlug: string | null,
   summary: string,
-  status: ReportingActivity["status"] = "success"
-): ReportingActivity {
+  status: TeamLeadReportActivity["status"] = "success"
+): TeamLeadReportActivity {
   return {
     agent_slug: agentSlug,
     occurred_at: "2026-07-31T00:00:00.000Z",

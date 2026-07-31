@@ -1,24 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { runDailyTeamLeadReport } from "@/modules/reporting/application";
+import { runDailyTeamLeadReport } from "@/modules/reporting/team-lead";
 import type {
-  ReportingActivityWrite,
-  ReportingDelivery,
-  ReportingPorts,
-} from "@/modules/reporting/ports";
-import type { ReportingActivity } from "@/modules/reporting/daily-report";
+  TeamLeadReportActivity,
+  TeamLeadReportActivityWrite,
+  TeamLeadReportDependencies,
+  TeamLeadReportDelivery,
+} from "@/modules/reporting/team-lead";
 
 const fixedNow = new Date("2026-07-31T01:00:00.000Z");
 
 function createPorts(options?: {
   config?: { enabled?: boolean | null; settings?: unknown } | null;
-  rows?: ReportingActivity[];
+  rows?: TeamLeadReportActivity[];
   summary?: string | null;
   deliveryError?: unknown;
 }) {
   const calls: string[] = [];
-  const activities: ReportingActivityWrite[] = [];
-  const deliveries: ReportingDelivery[] = [];
-  const ports: ReportingPorts = {
+  const activities: TeamLeadReportActivityWrite[] = [];
+  const deliveries: Array<Parameters<TeamLeadReportDelivery["deliver"]>[0]> = [];
+  const dependencies: TeamLeadReportDependencies = {
     repository: {
       async getAgentConfig() {
         calls.push("config");
@@ -49,14 +49,12 @@ function createPorts(options?: {
         deliveries.push(notification);
       },
     },
-    roster: {
-      displayName(slug) {
-        return `Agent ${slug}`;
-      },
+    displayName(slug) {
+      return `Agent ${slug}`;
     },
   };
 
-  return { ports, calls, activities, deliveries };
+  return { dependencies, calls, activities, deliveries };
 }
 
 const clock = {
@@ -69,7 +67,7 @@ describe("Vivian reporting application", () => {
     const fixture = createPorts({ config: { enabled: false } });
 
     await expect(
-      runDailyTeamLeadReport({ ports: fixture.ports, clock })
+      runDailyTeamLeadReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "總管 Agent 已停用，略過匯報" });
     expect(fixture.calls).toEqual(["config"]);
   });
@@ -78,7 +76,7 @@ describe("Vivian reporting application", () => {
     const fixture = createPorts({ config: { settings: {} } });
 
     await expect(
-      runDailyTeamLeadReport({ ports: fixture.ports, clock })
+      runDailyTeamLeadReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "尚未設定匯報對象（reportTo）" });
     expect(fixture.calls).toEqual(["config"]);
   });
@@ -87,7 +85,7 @@ describe("Vivian reporting application", () => {
     const fixture = createPorts({ rows: [] });
 
     await expect(
-      runDailyTeamLeadReport({ ports: fixture.ports, clock })
+      runDailyTeamLeadReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: true, message: "晨報已送出，彙整 0 筆團隊動態" });
     expect(fixture.calls).toEqual([
       "config",
@@ -124,7 +122,7 @@ describe("Vivian reporting application", () => {
     });
 
     await expect(
-      runDailyTeamLeadReport({ ports: fixture.ports, clock })
+      runDailyTeamLeadReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: true, message: "晨報已送出，彙整 1 筆團隊動態" });
     expect(fixture.calls.map((call) => call.split(":")[0])).toEqual([
       "config",
@@ -142,7 +140,7 @@ describe("Vivian reporting application", () => {
     });
 
     await expect(
-      runDailyTeamLeadReport({ ports: fixture.ports, clock })
+      runDailyTeamLeadReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "LINE unavailable" });
     expect(fixture.activities).toEqual([
       {
@@ -156,7 +154,7 @@ describe("Vivian reporting application", () => {
     const fixture = createPorts({ deliveryError: "offline" });
 
     await expect(
-      runDailyTeamLeadReport({ ports: fixture.ports, clock })
+      runDailyTeamLeadReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "推播失敗" });
   });
 });

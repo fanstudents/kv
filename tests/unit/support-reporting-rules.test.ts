@@ -6,7 +6,7 @@ import {
   supportCustomerIds,
   supportReportCutoff,
   type SupportConversation,
-} from "@/modules/support/daily-report";
+} from "@/modules/support/report";
 
 const now = new Date("2026-07-31T01:00:00.000Z");
 
