@@ -10,15 +10,15 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({ legacyVisitProviders: { draftInviteEmail, parseBusinessCard } }));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 
-import { createLegacyVisitAiAdapter } from "@/adapters/visit/legacy-ai-adapter";
+import { createLegacyVisitAiDependencies } from "@/adapters/visit/legacy-ai-dependencies";
 
-describe("legacy Visit AI adapter", () => {
+describe("legacy Visit AI dependencies", () => {
   it("keeps provider bindings and visit activity rows", async () => {
     draftInviteEmail.mockResolvedValue({ subject: "邀約", body: "內容" });
     parseBusinessCard.mockResolvedValue({ name: "Dennis", company: "TBR", title: "", email: "", phone: "" });
     const activityQuery = { insert: vi.fn().mockResolvedValue({ error: null }) };
     getSupabase.mockReturnValue({ from: vi.fn(() => activityQuery) });
-    const adapter = createLegacyVisitAiAdapter();
+    const adapter = createLegacyVisitAiDependencies();
 
     await expect(adapter.draftInviteEmail({ contactName: "Dennis", contactTitle: "", company: "", meetingType: "喝咖啡", slot1: "A", slot2: "B", senderName: "" })).resolves.toEqual({ subject: "邀約", body: "內容" });
     await expect(adapter.parseBusinessCard("data:image/png;base64,abc")).resolves.toMatchObject({ name: "Dennis" });

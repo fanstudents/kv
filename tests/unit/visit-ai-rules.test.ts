@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBusinessCardRequest, parseDraftInviteEmailRequest } from "@/modules/visit/ai-rules";
+import { parseBusinessCardRequest, parseDraftInviteEmailRequest } from "@/modules/visit/ai";
 
 describe("Visit AI request rules", () => {
   it("keeps draft-email defaults and validation messages", () => {

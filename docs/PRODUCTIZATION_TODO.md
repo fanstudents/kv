@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 408 files／3,417 nodes／7,084 edges |
+| Last verified | 2026-07-31；CodeGraph index 406 files／3,410 nodes／7,058 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -603,6 +603,27 @@ Then the existing report artifact is retried without creating a second scheduled
 - `research-rules.ts`、`research-ports.ts`、`research-application.ts` 收斂為 `research.ts`；真正的 Supabase contact lookup + `contact-research` provider translation 保留為 one named source。production files 淨少 2 個，沒有把 query 或 provider call 塞回 route。
 - CodeGraph sync 後全 repo 為 446 files／3,660 nodes／7,698 edges；舊 research rules/port/application/adapter import 為零。GET/POST 維持唯一 callers：POST 呼叫 `runVisitResearch`，GET 呼叫 `runVisitResearchRead`，兩者皆仍使用同一 legacy research source。
 - `npm test` 106 files／521 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。此為 fixture/static contract evidence；真實 Supabase/OpenAI-like provider 與 authenticated UI interaction 仍延至 cross-batch acceptance。
+
+#### 進場清理 — Visit AI capability
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；這是 draft email／business-card parsing 的 internal owner consolidation，不改任一 route payload、provider request、activity row 或畫面。Chrome/UI 與真實 provider journey 仍留待跨批次集中驗收。
+
+**Behavior contract (`behavior-contract/v1`, `visit.ai.capability`)**
+
+- Scope：`POST /api/agents/visit/draft-email`、`POST /api/agents/visit/parse-card` 的 request parsing、provider invocation、activity success/failure record 與 response mapping。
+- Non-goals：不改 OpenAI-like provider、`line_agent_activity` schema/row、route URL/method/status/payload、名片/邀約信文案、UI/UX、runtime/migration 或任何 real provider side effect。
+- CodeGraph evidence：`runDraftInviteEmail`、`runParseBusinessCard` 各只有自己的 route caller；原 factory 只由這兩條 route 共用；原 port type 只連到 capability、自身 adapter 與 tests。
+- Invariants：draft request 的 defaults/validation、card 的 data-url validation、成功與失敗 activity wording/status、provider failure 的 `502`、成功 `{ draft }`／`{ contact }` payload 全部維持。
+- Design：`ai.ts` 是 parser/result/use-case/dependency contract 的單一 owner；legacy dependencies 保留 provider delegate + activity persistence translation，不把 provider 或 DB query 塞進 route。
+- Acceptance：完整 automated verification、CodeGraph caller/import map；Chrome/UI 與 real provider journey 仍留待跨批次驗收。
+
+**Evidence（2026-07-31）：**
+
+- `ai-application.ts`、`ai-rules.ts`、`ai-ports.ts` 收斂為 `ai.ts`；provider delegate 與 `line_agent_activity` insert 改名為 `legacy-ai-dependencies.ts`，仍是唯一的 provider/persistence translation。
+- CodeGraph sync 後 `runDraftInviteEmail` 與 `runParseBusinessCard` 分別只有各自 route caller；`createLegacyVisitAiDependencies` 只被兩條 API route 共用；舊 import/type/factory 搜尋為零。全 repo 為 406 files／3,410 nodes／7,058 edges。
+- 三個既有 focused test files 全部保留（其中 adapter test 改名為 dependencies test）；`npm test` 94 files／465 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。
+- [x] 保留 input validation、activity success/failure order 與 provider/database translation。
+- [ ] 在後續跨批次驗收中，以 provider-safe fixture/Chrome 檢查 Visit UI loading/error/success；不從本批宣稱真實 provider side effect 已驗。
 
 #### 進場清理 — Inactive Visit runtime scaffold
 

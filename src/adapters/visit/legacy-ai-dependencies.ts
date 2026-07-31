@@ -1,9 +1,9 @@
 import "server-only";
 import { legacyVisitProviders } from "./legacy-provider-adapter";
 import { getSupabase } from "@/lib/supabase";
-import type { VisitAiPort } from "@/modules/visit/ai-ports";
+import type { VisitAiDependencies } from "@/modules/visit/ai";
 
-export function createLegacyVisitAiAdapter(): VisitAiPort {
+export function createLegacyVisitAiDependencies(): VisitAiDependencies {
   const supabase = getSupabase();
   return {
     parseBusinessCard: legacyVisitProviders.parseBusinessCard,

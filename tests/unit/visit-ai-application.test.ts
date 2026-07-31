@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { runDraftInviteEmail, runParseBusinessCard } from "@/modules/visit/ai-application";
-import type { VisitAiPort } from "@/modules/visit/ai-ports";
+import { runDraftInviteEmail, runParseBusinessCard, type VisitAiDependencies } from "@/modules/visit/ai";
 
-function fakePort(overrides?: Partial<VisitAiPort>) {
+function fakePort(overrides?: Partial<VisitAiDependencies>) {
   const calls: string[] = [];
-  const port: VisitAiPort = {
+  const port: VisitAiDependencies = {
     async draftInviteEmail() {
       calls.push("draft");
       return { subject: "邀約", body: "內容" };
