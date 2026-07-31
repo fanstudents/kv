@@ -210,6 +210,25 @@ RuntimeKernel / generic workflow / tool contracts
 | U-03 | **已關閉（WP-04）**：新 RuntimeKernel 不能只映射既有 `agent_*` tables；採既有 run/artifact/step 相容 + additive runtime extension | WP-04 | 實作仍受 U-02 與真實環境驗收限制 | D-08；WP-05 才實作第一個 consumer，不先擴 generic framework |
 | U-04 | LINE/OpenAI/Google/Teachify 是否有 sandbox 或可安全重播 fixture | WP-01 + 各 domain preflight | production-like provider verification | sandbox；否則 contract fixture + staging canary，明列 deferred evidence |
 
+#### U-01／U-02 static baseline evidence（2026-07-31）
+
+- `.env.local` 目前只有 `AUTH_SECRET`、`ADMIN_PASSWORD`、`APP_BASE_URL` 已設；所有 Supabase 與 LINE／OpenAI／Google／Teachify／Firecrawl key 都未設。這可啟動本機登入與 build，但不能證明任何 data/provider journey。
+- Source 中有 32 個 unique Supabase table name（由 `.from("…")` 靜態掃描）；repo migration 的 `CREATE TABLE` 只覆蓋 13 個，另有 2 個既有表只做 `ALTER TABLE`。其餘不是 baseline schema source。
+
+| Table group | Static mapping | Repo migration evidence | Consequence |
+|---|---|---|---|
+| Additive baseline present | `agent_live_task`、`agent_runs`／`agent_run_steps`／`agent_artifacts`／`agent_memory`／`agent_tasks`／`metric_snapshots`、`kb_chunks`／`kb_sources`／`kb_citations`、`meetings`／`meeting_turns`、`teachify_orders` | `CREATE TABLE` | 可在取得 parent schema 後 rehearsal；不代表整個 app 能從零重建。 |
+| Existing schema altered only | `contacts`、`knowledge_base` | 只有 `ALTER TABLE` | 缺原表 columns／indexes／constraints baseline。 |
+| Active legacy tables assumed | `line_agents`、`line_agent_activity`、`line_subscribers`、`line_support_conversations`、`line_conversation_locks`、`pending_invites`、`visit_offers`、`agent_goals`、`checklist_status`、`ai_usage_logs`、`broadcast_logs`、`contact_profiles`、`knowledge_access` | `20260725_lockdown_rls.sql` 只列作 revoke target，沒有 schema definition | 目前由 source/runtime 假定其存在；不可憑程式 query 猜欄位或寫 migration。 |
+| No repo migration mention | `enterprise_inquiries`、`projects`、`project_sessions`、`quotations` | 無 | 教學系統資料流沒有 repo-side provenance。 |
+
+**Resolution sequence（不能跳步）：**
+
+1. 取得正確 Supabase project 的 schema-only introspection／dump（tables、columns、PK/FK、indexes、RLS/policies、functions/triggers、Storage buckets；不需要匯出個資或 secret）。
+2. 對照上表與 source query，標出 intentional legacy / dead table / drift；先由 owner 確認，不依 TypeScript cast 猜 schema。
+3. 將已存在的 production schema 建成受版本控制的 baseline migration；把現有 7 份 additive migration 依 dependency order replay 到空白 local/staging DB。
+4. 設定只含測試資料的 staging／fixture environment，再進行 U-04 provider-safe and browser functional acceptance；在此之前任何 runtime/schema cutover 都維持 blocked。
+
 ## 7. Work package DAG
 
 ```text
