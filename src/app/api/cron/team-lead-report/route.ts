@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runTeamLeadReport } from "@/lib/team-lead-report";
+import { runTeamLeadReport } from "@/adapters/reporting/daily-report-runners";
 import { parseCronAuth } from "@/modules/cron/auth-rules";
 
 // 每日排程觸發點（由外部排程器呼叫，如 GitHub Actions cron）。

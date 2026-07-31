@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 403 files／3,396 nodes／7,024 edges |
+| Last verified | 2026-07-31；CodeGraph index 402 files／3,395 nodes／7,030 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -1016,6 +1016,25 @@ Then the existing report artifact is retried without creating a second scheduled
 - `relay-inbound`／`relay-application`／`relay-ports`／`legacy-support-relay-adapters` 與舊 factory import 均為零；新 `relay.ts` 保留原 parser、capture plan、orchestration 和 typed dependencies，沒有將 side effect 移回 route。
 - 完整自動驗證通過：94 test files／465 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。原先整串驗證超過 shell 的 120 秒上限，故在沒有任何中途修改的同一輪中拆為四項完成；不是 test failure。
 - 本批沒有 UI source change，未觸發真實 webhook／LINE／舊客服系統／Supabase。Chrome authenticated parity 與 provider acceptance 仍是後續跨批次驗收項目。
+
+#### 進場清理 — Lib facades and daily report composition
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；移除單一 Orders page 的 compatibility re-export，並把兩個 daily-report runner 的重複 composition 收斂為具名 reporting adapter。
+
+**Behavior contract (`behavior-contract/v1`, `reporting.runner-composition` + `orders.page-direct-import`)**
+
+- Scope：Support／Team Lead 的 cron 與 manual report routes、各自既有 report workflow/repository/summary config/LINE delivery、Orders page 的示範通知 preview imports。
+- Non-goals：不改 UI/UX、route URL/method/status/payload、cron auth、report contents/period/Agent display fallback、OpenAI/LINE/Supabase provider 行為、`DEMO_ORDER`／notification text 或任何 real delivery。
+- Invariants：四個 report routes 仍呼叫相同 named runner；Support 與 Team Lead 各自使用原 repository、summary config 與 workflow；Team Lead display name fallback 不變；Orders page 仍從純 `orders` capability 取得同一筆 demo order 與 formatter，不把 client 連到任何 server/provider import。
+- Design：移除 `src/lib` 的三個 compatibility/composition files；report runner composition 放入 `adapters/reporting/daily-report-runners.ts`，Order page 直接 import 已經是正式 owner 的 pure module；不建立 generic job framework。
+- Verification：CodeGraph/text caller map、runner composition contract tests、full typecheck/lint/build；本批沒有視覺 source change，Chrome / real report delivery 併入跨批次驗收。
+
+**Evidence（2026-07-31）：**
+
+- CodeGraph sync 後為 402 files／3,395 nodes／7,030 edges。四個原本 route caller 全數指向 `daily-report-runners`：Support cron/manual 各一個、Team Lead cron/manual 各一個；Orders page 直接成為 `formatOrderText` 的第三個 consumer。
+- 舊 `@/lib/support-daily-report`、`@/lib/team-lead-report`、`@/lib/teachify-orders` import 為零。新 runner contract test 固定 Support/Team Lead 各自的 repository、summary config、delivery、clock，以及 Team Lead 的 display-name/fallback；Orders page 仍只 import pure `orders` module。
+- 完整自動驗證通過：95 test files／467 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。第一次 build 超過單次 60-second shell window並短暫保留 Next lock；等待收尾後以單一 120-second window重跑成功，沒有 code fix。
+- 本批不碰 UI render 邏輯、cron auth 或 real delivery；Chrome / provider functional acceptance 仍列入後續跨批次驗收。
 
 - [x] 定義 RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [x] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runSupportDailyReport } from "@/lib/support-daily-report";
+import { runSupportDailyReport } from "@/adapters/reporting/daily-report-runners";
 import { parseCronAuth } from "@/modules/cron/auth-rules";
 
 // 每日排程觸發點（由 .github/workflows/daily-support-report.yml 呼叫）。

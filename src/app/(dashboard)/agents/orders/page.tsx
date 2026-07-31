@@ -5,7 +5,7 @@ import { AlertTriangle, Loader2, Send } from "lucide-react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput } from "@/components/ui/Field";
-import { DEMO_ORDER, formatOrderText } from "@/lib/teachify-orders";
+import { DEMO_ORDER, formatOrderText } from "@/modules/orders/orders";
 
 const agent = getAgent("orders")!;
 
