@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { createLegacyActivityReadAdapter } from "@/adapters/activity/legacy-read-adapter";
+import { runActivityRead } from "@/modules/activity/read-application";
+import { parseActivityReadRequest } from "@/modules/activity/read-rules";
 
 export async function GET(req: NextRequest) {
-  const status = req.nextUrl.searchParams.get("status");
-  const limit = Number(req.nextUrl.searchParams.get("limit") ?? "200");
-
-  const supabase = getSupabase();
-  let query = supabase
-    .from("line_agent_activity")
-    .select("*")
-    .order("occurred_at", { ascending: false })
-    .limit(limit);
-
-  if (status) query = query.eq("status", status);
-
-  const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  return NextResponse.json(data);
+  const result = await runActivityRead(
+    parseActivityReadRequest(
+      req.nextUrl.searchParams.get("status"),
+      req.nextUrl.searchParams.get("limit"),
+    ),
+    createLegacyActivityReadAdapter(),
+  );
+  if (result.kind === "error") return NextResponse.json({ error: result.message }, { status: 400 });
+  return NextResponse.json(result.data);
 }
