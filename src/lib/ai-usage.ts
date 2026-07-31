@@ -174,7 +174,7 @@ const REALTIME_PRICING: Record<
   { text: { in: number; cachedIn: number; out: number }; audio: { in: number; cachedIn: number; out: number } }
 > = {
   "gpt-realtime-2.1": {
-    text: { in: 4, cachedIn: 0.4, out: 24 },
+    text: { in: 0.6, cachedIn: 0.4, out: 2.4 },
     audio: { in: 32, cachedIn: 0.4, out: 64 },
   },
   "gpt-realtime-2.1-mini": {
