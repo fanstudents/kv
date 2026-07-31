@@ -5,8 +5,10 @@ import {
   parseVisitInviteChoice,
   selectVisitInviteSlot,
 } from "@/modules/visit/public-response";
-import { createLegacyVisitRespondReadAdapter } from "@/adapters/visit/legacy-respond-read-adapter";
-import { createLegacyVisitRespondFulfilmentAdapter } from "@/adapters/visit/legacy-respond-fulfilment-adapter";
+import {
+  createLegacyVisitRespondFulfilmentSource,
+  createLegacyVisitRespondReadSource,
+} from "@/adapters/visit/legacy-respond-sources";
 
 type ContactInfo = { name?: string; title?: string; email?: string; company?: string } | null;
 
@@ -71,7 +73,7 @@ function locationFormPage(params: { inviteId: string; chosenLabel: string }) {
 export async function GET(req: NextRequest) {
   const inviteId = req.nextUrl.searchParams.get("invite");
   const choice = parseVisitInviteChoice(req.nextUrl.searchParams.get("choice"));
-  const readPort = createLegacyVisitRespondReadAdapter();
+  const readPort = createLegacyVisitRespondReadSource();
 
   if (!inviteId) {
     return page("連結無效", "這個邀約連結不完整，請直接聯繫對方確認時間。", "error");
@@ -112,8 +114,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const inviteId = req.nextUrl.searchParams.get("invite");
-  const readPort = createLegacyVisitRespondReadAdapter();
-  const fulfilmentPort = createLegacyVisitRespondFulfilmentAdapter();
+  const readPort = createLegacyVisitRespondReadSource();
+  const fulfilmentPort = createLegacyVisitRespondFulfilmentSource();
 
   if (!inviteId) {
     return page("連結無效", "這個邀約連結不完整，請直接聯繫對方確認時間。", "error");

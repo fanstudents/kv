@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 433 files／3,565 nodes／7,451 edges |
+| Last verified | 2026-07-31；CodeGraph index 431 files／3,558 nodes／7,466 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -586,6 +586,32 @@ Then the existing report artifact is retried without creating a second scheduled
 - 移除 7 個未接線 production modules（state machine、intent executor、projection、replay、mode、workflow）、1 個專屬 parity fixture、5 個專屬 unit tests；`legacy-schema.ts` 保留真正在 LINE contact/offer/invite adapter 使用的 insert/update payload mapper，並以 `LegacyContactInput` 取代錯誤的 draft-state dependency。
 - CodeGraph sync 後全 repo 為 433 files／3,565 nodes／7,451 edges；對已刪 symbol 與 `modules/visit/{domain,application,intent-executor,projection,replay,mode,workflow}` 的 source/test import 搜尋皆為零。沒有 route、DB/provider、timer 或 UI consumer 曾指向它們。
 - `npm test` 101 files／484 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。減少的 5 test files／37 tests 只驗證 inactive draft；保留的 `visit-legacy-schema.test.ts` 直接覆蓋 live LINE row mappers。這仍不替代 real LINE/Supabase/authenticated browser acceptance。
+
+#### 進場清理 — Visit public invite response sources
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；這是同一條 public invite-response workflow 的 contract/source consolidation，不移動 route 的 HTML/transport behavior 或任何 calendar/email/LINE side-effect ordering。Chrome/provider-safe cross-batch evidence 仍待集中驗收。
+
+**Behavior contract (`behavior-contract/v1`, `visit.public-response.sources`)**
+
+- Scope：`GET/POST /api/agents/visit/respond` 所使用的 read/fulfilment contracts 與 legacy source translations。
+- Non-goals：不改 route URL/method/query/form/status/HTML、optimistic confirmation query、invite row schema、calendar/event/email/LINE/research provider、activity row、`after()` background research、UI/UX。
+- Entrypoints／consumers：read source 只由同一 route 的 GET/POST 使用；fulfilment source 只由同 route POST 使用；兩者同屬 public invite-response bounded workflow。
+- Invariants：pending invite 的 select/update/refetch query、confirmed/calendar_event branch、settings/calendar/email/push/activity/failure/research method signatures與順序不變；route 仍保有 HTTP/HTML response mapping。
+- Acceptance examples：pending choice 仍只更新 `status=pending` row；already confirmed row 仍 refetch；calendar failure 仍 mark failed + activity + best-effort LINE push；GET/POST payload and page result 不變。
+- Test mapping：read/fulfilment source tests、route contract/full test/typecheck/lint/build；Chrome public invite response flow 留至 provider-safe cross-batch acceptance。
+- Intentional changes：兩份 port 改為同一 workflow contracts、兩份 adapter 改為同一 named legacy sources file；沒有產品行為變更。
+- Open questions：真實 calendar/email/LINE delivery 不能由 mock proof 取代，仍待 U-04 provider-safe verification。
+
+- [x] 收斂 read/fulfilment contracts 為 `respond-contracts.ts`。
+- [x] 收斂 legacy read/fulfilment translations 為 `legacy-respond-sources.ts`，保留兩個具名 source factory。
+- [x] 完成 CodeGraph caller/import map 與 full automated verification。
+- [ ] 下一次 provider-safe cross-batch 驗證 public invite response 與 authenticated Visit/TV/Outputs UI。
+
+**Evidence（2026-07-31）：**
+
+- `respond-ports.ts` 與 `respond-fulfilment-ports.ts` 收斂為一份 workflow contract；`legacy-respond-read-adapter.ts` 與 `legacy-respond-fulfilment-adapter.ts` 收斂為一份 legacy sources file。read/fulfilment 的 method surface、Supabase query、provider binding 與 route HTML 都未改，production files 淨少 2 個。
+- CodeGraph sync 後全 repo 為 431 files／3,558 nodes／7,466 edges；舊 contract/adapter import 為零。`createLegacyVisitRespondReadSource` 仍只有同 route GET/POST 兩個 caller，`createLegacyVisitRespondFulfilmentSource` 仍只有同 route POST caller。
+- `npm test` 101 files／484 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。這固定 mock/static contract，不把它說成真實 Calendar/Email/LINE delivery 或 browser journey acceptance。
 
 ### WP-05 — Visit LINE text vertical slice
 

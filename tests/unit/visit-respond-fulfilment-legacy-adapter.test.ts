@@ -25,9 +25,9 @@ vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({
   legacyVisitProviders: { createCalendarEvent, sendEmail },
 }));
 
-import { createLegacyVisitRespondFulfilmentAdapter } from "@/adapters/visit/legacy-respond-fulfilment-adapter";
+import { createLegacyVisitRespondFulfilmentSource } from "@/adapters/visit/legacy-respond-sources";
 
-describe("legacy Visit respond fulfilment adapter", () => {
+describe("legacy Visit respond fulfilment source", () => {
   it("keeps settings/provider calls and pending invite/activity writes behind the port", async () => {
     const query = {
       update: vi.fn(),
@@ -44,7 +44,7 @@ describe("legacy Visit respond fulfilment adapter", () => {
     sendEmail.mockResolvedValue(undefined);
     pushLineMessage.mockResolvedValue(undefined);
     researchContact.mockResolvedValue("profile-1");
-    const adapter = createLegacyVisitRespondFulfilmentAdapter();
+    const adapter = createLegacyVisitRespondFulfilmentSource();
 
     await expect(adapter.getSettings()).resolves.toEqual({ senderName: "Dennis" });
     await expect(adapter.createCalendarEvent({
