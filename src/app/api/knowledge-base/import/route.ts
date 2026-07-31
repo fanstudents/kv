@@ -2,19 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createLegacyKnowledgeBaseImportReadAdapter } from "@/adapters/knowledge-base/legacy-import-read-adapter";
 import { createLegacyKnowledgeBaseImportPublishAdapter } from "@/adapters/knowledge-base/legacy-import-publish-adapter";
 import { createLegacyKnowledgeBaseImportDiscardAdapter } from "@/adapters/knowledge-base/legacy-import-discard-adapter";
-import { importPdf } from "@/lib/kb-import";
+import { createLegacyKnowledgeBaseImportUploadAdapter } from "@/adapters/knowledge-base/legacy-import-upload-adapter";
 import { runKnowledgeBaseImportRead } from "@/modules/knowledge-base/import-read-application";
 import { parseKnowledgeBaseImportReadQuery } from "@/modules/knowledge-base/import-read-rules";
 import { runKnowledgeBaseImportPublish } from "@/modules/knowledge-base/import-publish-application";
 import { parseKnowledgeBaseImportPublishRequest } from "@/modules/knowledge-base/import-publish-rules";
 import { runKnowledgeBaseImportDiscard } from "@/modules/knowledge-base/import-discard-application";
 import { parseKnowledgeBaseImportDiscardRequest } from "@/modules/knowledge-base/import-discard-rules";
+import { runKnowledgeBaseImportUpload } from "@/modules/knowledge-base/import-upload-application";
+import { validateKnowledgeBaseImportFile } from "@/modules/knowledge-base/import-upload-rules";
 
 // 匯入一份 PDF：抽文字 → 切塊 → AI 轉條目 → 全部存成「草稿」等人審。
 // 轉換要跑好幾次 AI，時間比一般請求久，所以放寬執行時間上限。
 export const maxDuration = 300;
-
-const MAX_BYTES = 12 * 1024 * 1024; // 12MB：再大就該先拆檔（雲端函式的請求本體也有上限）
 
 export async function POST(req: NextRequest) {
   const form = await req.formData().catch(() => null);
@@ -22,16 +22,17 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "請選擇一個 PDF 檔案" }, { status: 400 });
   }
-  if (!file.name.toLowerCase().endsWith(".pdf")) {
-    return NextResponse.json({ error: "目前只支援 PDF；Word／簡報請先另存成 PDF" }, { status: 400 });
-  }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: `檔案超過 ${MAX_BYTES / 1024 / 1024}MB，請先拆成多份` }, { status: 413 });
+  const validation = validateKnowledgeBaseImportFile(file);
+  if (validation.kind === "invalid") {
+    return NextResponse.json({ error: validation.message }, { status: validation.status });
   }
 
   try {
     const buf = Buffer.from(await file.arrayBuffer());
-    const result = await importPdf({ buf, filename: file.name, mimeType: file.type });
+    const result = await runKnowledgeBaseImportUpload(
+      { buf, filename: file.name, mimeType: file.type },
+      createLegacyKnowledgeBaseImportUploadAdapter()
+    );
     return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "匯入失敗" }, { status: 500 });
