@@ -6,6 +6,20 @@ export interface LineInboundEvent {
   postback?: { data?: string };
 }
 
+export type VisitLineWebhookPayload =
+  | { kind: "valid"; events: LineInboundEvent[] }
+  | { kind: "invalid" };
+
+export function parseVisitLineWebhookPayload(rawBody: string): VisitLineWebhookPayload {
+  try {
+    const parsed = JSON.parse(rawBody) as { events?: unknown } | null;
+    if (!parsed || typeof parsed !== "object") return { kind: "invalid" };
+    return { kind: "valid", events: (parsed.events ?? []) as LineInboundEvent[] };
+  } catch {
+    return { kind: "invalid" };
+  }
+}
+
 export type VisitLinePostback =
   | { action: "confirm" }
   | { action: "cancel" }

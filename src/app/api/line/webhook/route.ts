@@ -17,6 +17,8 @@ import {
   classifyVisitApprovalText,
   classifyVisitDecisionText,
   normalizeVisitLineInbound,
+  parseVisitLineWebhookPayload,
+  type LineInboundEvent,
 } from "@/modules/visit/line-inbound";
 import {
   toLegacyContactInsert,
@@ -42,13 +44,7 @@ export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
 }
 
-interface LineEvent {
-  type: string;
-  replyToken?: string;
-  source?: { userId?: string };
-  message?: { id?: string; type: string; text?: string };
-  postback?: { data?: string };
-}
+type LineEvent = LineInboundEvent;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VISIT_AGENT = "visit";
@@ -653,12 +649,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 
-  let events: LineEvent[] = [];
-  try {
-    events = JSON.parse(rawBody).events ?? [];
-  } catch {
+  const payload = parseVisitLineWebhookPayload(rawBody);
+  if (payload.kind === "invalid") {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
+  const events = payload.events;
 
   await Promise.allSettled(
     events.map(async (event) => {
