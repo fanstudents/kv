@@ -715,6 +715,29 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實 `readAiUsage` 與 `createSupabaseAiUsageRepository` 各只有原本 `/api/ai-usage` GET façade caller；舊 read-application／read-ports／report-rules／legacy-adapter import 為零。
 - focused `npx vitest run`（2 files／10 tests）、full `npm test`（108 files／511 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome `/ai-usage` before capture 為初始 loading state（4,238 chars、三張 card 顯示 `…`），after 為 API resolve 後的既有 empty state（4,318 chars、`$0` + empty message）；標題、導航與 card labels 一致，console 無 error/warn，未觸發 AI/provider side effect。因兩次 capture 分別落在非同步載入前後，這筆 evidence 明確不把 raw DOM 字串當成完全相等。
 
+#### 進場清理 — Integration status direct read
+
+**狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；這一包只移除無行為的 forwarding layers，真實 integration health check、快取與 provider semantics 都留在既有 integration-status helper。
+
+**Behavior contract (`behavior-contract/v1`, `integration-status.direct-read`)**
+
+- Scope：`GET /api/integrations/status`、Agent page 的 RealStatusPanel／ConnectionStatusList 與既有 integration-status helper。
+- Non-goals：不改 UI/UX、route URL/status/payload、Google/LINE/OpenAI/Supabase/Teachify status 判斷、60-second cache、環境變數、provider read 行為或資料格式。
+- Invariants：status map 保持原 shape；helper failure 繼續走原本未 catch 的 route throw boundary；route 仍只讀、不觸發任何寫入或 delivery。
+- Design：既有 helper 已是唯一的 provider/health-check owner，移除單 caller 的 status port、application 與 legacy adapter，route 直接使用它。
+- Verification：CodeGraph caller/import map、route success/failure contract、typecheck/lint/build，以及 Chrome 於 `/agents/support` 展開「Agent 設定 → 串接狀態」的 before/after DOM + console comparison；只做正常頁面 read，不觸發 write/delivery。
+
+- [x] 刪除 zero-logic status forwarding layers，route 直連既有 helper。
+- [x] 以 route contract 保留 success map 與 provider failure semantics。
+- [x] 以 CodeGraph/Chrome parity 與 full verification 完成證據。
+
+**Evidence（2026-07-31）：**
+
+- 兩個 module 與一個 `legacy` adapter 全數移除；route 直接呼叫既有 integration-status helper。這是 helper 已經擁有 cache／Google credential check／map construction 時唯一不增加 owner 的做法。
+- 原本兩個 wrapper-only test files／2 cases 收斂為一個 route contract file／2 cases；success map 和未 catch 的 provider failure 都被固定，沒有以刪測試換取檔案數下降。
+- CodeGraph sync 證實 `getIntegrationStatus` 現在只有原本 `/api/integrations/status` GET façade caller；舊 status-application／status-ports／legacy-status-adapter import 為零。
+- focused `npx vitest run`（1 file／2 tests）、full `npm test`（107 files／511 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 對 `/agents/support` 實際點開「Agent 設定 → 串接狀態」：LINE OA（客服頻道）與 OpenAI API 皆存在、console 無 error/warn；移除 Next `Compiling…`／dev-tools 浮層後，前後產品 DOM 均為 7,233 chars 且完全一致。
+
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。
