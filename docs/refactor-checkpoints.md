@@ -72,17 +72,18 @@ Every stage must:
 | `9925600` | Activity read boundary | Query coercion, activity read port, and HTTP-preserving cutover |
 | `8025673` | Shared activity read boundary | Reuse activity read port for general and agent-scoped activity routes |
 | `75501b2` | Goals history boundary | Trend query coercion, metric reader port, and HTTP-preserving cutover |
+| `84cca97` | Contacts read boundary | Nested contact/offers/invites query port and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `75501b2` plus this documentation stage:
+At `84cca97` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 73 Vitest files / 360 tests passed;
+- 75 Vitest files / 363 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
-  audio application cutover; reload-only Next.js development-tool nodes were
+  Contacts read cutover; reload-only Next.js development-tool nodes were
   normalized out of the snapshot comparison;
 - CodeGraph maps `processOrderPayload`, `OrdersPorts`, and
   `createLegacyOrdersAdapters` only through the Orders module, legacy adapter,
@@ -164,7 +165,29 @@ At `75501b2` plus this documentation stage:
 - CodeGraph maps `parseGoalsHistoryRequest`, `runGoalsHistory`, and
   `createLegacyGoalsHistoryAdapter` through the Goals history module, adapter,
   and route; the existing `metricHistory` helper remains behind the adapter;
+- CodeGraph maps `runContactsRead`, `ContactsReadPort`, and
+  `createLegacyContactsReadAdapter` through the Contacts module, adapter, and
+  route; the existing nested Supabase read remains behind the adapter;
 - no production Supabase schema or data was read or changed.
+
+### WP6-P Contacts read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/contacts-read.contract.md`.
+- `src/modules/contacts/read-application.ts` owns query-error mapping while
+  returning raw nested rows. `src/adapters/contacts/legacy-read-adapter.ts`
+  keeps the exact `contacts` nested `visit_offers`/`pending_invites` select and
+  descending `created_at` ordering.
+- The route preserves HTTP 400 error mapping and raw success data; Outputs UI,
+  contact/offer/invite writers, row formats, retention, and schema/data behavior
+  are untouched.
+- Checkpoint: `84cca97`.
+- Full verification: 75 Vitest files / 363 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Contacts
+  port, application, adapter, and route.
+- Contacts schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
 
 ## Current Boundary
 
