@@ -872,6 +872,28 @@ At `cafa912` plus this documentation stage:
   write-owner migration, reconciliation, and production traffic evidence
   remain deferred.
 
+### WP6-AW Visit research compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-research.contract.md`.
+- `src/modules/visit/research-rules.ts` owns request normalization;
+  `research-application.ts` owns contact enrichment, validation, research
+  orchestration, and the post-success profile read;
+  `src/adapters/visit/legacy-research-adapter.ts` keeps the existing contacts
+  lookup and `contact-research` helper behind the port.
+- The `/api/agents/visit/research` GET/POST routes preserve the existing
+  profile limit, contact projection/filter, fallback fields, validation and
+  provider messages, response envelopes/statuses, `contact_profiles`,
+  `agent_runs`, and `line_agent_activity` side effects, plus all Visit UI/data
+  formats.
+- Checkpoint: `7a40149`.
+- Full verification: 167 Vitest files / 513 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the research
+  rules, port, application, adapter, and route methods.
+- Contact-profile schema/provider evolution, reconciliation, activity
+  write-owner migration, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
