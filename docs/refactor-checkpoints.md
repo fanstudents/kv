@@ -91,14 +91,15 @@ Every stage must:
 | `af67fc9` | Visit LINE delivery boundary | Outbound LINE reply port and legacy adapter for the Visit webhook |
 | `5e08c96` | Subscriber touch boundary | Shared channel-aware subscriber touch port and legacy adapter |
 | `847bb97` | Visit invite approval application | Extracted cancel/send/revise orchestration behind injected ports |
+| `c82f6e6` | Visit offer application | Extracted confirm/cancel/correction orchestration behind injected ports |
 
 ## Current Verification
 
-At code checkpoint `847bb97` plus the pending documentation checkpoint for
-WP6-BO:
+At code checkpoint `c82f6e6` plus the pending documentation checkpoint for
+WP6-BP:
 
 - `npm run verify:full` passed;
-- 186 Vitest files / 547 tests passed;
+- 187 Vitest files / 549 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -128,6 +129,10 @@ WP6-BO:
 - CodeGraph maps `createVisitLineInviteApprovalHandler` through the Visit LINE
   webhook and text dispatcher; the route no longer contains the invite
   approval orchestration body;
+- CodeGraph maps `createVisitLineOfferReplyHandler` and its returned handler
+  through the Visit LINE webhook, postback dispatcher, and text dispatcher;
+  `rg` confirms the route has no direct pending-offer lookup, card-reply
+  interpretation, calendar-slot, invite-draft, or offer-resolution calls;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1242,6 +1247,24 @@ WP6-BO:
   matched exactly before and after; CodeGraph maps the application handler to
   the route and confirms the old orchestration body is gone from the route.
 - Full Visit offer-flow extraction, runtime cutover/shadow/canary, provider
+  replacement, schema migration, reconciliation, and production traffic
+  evidence remain deferred.
+
+### WP6-BP Visit LINE offer application — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-offer-application.contract.md`.
+- `createVisitLineOfferReplyHandler` now owns pending offer confirm/cancel/
+  correction branching and orchestration through injected workflow, delivery,
+  provider, settings, runtime, activity, lock, tag, and renderer ports. The
+  route only composes dependencies and delegates from postback/text dispatch.
+- Checkpoint: `c82f6e6`.
+- Full verification: 187 Vitest files / 549 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the handler to the route and
+  confirms the old offer orchestration body/direct provider calls are gone from
+  the route.
+- Full Visit flow extraction, runtime cutover/shadow/canary, provider
   replacement, schema migration, reconciliation, and production traffic
   evidence remain deferred.
 
