@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { createLegacySubscribersReadAdapter } from "@/adapters/subscribers/legacy-read-adapter";
+import { runSubscribersRead } from "@/modules/subscribers/read-application";
 
 export async function GET() {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("line_subscribers")
-    .select("*")
-    .order("last_seen_at", { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json(data);
+  const result = await runSubscribersRead(createLegacySubscribersReadAdapter());
+  if (result.kind === "error") {
+    return NextResponse.json({ error: result.message }, { status: 400 });
+  }
+  return NextResponse.json(result.data);
 }
