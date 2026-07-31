@@ -1,34 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
-
-const { parseBusinessCard } = legacyVisitProviders;
-import { getSupabase } from "@/lib/supabase";
+import { createLegacyVisitAiAdapter } from "@/adapters/visit/legacy-ai-adapter";
+import { runParseBusinessCard } from "@/modules/visit/ai-application";
+import { parseBusinessCardRequest } from "@/modules/visit/ai-rules";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const imageDataUrl = typeof body.imageDataUrl === "string" ? body.imageDataUrl : "";
-
-  if (!imageDataUrl.startsWith("data:image/")) {
-    return NextResponse.json({ error: "缺少有效的名片圖片" }, { status: 400 });
-  }
-
-  const supabase = getSupabase();
-
-  try {
-    const contact = await parseBusinessCard(imageDataUrl);
-    await supabase.from("line_agent_activity").insert({
-      agent_slug: "visit",
-      summary: `已辨識名片：${contact.name || "（未辨識出姓名）"}${contact.company ? ` / ${contact.company}` : ""}`,
-      status: "success",
-    });
-    return NextResponse.json({ contact });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "名片辨識失敗";
-    await supabase.from("line_agent_activity").insert({
-      agent_slug: "visit",
-      summary: `名片辨識失敗：${message}`,
-      status: "failed",
-    });
-    return NextResponse.json({ error: message }, { status: 502 });
-  }
+  const parsed = parseBusinessCardRequest(body);
+  if (parsed.kind === "invalid") return NextResponse.json({ error: parsed.message }, { status: 400 });
+  const result = await runParseBusinessCard(parsed.imageDataUrl, createLegacyVisitAiAdapter());
+  if (result.kind === "error") return NextResponse.json({ error: result.message }, { status: 502 });
+  return NextResponse.json({ contact: result.data });
 }
