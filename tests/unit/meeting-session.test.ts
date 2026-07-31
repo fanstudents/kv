@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { appendTurns, createMeeting, finishMeeting, getSignedRecordingUrl, uploadRecording } = vi.hoisted(() => ({
+const { appendTurns, createMeeting, finishMeeting, getRecentHistory, getSignedRecordingUrl, uploadRecording } = vi.hoisted(() => ({
   appendTurns: vi.fn(),
   createMeeting: vi.fn(),
   finishMeeting: vi.fn(),
+  getRecentHistory: vi.fn(),
   getSignedRecordingUrl: vi.fn(),
   uploadRecording: vi.fn(),
 }));
@@ -13,6 +14,7 @@ vi.mock("@/lib/meeting-store", () => ({
   appendTurns,
   createMeeting,
   finishMeeting,
+  getRecentHistory,
   getSignedRecordingUrl,
   uploadRecording,
 }));
@@ -184,12 +186,14 @@ describe("Meeting session repository", () => {
     const turns = [{ role: "agent" as const, agentSlug: "report", speaker: "Ivy", content: "hello" }];
     const fields = { transcript: "notes", durationSeconds: 12, recordingPath: "meeting-1/recording.webm" };
     createMeeting.mockResolvedValue("meeting-1");
+    getRecentHistory.mockResolvedValue("history");
     appendTurns.mockResolvedValue(undefined);
     uploadRecording.mockResolvedValue("meeting-1/recording.webm");
     finishMeeting.mockResolvedValue(undefined);
     getSignedRecordingUrl.mockResolvedValue("https://example.test/recording");
 
     await expect(repository.create("Planning")).resolves.toBe("meeting-1");
+    await expect(repository.getHistory("meeting-1", 8)).resolves.toBe("history");
     await expect(repository.appendTurns("meeting-1", turns)).resolves.toBeUndefined();
     await expect(repository.uploadRecording("meeting-1", bytes, "webm", "audio/webm")).resolves.toBe(
       "meeting-1/recording.webm"
@@ -197,6 +201,7 @@ describe("Meeting session repository", () => {
     await expect(repository.finishMeeting("meeting-1", fields)).resolves.toBeUndefined();
     await expect(repository.getSignedRecordingUrl("meeting-1")).resolves.toBe("https://example.test/recording");
     expect(createMeeting).toHaveBeenCalledWith("Planning");
+    expect(getRecentHistory).toHaveBeenCalledWith("meeting-1", 8);
     expect(appendTurns).toHaveBeenCalledWith("meeting-1", turns);
     expect(uploadRecording).toHaveBeenCalledWith("meeting-1", bytes, "webm", "audio/webm");
     expect(finishMeeting).toHaveBeenCalledWith("meeting-1", fields);

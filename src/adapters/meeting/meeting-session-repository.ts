@@ -4,6 +4,7 @@ import {
   appendTurns,
   createMeeting,
   finishMeeting,
+  getRecentHistory,
   getSignedRecordingUrl,
   uploadRecording,
 } from "@/lib/meeting-store";
@@ -13,6 +14,9 @@ export function createMeetingSessionRepository(): MeetingSessionRepository {
   return {
     create(title) {
       return createMeeting(title);
+    },
+    getHistory(meetingId, limit) {
+      return getRecentHistory(meetingId, limit);
     },
     appendTurns(meetingId, turns) {
       return appendTurns(meetingId, turns);

@@ -47,6 +47,7 @@ export interface MeetingStoredTurn {
 
 export interface MeetingSessionRepository {
   create(title?: string): Promise<string | null>;
+  getHistory(meetingId: string, limit?: number): Promise<string>;
   appendTurns(meetingId: string, turns: MeetingStoredTurn[]): Promise<void>;
   uploadRecording(
     meetingId: string,
