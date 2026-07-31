@@ -270,14 +270,39 @@ WP-05 + WP-07 + WP-08
 
 **Anchors:** `.env.example`、`proxy.ts`、`lib/auth.ts`、`playwright.config.ts`、`tests/e2e/**`、`supabase/migrations/**`.
 
-- [ ] 團隊建立 ignored `.env.local`；只記 key presence，不記 secret。
-- [ ] 記錄 server port、commit、Supabase project class（local/staging），避免環境漂移。
-- [ ] 用真實密碼完成 login／logout／missing/wrong password／session expiry。
-- [ ] 登入 dashboard，確認資料 source；不得用 synthetic cookie 冒充 real login evidence。
-- [ ] 點過 Dashboard、Visit、Meeting、KB、Subscribers/Todos 的代表性讀寫或互動。
-- [ ] 建 browser evidence manifest：URL、viewport、data source、操作、結果、screenshot/DOM。
-- [ ] introspect 實際 schema，對照 migrations 與所有 `.from("table")`；標出 missing provenance。
-- [ ] 將 tests 分成 synthetic render smoke 與 authenticated functional suite。
+**狀態（2026-07-31）：** Auth 與 authenticated render baseline 已建立；real-data／schema baseline 因沒有可用 Supabase 而未完成。WP-01 不得標為 Done。
+
+**Behavior contract**
+
+- Entry points：`/login`、`/api/auth/login`、`/api/auth/logout`、`proxy.ts` 保護頁面。
+- States：anonymous → authenticated → logged-out／expired；missing 或 wrong password 留在 anonymous。
+- Invariants：未登入不得進 protected route；成功登入設定 session cookie；登出清除 session；不得用 synthetic cookie 取代真實表單證據；缺資料服務時不得把 fallback UI 宣稱為 real-data verified。
+- Acceptance：wrong/missing 回 `401`；正確密碼回 `200` 並可進 dashboard；logout 後 dashboard redirect login；相同流程由 Playwright 真實表單測試重現。
+
+- [x] 團隊建立 ignored `.env.local`；只記 key presence，不記 secret。
+- [x] 記錄 server port、commit、Supabase project class（local/staging），避免環境漂移。
+- [x] 用真實密碼完成 login／logout／missing/wrong password／protected-session lifecycle。
+- [x] 登入 dashboard 並確認資料 source；目前多數為 static/fallback，未冒充 real-data evidence。
+- [ ] 點過 Dashboard、Visit、Meeting、KB、Subscribers/Todos 的代表性讀寫或互動（已確認 authenticated render；寫入／資料結果待 Supabase）。
+- [x] 建 browser evidence manifest：URL、viewport、data source、操作、結果、screenshot/DOM。
+- [ ] introspect 實際 schema，對照 migrations 與所有 `.from("table")`；標出 missing provenance（已完成 static source/migration 差異，actual DB 待 credentials）。
+- [x] 將 tests 分成 synthetic render smoke 與 authenticated functional suite。
+
+**Environment/evidence ledger（不含 secret）**
+
+| Item | Evidence | Level／result |
+|---|---|---|
+| Baseline | commit `f1d5878`；local server `http://localhost:3000`；`.env.local` 有 auth keys | Structurally verified |
+| Supabase | 未設定 URL／role key；local Supabase container 不存在 | Unknown；real-data blocked |
+| Real auth API | missing `401`、wrong `401`、correct `200`、logout `200`、logout 後 protected route `307 → /login` | Contract tested |
+| Real browser auth | `/login` 實際填表 → `/dashboard`；登出 → `/login`；重新登入成功 | Functionally verified（auth only） |
+| Authenticated pages | `/dashboard`、`/agents/visit`、`/meeting`、`/knowledge-base`、`/subscribers`、`/todos` 無 page error | Render smoke passed |
+| Data source | dashboard 使用 static `AGENTS`；agent status 可 fallback；`activity/knowledge-base/subscribers/checklist` API 因缺 Supabase 回 `500` | Real-data 未驗證 |
+| Static schema comparison | source 引用 32 tables；repo migrations 建立 13；19 個 referenced tables 無 repo migration provenance | Structurally verified；需 actual introspection |
+| Automated auth | `tests/e2e/auth-flow.spec.ts` 以實際表單覆蓋 wrong、login、redirect、logout | Contract tested；desktop Chromium 2 passed |
+
+Static comparison 找到的 19 個 migration provenance 缺口：
+`agent_goals`、`ai_usage_logs`、`broadcast_logs`、`checklist_status`、`contact_profiles`、`contacts`、`enterprise_inquiries`、`knowledge_access`、`knowledge_base`、`line_agent_activity`、`line_agents`、`line_conversation_locks`、`line_subscribers`、`line_support_conversations`、`pending_invites`、`project_sessions`、`projects`、`quotations`、`visit_offers`。
 
 **Verification**
 
