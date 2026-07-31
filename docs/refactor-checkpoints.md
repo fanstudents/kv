@@ -86,19 +86,20 @@ Every stage must:
 | `cafa912` | Auth login boundary | Password parsing, auth decision port, and cookie-preserving cutover |
 | `d538b52` | Conversation lock boundary | Shared lock port for LINE webhook and timeout cron |
 | `8143732` | Contact tag boundary | Shared tag port for LINE, timeout, TV, and Meeting consumers |
+| `be5c294` | Visit LINE workflow persistence boundary | Offer, invite, and contact correction persistence port |
 
 ## Current Verification
 
-At code checkpoint `8143732` plus the pending documentation checkpoint for
-WP6-BJ:
+At code checkpoint `be5c294` plus the pending documentation checkpoint for
+WP6-BK:
 
 - `npm run verify:full` passed;
-- 181 Vitest files / 539 tests passed;
+- 182 Vitest files / 542 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
-  contact-tag boundary; application-only DOM snapshots matched exactly after
-  normalizing reload-only Next.js Dev Tools/alert nodes;
+  Visit workflow persistence boundary; application-only DOM snapshots matched
+  exactly after normalizing reload-only Next.js Dev Tools/alert nodes;
 - CodeGraph maps `createLegacyVisitLineActivityAdapter` through the adapter and
   LINE webhook route; `rg` confirms the route has no direct
   `line_agent_activity` table writes;
@@ -108,6 +109,9 @@ WP6-BJ:
 - CodeGraph maps `createLegacyContactTagAdapter` through the adapter, LINE
   webhook, timeout cron, TV adapter, and Meeting context; `rg` confirms the
   legacy contact-tag helpers have no direct consumer imports;
+- CodeGraph maps `createLegacyVisitLineWorkflowAdapter` and its port through the
+  LINE webhook route; `rg` confirms no direct offer/invite table writes or
+  legacy mapping-helper imports remain in that route;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1137,6 +1141,23 @@ WP6-BJ:
   matched exactly before and after; CodeGraph maps the adapter to all four
   consumers and `rg` confirms no direct legacy helper imports remain there.
 - Tag repository replacement, schema migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-BK Visit LINE workflow persistence compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-workflow-persistence.contract.md`.
+- `VisitLineWorkflowPersistencePort` and
+  `src/adapters/visit/legacy-line-workflow-adapter.ts` now own pending-offer
+  and approval-invite queries, legacy status/mapping writes, contact
+  correction/read, and invite draft creation/revision. The route keeps all
+  intent, provider, runtime, reply, lock, activity, and failure semantics.
+- Checkpoint: `be5c294`.
+- Full verification: 182 Vitest files / 542 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the port/adapter to the
+  route and `rg` confirms no direct offer/invite writes remain there.
+- Workflow repository replacement, schema migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
