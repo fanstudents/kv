@@ -561,6 +561,25 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
+### WP6-AH Knowledge Base reindex compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-reindex.contract.md`.
+- `src/modules/knowledge-base/reindex-rules.ts` owns indexable-content
+  selection; `reindex-application.ts` owns stats/reindex orchestration;
+  `src/adapters/knowledge-base/legacy-reindex-adapter.ts` keeps
+  `listKnowledgeDocs`, `indexDocs`, and `indexStats` behind the port.
+- The `/api/knowledge-base/reindex` GET/POST routes preserve index stats,
+  published/indexable/chunk counts, best-effort indexing, `maxDuration`, and
+  all Knowledge Base UI/data formats.
+- Checkpoint: `5d1c92e`.
+- Full verification: 123 Vitest files / 434 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the reindex
+  rules, port, application, adapter, and routes.
+- Knowledge Base schema evolution, index write-owner migration,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
