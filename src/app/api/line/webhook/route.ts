@@ -6,9 +6,7 @@ import {
 } from "@/lib/line";
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
-import { getVisitAgentSettings } from "@/lib/visit-settings";
 import { touchSubscriber } from "@/lib/subscribers";
-import { getSupabase } from "@/lib/supabase";
 import {
   classifyVisitApprovalText,
   classifyVisitDecisionText,
@@ -24,6 +22,7 @@ import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-li
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
 import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
+import { createLegacyVisitSettingsAdapter } from "@/adapters/visit/legacy-settings-adapter";
 import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
 
 const {
@@ -39,6 +38,7 @@ const lineActivityPort = createLegacyVisitLineActivityAdapter();
 const conversationLockPort = createLegacyConversationLockAdapter();
 const contactTagPort = createLegacyContactTagAdapter();
 const lineWorkflowPersistencePort = createLegacyVisitLineWorkflowAdapter();
+const visitSettingsPort = createLegacyVisitSettingsAdapter();
 const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
 
 export async function GET() {
@@ -215,7 +215,6 @@ async function handleVisitOfferReply(
   text: string,
   baseUrl: string
 ): Promise<boolean> {
-  const supabase = getSupabase();
   if (!event.replyToken) return false;
 
   const offer = await lineWorkflowPersistencePort.findPendingOffer(userId);
@@ -313,7 +312,7 @@ async function handleVisitOfferReply(
       caption: `比對行事曆空檔（${finalContact.name}）`,
       detail: "讀取與行程助理共用的 Google 日曆",
     });
-    const settings = await getVisitAgentSettings(supabase);
+    const settings = await visitSettingsPort.get();
     const slots = await findFreeSlots({
       rangeStartDays: settings.rangeStartDays,
       rangeEndDays: settings.rangeEndDays,
@@ -439,7 +438,6 @@ async function handleVisitOfferReply(
 
 /** 使用者針對「已產生但尚未寄出的邀約信草稿」的回覆：寄出 / 取消 / 要求修改。 */
 async function handleInviteApprovalReply(event: LineEvent, userId: string, text: string, baseUrl: string): Promise<boolean> {
-  const supabase = getSupabase();
   if (!event.replyToken) return false;
 
   const invite = await lineWorkflowPersistencePort.findPendingApprovalInvite(userId);
@@ -462,7 +460,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
     try {
       const html = buildInviteEmailHtml({
         introText: invite.body,
-        senderName: (await getVisitAgentSettings(supabase)).senderName,
+        senderName: (await visitSettingsPort.get()).senderName,
         slot1Label: invite.slot1,
         slot2Label: invite.slot2,
         respondUrl1: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=1`,
@@ -518,7 +516,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
 
   // 其餘文字一律視為修改要求，重新產出草稿再請使用者過目一次。
   try {
-    const settings = await getVisitAgentSettings(supabase);
+    const settings = await visitSettingsPort.get();
     const revised = await reviseInviteEmail({
       contactName: contact.name,
       contactTitle: contact.title,
