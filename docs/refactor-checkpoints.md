@@ -85,25 +85,29 @@ Every stage must:
 | `edcd8c9` | Goals reset boundary | Default-goal reset port and HTTP-preserving cutover |
 | `cafa912` | Auth login boundary | Password parsing, auth decision port, and cookie-preserving cutover |
 | `d538b52` | Conversation lock boundary | Shared lock port for LINE webhook and timeout cron |
+| `8143732` | Contact tag boundary | Shared tag port for LINE, timeout, TV, and Meeting consumers |
 
 ## Current Verification
 
-At code checkpoint `d538b52` plus the pending documentation checkpoint for
-WP6-BI:
+At code checkpoint `8143732` plus the pending documentation checkpoint for
+WP6-BJ:
 
 - `npm run verify:full` passed;
-- 180 Vitest files / 537 tests passed;
+- 181 Vitest files / 539 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
-  conversation-lock boundary; application-only DOM snapshots matched exactly
-  after normalizing reload-only Next.js Dev Tools/alert nodes;
+  contact-tag boundary; application-only DOM snapshots matched exactly after
+  normalizing reload-only Next.js Dev Tools/alert nodes;
 - CodeGraph maps `createLegacyVisitLineActivityAdapter` through the adapter and
   LINE webhook route; `rg` confirms the route has no direct
   `line_agent_activity` table writes;
 - CodeGraph maps `createLegacyConversationLockAdapter` through the adapter,
   LINE webhook route, and timeout cron; `rg` confirms the legacy lock helpers
   have no direct route imports;
+- CodeGraph maps `createLegacyContactTagAdapter` through the adapter, LINE
+  webhook, timeout cron, TV adapter, and Meeting context; `rg` confirms the
+  legacy contact-tag helpers have no direct consumer imports;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1117,6 +1121,22 @@ WP6-BI:
   matched exactly before and after; CodeGraph maps the adapter to both routes
   and `rg` confirms no direct legacy lock imports remain there.
 - Lock repository replacement, schema migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-BJ Contact tag compatibility boundary — Verified
+
+- Behavior contract: `F:/ownproject/kv/docs/contracts/contact-tag.contract.md`.
+- `ContactTagPort` and
+  `src/adapters/contacts/legacy-tag-adapter.ts` now own the shared binding to
+  the existing contact-tag helpers. LINE, timeout, TV, and Meeting consumers
+  keep their tag discovery, append order, error fallback, and rendering
+  behavior unchanged.
+- Checkpoint: `8143732`.
+- Full verification: 181 Vitest files / 539 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the adapter to all four
+  consumers and `rg` confirms no direct legacy helper imports remain there.
+- Tag repository replacement, schema migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
