@@ -723,6 +723,25 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, recheck write-owner migration,
   reconciliation, and production scheduler evidence remain deferred.
 
+### WP6-AP Agent instance read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/agent-instance-read.contract.md`.
+- `src/modules/agents/agent-instance-read-application.ts` owns the
+  found/not-found outcome; `src/adapters/agents/legacy-agent-instance-read-adapter.ts`
+  keeps the existing `line_agents` `select("*")` query and provider error
+  text behind the read port.
+- The `/api/agents/[slug]` GET route preserves exact slug filtering, full-row
+  response, provider-error/fallback 404 mapping, and all Agent UI/data
+  formats. PATCH and activity side effects remain unchanged.
+- Checkpoint: `da248df`.
+- Full verification: 146 Vitest files / 470 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the instance
+  read port, application, adapter, and route.
+- Agent schema evolution, instance write-owner migration, registry cutover,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
