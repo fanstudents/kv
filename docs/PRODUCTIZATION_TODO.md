@@ -320,13 +320,24 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 **Anchors:** `modules/{goals,checklist,subscribers,contacts,activity}`、對應 adapters/routes/UI。
 
-- [ ] CodeGraph 建 consumer map與 boundary allowlist/collapse list。
-- [ ] Goals 收斂 read/update/delete/reset/history 到單一 domain service + repository。
+- [x] CodeGraph 建 consumer map與 boundary allowlist/collapse list。
+- [x] Goals 收斂 read/update/delete/reset/history 到單一 domain service + repository。
 - [ ] Checklist 收斂 read/update；Subscribers 收斂 read/update，broadcast 保留為 application use case。
 - [ ] Contacts/Activity 建共享 repository/read model，不複製 query port。
-- [ ] route 只保留 parse/auth/HTTP mapping。
-- [ ] 刪除 forwarding applications、single-consumer ports、alias adapters與低訊號 tests。
-- [ ] 記錄 production files/LOC、owner、consumer before/after。
+- [ ] route 只保留 parse/auth/HTTP mapping（Goals 已完成，其餘 domain 待辦）。
+- [ ] 刪除 forwarding applications、single-consumer ports、alias adapters與低訊號 tests（Goals 已完成，其餘 domain 待辦）。
+- [x] 記錄 pilot 的 production files/LOC、owner、consumer before/after。
+
+**Goals pilot evidence（2026-07-31）**
+
+| Measure | Before | After | Result |
+|---|---:|---:|---|
+| Production owners | 19 files／279 LOC（13 modules + 5 alias adapters + 1 server helper） | 3 files／196 LOC（rules + service + Supabase repository） | -16 files／-83 LOC |
+| Unit tests | 13 files／281 LOC | 3 files／294 LOC | -10 files；+13 LOC 換成實際 row mapping、error/query semantics，不再測薄轉呼叫 |
+| Production consumers | 五個 application function 各自只有一個 route caller | `createGoalsService` 由 `/api/goals` 與 `/api/goals/history` composition 使用 | domain owner 單一化 |
+| Dead owner scan | 10 個 forwarding application／alias adapter symbols | CodeGraph sync 後全部 0 live result | cleanup passed |
+| Authenticated API parity | baseline／after：login `200`、invalid PUT `400`、missing DELETE id `400`、missing history metric `400`、無 Supabase GET `500` | status sequence exact match | Contract tested；real DB write 仍 blocked |
+| Authenticated UI parity | commit `86a5f58` 舊版與 working tree 新版實際登入 `/goals` | DOM snapshot 均 11,042 chars 且 exact match；無 page error | Render smoke passed；UI/UX 未變 |
 
 **Verification:** focused rules/repository integration、API parity、authenticated Todos/Subscribers/Outputs/TV interactions、CodeGraph dead caller scan。
 

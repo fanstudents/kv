@@ -1,29 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GOAL_METRICS } from "@/lib/agent-goals";
 import { AGENTS } from "@/lib/agent-data";
-import { createLegacyGoalUpdateAdapter } from "@/adapters/goals/legacy-update-adapter";
-import { createLegacyGoalsReadAdapter } from "@/adapters/goals/legacy-read-adapter";
-import { createLegacyGoalDeleteAdapter } from "@/adapters/goals/legacy-delete-adapter";
-import { createLegacyGoalsResetAdapter } from "@/adapters/goals/legacy-reset-adapter";
-import { runGoalUpdate } from "@/modules/goals/update-application";
-import { runGoalsRead } from "@/modules/goals/read-application";
-import { runGoalDelete } from "@/modules/goals/delete-application";
-import { runGoalsReset } from "@/modules/goals/reset-application";
-import { parseGoalUpdateRequest } from "@/modules/goals/update-rules";
-import { parseGoalDeleteRequest } from "@/modules/goals/delete-rules";
+import { supabaseGoalsRepository } from "@/adapters/goals/supabase-goals-repository";
+import { parseGoalDeleteRequest, parseGoalUpdateRequest } from "@/modules/goals/rules";
+import { createGoalsService } from "@/modules/goals/service";
+
+const goals = createGoalsService(supabaseGoalsRepository);
 
 export async function GET() {
-  const result = await runGoalsRead(createLegacyGoalsReadAdapter());
+  const result = await goals.read();
   return NextResponse.json({ goals: result.data });
 }
 
 /** 新增或更新一筆目標（同一個 id 就是更新） */
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const result = await runGoalUpdate(
-    parseGoalUpdateRequest(body, AGENTS, GOAL_METRICS),
-    createLegacyGoalUpdateAdapter(),
-  );
+  const result = await goals.update(parseGoalUpdateRequest(body, AGENTS, GOAL_METRICS));
   if (result.kind === "invalid") {
     return NextResponse.json({ error: result.message }, { status: 400 });
   }
@@ -34,10 +26,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const result = await runGoalDelete(
-    parseGoalDeleteRequest(req.nextUrl.searchParams.get("id")),
-    createLegacyGoalDeleteAdapter(),
-  );
+  const result = await goals.delete(parseGoalDeleteRequest(req.nextUrl.searchParams.get("id")));
   if (result.kind === "invalid") {
     return NextResponse.json({ error: result.message }, { status: 400 });
   }
@@ -46,6 +35,6 @@ export async function DELETE(req: NextRequest) {
 
 /** 還原示範目標 */
 export async function POST() {
-  const result = await runGoalsReset(createLegacyGoalsResetAdapter());
+  const result = await goals.reset();
   return NextResponse.json({ goals: result.data });
 }

@@ -1,26 +1,35 @@
 import type { AgentGoal, GoalCadence } from "@/lib/agent-goals";
 import type { AgentSlug } from "@/lib/types";
 
-export interface GoalUpdateCatalogEntry {
+export interface GoalCatalogEntry {
   slug: string;
 }
 
-export interface GoalUpdateMetricEntry {
+export interface GoalMetricEntry {
   id: string;
 }
 
-export type GoalUpdateParseResult =
+export type GoalUpdateRequest =
   | { kind: "invalid"; message: string }
   | { kind: "ok"; goal: AgentGoal };
+
+export type GoalDeleteRequest =
+  | { kind: "invalid"; message: string }
+  | { kind: "ok"; id: string };
+
+export interface GoalsHistoryRequest {
+  metricId: string | null;
+  days: number;
+}
 
 const CADENCES: GoalCadence[] = ["once", "weekly", "monthly", "quarterly"];
 
 export function parseGoalUpdateRequest(
   body: unknown,
-  catalog: readonly GoalUpdateCatalogEntry[],
-  metrics: readonly GoalUpdateMetricEntry[],
+  catalog: readonly GoalCatalogEntry[],
+  metrics: readonly GoalMetricEntry[],
   now: Date = new Date(),
-): GoalUpdateParseResult {
+): GoalUpdateRequest {
   const input = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const id = typeof input.id === "string" ? input.id.trim() : "";
   const agentSlug = input.agentSlug;
@@ -50,4 +59,15 @@ export function parseGoalUpdateRequest(
   };
   if (!goal.dueDate) return { kind: "invalid", message: "缺少期限" };
   return { kind: "ok", goal };
+}
+
+export function parseGoalDeleteRequest(id: string | null): GoalDeleteRequest {
+  return id ? { kind: "ok", id } : { kind: "invalid", message: "缺少 id" };
+}
+
+export function parseGoalsHistoryRequest(metricId: unknown, days: unknown): GoalsHistoryRequest {
+  return {
+    metricId: typeof metricId === "string" ? metricId : null,
+    days: Math.min(180, Math.max(7, Number(days) || 30)),
+  };
 }
