@@ -500,6 +500,27 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
+### WP6-AE Knowledge Base create compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-create.contract.md`.
+- `src/modules/knowledge-base/create-rules.ts` owns title/level validation,
+  trimming, defaults, and shared kind/status values;
+  `create-application.ts` owns the create boundary;
+  `src/adapters/knowledge-base/legacy-create-adapter.ts` keeps
+  `addKnowledgeDoc` behind the port.
+- The `/api/knowledge-base` POST route preserves HTTP 400 validation, default
+  category/kind/status, created document response, and existing persistence
+  behavior; Knowledge Base UI, row formats, and schema/data behavior are
+  untouched.
+- Checkpoint: `a4a9a70`.
+- Full verification: 114 Vitest files / 421 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the create
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
