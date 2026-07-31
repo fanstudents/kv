@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createLegacyKnowledgeBaseImportReadAdapter } from "@/adapters/knowledge-base/legacy-import-read-adapter";
-import { createLegacyKnowledgeBaseImportPublishAdapter } from "@/adapters/knowledge-base/legacy-import-publish-adapter";
-import { createLegacyKnowledgeBaseImportDiscardAdapter } from "@/adapters/knowledge-base/legacy-import-discard-adapter";
-import { createLegacyKnowledgeBaseImportUploadAdapter } from "@/adapters/knowledge-base/legacy-import-upload-adapter";
-import { runKnowledgeBaseImportRead } from "@/modules/knowledge-base/import-read-application";
-import { parseKnowledgeBaseImportReadQuery } from "@/modules/knowledge-base/import-read-rules";
-import { runKnowledgeBaseImportPublish } from "@/modules/knowledge-base/import-publish-application";
-import { parseKnowledgeBaseImportPublishRequest } from "@/modules/knowledge-base/import-publish-rules";
-import { runKnowledgeBaseImportDiscard } from "@/modules/knowledge-base/import-discard-application";
-import { parseKnowledgeBaseImportDiscardRequest } from "@/modules/knowledge-base/import-discard-rules";
-import { runKnowledgeBaseImportUpload } from "@/modules/knowledge-base/import-upload-application";
-import { validateKnowledgeBaseImportFile } from "@/modules/knowledge-base/import-upload-rules";
+import { createSupabaseKnowledgeIngestion } from "@/adapters/knowledge-base/supabase-knowledge-ingestion";
+import {
+  discardKnowledgeDrafts,
+  parseKnowledgeIngestionDiscard,
+  parseKnowledgeIngestionPublish,
+  parseKnowledgeIngestionRead,
+  publishKnowledgeDrafts,
+  readKnowledgeIngestion,
+  uploadKnowledgeSource,
+  validateKnowledgeIngestionFile,
+} from "@/modules/knowledge-base/ingestion";
 
 // 匯入一份 PDF：抽文字 → 切塊 → AI 轉條目 → 全部存成「草稿」等人審。
 // 轉換要跑好幾次 AI，時間比一般請求久，所以放寬執行時間上限。
@@ -22,16 +21,16 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "請選擇一個 PDF 檔案" }, { status: 400 });
   }
-  const validation = validateKnowledgeBaseImportFile(file);
+  const validation = validateKnowledgeIngestionFile(file);
   if (validation.kind === "invalid") {
     return NextResponse.json({ error: validation.message }, { status: validation.status });
   }
 
   try {
     const buf = Buffer.from(await file.arrayBuffer());
-    const result = await runKnowledgeBaseImportUpload(
+    const result = await uploadKnowledgeSource(
       { buf, filename: file.name, mimeType: file.type },
-      createLegacyKnowledgeBaseImportUploadAdapter()
+      createSupabaseKnowledgeIngestion()
     );
     return NextResponse.json(result);
   } catch (err) {
@@ -41,25 +40,25 @@ export async function POST(req: NextRequest) {
 
 /** 列出待審的草稿（帶 sourceId 就只看那一份檔案轉出來的），或列出匯入過的檔案 */
 export async function GET(req: NextRequest) {
-  const query = parseKnowledgeBaseImportReadQuery(req.nextUrl.searchParams.get("sourceId"));
-  return NextResponse.json(await runKnowledgeBaseImportRead(query, createLegacyKnowledgeBaseImportReadAdapter()));
+  const query = parseKnowledgeIngestionRead(req.nextUrl.searchParams.get("sourceId"));
+  return NextResponse.json(await readKnowledgeIngestion(query, createSupabaseKnowledgeIngestion()));
 }
 
 /** 人審通過：把選到的草稿發布上線（沒按過這一步，AI 產的內容永遠不會進 Agent 的 prompt） */
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const parsed = parseKnowledgeBaseImportPublishRequest(body);
+  const parsed = parseKnowledgeIngestionPublish(body);
   if (parsed.kind === "invalid") return NextResponse.json({ error: parsed.message }, { status: 400 });
   return NextResponse.json(
-    await runKnowledgeBaseImportPublish(parsed.ids, createLegacyKnowledgeBaseImportPublishAdapter())
+    await publishKnowledgeDrafts(parsed.ids, createSupabaseKnowledgeIngestion())
   );
 }
 
 /** 丟棄草稿 */
 export async function DELETE(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const request = parseKnowledgeBaseImportDiscardRequest(body);
+  const request = parseKnowledgeIngestionDiscard(body);
   return NextResponse.json(
-    await runKnowledgeBaseImportDiscard(request, createLegacyKnowledgeBaseImportDiscardAdapter())
+    await discardKnowledgeDrafts(request, createSupabaseKnowledgeIngestion())
   );
 }
