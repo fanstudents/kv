@@ -10,26 +10,7 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-describe("platform import boundaries", () => {
-  it("keeps the Runtime Kernel independent from frameworks and providers", () => {
-    const forbidden = [
-      "next/",
-      "@supabase/",
-      "googleapis",
-      "@/lib/openai",
-      "@/lib/google",
-      "@/lib/line",
-      "@/lib/supabase",
-    ];
-
-    for (const path of sourceFiles(join(process.cwd(), "src", "platform"))) {
-      const source = readFileSync(path, "utf8");
-      for (const specifier of forbidden) {
-        expect(source, `${path} imports ${specifier}`).not.toContain(`from "${specifier}`);
-      }
-    }
-  });
-
+describe("module import boundaries", () => {
   it("keeps product modules independent from routes and provider clients", () => {
     const forbidden = [
       "next/",

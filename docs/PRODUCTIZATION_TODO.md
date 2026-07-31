@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 431 files／3,558 nodes／7,466 edges |
+| Last verified | 2026-07-31；CodeGraph index 417 files／3,447 nodes／7,129 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -39,7 +39,7 @@
 - Authenticated baseline、schema／env inventory 與測試證據校正。
 - 現有 `modules`／`adapters`／`lib` 的 domain consolidation。
 - Visit、Meeting、Knowledge Base、Orders、Reporting 的漸進 cutover。
-- 既有 runtime persistence 與新 `platform/runtime` 的 reconciliation。
+- 既有 runtime persistence 與目標 canonical runtime persistence 的 reconciliation；不保留未被正式 consumer 證明的 scaffold。
 - Agent definition／instance／execution／presentation owner 整理。
 - Frozen UI 的 read projection cutover。
 - Production-like acceptance、legacy cleanup 與最終文件收尾。
@@ -99,9 +99,9 @@
 | F-01 | API 有 56 個 `route.ts` | `src/app/api/**/route.ts` | route 是 compatibility surface，不應按 route 建 architecture |
 | F-02 | `src/modules` 197 files、`src/adapters` 72 files；其中 144 files 不超過 15 行 | 以 `rg --files` + line count 重跑 | 需要 domain consolidation，不再新增四件組 |
 | F-03 | `runGoalsRead`、`runChecklistRead`、`runSubscribersRead`、`runKnowledgeBaseRead` 都只有 route production caller | CodeGraph `impact <symbol> --depth 2` | 這些 interface/application 預設進 collapse list |
-| F-04 | `RuntimeKernel` 沒有 production caller，只有 runtime unit tests；repository 是 in-memory | `src/platform/runtime/kernel.ts`、`in-memory.ts` | 禁止先擴寫 generic runtime |
+| F-04 | 已移除沒有 production caller、只有專屬 unit tests 的 generic `RuntimeKernel`／in-memory scaffold | CodeGraph caller／impact map；正式 runtime 仍在 `agent-runs.ts`／`visit-run.ts` | 禁止先擴寫或重建 generic runtime |
 | F-05 | `agent_runs`、`agent_run_steps`、`agent_artifacts` 已有 migration 與 Supabase helper；Visit 已透過 `visit-run.ts` 使用 | `20260725_agent_runtime_core.sql`、`agent-runs.ts`、`visit-run.ts` | 新 kernel 必須與現有 schema／behavior reconciliation |
-| F-06 | 新 `RunRecord` 要求 workflow/deployment/correlation/version 等欄位，既有 `agent_runs` schema 使用 agent_slug/trigger/status/meta；WP-04 field map 證實不足 | runtime contracts vs runtime migration | D-08 選擇既有 run 相容 + additive runtime extension；不可只塞 `meta` 或直接套 in-memory kernel |
+| F-06 | 目標 runtime 需要 workflow/deployment/correlation/version 等欄位，既有 `agent_runs` schema 使用 agent_slug/trigger/status/meta；WP-04 field map 證實不足 | WP-04 field map vs runtime migration | D-08 選擇既有 run 相容 + additive runtime extension；不可只塞 `meta` 或直接套 generic kernel |
 | F-07 | `AGENTS` 影響至少 76 個 CodeGraph symbols；catalog、TV、runtime profile 又各有不同 Agent shape | `agent-data.ts`、`agent-catalog.ts`、workflow contracts | Agent model 不能直接一次替換 |
 | F-08 | UI 已直接 consume 多個 API；Visit、Meeting、KB 是高互動面 | UI `fetch("/api/...")` consumers | backend work 必須驗證受影響 UI，不只 catalog |
 | F-09 | E2E 有 public/protected/API/visual smoke，但 protected access 使用 synthetic signed cookie | `tests/e2e/**` | 現有證據不是 real login／real-data functional E2E |
@@ -119,11 +119,10 @@ LINE route
   → agent-runs.ts
   → existing Supabase agent_* tables
 
-目前 platform runtime
-RuntimeKernel
-  → RuntimeRepository / OutboxRepository
+已移除的 platform runtime draft
+RuntimeKernel / generic workflow / tool contracts
   → InMemory repositories
-  → unit tests only
+  → unit tests only，沒有 production caller
 ```
 
 目標不是讓兩套永久共存，也不是丟掉已運作的 schema。D-08 已決定以 compatibility mapper／repository 將既有 production path 收斂到 canonical runtime，並只為 event／CAS／lease／outbox 補 additive persistence；實作延後到有真實 consumer 的 WP-05/08。
@@ -175,7 +174,7 @@ RuntimeKernel
 | DM-05 Visit／Coco | LINE webhook、visit APIs、timeout cron；visit page、outputs、TV/live task | contacts、offers、invites、locks、runs/artifacts/live task；LINE/OpenAI/Google | Visit domain workflow on canonical runtime | 保留 offer/invite/text/image/postback side-effect ordering；合併重複 workflow/runtime ports與alias adapters | 先 text vertical slice，再 image/offer/approval/timeout；shadow compare、duplicate/retry、delivery receipt、legacy caller=0 |
 | DM-06 Orders／Ray | Teachify webhook、test notification、orders page | `teachify_orders`、activity、agents；Teachify/LINE | Orders inbound workflow + order repository + delivery adapter | 保留 normalization/idempotency/notification orchestration；刪除 test-only legacy ownership | duplicate webhook、invalid signature/payload、partial delivery、outbox/replay evidence |
 | DM-07 Reporting／Vivian／Support | cron/manual report routes、support relay/log；dashboard actions | agents/activity/support conversations/subscribers；OpenAI/LINE/relay target | Reporting schedule workflow + artifact/delivery；Support inbound workflow | 合併 cron/manual重複；保留 schedule dedupe、report generation、relay provider | same-period dedupe、artifact parity、delivery receipt、provider failure/retry |
-| DM-08 Runtime／workflow | `agent-runs.ts` production helper、Visit legacy runtime adapter；isolated `platform/runtime` | existing agent_* tables；new in-memory repo/outbox contract | canonical runtime repository/kernel adopted by vertical slices | 先 reconciliation，不新增空泛 contract；最終刪除 direct DB helper或讓它成唯一 compat adapter | schema mapping決策、Supabase repository、restart/resume/idempotency/outbox；兩種 profile production consumers |
+| DM-08 Runtime／workflow | `agent-runs.ts` production helper、Visit legacy runtime adapter；已移除的 generic in-memory scaffold | existing agent_* tables；target additive runtime tables | 有第一個真實 consumer 時才建立 canonical runtime transaction/repository | 先 reconciliation，不重建空泛 contract；最終刪除 direct DB helper或讓它成唯一 compat adapter | schema mapping決策、Supabase repository、restart/resume/idempotency/outbox；兩種 profile production consumers |
 | DM-09 Agent model | `agent-data.ts`、`agent-catalog.ts`、DB `line_agents`、workflow execution profiles、TV/page local shapes | static TS + `line_agents` | ProductOffering／RoleTemplate／AgentInstance／ExecutionProfile／Presentation | 先 mapper 不改 UI；逐 consumer cutover；最後刪除重複 truth | catalog/dashboard/TV/meeting parity；新增 Agent 不需複製 route；old owner caller=0 |
 | DM-10 UI projections | dashboard、flow、TV、universe、meeting、agent pages 與各 API loaders | activity、runs、live task、KB、agents等多源資料 | stable read projections | 保留 frozen components；只改內部 data source/mappers | 每 surface authenticated before/after、loading/empty/error/data、desktop/mobile visual parity |
 
@@ -419,16 +418,40 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 **Goals:** G-03、G-05
 
-**Status（2026-07-31）：** 設計決策完成，U-03 關閉；沒有實作或假裝啟用新的 runtime。實際 migration／repository／cutover 仍受 U-02（legacy base schema 無法 clean rebuild）與真實 Supabase credentials 阻擋。
+**Status（2026-07-31）：** 設計決策完成，U-03 關閉；已移除沒有正式 consumer 的 generic runtime scaffold，沒有實作或假裝啟用新的 runtime。實際 migration／repository／cutover 仍受 U-02（legacy base schema 無法 clean rebuild）與真實 Supabase credentials 阻擋。
 
-**Anchors:** `platform/{events,runtime,workflows,artifacts}`、`lib/agent-runs.ts`、`lib/visit-run.ts`、runtime migration.
+**Anchors:** `lib/agent-runs.ts`、`lib/visit-run.ts`、`20260725_agent_runtime_core.sql`、WP-04 target persistence slice.
 
 **Behavior contract (`behavior-contract/v1`, `runtime.reconciliation`)**
 
 - Scope：定義 `RunRecord`／`EventEnvelope`／`OutboxRecord` 與既有 `agent_runs`、`agent_run_steps`、`agent_artifacts` 的相容邊界；為 WP-05 Visit text 與 WP-08 Orders／scheduled report 指定最小 persistence slice。
 - Non-goals：不改任何畫面、現有 route payload、既有 `agent_runs` 行為或資料；不建立 generic node/tool registry；不在 U-02 未解前手寫猜測的 legacy base migration。
-- Entrypoints／consumers：現行 production 是 LINE webhook → `visit-run.ts` → `agent_runs`；`agent_run_steps` 同時供 Visit／TV live task 讀取；Orders webhook 與 Team Lead cron/manual report 尚未使用 `RuntimeKernel`。CodeGraph 證實 `RuntimeKernel`、`requestDelivery` 只有 unit-test consumer。
+- Entrypoints／consumers：現行 production 是 LINE webhook → `visit-run.ts` → `agent_runs`；`agent_run_steps` 同時供 Visit／TV live task 讀取；Orders webhook 與 Team Lead cron/manual report 尚未使用 canonical runtime。CodeGraph 已證實原 `RuntimeKernel`、`requestDelivery`、workflow/tool contracts 都沒有 production caller，因此已移除。
 - Invariants：現有 `agent_slug`、`status`、`started_at`、`ended_at`、step／artifact UI 讀取語意不變；新 run 的 legacy status 是 canonical state 的相容投影；外部 provider 不在 DB transaction 中執行；duplicate event 不得生成第二個 run 或第二次 delivery。
+
+#### Inactive platform runtime scaffold cleanup
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；這是移除沒有 consumer 的死碼，不是 runtime migration 或 production cutover。Chrome cross-batch acceptance 仍留待集中驗收，不宣稱已完成 browser parity。
+
+**Behavior contract (`behavior-contract/v1`, `runtime.inactive-scaffold-cleanup`)**
+
+- Scope：移除 `src/platform/{runtime,events,artifacts,workflows,tools}` 的 generic contract／in-memory kernel，以及三個只驗證該 scaffold 的 dedicated unit tests；保留並聚焦 module import-boundary test。
+- Non-goals：不改 UI／UX、route URL/method/status/payload、`agent_runs`／`agent_run_steps`／`agent_artifacts` schema、`agent-runs.ts`／`visit-run.ts` 行為、migration、provider 呼叫或 Agent identity。
+- Entrypoints／consumers：CodeGraph 對 `RuntimeKernel`、`requestDelivery`、`InMemoryRuntimeRepository`、`WorkflowDefinition`、`ToolDefinition` 的 caller/impact map 只落在 scaffold 自身與 dedicated tests；沒有 production route、module、adapter 或 UI consumer。
+- Inputs／outputs／side effects：正式流程沒有輸入、輸出或 side effect 經過此 scaffold；刪除不會改變正式 persistence 或外部 provider 呼叫。
+- Invariants：未來 canonical runtime 必須仍遵守本節的 field map、transaction/outbox、U-01/U-02/U-04 gates；第一個真實 vertical-slice consumer 出現前，不可重新加入 generic framework。
+- Acceptance：刪除後 `rg` 不得找到 `@/platform` import；CodeGraph 不得有遺留 production importer；full test/typecheck/lint/build/diff check 全過；本文件仍保留 target persistence decision。
+- Intentional changes：刪除無效抽象與其專屬測試，並將剩餘 architecture guard 明確改為 product-module boundary；不宣稱 runtime persistence 已完成。
+- Open questions：U-01、U-02、U-04 未關閉前，不能做真實 Supabase migration/rehearsal、provider replay 或 runtime production cutover。
+
+**Evidence（2026-07-31）：**
+
+- CodeGraph preflight：`RuntimeKernel`、`requestDelivery`、`InMemoryRuntimeRepository`、`WorkflowDefinition`、`ToolDefinition` 都沒有 production caller；impact 僅在 scaffold 自身與 dedicated tests。
+- 移除後 `rg` 對 `@/platform`／`platform/` 在 `src`、`tests` 為零；CodeGraph 同步後為 417 files／3,447 nodes／7,129 edges，較前一批少 14 個解析檔。
+- `npm test` 98 files／467 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過；相較前一批有意移除 3 個 dedicated test files／17 個只覆蓋死碼的 tests。
+- [x] 刪除 generic runtime、event、artifact、workflow、tool scaffold 與其專屬測試。
+- [x] 保留並更名 product-module import-boundary guard。
+- [ ] 在後續跨批次 Chrome 驗收中，確認受影響正式頁面的 authenticated journey；本批沒有 UI source change。
 
 #### Existing schema ↔ runtime field map
 
@@ -449,7 +472,7 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 | Option | Result | Evidence-based reason |
 |---|---|---|
-| A. `RuntimeKernel` 只 mapper 到既有表 | Rejected | 既有 schema 沒有 immutable event、CAS version、lease、outbox／delivery receipt；`startRun()` 先查後插且吞錯，race 時不能回傳同一 run。 |
+| A. 已移除的 generic kernel 只 mapper 到既有表 | Rejected | 既有 schema 沒有 immutable event、CAS version、lease、outbox／delivery receipt；`startRun()` 先查後插且吞錯，race 時不能回傳同一 run。 |
 | B. 既有 run/artifact/step 相容 + additive runtime extension | **Chosen** | 保住既有 UI 與歷史 row，又只為已排定的 Visit／Orders／Reporting consumer 補足 durable event、state 與 delivery 語意。 |
 | C. 把 kernel 收斂成 legacy best-effort model | Rejected | 會放棄 duplicate、restart/resume、retry／outbox 這些產品化目標；也無法成為兩種 execution profile 的共享能力。 |
 
@@ -459,7 +482,7 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 2. 新增 `agent_runtime_events`：`run_id`、完整 envelope 欄位、`payload jsonb`、`idempotency_key unique`、時間戳；`admitRuntimeEvent` 必須在一個 DB transaction/RPC 內「建立或取回」同一 run，不能留下 orphan run。
 3. 新增 `agent_delivery_outbox`：`run_id`、unique idempotency key、channel/destination/payload/artifact ids、state/attempt/available time/lease/error/audit timestamps。claim 必須以 DB-side lease／`SKIP LOCKED` 或同等原子操作完成；provider delivery 在 transaction 外執行。
 4. `agent_run_steps` 繼續是流程圖／TV projection；`agent_artifacts` 繼續是可呈現產出；兩者不成為 state event 或 outbox 的替代品。
-5. 現行 `RuntimeKernel.transition()` 和 `requestDelivery()` 是分離操作；WP-05 首次實作時必須只在有 Visit consumer 的前提下，補「state transition + outbox enqueue」的同交易 repository operation，避免 process 在兩者之間死掉。此刻不先新增未使用 interface。
+5. 已移除的 draft 曾把 transition 與 delivery enqueue 分離；WP-05 首次實作時必須只在有 Visit consumer 的前提下，補「state transition + outbox enqueue」的同交易 repository operation，避免 process 在兩者之間死掉。此刻不先新增未使用 interface。
 
 #### Three execution-profile checks
 
