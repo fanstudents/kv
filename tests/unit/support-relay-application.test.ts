@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { processSupportRelay } from "@/modules/support/relay-application";
+import { processSupportRelay } from "@/modules/support/relay";
 import type {
   SupportRelayActivity,
   SupportRelayForwardRequest,
   SupportRelayPorts,
-} from "@/modules/support/relay-ports";
+} from "@/modules/support/relay";
 
 function createPorts(options?: {
   forwardError?: unknown;

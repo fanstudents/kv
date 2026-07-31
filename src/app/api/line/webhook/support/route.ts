@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyLineSignature } from "@/lib/line";
 import { getSupabase } from "@/lib/supabase";
-import { createLegacySupportRelayAdapters } from "@/adapters/support/legacy-support-relay-adapters";
+import { createSupportRelayDependencies } from "@/adapters/support/support-relay-dependencies";
 import {
   parseSupportRelayPayload,
+  processSupportRelay,
   type SupportRelayLineEvent,
-} from "@/modules/support/relay-inbound";
-import { processSupportRelay } from "@/modules/support/relay-application";
+} from "@/modules/support/relay";
 
 // 這支帳號實際上是既有客服機器人（多租戶架構，不方便改它的程式碼）在用的 LINE 官方帳號。
 // 因為 LINE 每個頻道只能設一個 Webhook URL，這裡改成「轉發式」設計：
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-line-signature");
   const supabase = getSupabase();
-  const ports = createLegacySupportRelayAdapters(supabase);
+  const ports = createSupportRelayDependencies(supabase);
 
   if (!verifyLineSignature(rawBody, signature, "support")) {
     await ports.repository.recordActivity({

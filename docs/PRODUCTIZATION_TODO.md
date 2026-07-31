@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 405 files／3,401 nodes／7,026 edges |
+| Last verified | 2026-07-31；CodeGraph index 403 files／3,396 nodes／7,024 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -997,6 +997,25 @@ Then the existing report artifact is retried without creating a second scheduled
 - 三個 focused test files／6 cases 收斂為一個 capability + public-callback contract file／9 cases；保留 string/no-trim parsing、validation、Error/non-Error mapping、bot role，並補 health、missing/wrong secret、malformed payload、502/success response。
 - CodeGraph sync 證實 `recordSupportLogReply` 與 parser 都只有原本 public callback POST caller；conversation persistence helper 仍僅由 callback 與既有 support relay 共用；舊 rules／ports／application／legacy adapter import 為零。
 - focused `npx vitest run`（1 file／9 tests）、full `npm test`（105 files／517 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 對 `/agents/support` 實際展開 Agent 設定與串接狀態，before/after DOM 都為 7,274 chars、console 無 error/warn；未執行任何真實 callback 或 LINE message。
+
+#### 進場清理 — Support relay capability
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；只把同一條 Support LINE webhook 的 parsing、capture plan、orchestration 與 dependency contract 收斂為一個 capability，不改舊客服系統轉發或資料寫入責任。
+
+**Behavior contract (`behavior-contract/v1`, `support.relay`)**
+
+- Scope：`GET/POST /api/line/webhook/support`、LINE raw body/signature/content type relay、customer activity/conversation capture、subscriber touch，以及既有 `SUPPORT_RELAY_TARGET_URL` target。
+- Non-goals：不改 route URL/method/status/payload、LINE signature verification、raw transport、8-second timeout、target URL、`line_agent_activity`／`line_support_conversations`／subscriber schema、外部客服系統、UI/UX 或任何 LINE reply。
+- Invariants：invalid signature 仍記 failed activity 並回 401；invalid payload 仍 400；成功仍立即 ACK `{ ok:true }`；raw body/signature/content type 原樣 relay；非文字 event 不 capture；relay、subscriber、activity 或 conversation 任一失敗都不阻塞 ACK，其失敗文案、customer role、fallback user/text、60-char summary 完全不變。
+- Design：三個僅由同一 webhook 使用的 `inbound`／`application`／`ports` files 合併成 `relay.ts`；外部 target、Supabase、subscriber、conversation helper 留在 `support-relay-dependencies`，不把副作用塞回 route 或建立通用 relay framework。
+- Verification：CodeGraph caller/import map、parsing/application/dependency source contract tests、full typecheck/lint/build；因本批沒有 UI source change，完整 Chrome support page 與真實 webhook/provider acceptance 留到跨批次驗收。
+
+**Evidence（2026-07-31）：**
+
+- CodeGraph sync 後為 403 files／3,396 nodes／7,024 edges。`processSupportRelay`、payload parser、dependency factory 都仍只有既有 support webhook POST façade caller；`SupportRelayPorts` 僅由 capability 與 dependency composition 使用。
+- `relay-inbound`／`relay-application`／`relay-ports`／`legacy-support-relay-adapters` 與舊 factory import 均為零；新 `relay.ts` 保留原 parser、capture plan、orchestration 和 typed dependencies，沒有將 side effect 移回 route。
+- 完整自動驗證通過：94 test files／465 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。原先整串驗證超過 shell 的 120 秒上限，故在沒有任何中途修改的同一輪中拆為四項完成；不是 test failure。
+- 本批沒有 UI source change，未觸發真實 webhook／LINE／舊客服系統／Supabase。Chrome authenticated parity 與 provider acceptance 仍是後續跨批次驗收項目。
 
 - [x] 定義 RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [x] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。

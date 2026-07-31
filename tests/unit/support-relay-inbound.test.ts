@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseSupportRelayPayload,
   planSupportRelayCapture,
-} from "@/modules/support/relay-inbound";
+} from "@/modules/support/relay";
 
 describe("Amber LINE relay inbound rules", () => {
   it("preserves malformed and missing-events payload behavior", () => {

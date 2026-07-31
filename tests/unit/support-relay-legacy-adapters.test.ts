@@ -2,15 +2,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-describe("Support relay legacy adapters", () => {
-  it("keeps the raw relay contract and legacy side-effect owners in the adapter", () => {
+describe("Support relay dependencies", () => {
+  it("keeps the raw relay contract and side-effect owners in the dependency composition", () => {
     const source = readFileSync(
       join(
         process.cwd(),
         "src",
         "adapters",
         "support",
-        "legacy-support-relay-adapters.ts"
+        "support-relay-dependencies.ts"
       ),
       "utf8"
     );
@@ -52,6 +52,6 @@ describe("Support relay legacy adapters", () => {
     expect(source).not.toContain('.from("');
     expect(source).not.toContain("touchSubscriber(");
     expect(source).not.toContain("logConversationMessage(");
-    expect(source).toContain("createLegacySupportRelayAdapters(supabase)");
+    expect(source).toContain("createSupportRelayDependencies(supabase)");
   });
 });
