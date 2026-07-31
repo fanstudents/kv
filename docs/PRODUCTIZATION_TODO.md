@@ -738,6 +738,29 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實 `getIntegrationStatus` 現在只有原本 `/api/integrations/status` GET façade caller；舊 status-application／status-ports／legacy-status-adapter import 為零。
 - focused `npx vitest run`（1 file／2 tests）、full `npm test`（107 files／511 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 對 `/agents/support` 實際點開「Agent 設定 → 串接狀態」：LINE OA（客服頻道）與 OpenAI API 皆存在、console 無 error/warn；移除 Next `Compiling…`／dev-tools 浮層後，前後產品 DOM 均為 7,233 chars 且完全一致。
 
+#### 進場清理 — TV idle read model
+
+**狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；這是 TV read projection 的結構收斂，不是 LiveTask workflow、Google Calendar、Visit tags 或 Team Lead activity 資料流的改寫。
+
+**Behavior contract (`behavior-contract/v1`, `tv-idle.read-model`)**
+
+- Scope：`GET /api/tv/idle`、TV IdleScene polling、Google week overview、Visit tag list、`line_agent_activity` 的 Team Lead activity projection。
+- Non-goals：不改 UI/UX、route URL/status/payload、10-minute schedule cache、5-minute frontend polling、Google/Visit/Supabase provider、LiveTask state、資料表或任何寫入行為。
+- Invariants：只接受 schedule／visit／teamlead；unknown 仍 400；schedule 首次／cache response 的 `cached` key、Visit tags envelope、Team Lead 24-hour cutoff/failed/top-three ordering 都不變；任一 source failure 仍回 `{ ok:false, data:null }` 讓前端回退示意資料。
+- Design：TV 擁有一個由三個具體 source 組合而成的 idle read model；Google overview 與 Visit operations repository 保持各自正式 owner，不做通用 repository。composition adapter 只翻譯 TV 所需的三種資料來源。
+- Verification：CodeGraph consumer/source map、read-model/data-source/route contract tests、typecheck/lint/build，以及 Chrome 對 `/tv` 的 scene navigation/render + console comparison；只做正常 UI read，不觸發 cron、webhook 或寫入。
+
+- [x] 收斂 idle parsing、cache、projection 為單一 TV read model。
+- [x] 將 legacy adapter 改為具明確多來源責任的 TV data-sources composition。
+- [x] 保留 route fallback/response contract，並以 CodeGraph/Chrome/full verification 完成證據。
+
+**Evidence（2026-07-31）：**
+
+- 三個 route-slice module 與一個 `legacy` adapter 收斂為單一 TV idle read model + 一個具名的多來源 data-sources composition；Google week overview、Visit operations repository、Supabase team activity 都維持原本的正式 owner，沒有被塞進通用 repository。
+- 原 3 個 focused test files／7 cases 改為 read-model、data-sources、route contract 三個真實邊界／10 cases；保留 parser、10-minute cache、Visit envelope、Team Lead cutoff/count/order、source query shape，並補 unknown/Visit/failure route contract。
+- CodeGraph sync 證實 `createTvIdleReadModel`、`createTvIdleDataSources` 與 `parseTvIdleAgent` 都只由既有 `/api/tv/idle` façade 使用；Google overview 與 Visit operations repository 仍各有其他 production consumer；舊 idle-rules／idle-ports／idle-application／legacy-idle-adapter import 為零。
+- focused `npx vitest run`（3 files／10 tests）、full `npm test`（107 files／514 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 實際進入 `/tv`、切換「此刻」場景並檢視畫面：console 無 error/warn；移除預期動態的 clock、autoplay label 與 Next dev-tools 後，前後產品 DOM 均為 1,353 chars 且完全一致。這是 UI render evidence，不把它誇大成具真實 Google/Supabase credentials 的 provider acceptance。
+
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。

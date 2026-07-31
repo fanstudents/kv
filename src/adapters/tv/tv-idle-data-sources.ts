@@ -2,9 +2,9 @@ import "server-only";
 import { listWeekOverview } from "@/lib/google";
 import { getSupabase } from "@/lib/supabase";
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
-import type { TvIdlePort } from "@/modules/tv/idle-ports";
+import type { TvIdleDataSources } from "@/modules/tv/idle";
 
-export function createLegacyTvIdleAdapter(): TvIdlePort {
+export function createTvIdleDataSources(): TvIdleDataSources {
   let supabase: ReturnType<typeof getSupabase> | null = null;
   const getClient = () => {
     if (!supabase) supabase = getSupabase();

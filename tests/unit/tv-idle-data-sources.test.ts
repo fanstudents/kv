@@ -11,10 +11,10 @@ vi.mock("@/lib/google", () => ({ listWeekOverview }));
 vi.mock("@/lib/contact-tags", () => ({ getAvailableTags }));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 
-import { createLegacyTvIdleAdapter } from "@/adapters/tv/legacy-idle-adapter";
+import { createTvIdleDataSources } from "@/adapters/tv/tv-idle-data-sources";
 
-describe("legacy TV idle adapter", () => {
-  it("keeps calendar/tags helpers and the activity query behind the port", async () => {
+describe("TV idle data sources", () => {
+  it("keeps calendar/tags helpers and the activity query boundary", async () => {
     const query = {
       select: vi.fn(),
       gte: vi.fn(),
@@ -28,11 +28,11 @@ describe("legacy TV idle adapter", () => {
     getSupabase.mockReturnValue(client);
     listWeekOverview.mockResolvedValue({ dayCounts: [], upcoming: [], warnings: [] });
     getAvailableTags.mockResolvedValue(["vip"]);
-    const adapter = createLegacyTvIdleAdapter();
+    const dataSources = createTvIdleDataSources();
 
-    await expect(adapter.listWeekOverview()).resolves.toEqual({ dayCounts: [], upcoming: [], warnings: [] });
-    await expect(adapter.getAvailableTags()).resolves.toEqual(["vip"]);
-    await expect(adapter.listRecentActivity("cutoff")).resolves.toEqual([{ agent_slug: "visit", status: "success" }]);
+    await expect(dataSources.listWeekOverview()).resolves.toEqual({ dayCounts: [], upcoming: [], warnings: [] });
+    await expect(dataSources.getAvailableTags()).resolves.toEqual(["vip"]);
+    await expect(dataSources.listRecentActivity("cutoff")).resolves.toEqual([{ agent_slug: "visit", status: "success" }]);
     expect(getAvailableTags).toHaveBeenCalledWith(client);
     expect(client.from).toHaveBeenCalledWith("line_agent_activity");
     expect(query.select).toHaveBeenCalledWith("agent_slug,status,occurred_at");

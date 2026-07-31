@@ -1,35 +1,56 @@
-import type { TvIdlePort, TvIdleWeekOverview } from "./idle-ports";
-import type { TvIdleAgent } from "./idle-rules";
+export type TvIdleAgent = "schedule" | "visit" | "teamlead";
+
+export interface TvIdleWeekOverview {
+  dayCounts: number[];
+  upcoming: { label: string; title: string }[];
+  warnings: string[];
+}
+
+export interface TvIdleActivityRow {
+  agent_slug: string | null;
+  status: string;
+}
+
+export interface TvIdleDataSources {
+  listWeekOverview(): Promise<TvIdleWeekOverview>;
+  getAvailableTags(): Promise<string[]>;
+  listRecentActivity(cutoff: string): Promise<TvIdleActivityRow[]>;
+}
 
 const SCHEDULE_TTL = 10 * 60 * 1000;
 
-export type TvIdleResult =
+export type TvIdleReadResult =
   | { kind: "schedule"; data: TvIdleWeekOverview; cached: boolean }
   | { kind: "visit"; data: { tags: string[] } }
   | { kind: "teamlead"; data: { total: number; failed: number; top: { slug: string; count: number }[] } }
   | { kind: "unknown" };
 
-export function createTvIdleApplication(port: TvIdlePort) {
+export function parseTvIdleAgent(value: string | null): TvIdleAgent | "unknown" {
+  if (value === "schedule" || value === "visit" || value === "teamlead") return value;
+  return "unknown";
+}
+
+export function createTvIdleReadModel(sources: TvIdleDataSources) {
   let scheduleCache: { at: number; data: TvIdleWeekOverview } | null = null;
 
   return {
-    async run(agent: TvIdleAgent | "unknown"): Promise<TvIdleResult> {
+    async read(agent: TvIdleAgent | "unknown"): Promise<TvIdleReadResult> {
       if (agent === "schedule") {
         if (scheduleCache && Date.now() - scheduleCache.at < SCHEDULE_TTL) {
           return { kind: "schedule", data: scheduleCache.data, cached: true };
         }
-        const data = await port.listWeekOverview();
+        const data = await sources.listWeekOverview();
         scheduleCache = { at: Date.now(), data };
         return { kind: "schedule", data, cached: false };
       }
 
       if (agent === "visit") {
-        return { kind: "visit", data: { tags: await port.getAvailableTags() } };
+        return { kind: "visit", data: { tags: await sources.getAvailableTags() } };
       }
 
       if (agent === "teamlead") {
         const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const rows = await port.listRecentActivity(cutoff);
+        const rows = await sources.listRecentActivity(cutoff);
         const byAgent = new Map<string, number>();
         let failed = 0;
         rows.forEach((row) => {
