@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLegacyKnowledgeBaseImportReadAdapter } from "@/adapters/knowledge-base/legacy-import-read-adapter";
 import { createLegacyKnowledgeBaseImportPublishAdapter } from "@/adapters/knowledge-base/legacy-import-publish-adapter";
+import { createLegacyKnowledgeBaseImportDiscardAdapter } from "@/adapters/knowledge-base/legacy-import-discard-adapter";
 import { importPdf } from "@/lib/kb-import";
-import { removeKnowledgeDoc } from "@/lib/knowledge-base";
 import { runKnowledgeBaseImportRead } from "@/modules/knowledge-base/import-read-application";
 import { parseKnowledgeBaseImportReadQuery } from "@/modules/knowledge-base/import-read-rules";
 import { runKnowledgeBaseImportPublish } from "@/modules/knowledge-base/import-publish-application";
 import { parseKnowledgeBaseImportPublishRequest } from "@/modules/knowledge-base/import-publish-rules";
+import { runKnowledgeBaseImportDiscard } from "@/modules/knowledge-base/import-discard-application";
+import { parseKnowledgeBaseImportDiscardRequest } from "@/modules/knowledge-base/import-discard-rules";
 
 // 匯入一份 PDF：抽文字 → 切塊 → AI 轉條目 → 全部存成「草稿」等人審。
 // 轉換要跑好幾次 AI，時間比一般請求久，所以放寬執行時間上限。
@@ -55,10 +57,8 @@ export async function PUT(req: NextRequest) {
 /** 丟棄草稿 */
 export async function DELETE(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const ids: string[] = Array.isArray(body.ids) ? body.ids.filter((x: unknown) => typeof x === "string") : [];
-  let removed = 0;
-  for (const id of ids) {
-    if ((await removeKnowledgeDoc(id)) === "deleted") removed += 1;
-  }
-  return NextResponse.json({ removed });
+  const request = parseKnowledgeBaseImportDiscardRequest(body);
+  return NextResponse.json(
+    await runKnowledgeBaseImportDiscard(request, createLegacyKnowledgeBaseImportDiscardAdapter())
+  );
 }
