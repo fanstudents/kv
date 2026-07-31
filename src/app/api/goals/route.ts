@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteGoal, resetGoalsToDefault } from "@/lib/agent-goals-server";
+import { resetGoalsToDefault } from "@/lib/agent-goals-server";
 import { GOAL_METRICS } from "@/lib/agent-goals";
 import { AGENTS } from "@/lib/agent-data";
 import { createLegacyGoalUpdateAdapter } from "@/adapters/goals/legacy-update-adapter";
 import { createLegacyGoalsReadAdapter } from "@/adapters/goals/legacy-read-adapter";
+import { createLegacyGoalDeleteAdapter } from "@/adapters/goals/legacy-delete-adapter";
 import { runGoalUpdate } from "@/modules/goals/update-application";
 import { runGoalsRead } from "@/modules/goals/read-application";
+import { runGoalDelete } from "@/modules/goals/delete-application";
 import { parseGoalUpdateRequest } from "@/modules/goals/update-rules";
+import { parseGoalDeleteRequest } from "@/modules/goals/delete-rules";
 
 export async function GET() {
   const result = await runGoalsRead(createLegacyGoalsReadAdapter());
@@ -30,9 +33,13 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "缺少 id" }, { status: 400 });
-  await deleteGoal(id);
+  const result = await runGoalDelete(
+    parseGoalDeleteRequest(req.nextUrl.searchParams.get("id")),
+    createLegacyGoalDeleteAdapter(),
+  );
+  if (result.kind === "invalid") {
+    return NextResponse.json({ error: result.message }, { status: 400 });
+  }
   return NextResponse.json({ ok: true });
 }
 
