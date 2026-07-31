@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { createLegacyChecklistUpdateAdapter } from "@/adapters/checklist/legacy-update-adapter";
+import { runChecklistUpdate } from "@/modules/checklist/update-application";
+import { parseChecklistUpdateRequest } from "@/modules/checklist/update-rules";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
-  const done = Boolean(body.done);
-
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("checklist_status")
-    .upsert({ item_id: id, done, updated_at: new Date().toISOString() })
-    .select()
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  const result = await runChecklistUpdate(
+    parseChecklistUpdateRequest(id, body),
+    createLegacyChecklistUpdateAdapter(),
+  );
+  if (result.kind === "error") {
+    return NextResponse.json({ error: result.message }, { status: 400 });
   }
-
-  return NextResponse.json(data);
+  return NextResponse.json(result.data);
 }
