@@ -541,7 +541,7 @@ Then the existing report artifact is retried without creating a second scheduled
 
 **Goals:** G-02～G-04
 
-**Status（2026-07-31）：** in progress。此包只做 domain-level ownership consolidation；不改 meetings／meeting_turns／Storage schema、不觸發真實會議或 provider side effect。session lifecycle（start／finish／turn log／recording）已完成收斂；conversation、realtime、audio 尚未切入。
+**Status（2026-07-31）：** in progress。此包只做 domain-level ownership consolidation；不改 meetings／meeting_turns／Storage schema、不觸發真實會議或 provider side effect。session lifecycle（start／finish／turn log／recording）與 audio（TTS／transcribe）已完成收斂；conversation、realtime 尚未切入。
 
 **Behavior contract (`behavior-contract/v1`, `meeting.capabilities`)**
 
@@ -554,8 +554,9 @@ Then the existing report artifact is retried without creating a second scheduled
 - Intentional changes：只有 module/test/adaptor owner 收斂；observable behavior 無變更。
 
 - [x] 收斂 session lifecycle：start／finish／turn log／recording 共用 `session.ts` 與一個 Supabase/Storage repository；四條 route 維持 façade。
-- [ ] 收斂 conversation command、realtime session／usage、audio speak／transcribe 成少量 capability modules。
-- [ ] 依真實替換邊界整理 storage、OpenAI realtime、audio/transcription provider adapters。
+- [x] 收斂 audio：TTS／transcribe 共用 `audio.ts`、保留原始 defaults/error semantics，並以一個 OpenAI provider service 供兩條 route 重用。
+- [ ] 收斂 conversation command、realtime session／usage 成少量 capability modules。
+- [ ] 依真實替換邊界整理 storage、OpenAI realtime provider adapters；audio provider 已完成。
 - [ ] 統一 meeting/turn lifecycle、failure與cleanup。
 - [ ] 保持 meeting page request/response與UI state。
 
@@ -567,6 +568,12 @@ Then the existing report artifact is retried without creating a second scheduled
 - 22 個 focused tests（session behavior、repository forwarding、route handler contract、turn/usage parsing）通過；`npm run typecheck` 與 `npm run lint` 通過。
 - 已登入 Chrome 的 `/meeting` 改前後 DOM snapshot 完全一致（804 chars）、console 無 error/warn。未點「開會」以避免建立真實 session／取得麥克風；無 Supabase／OpenAI credentials，故未宣稱 real voice or persistence journey 已驗。
 - shell 直接呼叫 API 被 middleware 回 `401`；Chrome 直接開 API URL 被 client blocker 擋下，故 API status evidence 採 route handler contract test，auth middleware lifecycle 仍以 WP-01 evidence 為準。
+
+**Audio capability evidence（2026-07-31）**
+
+- CodeGraph sync 後，`speakMeeting`／`transcribeMeeting` 各只由對應 route 呼叫；`createOpenAiMeetingAudioProvider` 由兩條 route 共用，舊 speak/transcribe route-slice import 歸零。
+- 12 份 Meeting focused test files、57 assertions 通過；`npm run typecheck` 與 `npm run lint` 通過。
+- 已登入 Chrome 的 `/meeting` 改前後 DOM snapshot 仍完全一致（804 chars）、console 無 error/warn；未觸發 TTS／轉錄 provider，故仍不宣稱真實 audio journey 已驗。
 
 **Rollback:** API façade 可回接 legacy function；storage/schema change 必須 additive。
 
