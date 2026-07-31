@@ -87,15 +87,19 @@ Every stage must:
 
 ## Current Verification
 
-At code checkpoint `116885b` plus documentation checkpoint `fdcd0f7`:
+At code checkpoint `26249da` plus the pending documentation checkpoint for
+WP6-BH:
 
 - `npm run verify:full` passed;
-- 174 Vitest files / 527 tests passed;
+- 179 Vitest files / 535 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
-  LINE webhook payload boundary; reload-only Next.js development-tool nodes were
-  normalized out of the snapshot comparison;
+  LINE activity persistence boundary; exact and normalized DOM snapshots both
+  matched;
+- CodeGraph maps `createLegacyVisitLineActivityAdapter` through the adapter and
+  LINE webhook route; `rg` confirms the route has no direct
+  `line_agent_activity` table writes;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1075,6 +1079,23 @@ At code checkpoint `116885b` plus documentation checkpoint `fdcd0f7`:
   catalog count and tier labels before and after; CodeGraph maps the runtime
   adapter/facade through the webhook route.
 - Runtime implementation replacement, schema migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-BH LINE activity persistence compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-activity.contract.md`.
+- `VisitLineActivityPort` and
+  `src/adapters/visit/legacy-line-activity-adapter.ts` now own only the
+  existing `line_agent_activity` insert. The route keeps all summary text,
+  status selection, ordering, error propagation, and best-effort behavior.
+- Checkpoint: `26249da`.
+- Full verification: 179 Vitest files / 535 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the adapter
+  to the webhook route and `rg` confirms no direct activity-table writes
+  remain in the route.
+- Activity repository replacement, schema migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
