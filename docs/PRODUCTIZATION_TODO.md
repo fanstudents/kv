@@ -386,7 +386,7 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 **Anchors:** DM-03 的 routes/modules/adapters、`lib/{knowledge-base,kb-import,kb-crawl,kb-search}.ts`.
 
-**狀態（2026-07-31）：** 進行中。document repository、access policy、ingestion 已完成收斂；crawl、index/search 尚待收斂。現階段不改 Supabase schema、資料格式、API payload 或 UI。
+**狀態（2026-07-31）：** 進行中。document repository、access policy、ingestion、crawl provider 已完成收斂；index/search 尚待收斂。現階段不改 Supabase schema、資料格式、API payload 或 UI。
 
 **Behavior contract (`behavior-contract/v1`, `knowledge-base.capabilities`)**
 
@@ -400,7 +400,7 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 - Intentional changes：只有 module/file ownership 與命名；observable behavior 無變更。
 - Open question：缺少 Supabase migration provenance 的 runtime schema 仍由 WP-01/WP-04 處理，不在本批猜測或補 migration。
 
-- [ ] 依 capability 分成 document repository、access policy、ingestion、crawl provider、index/search。（document/access/ingestion 已完成）
+- [ ] 依 capability 分成 document repository、access policy、ingestion、crawl provider、index/search。（index/search 尚待完成）
 - [x] 合併 CRUD/import action-specific ports與applications。
 - [ ] 將 Supabase rows、Firecrawl、embedding/OpenAI translation 留在 adapters。
 - [ ] 定義 upload→preview→publish/discard→index state/failure map。
