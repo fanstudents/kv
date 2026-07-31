@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KV
 
-## Getting Started
+Dennis 建立的 AI Agent／營運後台系統，目前由工程團隊在原專案上漸進產品化。前端 UI／UX 與既有資料格式維持不變，後端逐步整理成可維護、可測試、可擴充的 domain、workflow、runtime、repository 與 provider boundaries。
 
-First, run the development server:
+## 開發環境
 
-```bash
+```powershell
+npm ci
+Copy-Item .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打開 [http://localhost:3000](http://localhost:3000)。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+受保護頁面需要：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `AUTH_SECRET`
+- `ADMIN_PASSWORD`
 
-## Learn More
+真實後台資料另需：
 
-To learn more about Next.js, take a look at the following resources:
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+依實際測試的功能再加入 OpenAI、LINE、Google 或 Teachify credentials。`.env.local` 已被 Git 忽略，不得提交 secrets。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 驗證
 
-## Deploy on Vercel
+```powershell
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run verify:full
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`verify:full` 的 browser smoke 不等於真實功能 E2E；需要登入、資料庫或外部 provider 的 journey 必須使用對應環境另行驗證。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 重構文件
+
+- [產品化重構 TODO](./docs/PRODUCTIZATION_TODO.md)：唯一執行計畫、進度表與 domain-level source map。
+- [重構效能與有效性稽核](./docs/refactor-effectiveness-audit-2026-07-31.md)：現況數據、證據強度與問題判斷。
+
+不要新增逐 route contract、micro-checkpoint 或平行計畫。行為契約放在 tests，symbol/consumer 影響以 CodeGraph 即時查詢。

@@ -5,11 +5,12 @@
 這份文件記錄 2026-07-31 約十小時漸進重構後的實際成果、程式碼膨脹、
 測試證據強度、登入環境漂移，以及後續修正路線。
 
-它是 corrective audit，不取代：
+它是 corrective audit，不是執行計畫。唯一執行計畫、TODO 與
+domain-level source map 已收斂至
+[`docs/PRODUCTIZATION_TODO.md`](./PRODUCTIZATION_TODO.md)。
 
-- `docs/refactor-checkpoints.md` 的 commit ledger；
-- `D:/_CabLate_Agents/coder/projects/kv/productization-plan.md` 的 canonical plan；
-- `D:/_CabLate_Agents/coder/projects/kv/source-to-target-code-map.md` 的 source mapping。
+本稽核所引用的舊 checkpoint、逐 route contracts 與外部分析文件已於
+2026-07-31 完成整併；原文仍可由 Git commit `410083a` 及更早歷史追溯。
 
 本文件校正上述 ledger 中過強的 `Verified` 解讀：除非另有真實資料與互動證據，
 既有 checkpoint 主要證明結構、contract、static/build 與 render smoke，
