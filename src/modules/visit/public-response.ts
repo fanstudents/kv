@@ -3,7 +3,7 @@ import type { LegacyPendingInviteRow } from "@/modules/visit/legacy-schema";
 export type VisitInviteChoice = NonNullable<LegacyPendingInviteRow["chosen_slot"]>;
 
 export interface VisitInviteSlotFields {
-  chosen_slot: string | null;
+  chosen_slot?: string | null;
   slot1: string;
   slot2: string;
   slot1_start: string;

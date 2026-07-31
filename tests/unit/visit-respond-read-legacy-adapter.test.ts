@@ -1,0 +1,42 @@
+import { describe, expect, it, vi } from "vitest";
+
+const { getSupabase } = vi.hoisted(() => ({ getSupabase: vi.fn() }));
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/supabase", () => ({ getSupabase }));
+
+import { createLegacyVisitRespondReadAdapter } from "@/adapters/visit/legacy-respond-read-adapter";
+
+describe("legacy Visit respond read adapter", () => {
+  it("preserves pending_invites reads, optimistic confirmation, and refetch", async () => {
+    const query = {
+      select: vi.fn(),
+      update: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn(),
+      single: vi.fn(),
+    };
+    query.select.mockReturnValue(query);
+    query.update.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.maybeSingle
+      .mockResolvedValueOnce({ data: { id: "i1", status: "pending" } })
+      .mockResolvedValueOnce({ data: { id: "i1", status: "confirmed", chosen_slot: "1" } });
+    query.single.mockResolvedValue({ data: { id: "i1", status: "confirmed", chosen_slot: "1" } });
+    const client = { from: vi.fn(() => query) };
+    getSupabase.mockReturnValue(client);
+    const adapter = createLegacyVisitRespondReadAdapter();
+
+    await expect(adapter.findInvite("i1")).resolves.toEqual({ id: "i1", status: "pending" });
+    await expect(adapter.confirmInvite("i1", "1", "2026-07-31T00:00:00.000Z")).resolves.toEqual({
+      id: "i1",
+      status: "confirmed",
+      chosen_slot: "1",
+    });
+    await expect(adapter.refetchInvite("i1")).resolves.toEqual({ id: "i1", status: "confirmed", chosen_slot: "1" });
+    expect(client.from).toHaveBeenCalledWith("pending_invites");
+    expect(query.select).toHaveBeenCalledWith("*");
+    expect(query.update).toHaveBeenCalledWith({ status: "confirmed", chosen_slot: "1", resolved_at: "2026-07-31T00:00:00.000Z" });
+    expect(query.eq).toHaveBeenCalledWith("status", "pending");
+  });
+});

@@ -5,7 +5,6 @@ import { pushLineMessage } from "@/lib/line";
 import { buildThankYouEmailHtml, escapeHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
 import {
-  toLegacyPendingInviteConfirmationPatch,
   toLegacyPendingInviteFulfilmentPatch,
   toLegacyPendingInviteStatusPatch,
 } from "@/modules/visit/legacy-schema";
@@ -15,6 +14,7 @@ import {
   selectVisitInviteSlot,
 } from "@/modules/visit/public-response";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
+import { createLegacyVisitRespondReadAdapter } from "@/adapters/visit/legacy-respond-read-adapter";
 
 const { createCalendarEvent, sendEmail } = legacyVisitProviders;
 
@@ -81,13 +81,13 @@ function locationFormPage(params: { inviteId: string; chosenLabel: string }) {
 export async function GET(req: NextRequest) {
   const inviteId = req.nextUrl.searchParams.get("invite");
   const choice = parseVisitInviteChoice(req.nextUrl.searchParams.get("choice"));
-  const supabase = getSupabase();
+  const readPort = createLegacyVisitRespondReadAdapter();
 
   if (!inviteId) {
     return page("連結無效", "這個邀約連結不完整，請直接聯繫對方確認時間。", "error");
   }
 
-  const { data: existing } = await supabase.from("pending_invites").select("*").eq("id", inviteId).maybeSingle();
+  const existing = await readPort.findInvite(inviteId);
   if (!existing) {
     return page("連結無效", "找不到這個邀約，請直接聯繫對方確認時間。", "error");
   }
@@ -98,21 +98,12 @@ export async function GET(req: NextRequest) {
     if (!choice) {
       return page("連結無效", "這個邀約連結不完整，請直接聯繫對方確認時間。", "error");
     }
-    const { data: claimed } = await supabase
-      .from("pending_invites")
-      .update(
-        toLegacyPendingInviteConfirmationPatch(choice, new Date().toISOString())
-      )
-      .eq("id", inviteId)
-      .eq("status", "pending")
-      .select("*")
-      .maybeSingle();
+    const claimed = await readPort.confirmInvite(inviteId, choice, new Date().toISOString());
 
     if (claimed) {
       row = claimed;
     } else {
-      const { data: refetched } = await supabase.from("pending_invites").select("*").eq("id", inviteId).single();
-      row = refetched;
+      row = await readPort.refetchInvite(inviteId);
     }
   }
 
