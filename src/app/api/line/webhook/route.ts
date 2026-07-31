@@ -21,7 +21,7 @@ import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-s
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
-import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
+import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
 import { createLegacyVisitSettingsAdapter } from "@/adapters/visit/legacy-settings-adapter";
 import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
@@ -32,7 +32,7 @@ const subscriberTouchPort = supabaseSubscribersRepository;
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 const lineActivityPort = createLegacyVisitLineActivityAdapter();
 const conversationLockPort = createLegacyConversationLockAdapter();
-const contactTagPort = createLegacyContactTagAdapter();
+const contactTagPort = supabaseOperationsRepository;
 const lineWorkflowPersistencePort = createLegacyVisitLineWorkflowAdapter();
 const visitSettingsPort = createLegacyVisitSettingsAdapter();
 const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();

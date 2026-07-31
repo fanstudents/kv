@@ -1,12 +1,11 @@
 import "server-only";
 import { listWeekOverview } from "@/lib/google";
 import { getSupabase } from "@/lib/supabase";
-import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
+import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import type { TvIdlePort } from "@/modules/tv/idle-ports";
 
 export function createLegacyTvIdleAdapter(): TvIdlePort {
   let supabase: ReturnType<typeof getSupabase> | null = null;
-  const contactTagPort = createLegacyContactTagAdapter();
   const getClient = () => {
     if (!supabase) supabase = getSupabase();
     return supabase;
@@ -14,7 +13,7 @@ export function createLegacyTvIdleAdapter(): TvIdlePort {
 
   return {
     listWeekOverview,
-    getAvailableTags: () => contactTagPort.list(),
+    getAvailableTags: () => supabaseOperationsRepository.list(),
     async listRecentActivity(cutoff) {
       const { data } = await getClient()
         .from("line_agent_activity")

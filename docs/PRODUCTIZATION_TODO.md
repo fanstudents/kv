@@ -320,13 +320,15 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 **Anchors:** `modules/{goals,checklist,subscribers,contacts,activity}`、對應 adapters/routes/UI。
 
+**狀態（2026-07-31）：** Structural consolidation 已完成；real-data functional acceptance 因 WP-01 缺 Supabase 而未關閉，WP-02 尚不得標為 production-like Done。
+
 - [x] CodeGraph 建 consumer map與 boundary allowlist/collapse list。
 - [x] Goals 收斂 read/update/delete/reset/history 到單一 domain service + repository。
 - [x] Checklist 收斂 read/update。
 - [x] Subscribers 收斂 read/update，broadcast 保留為 application use case。
-- [ ] Contacts/Activity 建共享 repository/read model，不複製 query port。
-- [ ] route 只保留 parse/auth/HTTP mapping（Goals／Checklist／Subscribers 已完成，其餘 domain 待辦）。
-- [ ] 刪除 forwarding applications、single-consumer ports、alias adapters與低訊號 tests（Goals／Checklist／Subscribers 已完成，其餘 domain 待辦）。
+- [x] Contacts/Activity 建共享 repository/read model，不複製 query port。
+- [x] route 只保留 parse/auth/HTTP mapping。
+- [x] 刪除 forwarding applications、single-consumer ports、alias adapters與低訊號 tests。
 - [x] 記錄 pilot 的 production files/LOC、owner、consumer before/after。
 
 **Goals pilot evidence（2026-07-31）**
@@ -360,6 +362,17 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 | Dead owner scan | 6 個 forwarding／legacy symbols | CodeGraph sync 後全部 0 live result | cleanup passed |
 | Authenticated UI parity | 修改前後實際登入 `/subscribers` | DOM snapshot 均 4,922 chars 且 exact match；無 page error | Render smoke passed |
 | API without data env | login `200`；invalid update `400`；invalid broadcast `400`；read/logs `500` | validation 與缺 Supabase failure boundary 保持 | Contract tested；real fan-out／DB write 仍 blocked |
+
+**Contacts／Activity slice evidence（2026-07-31）**
+
+| Measure | Before | After | Result |
+|---|---:|---:|---|
+| Production owners | 9 files／124 LOC | 2 files／90 LOC（Operations service + Supabase repository） | -7 files／-34 LOC |
+| Unit tests | 6 files／209 LOC | 2 files／167 LOC | -4 files／-42 LOC；保留 nested projection、filter order、tag write semantics |
+| Boundary | Contacts read、Activity read、Contact tags 各自 ports/adapters | shared Operations read model；`ContactTagPort` 供 Visit/TV/Meeting 使用 | 多 consumer capability 保留，single-consumer query ports 移除 |
+| Dead owner scan | 5 個 forwarding／legacy symbols | CodeGraph sync 後全部 0 live result | cleanup passed |
+| Authenticated UI parity | 修改前後實際登入 `/outputs` 與 `/tv` | DOM snapshots 分別 8,488／1,441 chars 且 exact match；無 page error | Render smoke passed |
+| API without data env | login `200`；contacts/activity/agent-activity `500` | 缺 Supabase failure boundary 保持 | Real data 與 tag write 仍 blocked |
 
 **Verification:** focused rules/repository integration、API parity、authenticated Todos/Subscribers/Outputs/TV interactions、CodeGraph dead caller scan。
 

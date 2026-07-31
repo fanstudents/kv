@@ -1,5 +1,5 @@
 import type { ConversationLockPort } from "@/modules/conversation/lock-ports";
-import type { ContactTagPort } from "@/modules/contacts/tag-ports";
+import type { ContactTagPort } from "@/modules/operations/service";
 import type { LiveTaskUpdatePort } from "@/modules/live-task/update-ports";
 import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
 import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";

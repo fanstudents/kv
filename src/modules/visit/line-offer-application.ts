@@ -3,7 +3,7 @@ import {
   type LineInboundEvent,
   type VisitDecisionTextIntent,
 } from "./line-inbound";
-import type { ContactTagPort } from "@/modules/contacts/tag-ports";
+import type { ContactTagPort } from "@/modules/operations/service";
 import type { ConversationLockPort } from "@/modules/conversation/lock-ports";
 import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
 import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";

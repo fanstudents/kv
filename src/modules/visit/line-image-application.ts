@@ -1,4 +1,4 @@
-import type { ContactTagPort } from "@/modules/contacts/tag-ports";
+import type { ContactTagPort } from "@/modules/operations/service";
 import type { ConversationLockPort } from "@/modules/conversation/lock-ports";
 import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
 import type { VisitLineCardPersistencePort } from "@/modules/visit/line-card-ports";

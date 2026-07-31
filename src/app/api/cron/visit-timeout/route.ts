@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
-import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
+import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import { createLegacyLiveTaskUpdateAdapter } from "@/adapters/live-task/legacy-update-adapter";
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
@@ -9,7 +9,7 @@ import { parseCronAuth } from "@/modules/cron/auth-rules";
 import { runVisitTimeoutApplication } from "@/modules/visit/timeout-application";
 
 const conversationLockPort = createLegacyConversationLockAdapter();
-const contactTagPort = createLegacyContactTagAdapter();
+const contactTagPort = supabaseOperationsRepository;
 const lineDeliveryPort = createLegacyVisitLineDeliveryAdapter();
 const lineWorkflowPort = createLegacyVisitLineWorkflowAdapter();
 

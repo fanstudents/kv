@@ -1,4 +1,4 @@
-import type { ContactTagPort } from "@/modules/contacts/tag-ports";
+import type { ContactTagPort } from "@/modules/operations/service";
 import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
 import type { LineInboundEvent } from "@/modules/visit/line-inbound";
 
