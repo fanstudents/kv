@@ -987,6 +987,23 @@ At `cafa912` plus this documentation stage:
 - Visit workflow application orchestration, provider/schema evolution,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-BC LINE webhook payload compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-webhook.contract.md`.
+- `parseVisitLineWebhookPayload` in
+  `src/modules/visit/line-inbound.ts` now owns only raw JSON payload parsing.
+  The route preserves invalid JSON/null HTTP 400 behavior, missing-events empty
+  behavior, shared `LineInboundEvent` flow, normalization, handler dispatch,
+  signature handling, and all provider/data side effects.
+- Checkpoint: `116885b`.
+- Full verification: 174 Vitest files / 527 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the parser and
+  shared event type to the webhook route and normalizer.
+- Handler/provider decomposition, signature policy changes, schema migration,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
