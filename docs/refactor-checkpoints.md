@@ -76,13 +76,14 @@ Every stage must:
 | `f8c5992` | Checklist read boundary | Checklist projection port and HTTP-preserving cutover |
 | `c88c47f` | Subscribers read boundary | Subscriber query port, ordering, and HTTP-preserving cutover |
 | `698ffd0` | Agent status read boundary | Static registry fallback, enabled override, and HTTP-preserving cutover |
+| `4f3c8aa` | Checklist update boundary | PATCH coercion, timestamped upsert port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `698ffd0` plus this documentation stage:
+At `4f3c8aa` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 82 Vitest files / 374 tests passed;
+- 85 Vitest files / 379 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -180,6 +181,10 @@ At `698ffd0` plus this documentation stage:
 - CodeGraph maps `buildAgentStatusMap`, `runAgentStatusRead`, and
   `createLegacyAgentStatusReadAdapter` through the Agents module, adapter, and
   route; the existing `AGENTS` fallback and `line_agents` query remain explicit;
+- CodeGraph maps `parseChecklistUpdateRequest`, `runChecklistUpdate`, and
+  `createLegacyChecklistUpdateAdapter` through the Checklist update modules,
+  adapter, and `[id]` route; the existing `checklist_status` write remains
+  behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -256,6 +261,25 @@ At `698ffd0` plus this documentation stage:
   catalog count and tier labels before and after; CodeGraph maps the Agent
   status rules, port, application, adapter, and route.
 - Agent registry/schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-T Checklist update compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/checklist-update.contract.md`.
+- `src/modules/checklist/update-rules.ts` preserves body/id coercion;
+  `update-application.ts` owns ISO timestamp creation and provider-result
+  mapping; `src/adapters/checklist/legacy-update-adapter.ts` keeps the exact
+  upsert/select/single chain.
+- The route preserves HTTP 400 error mapping and raw success data; Todos UI,
+  optimistic state, row formats, retention, and schema/data behavior are
+  untouched.
+- Checkpoint: `4f3c8aa`.
+- Full verification: 85 Vitest files / 379 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Checklist
+  update rules, port, application, adapter, and `[id]` route.
+- Checklist schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
