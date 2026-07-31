@@ -105,17 +105,20 @@ export interface CrawledPage {
   url: string;
   title: string;
   markdown: string;
+  /** 頁面的 og:image（有些站沒有設定，就不會有值）——目前只給拜訪前背景調查拿來當代表圖用 */
+  imageUrl?: string;
 }
 
 /** 抓單一頁 */
 export async function scrapeUrl(url: string): Promise<CrawledPage> {
   const data = await firecrawl<{
-    data?: { markdown?: string; metadata?: { title?: string; sourceURL?: string } };
+    data?: { markdown?: string; metadata?: { title?: string; sourceURL?: string; ogImage?: string } };
   }>("/scrape", { url, formats: ["markdown"], onlyMainContent: true });
   return {
     url: data.data?.metadata?.sourceURL ?? url,
     title: data.data?.metadata?.title ?? url,
     markdown: data.data?.markdown ?? "",
+    imageUrl: data.data?.metadata?.ogImage || undefined,
   };
 }
 

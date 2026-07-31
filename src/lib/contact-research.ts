@@ -3,6 +3,24 @@ import { getSupabase } from "@/lib/supabase";
 import { webSearchJson, chatJson } from "@/lib/openai";
 import { scrapeUrl } from "@/lib/kb-crawl";
 import { finishRun, logStep, startRun } from "@/lib/agent-runs";
+import { setLiveTask } from "@/lib/live-task-store";
+import { fetchWithRetry } from "@/lib/http";
+
+/** 把公開圖片（官網 og:image）下載成 data URL，供劇院模式直接顯示；抓不到就回 null，不影響其他資料。 */
+async function downloadImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetchWithRetry(url, {}, { label: "og:image", timeoutMs: 15_000, retries: 0 });
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") ?? "image/jpeg";
+    if (!contentType.startsWith("image/")) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    // 太大的圖（例如整頁截圖誤標成 og:image）不值得塞進去，寧可沒有圖，改顯示文字摘要
+    if (buffer.length > 3 * 1024 * 1024) return null;
+    return `data:${contentType};base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
 
 // webSearchJson 常常只拿到片段摘要，查不到公司在做什麼的情況不少見。與其每次都
 // 另外燒 Firecrawl 額度抓官網正文，只在「網路搜尋真的查不到公司簡介，而且手上有
@@ -68,13 +86,17 @@ const SYSTEM_PROMPT = `你是業務行前準備助理。使用者要去拜訪一
 3. 只找公開的專業資訊：公司官網、新聞報導、公開演講、專業社群帳號（LinkedIn／官方 Facebook／IG 等）、
    得獎或作品。**不要找私人生活、家庭、住址、私人聯絡方式。**
 4. 如果搜尋結果裡有同名不同人的情況，寧可保守——把不確定的排除，並把 confidence 調低。
+5. highlights 優先找**最近 7 天內**的專業動態（社群貼文、新聞、產品或活動消息）；沒有近 7 天的才退而
+   求其次抓比較舊但仍值得一提的事，並在該則文字裡註明大概時間點，讓使用者知道這不是最新消息。
+6. **不要輸出公司登記資本額、統一編號這類工商登記數字**——見面前功課要的是「這家公司在做什麼」，
+   不是報表數字。
 
 回傳 JSON：
 {
-  "companySummary": "這家公司在做什麼、規模、近況（2-3 句；查不到就空字串）",
+  "companySummary": "這家公司在做什麼、規模、近況（2-3 句；查不到就空字串；不要放資本額等登記數字）",
   "personSummary": "這個人的角色與專業背景（2-3 句；查不到就空字串）",
   "links": [{"label": "公司官網", "url": "https://...", "kind": "website|linkedin|facebook|instagram|news|other"}],
-  "highlights": ["近期值得一提的事，每則一句，附帶時間點"],
+  "highlights": ["近期值得一提的事，每則一句，附帶時間點，優先近 7 天內的"],
   "talkingPoints": ["見面時可以聊的切入點，每則一句，要根據上面查到的事實"],
   "sources": ["https://實際引用到的完整網址"],
   "confidence": 0.0
@@ -123,7 +145,10 @@ export async function researchContact(params: {
     .join("\n");
 
   try {
-    await logStep(runId, "research-search", { status: "running", input: query.slice(0, 200), seq: 0 });
+    // node id 直接對到流程圖上的節點（src/lib/agent-briefings.ts 的 visit.flow），
+    // 劇院模式看板就是靠這組 id 對照亮起哪個節點、秀哪段文字。
+    await logStep(runId, "research", { status: "running", input: query.slice(0, 200), seq: 0 });
+    await setLiveTask("visit", { status: "active", caption: `查 ${params.name} 的背景資料…` });
     const raw = await webSearchJson({
       instructions: SYSTEM_PROMPT,
       input: query,
@@ -156,42 +181,57 @@ export async function researchContact(params: {
 
     // 網路搜尋沒查到公司在做什麼 → 只在這個子集才補一次 Firecrawl 抓官網正文。
     // 額度用完、抓取失敗都當作沒有這份加強資料，不影響已經拿到的 web_search 結果。
-    if (!profile.companySummary && params.company) {
-      const siteUrl = pickOfficialSiteUrl(profile.links, params.email);
-      if (siteUrl) {
-        try {
-          await logStep(runId, "research-firecrawl", { status: "running", input: siteUrl, seq: 1 });
-          const page = await scrapeUrl(siteUrl);
-          if (page.markdown.trim().length > 0) {
-            const summarized = await chatJson({
-              model: "gpt-4o-mini",
-              operation: "官網簡介摘要",
-              agentSlug: "visit",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "你會拿到一個公司官網的正文內容，請用 2-3 句繁體中文摘要這家公司在做什麼、規模或近況。" +
-                    "只根據給你的內容判斷，看不出來就回空字串，不要用猜的填。只回傳 JSON：{\"summary\": \"...\"}",
-                },
-                { role: "user", content: page.markdown.slice(0, 6000) },
-              ],
-            });
-            const summary = String(summarized?.summary ?? "").trim();
-            if (summary) {
-              profile.companySummary = summary;
-              if (!profile.sources.includes(page.url)) profile.sources.push(page.url);
-              if (!profile.links.some((l) => l.url === page.url)) {
-                profile.links.push({ label: "公司官網", url: page.url, kind: "website" });
-              }
+    const siteUrl = !profile.companySummary && params.company ? pickOfficialSiteUrl(profile.links, params.email) : null;
+
+    if (siteUrl) {
+      try {
+        await logStep(runId, "firecrawl", { status: "running", input: siteUrl, seq: 1 });
+        await setLiveTask("visit", { status: "active", caption: `官網查無簡介，補抓 ${siteUrl} 正文…` });
+        const page = await scrapeUrl(siteUrl);
+        if (page.markdown.trim().length > 0) {
+          const summarized = await chatJson({
+            model: "gpt-4o-mini",
+            operation: "官網簡介摘要",
+            agentSlug: "visit",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "你會拿到一個公司官網的正文內容，請用 2-3 句繁體中文摘要這家公司在做什麼、規模或近況。" +
+                  "只根據給你的內容判斷，看不出來就回空字串，不要用猜的填。不要輸出資本額、統一編號這類工商登記數字。" +
+                  "只回傳 JSON：{\"summary\": \"...\"}",
+              },
+              { role: "user", content: page.markdown.slice(0, 6000) },
+            ],
+          });
+          const summary = String(summarized?.summary ?? "").trim();
+          if (summary) {
+            profile.companySummary = summary;
+            if (!profile.sources.includes(page.url)) profile.sources.push(page.url);
+            if (!profile.links.some((l) => l.url === page.url)) {
+              profile.links.push({ label: "公司官網", url: page.url, kind: "website" });
             }
           }
-          await logStep(runId, "research-firecrawl", { status: "done", output: page.url, seq: 1 });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "unknown";
-          await logStep(runId, "research-firecrawl", { status: "failed", output: message, seq: 1 }).catch(() => {});
         }
+        // 有 og:image 才顯示圖，劇院卡片才有東西可以放；沒有就靠下面的文字摘要撐版面。
+        if (page.imageUrl) {
+          const dataUrl = await downloadImageAsDataUrl(page.imageUrl);
+          if (dataUrl) await setLiveTask("visit", { image: dataUrl });
+        }
+        await logStep(runId, "firecrawl", {
+          status: "done",
+          output: profile.companySummary || "官網也沒查到清楚的公司簡介",
+          seq: 1,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "unknown";
+        await logStep(runId, "firecrawl", { status: "failed", output: message, seq: 1 }).catch(() => {});
       }
+    } else {
+      // 沒有走 Firecrawl 這條路——網路搜尋已經夠、或根本沒有可查的官網，直接收尾。
+      const summaryText = [profile.companySummary, profile.personSummary].filter(Boolean).join("\n") || "沒查到公開資料";
+      await logStep(runId, "found", { status: "done", output: summaryText.slice(0, 600), seq: 1 });
+      await setLiveTask("visit", { status: "done", caption: summaryText.slice(0, 80) });
     }
 
     const found =
@@ -221,11 +261,6 @@ export async function researchContact(params: {
       .single();
     if (error) throw new Error(error.message);
 
-    await logStep(runId, "research-store", {
-      status: "done",
-      output: `${profile.links.length} 個連結、${profile.highlights.length} 則近況`,
-      seq: 2,
-    });
     await finishRun(runId, {
       status: "success",
       summary: found

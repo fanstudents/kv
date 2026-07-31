@@ -45,6 +45,53 @@ export function buildDecisionCard(params: {
   };
 }
 
+export function buildInviteApprovalCard(params: { inviteId: string; name: string }) {
+  return {
+    type: "flex",
+    altText: "邀約信草稿已備妥，要寄出嗎？",
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          { type: "text", text: "邀約信草稿已備妥", weight: "bold", size: "lg", color: "#111111" },
+          { type: "text", text: `收件人：${params.name}`, size: "sm", color: "#888888", wrap: true },
+          {
+            type: "text",
+            text: "內容看上面這則訊息，OK 就按下方寄出；想調整的話直接打字告訴我要怎麼改。",
+            size: "xs",
+            color: "#AAAAAA",
+            wrap: true,
+            margin: "md",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "horizontal",
+        spacing: "sm",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#06C755",
+            height: "sm",
+            action: { type: "postback", label: "寄出", data: `action=send_invite&invite=${params.inviteId}`, displayText: "寄出" },
+          },
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: { type: "postback", label: "取消", data: `action=cancel_invite&invite=${params.inviteId}`, displayText: "取消" },
+          },
+        ],
+      },
+    },
+  };
+}
+
 export function buildTagQuickReply(params: { contactId: string; tags: string[] }) {
   const items = params.tags.slice(0, 12).map((t) => ({
     type: "action",

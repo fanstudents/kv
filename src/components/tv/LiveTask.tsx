@@ -190,6 +190,10 @@ export default function LiveTask({
     ? { mode: "live", step: live!.step, status: live!.status, nodeId: live!.nodeId ?? undefined }
     : { mode: "idle" };
   const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
+  // 拜訪前背景調查沒有名片那種實照可放——有抓到官網代表圖才有圖，多數時候只有一段文字摘要，
+  // 這種節點沒圖時要秀出可讀的摘要卡，而不是套用其他 Agent 通用的道具插畫。
+  const isSummaryNode = live?.nodeId === "research" || live?.nodeId === "found" || live?.nodeId === "firecrawl";
+  const summaryText = isLive && isSummaryNode && !imageUrl ? live!.caption : null;
 
   return (
     <div>
@@ -225,6 +229,13 @@ export default function LiveTask({
                     alt="現正處理的圖片"
                     className="max-h-[86%] w-auto max-w-[92%] rounded-lg object-contain shadow-2xl"
                   />
+                </div>
+              ) : summaryText ? (
+                <div
+                  className="max-w-[80%] rounded-xl border border-white/10 bg-white/[0.04] px-6 py-5 shadow-2xl"
+                  style={{ borderColor: `${color}33` }}
+                >
+                  <p className="whitespace-pre-line text-center text-sm leading-relaxed text-white/80">{summaryText}</p>
                 </div>
               ) : (
                 <PropGraphic kind={def.prop} color={color} />

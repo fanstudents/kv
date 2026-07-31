@@ -6,9 +6,10 @@ import {
   getLineMessageContentAsDataUrl,
 } from "@/lib/line";
 import { getAvailableTags, addContactTag } from "@/lib/contact-tags";
-import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
+import { buildDecisionCard, buildInviteApprovalCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import {
   parseBusinessCard,
+  detectCardRotation,
   rotateImageDataUrl,
   draftInviteEmail,
   interpretCardReply,
@@ -75,29 +76,21 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     }
     // 一張名片＝一次執行。messageId 當冪等鍵：LINE webhook 重送不會變成第二次執行。
     await startVisitRun({ userId, messageId, summary: "LINE 傳入名片，開始辨識" });
-    // 劇院螢幕：名片一進來就進入「辨識中」，並帶上真實照片
+    // LINE 傳來的照片幾乎不帶 EXIF 方向、拍歪很常見。先轉正再辨識文字——
+    // 讀著歪的圖同時判斷欄位，實測辨識準確度會被拖累（同一張名片連續掃出不同錯字），
+    // 所以角度判斷跟欄位辨識拆成兩次呼叫，欄位辨識永遠讀已經轉正的圖。
+    const rotation = await detectCardRotation(imageDataUrl);
+    const uprightImageDataUrl = rotation === 0 ? imageDataUrl : await rotateImageDataUrl(imageDataUrl, rotation);
+    // 劇院螢幕：名片一進來就進入「辨識中」，並帶上轉正後的真實照片
     await reportVisitStep({
       userId,
       nodeId: "scan",
       step: 0,
       status: "active",
       caption: "辨識名片中…",
-      image: imageDataUrl,
+      image: uprightImageDataUrl,
     });
-    contact = await parseBusinessCard(imageDataUrl);
-    // LINE 傳來的照片幾乎不帶 EXIF 方向、拍歪很常見，辨識時模型已經判斷出要轉幾度，
-    // 這裡把劇院螢幕上的圖也一併轉正，不然使用者只看得到辨識結果是對的，畫面卻還是歪的。
-    if (contact.rotation !== 0) {
-      const uprightImageDataUrl = await rotateImageDataUrl(imageDataUrl, contact.rotation);
-      await reportVisitStep({
-        userId,
-        nodeId: "scan",
-        step: 0,
-        status: "active",
-        caption: "辨識名片中…",
-        image: uprightImageDataUrl,
-      });
-    }
+    contact = await parseBusinessCard(uprightImageDataUrl);
   } catch (err) {
     const message = err instanceof Error ? err.message : "名片辨識失敗";
     await supabase.from("line_agent_activity").insert({
@@ -211,6 +204,14 @@ async function handlePostback(event: LineEvent, userId: string, baseUrl: string)
   }
   if (action === "cancel") {
     await handleVisitOfferReply(event, userId, "不要", baseUrl);
+    return;
+  }
+  if (action === "send_invite") {
+    await handleInviteApprovalReply(event, userId, "寄出", baseUrl);
+    return;
+  }
+  if (action === "cancel_invite") {
+    await handleInviteApprovalReply(event, userId, "取消", baseUrl);
     return;
   }
   if (action === "tag") {
@@ -419,10 +420,13 @@ async function handleVisitOfferReply(
         status: "active",
         caption: `邀約信草稿已備妥：${finalContact.name}`,
       });
-      await replyLineMessage(
-        event.replyToken,
-        `邀約信草稿已經準備好，寄出前想先讓您過目：\n\n收件人：${finalContact.name}（${finalContact.email}）\n主旨：${draft.subject}\n內文：\n${draft.body}\n\n提議時段：${slots[0].label} 或 ${slots[1].label}\n\n內容 OK 的話請回覆「寄出」，不想寄了請回覆「取消」，想調整的話直接告訴我要怎麼改（例如「語氣正式一點」）。`
-      );
+      await replyLineRawMessages(event.replyToken, [
+        {
+          type: "text",
+          text: `邀約信草稿已經準備好，寄出前想先讓您過目：\n\n收件人：${finalContact.name}（${finalContact.email}）\n主旨：${draft.subject}\n內文：\n${draft.body}\n\n提議時段：${slots[0].label} 或 ${slots[1].label}`,
+        },
+        buildInviteApprovalCard({ inviteId: invite.id, name: finalContact.name }),
+      ]);
       await supabase.from("line_agent_activity").insert({
         agent_slug: "visit",
         summary: `已產生邀約信草稿給 ${finalContact.name}（${finalContact.email}），待使用者核准後才會寄出`,
@@ -592,10 +596,13 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
       instruction: text,
     });
     await supabase.from("pending_invites").update({ subject: revised.subject, body: revised.body }).eq("id", invite.id);
-    await replyLineMessage(
-      event.replyToken,
-      `已依您的要求調整 ✏️\n\n主旨：${revised.subject}\n內文：\n${revised.body}\n\n提議時段：${invite.slot1} 或 ${invite.slot2}\n\n這樣可以的話請回覆「寄出」，還要調整請繼續告訴我，不寄了請回覆「取消」。`
-    );
+    await replyLineRawMessages(event.replyToken, [
+      {
+        type: "text",
+        text: `已依您的要求調整 ✏️\n\n主旨：${revised.subject}\n內文：\n${revised.body}\n\n提議時段：${invite.slot1} 或 ${invite.slot2}`,
+      },
+      buildInviteApprovalCard({ inviteId: invite.id, name: contact.name }),
+    ]);
   } catch (err) {
     const message = err instanceof Error ? err.message : "修改邀約信失敗";
     await supabase.from("line_agent_activity").insert({
