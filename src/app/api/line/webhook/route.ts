@@ -20,16 +20,15 @@ import {
 } from "@/modules/visit/line-inbound";
 import { dispatchVisitLineWebhookEvents } from "@/modules/visit/line-webhook-application";
 import {
-  toLegacyContactInsert,
   toLegacyPendingInviteInsert,
   toLegacyPendingInviteRevisionPatch,
   toLegacyPendingInviteStatusPatch,
-  toLegacyVisitOfferInsert,
   toLegacyVisitOfferResolution,
 } from "@/modules/visit/legacy-schema";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
+import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
 
 const {
   draftInviteEmail,
@@ -39,6 +38,7 @@ const {
   sendEmail,
 } = legacyVisitProviders;
 const lineImagePort = createLegacyVisitLineImageAdapter();
+const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
@@ -146,11 +146,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
   // 多輪對話即將開始，先搶下這個使用者的鎖（同一 Agent 重入會自動延長，不會卡住自己）。
   await acquireLock(supabase, userId, VISIT_AGENT, { context: { stage: "card_review" } });
 
-  const { data: contactRow } = await supabase
-    .from("contacts")
-    .insert(toLegacyContactInsert(contact, userId))
-    .select()
-    .single();
+  const contactRow = await lineCardPersistencePort.createContact(contact, userId);
 
   if (!contact.email) {
     // 沒 Email → 不安排邀約，但仍可幫你標籤分類
@@ -164,11 +160,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     return;
   }
 
-  const { data: offerRow } = await supabase
-    .from("visit_offers")
-    .insert(toLegacyVisitOfferInsert(userId, contactRow?.id))
-    .select()
-    .single();
+  const offerRow = await lineCardPersistencePort.createOffer(userId, contactRow?.id);
 
   // 回覆：辨識資訊 +「要／不要」卡片。標籤選單不在這裡一起跳出——避免兩張卡片
   // 同時出現造成混淆；等使用者做完「要／不要」決定後，才接續出現標籤選單。
