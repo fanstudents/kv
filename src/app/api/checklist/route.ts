@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { createLegacyChecklistReadAdapter } from "@/adapters/checklist/legacy-read-adapter";
+import { runChecklistRead } from "@/modules/checklist/read-application";
 
 export async function GET() {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.from("checklist_status").select("item_id, done");
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  const result = await runChecklistRead(createLegacyChecklistReadAdapter());
+  if (result.kind === "error") {
+    return NextResponse.json({ error: result.message }, { status: 400 });
   }
-
-  return NextResponse.json(data);
+  return NextResponse.json(result.data);
 }
