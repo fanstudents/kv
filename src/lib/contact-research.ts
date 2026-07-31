@@ -175,8 +175,16 @@ export async function researchContact(params: {
   try {
     // node id 直接對到流程圖上的節點（src/lib/agent-briefings.ts 的 visit.flow），
     // 劇院模式看板就是靠這組 id 對照亮起哪個節點、秀哪段文字。
-    await logStep(runId, "research", { status: "running", input: query.slice(0, 200), seq: 0 });
-    await setLiveTask("visit", { status: "active", caption: `查 ${params.name} 的背景資料…` });
+    // 摘要文字一律透過 logStep 的 output 帶（不要另外呼叫 setLiveTask 寫 caption）：
+    // agent_live_task 是每個 Agent 共用一列，若同時有名片掃描在跑，caption 跟 nodeId
+    // 會分別來自兩個不同流程、對不上——劇院畫面就會出現「亮著這個節點、卻顯示另一段文字」
+    // 的詭異狀態。output 跟 nodeId 綁在同一列 agent_run_steps，才不會兜錯。
+    await logStep(runId, "research", {
+      status: "running",
+      input: query.slice(0, 200),
+      output: `查 ${params.name} 的背景資料…`,
+      seq: 0,
+    });
     const raw = await webSearchJson({
       instructions: SYSTEM_PROMPT,
       input: query,
@@ -213,8 +221,12 @@ export async function researchContact(params: {
 
     if (siteUrl) {
       try {
-        await logStep(runId, "firecrawl", { status: "running", input: siteUrl, seq: 1 });
-        await setLiveTask("visit", { status: "active", caption: `官網查無簡介，補抓 ${siteUrl} 正文…` });
+        await logStep(runId, "firecrawl", {
+          status: "running",
+          input: siteUrl,
+          output: `官網查無簡介，補抓 ${siteUrl} 正文…`,
+          seq: 1,
+        });
         const page = await scrapeUrl(siteUrl);
         if (page.markdown.trim().length > 0) {
           const summarized = await chatJson({
@@ -268,7 +280,6 @@ export async function researchContact(params: {
       }
       const summaryText = buildTheaterSummary(profile);
       await logStep(runId, "found", { status: "done", output: summaryText.slice(0, 600), seq: 1 });
-      await setLiveTask("visit", { status: "done", caption: summaryText.slice(0, 200) });
     }
 
     const found =
