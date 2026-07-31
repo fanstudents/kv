@@ -28,6 +28,7 @@ import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
+import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
 
 const {
@@ -39,6 +40,7 @@ const {
 } = legacyVisitProviders;
 const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
+const lineActivityPort = createLegacyVisitLineActivityAdapter();
 const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
 
 export async function GET() {
@@ -95,7 +97,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
     contact = await lineImagePort.parseBusinessCard(imageDataUrl);
   } catch (err) {
     const message = err instanceof Error ? err.message : "名片辨識失敗";
-    await supabase.from("line_agent_activity").insert({
+    await lineActivityPort.record({
       agent_slug: "visit",
       summary: `LINE 名片辨識失敗：${message}（來自 ${userId}）`,
       status: "failed",
@@ -106,7 +108,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
   }
 
   const recognized = Boolean(contact.name || contact.company || contact.email);
-  await supabase.from("line_agent_activity").insert({
+  await lineActivityPort.record({
     agent_slug: "visit",
     summary: recognized
       ? `透過 LINE 辨識名片：${contact.name || "（未辨識出姓名）"}${
@@ -346,7 +348,7 @@ async function handleVisitOfferReply(
 
     if (slots.length < 2) {
       await replyLineMessage(event.replyToken, "查了行事曆但接下來找不到足夠的空檔，需要的話請手動與對方協調時間。");
-      await supabase.from("line_agent_activity").insert({
+      await lineActivityPort.record({
         agent_slug: "visit",
         summary: `查詢行事曆空檔不足，無法幫 ${finalContact.name} 產生邀約信`,
         status: "failed",
@@ -396,7 +398,7 @@ async function handleVisitOfferReply(
         event.replyToken,
         `邀約信草稿已經準備好，寄出前想先讓您過目：\n\n收件人：${finalContact.name}（${finalContact.email}）\n主旨：${draft.subject}\n內文：\n${draft.body}\n\n提議時段：${slots[0].label} 或 ${slots[1].label}\n\n內容 OK 的話請回覆「寄出」，不想寄了請回覆「取消」，想調整的話直接告訴我要怎麼改（例如「語氣正式一點」）。`
       );
-      await supabase.from("line_agent_activity").insert({
+      await lineActivityPort.record({
         agent_slug: "visit",
         summary: `已產生邀約信草稿給 ${finalContact.name}（${finalContact.email}），待使用者核准後才會寄出`,
         status: "pending",
@@ -442,7 +444,7 @@ async function handleVisitOfferReply(
       event.replyToken,
       `已寄出邀約信給 ${finalContact.name}，提議 ${slots[0].label} 或 ${slots[1].label}，等對方選好時段後我會通知您。`
     );
-    await supabase.from("line_agent_activity").insert({
+    await lineActivityPort.record({
       agent_slug: "visit",
       summary: `已寄出邀約信給 ${finalContact.name}（${finalContact.email}），等待對方選擇時段`,
       status: "pending",
@@ -450,7 +452,7 @@ async function handleVisitOfferReply(
     await releaseLock(supabase, userId, VISIT_AGENT);
   } catch (err) {
     const message = err instanceof Error ? err.message : "排程或寄信失敗";
-    await supabase.from("line_agent_activity").insert({
+    await lineActivityPort.record({
       agent_slug: "visit",
       summary: `自動排程或寄信失敗：${message}`,
       status: "failed",
@@ -537,7 +539,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
         event.replyToken,
         `已寄出邀約信給 ${contact.name}，提議 ${invite.slot1} 或 ${invite.slot2}，等對方選好時段後我會通知您。`
       );
-      await supabase.from("line_agent_activity").insert({
+      await lineActivityPort.record({
         agent_slug: "visit",
         summary: `使用者核准後已寄出邀約信給 ${contact.name}（${contact.email}），等待對方選擇時段`,
         status: "pending",
@@ -548,7 +550,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
         .from("pending_invites")
         .update(toLegacyPendingInviteStatusPatch("failed"))
         .eq("id", invite.id);
-      await supabase.from("line_agent_activity").insert({
+      await lineActivityPort.record({
         agent_slug: "visit",
         summary: `核准後寄信失敗：${message}`,
         status: "failed",
@@ -582,7 +584,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "修改邀約信失敗";
-    await supabase.from("line_agent_activity").insert({
+    await lineActivityPort.record({
       agent_slug: "visit",
       summary: `依使用者要求修改邀約信失敗：${message}`,
       status: "failed",
@@ -594,7 +596,6 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
 }
 
 async function handleTextMessage(event: LineEvent, userId: string, baseUrl: string) {
-  const supabase = getSupabase();
   if (!event.replyToken) return;
 
   const text = (event.message?.text ?? "").trim();
@@ -610,14 +611,14 @@ async function handleTextMessage(event: LineEvent, userId: string, baseUrl: stri
       event.replyToken,
       "已收到您的訊息！目前我最擅長的是名片辨識——直接傳一張名片照片給我，我會自動整理出聯絡資訊，並視需要幫您安排拜訪邀約。"
     );
-    await supabase.from("line_agent_activity").insert({
+    await lineActivityPort.record({
       agent_slug: null,
       summary: `收到來自 ${userId} 的訊息：「${event.message?.text?.slice(0, 40)}」，已自動回覆`,
       status: "success",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "回覆失敗";
-    await supabase.from("line_agent_activity").insert({
+    await lineActivityPort.record({
       agent_slug: null,
       summary: `回覆來自 ${userId} 的訊息失敗：${message}`,
       status: "failed",
@@ -628,13 +629,12 @@ async function handleTextMessage(event: LineEvent, userId: string, baseUrl: stri
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-line-signature");
-  const supabase = getSupabase();
   // Zeabur（以及多數容器平台）的反向代理不會把外部網域帶進容器內部的 Host header，
   // 所以 req.nextUrl.origin 在正式環境會變成 localhost。改用固定的環境變數組網址。
   const baseUrl = process.env.APP_BASE_URL || req.nextUrl.origin;
 
   if (!verifyLineSignature(rawBody, signature)) {
-    await supabase.from("line_agent_activity").insert({
+    await lineActivityPort.record({
       agent_slug: null,
       summary: "Webhook 收到簽章驗證失敗的請求",
       status: "failed",
