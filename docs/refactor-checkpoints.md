@@ -601,6 +601,26 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, import write-owner migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AJ Knowledge Base import publish compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-import-publish.contract.md`.
+- `src/modules/knowledge-base/import-publish-rules.ts` owns string-id
+  validation; `import-publish-application.ts` owns publish orchestration;
+  `src/adapters/knowledge-base/legacy-import-publish-adapter.ts` keeps
+  `publishKnowledgeDocs` (including indexing) behind the port.
+- The `/api/knowledge-base/import` PUT route preserves HTTP 400 validation,
+  `{ published: count }`, id order/format, status updates, indexing,
+  `maxDuration`, and all import UI/data formats. PDF POST, read GET, and
+  discard DELETE remain unchanged.
+- Checkpoint: `4bae9ff`.
+- Full verification: 129 Vitest files / 442 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the publish
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, import write-owner migration,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
