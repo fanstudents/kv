@@ -89,14 +89,15 @@ Every stage must:
 | `be5c294` | Visit LINE workflow persistence boundary | Offer, invite, and contact correction persistence port |
 | `079f17c` | Visit settings boundary | Settings port and legacy adapter for the LINE webhook |
 | `af67fc9` | Visit LINE delivery boundary | Outbound LINE reply port and legacy adapter for the Visit webhook |
+| `5e08c96` | Subscriber touch boundary | Shared channel-aware subscriber touch port and legacy adapter |
 
 ## Current Verification
 
-At code checkpoint `af67fc9` plus the pending documentation checkpoint for
-WP6-BM:
+At code checkpoint `5e08c96` plus the pending documentation checkpoint for
+WP6-BN:
 
 - `npm run verify:full` passed;
-- 184 Vitest files / 544 tests passed;
+- 185 Vitest files / 545 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -120,6 +121,9 @@ WP6-BM:
 - CodeGraph maps `createLegacyVisitLineDeliveryAdapter` through the LINE
   webhook; `rg` confirms the route has no direct `replyLineMessage` or
   `replyLineRawMessages` references;
+- CodeGraph maps `createLegacySubscriberTouchAdapter` through the Visit LINE
+  webhook and Support relay adapter; `rg` confirms direct `touchSubscriber`
+  imports remain only inside the legacy adapter;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1201,6 +1205,24 @@ WP6-BM:
   route and `rg` confirms no direct LINE reply-helper imports remain there.
 - LINE provider replacement, outbox/retry policy, schema migration,
   reconciliation, and production traffic evidence remain deferred.
+
+### WP6-BN Subscriber touch compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/subscriber-touch.contract.md`.
+- `SubscriberTouchPort` and
+  `src/adapters/subscribers/legacy-touch-adapter.ts` now own the shared
+  channel-aware binding used by Visit (`primary`) and Support (`support`).
+  Existing subscriber lookup, profile enrichment, timestamps, inserts,
+  best-effort handling, and relay behavior remain unchanged.
+- Checkpoint: `5e08c96`.
+- Full verification: 185 Vitest files / 545 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the adapter to both
+  consumers and `rg` confirms direct legacy helper imports remain only in the
+  adapter.
+- Subscriber repository replacement, schema migration, reconciliation,
+  retry/outbox policy, and production traffic evidence remain deferred.
 
 ## Current Boundary
 
