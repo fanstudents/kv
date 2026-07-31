@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createLegacyAgentInstanceReadAdapter } from "@/adapters/agents/legacy-agent-instance-read-adapter";
 import { getSupabase } from "@/lib/supabase";
+import { runAgentInstanceRead } from "@/modules/agents/agent-instance-read-application";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase.from("line_agents").select("*").eq("slug", slug).single();
-
-  if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? "not found" }, { status: 404 });
-  }
-
-  return NextResponse.json(data);
+  const result = await runAgentInstanceRead(slug, createLegacyAgentInstanceReadAdapter());
+  if (result.kind === "not-found") return NextResponse.json({ error: result.message }, { status: 404 });
+  return NextResponse.json(result.data);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
