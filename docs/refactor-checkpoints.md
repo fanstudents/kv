@@ -641,6 +641,27 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, import write-owner migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AL Knowledge Base import upload compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-import-upload.contract.md`.
+- `src/modules/knowledge-base/import-upload-rules.ts` owns PDF extension and
+  12MB validation; `import-upload-application.ts` owns delegation;
+  `src/adapters/knowledge-base/legacy-import-upload-adapter.ts` keeps
+  `importPdf` (checksum, extraction, AI conversion, drafts, and source status)
+  behind the port.
+- The `/api/knowledge-base/import` POST route preserves missing-file 400,
+  non-PDF 400, over-size 413, successful import result JSON, provider errors,
+  `maxDuration`, and all import UI/data formats. Read GET, publish PUT, and
+  discard DELETE remain unchanged.
+- Checkpoint: `18bbd87`.
+- Full verification: 135 Vitest files / 449 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the upload
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, import write-owner migration,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
