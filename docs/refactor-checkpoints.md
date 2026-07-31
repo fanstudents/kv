@@ -463,6 +463,24 @@ At `cafa912` plus this documentation stage:
 - Auth/session ownership changes and production traffic evidence remain
   deferred.
 
+### WP6-AC Integration status compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/integrations-status.contract.md`.
+- `src/modules/integrations/status-ports.ts` defines the provider-neutral map
+  and read port; `status-application.ts` owns the application boundary;
+  `src/adapters/integrations/legacy-status-adapter.ts` keeps the existing
+  aggregator, Google probe, environment checks, and cache behind the port.
+- The `/api/integrations/status` route preserves the existing status keys,
+  `connected`/`detail` entries, provider fallback behavior, and JSON response;
+  Integrations, Agent, Universe, and Connection Status UI are untouched.
+- Checkpoint: `f89265d`.
+- Full verification: 108 Vitest files / 413 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the status
+  port, application, adapter, and route.
+- Provider migration and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
