@@ -88,14 +88,15 @@ Every stage must:
 | `8143732` | Contact tag boundary | Shared tag port for LINE, timeout, TV, and Meeting consumers |
 | `be5c294` | Visit LINE workflow persistence boundary | Offer, invite, and contact correction persistence port |
 | `079f17c` | Visit settings boundary | Settings port and legacy adapter for the LINE webhook |
+| `af67fc9` | Visit LINE delivery boundary | Outbound LINE reply port and legacy adapter for the Visit webhook |
 
 ## Current Verification
 
-At code checkpoint `079f17c` plus the pending documentation checkpoint for
-WP6-BL:
+At code checkpoint `af67fc9` plus the pending documentation checkpoint for
+WP6-BM:
 
 - `npm run verify:full` passed;
-- 183 Vitest files / 543 tests passed;
+- 184 Vitest files / 544 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -116,6 +117,9 @@ WP6-BL:
 - CodeGraph maps `createLegacyVisitSettingsAdapter` through the LINE webhook;
   `rg` confirms the route has no direct `getVisitAgentSettings` or Supabase
   imports;
+- CodeGraph maps `createLegacyVisitLineDeliveryAdapter` through the LINE
+  webhook; `rg` confirms the route has no direct `replyLineMessage` or
+  `replyLineRawMessages` references;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1181,6 +1185,22 @@ WP6-BL:
   there.
 - Settings repository replacement, schema migration, reconciliation, and
   production traffic evidence remain deferred.
+
+### WP6-BM Visit LINE delivery compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-delivery.contract.md`.
+- `VisitLineDeliveryPort` and
+  `src/adapters/visit/legacy-line-delivery-adapter.ts` now own the existing
+  text/raw LINE reply bindings for the primary Visit webhook. The route keeps
+  reply ordering, payloads, channel defaults, and best-effort error handling.
+- Checkpoint: `af67fc9`.
+- Full verification: 184 Vitest files / 544 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the delivery adapter to the
+  route and `rg` confirms no direct LINE reply-helper imports remain there.
+- LINE provider replacement, outbox/retry policy, schema migration,
+  reconciliation, and production traffic evidence remain deferred.
 
 ## Current Boundary
 
