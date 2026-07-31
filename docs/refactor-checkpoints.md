@@ -481,6 +481,25 @@ At `cafa912` plus this documentation stage:
   port, application, adapter, and route.
 - Provider migration and production traffic evidence remain deferred.
 
+### WP6-AD Knowledge Base read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-read.contract.md`.
+- `src/modules/knowledge-base/read-rules.ts` preserves status/source filters;
+  `read-application.ts` owns the parallel `{ docs, access }` aggregation;
+  `src/adapters/knowledge-base/legacy-read-adapter.ts` keeps
+  `listKnowledgeDocs` and `listAgentAccess` behind the port.
+- The `/api/knowledge-base` GET route preserves the response envelope,
+  recognized filters, document ordering/mapping, Agent access defaults, and
+  existing provider behavior; Knowledge Base and related UI are untouched.
+- Checkpoint: `13fe0c2`.
+- Full verification: 111 Vitest files / 417 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the read
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
