@@ -90,14 +90,15 @@ Every stage must:
 | `079f17c` | Visit settings boundary | Settings port and legacy adapter for the LINE webhook |
 | `af67fc9` | Visit LINE delivery boundary | Outbound LINE reply port and legacy adapter for the Visit webhook |
 | `5e08c96` | Subscriber touch boundary | Shared channel-aware subscriber touch port and legacy adapter |
+| `847bb97` | Visit invite approval application | Extracted cancel/send/revise orchestration behind injected ports |
 
 ## Current Verification
 
-At code checkpoint `5e08c96` plus the pending documentation checkpoint for
-WP6-BN:
+At code checkpoint `847bb97` plus the pending documentation checkpoint for
+WP6-BO:
 
 - `npm run verify:full` passed;
-- 185 Vitest files / 545 tests passed;
+- 186 Vitest files / 547 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -124,6 +125,9 @@ WP6-BN:
 - CodeGraph maps `createLegacySubscriberTouchAdapter` through the Visit LINE
   webhook and Support relay adapter; `rg` confirms direct `touchSubscriber`
   imports remain only inside the legacy adapter;
+- CodeGraph maps `createVisitLineInviteApprovalHandler` through the Visit LINE
+  webhook and text dispatcher; the route no longer contains the invite
+  approval orchestration body;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1223,6 +1227,23 @@ WP6-BN:
   adapter.
 - Subscriber repository replacement, schema migration, reconciliation,
   retry/outbox policy, and production traffic evidence remain deferred.
+
+### WP6-BO Visit LINE invite approval application — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-invite-approval-application.contract.md`.
+- `createVisitLineInviteApprovalHandler` now owns pending invite cancel/send/
+  revise branching and orchestration through injected workflow, delivery,
+  settings, provider, runtime, activity, and lock ports. The route only
+  composes dependencies and delegates from text dispatch.
+- Checkpoint: `847bb97`.
+- Full verification: 186 Vitest files / 547 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the application handler to
+  the route and confirms the old orchestration body is gone from the route.
+- Full Visit offer-flow extraction, runtime cutover/shadow/canary, provider
+  replacement, schema migration, reconciliation, and production traffic
+  evidence remain deferred.
 
 ## Current Boundary
 
