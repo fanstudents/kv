@@ -4,6 +4,11 @@ This file is the repository-local handoff ledger for the productization
 refactor. The external canonical plan remains
 `D:/_CabLate_Agents/coder/projects/kv/productization-plan.md`.
 
+> Corrective audit: `docs/refactor-effectiveness-audit-2026-07-31.md`.
+> Existing `Verified` headings must be read with the evidence level written in
+> each section; render smoke and contract tests do not imply authenticated
+> functional or production-like verification.
+
 ## Execution Rule
 
 Every stage must:
