@@ -92,14 +92,15 @@ Every stage must:
 | `5e08c96` | Subscriber touch boundary | Shared channel-aware subscriber touch port and legacy adapter |
 | `847bb97` | Visit invite approval application | Extracted cancel/send/revise orchestration behind injected ports |
 | `c82f6e6` | Visit offer application | Extracted confirm/cancel/correction orchestration behind injected ports |
+| `eb32659` | Visit LINE image application | Extracted image-to-contact/offer orchestration behind injected ports |
 
 ## Current Verification
 
-At code checkpoint `c82f6e6` plus the pending documentation checkpoint for
-WP6-BP:
+At code checkpoint `eb32659` plus the pending documentation checkpoint for
+WP6-BQ:
 
 - `npm run verify:full` passed;
-- 187 Vitest files / 549 tests passed;
+- 188 Vitest files / 553 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -133,6 +134,10 @@ WP6-BP:
   through the Visit LINE webhook, postback dispatcher, and text dispatcher;
   `rg` confirms the route has no direct pending-offer lookup, card-reply
   interpretation, calendar-slot, invite-draft, or offer-resolution calls;
+- CodeGraph maps `createVisitLineImageHandler` and its returned handler through
+  the Visit LINE webhook composition; `rg` confirms the route has no direct
+  image retrieval, card parsing, Visit runtime, or contact/offer persistence
+  calls;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1265,6 +1270,24 @@ WP6-BP:
   confirms the old offer orchestration body/direct provider calls are gone from
   the route.
 - Full Visit flow extraction, runtime cutover/shadow/canary, provider
+  replacement, schema migration, reconciliation, and production traffic
+  evidence remain deferred.
+
+### WP6-BQ Visit LINE image application — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-image-application.contract.md`.
+- `createVisitLineImageHandler` now owns image fetch/parse, runtime tracking,
+  contact/offer creation, no-Email tag handling, and LINE reply orchestration
+  through injected image, delivery, card persistence, tag, activity, lock,
+  runtime, and renderer ports. The route only composes dependencies and
+  delegates from the normalized webhook dispatcher.
+- Checkpoint: `eb32659`.
+- Full verification: 188 Vitest files / 553 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the handler to the route and
+  confirms direct image/runtime/contact/offer calls are gone from the route.
+- Remaining Visit flow extraction, runtime cutover/shadow/canary, provider
   replacement, schema migration, reconciliation, and production traffic
   evidence remain deferred.
 
