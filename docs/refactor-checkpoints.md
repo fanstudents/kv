@@ -93,14 +93,15 @@ Every stage must:
 | `847bb97` | Visit invite approval application | Extracted cancel/send/revise orchestration behind injected ports |
 | `c82f6e6` | Visit offer application | Extracted confirm/cancel/correction orchestration behind injected ports |
 | `eb32659` | Visit LINE image application | Extracted image-to-contact/offer orchestration behind injected ports |
+| `78ab088` | Visit LINE text application | Extracted approval/offer routing and generic fallback behind injected ports |
 
 ## Current Verification
 
-At code checkpoint `eb32659` plus the pending documentation checkpoint for
-WP6-BQ:
+At code checkpoint `78ab088` plus the pending documentation checkpoint for
+WP6-BR:
 
 - `npm run verify:full` passed;
-- 188 Vitest files / 553 tests passed;
+- 189 Vitest files / 558 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -138,6 +139,9 @@ WP6-BQ:
   the Visit LINE webhook composition; `rg` confirms the route has no direct
   image retrieval, card parsing, Visit runtime, or contact/offer persistence
   calls;
+- CodeGraph maps `createVisitLineTextHandler` and its returned handler through
+  the Visit LINE webhook composition; `rg` confirms the route has no generic
+  fallback reply or fallback activity orchestration;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1290,6 +1294,23 @@ WP6-BQ:
 - Remaining Visit flow extraction, runtime cutover/shadow/canary, provider
   replacement, schema migration, reconciliation, and production traffic
   evidence remain deferred.
+
+### WP6-BR Visit LINE text application — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-text-application.contract.md`.
+- `createVisitLineTextHandler` now owns the pending invite-first, offer-second,
+  and generic fallback text dispatch through injected handlers, delivery, and
+  activity ports. The route only composes dependencies and delegates from the
+  normalized webhook dispatcher.
+- Checkpoint: `78ab088`.
+- Full verification: 189 Vitest files / 558 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the handler to the route and
+  confirms fallback reply/activity orchestration is gone from the route.
+- Remaining Visit postback/tag extraction, full flow cutover,
+  runtime shadow/canary, provider replacement, schema migration,
+  reconciliation, and production traffic evidence remain deferred.
 
 ## Current Boundary
 
