@@ -444,6 +444,25 @@ At `cafa912` plus this documentation stage:
   rules, port, application, adapter, and route.
 - Auth provider migration and production traffic evidence remain deferred.
 
+### WP6-AB Auth logout compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/auth-logout.contract.md`.
+- `src/modules/auth/logout-rules.ts` owns the provider-neutral cookie-expiration
+  policy; `logout-application.ts` returns the policy to the route without
+  introducing an empty provider adapter.
+- The `/api/auth/logout` route preserves `{ ok: true }`, the empty
+  `kv_session` value, `maxAge: 0`, `httpOnly`, `sameSite: "lax"`, `/` path,
+  and environment-sensitive `secure`; login UI, middleware, token format, and
+  data behavior are untouched.
+- Checkpoint: `08dd6ee`.
+- Full verification: 106 Vitest files / 411 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the logout
+  rules, application, and route.
+- Auth/session ownership changes and production traffic evidence remain
+  deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
