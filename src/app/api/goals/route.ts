@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteGoal, listGoals, resetGoalsToDefault } from "@/lib/agent-goals-server";
+import { deleteGoal, resetGoalsToDefault } from "@/lib/agent-goals-server";
 import { GOAL_METRICS } from "@/lib/agent-goals";
 import { AGENTS } from "@/lib/agent-data";
 import { createLegacyGoalUpdateAdapter } from "@/adapters/goals/legacy-update-adapter";
+import { createLegacyGoalsReadAdapter } from "@/adapters/goals/legacy-read-adapter";
 import { runGoalUpdate } from "@/modules/goals/update-application";
+import { runGoalsRead } from "@/modules/goals/read-application";
 import { parseGoalUpdateRequest } from "@/modules/goals/update-rules";
 
 export async function GET() {
-  return NextResponse.json({ goals: await listGoals() });
+  const result = await runGoalsRead(createLegacyGoalsReadAdapter());
+  return NextResponse.json({ goals: result.data });
 }
 
 /** 新增或更新一筆目標（同一個 id 就是更新） */
