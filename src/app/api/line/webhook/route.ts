@@ -5,12 +5,12 @@ import {
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import {
-  classifyVisitApprovalText,
   classifyVisitDecisionText,
   parseVisitLineWebhookPayload,
   type LineInboundEvent,
 } from "@/modules/visit/line-inbound";
 import { dispatchVisitLineWebhookEvents } from "@/modules/visit/line-webhook-application";
+import { createVisitLineInviteApprovalHandler } from "@/modules/visit/line-invite-approval-application";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
@@ -27,7 +27,6 @@ import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime
 const {
   draftInviteEmail,
   interpretCardReply,
-  reviseInviteEmail,
   findFreeSlots,
   sendEmail,
 } = legacyVisitProviders;
@@ -41,6 +40,16 @@ const contactTagPort = createLegacyContactTagAdapter();
 const lineWorkflowPersistencePort = createLegacyVisitLineWorkflowAdapter();
 const visitSettingsPort = createLegacyVisitSettingsAdapter();
 const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
+const handleInviteApprovalReply = createVisitLineInviteApprovalHandler({
+  workflow: lineWorkflowPersistencePort,
+  delivery: lineDeliveryPort,
+  providers: { reviseInviteEmail: legacyVisitProviders.reviseInviteEmail, sendEmail },
+  settings: visitSettingsPort,
+  runtime: { reportVisitStep, saveVisitArtifact, endVisitRun },
+  activity: lineActivityPort,
+  lock: conversationLockPort,
+  renderInviteEmail: buildInviteEmailHtml,
+});
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
@@ -438,114 +447,6 @@ async function handleVisitOfferReply(
 }
 
 /** 使用者針對「已產生但尚未寄出的邀約信草稿」的回覆：寄出 / 取消 / 要求修改。 */
-async function handleInviteApprovalReply(event: LineEvent, userId: string, text: string, baseUrl: string): Promise<boolean> {
-  if (!event.replyToken) return false;
-
-  const invite = await lineWorkflowPersistencePort.findPendingApprovalInvite(userId);
-
-  if (!invite) return false;
-
-  const contact = invite.contact;
-  if (!contact) return false;
-
-  const approvalIntent = classifyVisitApprovalText(text);
-
-  if (approvalIntent.type === "cancel") {
-    await lineWorkflowPersistencePort.updateInviteStatus(invite.id, "cancelled");
-    await lineDeliveryPort.replyText(event.replyToken, "好的，已取消，不會寄出這封信。");
-    await conversationLockPort.release(userId, VISIT_AGENT);
-    return true;
-  }
-
-  if (approvalIntent.type === "send") {
-    try {
-      const html = buildInviteEmailHtml({
-        introText: invite.body,
-        senderName: (await visitSettingsPort.get()).senderName,
-        slot1Label: invite.slot1,
-        slot2Label: invite.slot2,
-        respondUrl1: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=1`,
-        respondUrl2: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=2`,
-        respondUrlBoth: `${baseUrl}/api/agents/visit/respond?invite=${invite.id}&choice=both`,
-      });
-      await reportVisitStep({
-        userId,
-        nodeId: "draft",
-        step: 3,
-        status: "active",
-        caption: `寄出邀約信給 ${contact.name}…`,
-      });
-      await sendEmail({ to: contact.email, subject: invite.subject, body: html, html: true });
-      await lineWorkflowPersistencePort.updateInviteStatus(invite.id, "pending");
-      await saveVisitArtifact({
-        userId,
-        title: `邀約信：${contact.name}`,
-        content: html,
-        meta: { to: contact.email, slots: [invite.slot1, invite.slot2] },
-      });
-      await reportVisitStep({
-        userId,
-        nodeId: "sent",
-        step: 4,
-        status: "done",
-        caption: `已寄出邀約信給 ${contact.name}`,
-        detail: `寄至 ${contact.email}`,
-      });
-      await endVisitRun({ userId, status: "success", summary: `已寄出邀約信給 ${contact.name}` });
-      await lineDeliveryPort.replyText(
-        event.replyToken,
-        `已寄出邀約信給 ${contact.name}，提議 ${invite.slot1} 或 ${invite.slot2}，等對方選好時段後我會通知您。`
-      );
-      await lineActivityPort.record({
-        agent_slug: "visit",
-        summary: `使用者核准後已寄出邀約信給 ${contact.name}（${contact.email}），等待對方選擇時段`,
-        status: "pending",
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "寄信失敗";
-      await lineWorkflowPersistencePort.updateInviteStatus(invite.id, "failed");
-      await lineActivityPort.record({
-        agent_slug: "visit",
-        summary: `核准後寄信失敗：${message}`,
-        status: "failed",
-      });
-      await lineDeliveryPort.replyText(event.replyToken, "抱歉，寄信時遇到問題，請手動與對方聯繫安排時間。").catch(() => {});
-    }
-    await conversationLockPort.release(userId, VISIT_AGENT);
-    return true;
-  }
-
-  // 其餘文字一律視為修改要求，重新產出草稿再請使用者過目一次。
-  try {
-    const settings = await visitSettingsPort.get();
-    const revised = await reviseInviteEmail({
-      contactName: contact.name,
-      contactTitle: contact.title,
-      company: contact.company,
-      meetingType: settings.meetingType,
-      senderName: settings.senderName,
-      previousSubject: invite.subject,
-      previousBody: invite.body,
-      instruction: text,
-    });
-    await lineWorkflowPersistencePort.updateInviteDraft(invite.id, revised.subject, revised.body);
-    await lineDeliveryPort.replyText(
-      event.replyToken,
-      `已依您的要求調整 ✏️\n\n主旨：${revised.subject}\n內文：\n${revised.body}\n\n提議時段：${invite.slot1} 或 ${invite.slot2}\n\n這樣可以的話請回覆「寄出」，還要調整請繼續告訴我，不寄了請回覆「取消」。`
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "修改邀約信失敗";
-    await lineActivityPort.record({
-      agent_slug: "visit",
-      summary: `依使用者要求修改邀約信失敗：${message}`,
-      status: "failed",
-    });
-    await lineDeliveryPort.replyText(event.replyToken, "抱歉，剛剛調整內容時遇到問題，可以再說一次要怎麼修改嗎？").catch(() => {});
-  }
-
-  return true;
-}
-
 async function handleTextMessage(event: LineEvent, userId: string, baseUrl: string) {
   if (!event.replyToken) return;
 
