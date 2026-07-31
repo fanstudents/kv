@@ -10,9 +10,9 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/contact-research", () => ({ listContactProfiles, researchContact }));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 
-import { createLegacyVisitResearchAdapter } from "@/adapters/visit/legacy-research-adapter";
+import { createLegacyVisitResearchSource } from "@/adapters/visit/legacy-research-source";
 
-describe("legacy Visit research adapter", () => {
+describe("legacy Visit research source", () => {
   it("keeps the contacts projection and delegates research/profile reads", async () => {
     const query = {
       select: vi.fn(),
@@ -24,7 +24,7 @@ describe("legacy Visit research adapter", () => {
     getSupabase.mockReturnValue({ from: vi.fn(() => query) });
     researchContact.mockResolvedValue("profile-1");
     listContactProfiles.mockResolvedValue([{ id: "profile-1" }]);
-    const adapter = createLegacyVisitResearchAdapter();
+    const adapter = createLegacyVisitResearchSource();
 
     await expect(adapter.findContact("c1")).resolves.toEqual({ name: "Dennis", company: "TBR", title: "CEO", email: "d@example.test" });
     await expect(adapter.research({ contactId: "c1", name: "Dennis", company: "TBR", title: "CEO", email: "d@example.test" })).resolves.toBe("profile-1");

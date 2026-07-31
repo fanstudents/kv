@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 448 files／3,666 nodes／7,704 edges |
+| Last verified | 2026-07-31；CodeGraph index 446 files／3,660 nodes／7,698 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -532,6 +532,32 @@ Then the existing report artifact is retried without creating a second scheduled
 - production boundary 從 5 個 LINE port files、1 個 dispatch application、4 個 thin legacy adapter 收斂為 `line-contracts.ts`、`line-inbound.ts`、`legacy-line-adapters.ts` 三個具名 owner；總計淨刪 8 個 production files。image／text／offer／invite／postback／timeout 的 handler 保留，因為它們各自有可觀察的 side-effect ordering，不是假 forwarding layer。
 - CodeGraph sync 後全 repo 為 448 files／3,666 nodes／7,704 edges；舊 port／application／adapter import 為零。`dispatchVisitLineWebhookEvents` 仍只有 `/api/line/webhook` 的 `POST` caller；`runVisitTimeoutApplication` 仍只有 `/api/cron/visit-timeout` 的 `GET` caller。
 - `npm test` 106 files／521 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。這證明 static/fixture contract 與 build continuity；真實 LINE、Supabase、provider 與 authenticated browser journey 仍受 U-01/U-02/U-04 限制，列為下一次集中驗收。
+
+#### 進場清理 — Visit research capability
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；這是既有 authenticated research API 的 internal owner consolidation，不是研究功能、資料模型或 provider 行為變更。Chrome cross-batch authenticated evidence 仍待集中驗收。
+
+**Behavior contract (`behavior-contract/v1`, `visit.research.capability`)**
+
+- Scope：`GET/POST /api/agents/visit/research`、`ContactResearchPanel`，以及 contact lookup、research provider、ten-profile projection 的既有 orchestration。
+- Non-goals：不改 route URL/method/status/payload、request normalization、`contacts` query、research provider、profile list ordering/limit、activity/runtime、UI/UX 或 schema。
+- Entrypoints／consumers：GET/POST 各是 parser/use-case 的唯一 production caller；browser consumer 維持呼叫同一 API；真正的 Supabase + research-provider translation 保留為 named source。
+- Invariants：contactId 指定時 DB row 仍覆寫 typed name/company/title/email；空 name 仍 400；research null/failure 仍 502；success 仍回 `id` 加 ten-profile projection；GET 仍只回 `{ profiles }`。
+- Acceptance examples：`{ contactId:"c1", name:"typed" }` 仍以 contact row 的 name 研究；缺 name 不呼叫 provider；provider failure 不回 partial success；任一 route payload/status 不變。
+- Test mapping：research parser/use-case/source tests、route contract、full test/typecheck/lint/build；Chrome 留至跨批次 authenticated UI 驗收。
+- Intentional changes：只把 singleton rules/port/application 收斂成 capability，adapter 改名為具體 legacy data source；沒有行為改動。
+- Open questions：沒有 real Supabase/provider fixture 時，contract test 不等於 production-like provider acceptance。
+
+- [x] 收斂 request parser、research use case 與 source contract 為 `research.ts`。
+- [x] 將實際 Supabase + provider translation 改名為 `legacy-research-source.ts`，不保留假 forwarding adapter。
+- [x] 完成 CodeGraph caller/import map 與 full automated verification。
+- [ ] 下一次跨批次集中驗證 authenticated `ContactResearchPanel` loading/empty/success/failure UI；不送出實際 research provider side effect。
+
+**Evidence（2026-07-31）：**
+
+- `research-rules.ts`、`research-ports.ts`、`research-application.ts` 收斂為 `research.ts`；真正的 Supabase contact lookup + `contact-research` provider translation 保留為 one named source。production files 淨少 2 個，沒有把 query 或 provider call 塞回 route。
+- CodeGraph sync 後全 repo 為 446 files／3,660 nodes／7,698 edges；舊 research rules/port/application/adapter import 為零。GET/POST 維持唯一 callers：POST 呼叫 `runVisitResearch`，GET 呼叫 `runVisitResearchRead`，兩者皆仍使用同一 legacy research source。
+- `npm test` 106 files／521 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。此為 fixture/static contract evidence；真實 Supabase/OpenAI-like provider 與 authenticated UI interaction 仍延至 cross-batch acceptance。
 
 ### WP-05 — Visit LINE text vertical slice
 

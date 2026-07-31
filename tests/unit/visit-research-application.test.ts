@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { runVisitResearch, runVisitResearchRead } from "@/modules/visit/research-application";
-import type { VisitResearchPort } from "@/modules/visit/research-ports";
+import {
+  runVisitResearch,
+  runVisitResearchRead,
+  type VisitResearchSource,
+} from "@/modules/visit/research";
 
-function fakePort(overrides?: Partial<VisitResearchPort>) {
+function fakePort(overrides?: Partial<VisitResearchSource>) {
   const calls: string[] = [];
-  const port: VisitResearchPort = {
+  const port: VisitResearchSource = {
     async findContact(id) {
       calls.push(`find:${id}`);
       return { name: "DB Name", company: "DB Co", title: "CEO", email: "db@example.test" };

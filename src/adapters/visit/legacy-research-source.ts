@@ -1,9 +1,9 @@
 import "server-only";
 import { listContactProfiles, researchContact } from "@/lib/contact-research";
 import { getSupabase } from "@/lib/supabase";
-import type { VisitResearchPort } from "@/modules/visit/research-ports";
+import type { VisitResearchSource } from "@/modules/visit/research";
 
-export function createLegacyVisitResearchAdapter(): VisitResearchPort {
+export function createLegacyVisitResearchSource(): VisitResearchSource {
   let supabase: ReturnType<typeof getSupabase> | null = null;
   const getClient = () => {
     if (!supabase) supabase = getSupabase();

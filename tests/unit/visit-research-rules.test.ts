@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseVisitResearchRequest } from "@/modules/visit/research-rules";
+import { parseVisitResearchRequest } from "@/modules/visit/research";
 
 describe("parseVisitResearchRequest", () => {
   it("keeps contactId/name/company normalization and null defaults", () => {
