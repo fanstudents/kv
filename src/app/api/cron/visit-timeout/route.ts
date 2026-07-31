@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { pushLineMessage } from "@/lib/line";
 import { toLegacyVisitOfferResolution } from "@/modules/visit/legacy-schema";
-import { addContactTag } from "@/lib/contact-tags";
 import { setLiveTask } from "@/lib/live-task-store";
 import { parseCronAuth } from "@/modules/cron/auth-rules";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
+import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
 
 const conversationLockPort = createLegacyConversationLockAdapter();
+const contactTagPort = createLegacyContactTagAdapter();
 
 // 約拜訪逾時自動判斷：名片辨識後 3 分鐘還沒回「要／不要」→ 依設定「一律先略過」，
 // 標記客戶「待跟進」存起來、通知使用者，不自動寄邀約。
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
       .update(toLegacyVisitOfferResolution("timed_out", new Date().toISOString()))
       .eq("id", offer.id);
 
-    if (offer.contact_id) await addContactTag(supabase, offer.contact_id, "待跟進");
+    if (offer.contact_id) await contactTagPort.add(offer.contact_id, "待跟進");
 
     await supabase.from("line_agent_activity").insert({
       agent_slug: "visit",

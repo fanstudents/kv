@@ -5,9 +5,11 @@ import { getSearchOverview } from "@/lib/gsc";
 import { getTrafficOverview } from "@/lib/ga4";
 import { getOrderRevenueSummary } from "@/lib/teachify-order-stats";
 import { getPipelineOverview } from "@/lib/teaching-system";
-import { getAvailableTags } from "@/lib/contact-tags";
 import { knowledgeContext } from "@/lib/knowledge-base";
 import { AGENTS } from "@/lib/agent-data";
+import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
+
+const contactTagPort = createLegacyContactTagAdapter();
 
 // 會議室 Agent 人設的「真實資料」補丁：之前只餵了職稱／職掌的靜態說明，
 // Agent 自然答不出任何具體記錄（哪怕那筆資料明明存在 Supabase／Google 裡）。
@@ -67,7 +69,7 @@ async function visitContext(): Promise<string> {
   }
 
   try {
-    const tags = await getAvailableTags(supabase);
+    const tags = await contactTagPort.list();
     if (tags.length) parts.push(`目前可用的客戶標籤：${tags.join("、")}`);
   } catch {
     /* 標籤取不到不影響其他部分 */

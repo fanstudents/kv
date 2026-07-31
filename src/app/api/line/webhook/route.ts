@@ -4,7 +4,6 @@ import {
   replyLineMessage,
   replyLineRawMessages,
 } from "@/lib/line";
-import { getAvailableTags, addContactTag } from "@/lib/contact-tags";
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
@@ -29,6 +28,7 @@ import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
+import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
 import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
 
 const {
@@ -42,6 +42,7 @@ const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 const lineActivityPort = createLegacyVisitLineActivityAdapter();
 const conversationLockPort = createLegacyConversationLockAdapter();
+const contactTagPort = createLegacyContactTagAdapter();
 const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
 
 export async function GET() {
@@ -72,7 +73,6 @@ function formatCardReply(contact: VisitBusinessCard): string {
 }
 
 async function handleImageMessage(event: LineEvent, userId: string) {
-  const supabase = getSupabase();
   const messageId = event.message?.id;
   const replyToken = event.replyToken;
   if (!messageId || !replyToken) return;
@@ -154,7 +154,7 @@ async function handleImageMessage(event: LineEvent, userId: string) {
 
   if (!contact.email) {
     // 沒 Email → 不安排邀約，但仍可幫你標籤分類
-    const availableTags = await getAvailableTags(supabase);
+    const availableTags = await contactTagPort.list();
     const noEmailMsgs: unknown[] = [
       { type: "text", text: `${replyTexts[0]}\n\n這張名片沒有 Email，暫時無法自動安排拜訪邀約，需要的話可以手動聯繫對方。` },
     ];
@@ -182,7 +182,6 @@ async function handleImageMessage(event: LineEvent, userId: string) {
 
 /** 使用者點了 Flex 卡片按鈕或標籤選單（postback）。 */
 async function handlePostback(event: LineEvent, userId: string, baseUrl: string) {
-  const supabase = getSupabase();
   if (!event.replyToken) return;
   const params = new URLSearchParams(event.postback?.data ?? "");
   const action = params.get("action");
@@ -199,7 +198,7 @@ async function handlePostback(event: LineEvent, userId: string, baseUrl: string)
     const contactId = params.get("contact");
     const value = params.get("value");
     if (contactId && value) {
-      const tags = await addContactTag(supabase, contactId, value);
+      const tags = await contactTagPort.add(contactId, value);
       await replyLineMessage(
         event.replyToken,
         `已標上「${value}」✅${tags.length ? `\n目前標籤：${tags.join("、")}` : ""}`
@@ -281,7 +280,7 @@ async function handleVisitOfferReply(
     // 「要／不要」與「標籤選單」是一次跳出的兩張卡，使用者點了不要之後
     // 標籤選單（quickReply）會跟著這則回覆消失，所以在這裡接續再帶一次，
     // 讓使用者仍可順手替這位客戶分類。
-    const availableTags = await getAvailableTags(supabase);
+    const availableTags = await contactTagPort.list();
     await replyLineRawMessages(event.replyToken, [
       { type: "text", text: "好的，這次先不安排，需要的話再傳名片給我一次即可。" },
       buildTagQuickReply({ contactId: contact.id, tags: availableTags }),
