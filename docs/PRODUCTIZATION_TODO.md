@@ -541,12 +541,32 @@ Then the existing report artifact is retried without creating a second scheduled
 
 **Goals:** G-02～G-04
 
-- [ ] 將 start/command/realtime/log/recording/speak/transcribe/finish 收斂成 Meeting session use cases。
-- [ ] storage、OpenAI realtime、audio/transcription 分成 provider adapters。
+**Status（2026-07-31）：** in progress。此包只做 domain-level ownership consolidation；不改 meetings／meeting_turns／Storage schema、不觸發真實會議或 provider side effect。session lifecycle（start／finish／turn log／recording）已完成收斂；conversation、realtime、audio 尚未切入。
+
+**Behavior contract (`behavior-contract/v1`, `meeting.capabilities`)**
+
+- Scope：`/meeting` 與 `/api/meeting/{start,command,realtime-session,log-turn,recording,speak,transcribe,finish,log-usage}`；`meetings`、`meeting_turns`、private `meeting-recordings` bucket；OpenAI command/realtime/TTS/transcription；AI usage log。
+- Non-goals：不改 UI/UX、route URL/method/status/payload、資料表／bucket、Agent roster、voice/提示詞、錄音格式或 provider 選型。
+- Entrypoints／consumers：Meeting page 會 create session、mint realtime token、逐句 log、TTS/STT、finish/upload；九個 route 都是 public compatibility façades。CodeGraph 已證明 start/finish/log/recording/audio/realtime applications 幾乎都是單 route consumer；command 是唯一多 side-effect orchestration。
+- Invariants：start 失敗仍回 500；finish 缺 id/錯 form 仍 400，錄音 upload 失敗仍 finish 並回 `recordingSaved:false`；turn log 寫入失敗不能中斷會議；recording 缺 id/無檔仍為 400/404；TTS/STT/provider failure 為 502；realtime context/history failure 保留 empty fallback；usage recorder 失敗維持既有 route throw boundary。
+- UI states：登入後 `/meeting` 的 first paint、開會按鈕、Agent roster、loading/error/permission state 與 desktop/mobile layout 不變。因無 Supabase/OpenAI credentials，本批只驗 render 與無副作用互動，不能宣稱已完成 real voice journey。
+- Acceptance：相同 request 仍得到相同 JSON/audio response；單一 turn 維持 single-row append shape，command round 維持 boss→agent(s)→teamlead append ordering；錄音 URL 繼續是 signed URL；任何被保留的 adapter 需是 Supabase Storage/repository 或 OpenAI provider translation，而非 route action alias。
+- Intentional changes：只有 module/test/adaptor owner 收斂；observable behavior 無變更。
+
+- [x] 收斂 session lifecycle：start／finish／turn log／recording 共用 `session.ts` 與一個 Supabase/Storage repository；四條 route 維持 façade。
+- [ ] 收斂 conversation command、realtime session／usage、audio speak／transcribe 成少量 capability modules。
+- [ ] 依真實替換邊界整理 storage、OpenAI realtime、audio/transcription provider adapters。
 - [ ] 統一 meeting/turn lifecycle、failure與cleanup。
 - [ ] 保持 meeting page request/response與UI state。
 
 **Verification:** start→command/voice→turn→finish、recording upload/read、provider timeout/error、authenticated visual/interaction。
+
+**Session lifecycle evidence（2026-07-31）**
+
+- CodeGraph sync 後，`startMeeting`／`finishMeetingSession`／`logMeetingTurn`／`getMeetingRecording` 各只由對應 route 呼叫；共用 repository 只由四條 session route 使用，舊 route-slice import 歸零。
+- 22 個 focused tests（session behavior、repository forwarding、route handler contract、turn/usage parsing）通過；`npm run typecheck` 與 `npm run lint` 通過。
+- 已登入 Chrome 的 `/meeting` 改前後 DOM snapshot 完全一致（804 chars）、console 無 error/warn。未點「開會」以避免建立真實 session／取得麥克風；無 Supabase／OpenAI credentials，故未宣稱 real voice or persistence journey 已驗。
+- shell 直接呼叫 API 被 middleware 回 `401`；Chrome 直接開 API URL 被 client blocker 擋下，故 API status evidence 採 route handler contract test，auth middleware lifecycle 仍以 WP-01 evidence 為準。
 
 **Rollback:** API façade 可回接 legacy function；storage/schema change 必須 additive。
 

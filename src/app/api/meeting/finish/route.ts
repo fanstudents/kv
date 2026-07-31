@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createLegacyMeetingFinishAdapter } from "@/adapters/meeting/legacy-finish-adapter";
-import { runMeetingFinish } from "@/modules/meeting/finish-application";
-import { parseMeetingFinishForm } from "@/modules/meeting/finish-rules";
+import { createMeetingSessionRepository } from "@/adapters/meeting/meeting-session-repository";
+import { finishMeetingSession, parseMeetingFinishForm } from "@/modules/meeting/session";
 
 // 結束會議：上傳整場錄音（multipart）到 Storage，並補上逐字稿、時長與統整。
 export async function POST(req: NextRequest) {
@@ -12,9 +11,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "需要 multipart/form-data" }, { status: 400 });
   }
 
-  const result = await runMeetingFinish(
+  const result = await finishMeetingSession(
     parseMeetingFinishForm(form),
-    createLegacyMeetingFinishAdapter()
+    createMeetingSessionRepository()
   );
   if (result.kind === "invalid") {
     return NextResponse.json({ error: result.message }, { status: 400 });
