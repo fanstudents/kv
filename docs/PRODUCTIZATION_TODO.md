@@ -1,7 +1,7 @@
 # KV 產品化重構執行計畫
 
 > 這是唯一的 Plan／TODO／進度表／domain migration register。
-> 現況量化證據見：[重構效能與有效性稽核](./refactor-effectiveness-audit-2026-07-31.md)。
+> 歷史 corrective audit 已整併；原始快照可由 Git commit `410083a` 與後續 commit 追溯，不保留第二份 live roadmap。
 
 ## Plan identity
 
@@ -717,6 +717,29 @@ Then the existing report artifact is retried without creating a second scheduled
 - 新 capability test 7 cases 固定 missing link、pending claim、lost claim refetch、duplicate POST、success side-effect order / exact background-research payload、calendar failure，以及 synchronous scheduler failure 仍進入原有 failed activity/fallback boundary；既有 public-response 與 legacy source adapter tests 留存。
 - 完整自動驗證通過：96 test files／474 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。此為 mock/static contract；沒有觸發真實 Calendar、Email、LINE、Supabase 或 public browser flow，仍待 U-04 和跨批次驗收。
 
+#### 進場清理 — Visit runtime direct composition
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；移除僅將四個既有 `visit-run` 函式重新包成物件的 single-composition adapter，不改 runtime contract 或 LINE webhook 的 event routing。
+
+**Behavior contract (`behavior-contract/v1`, `visit.runtime.direct-composition`)**
+
+- Scope／entrypoint：`POST /api/line/webhook` 的 module composition；image、offer、invite-approval handler 仍取得同一組 `startVisitRun`、`reportVisitStep`、`endVisitRun`、`saveVisitArtifact` implementation。
+- Non-goals：不改 webhook URL/method/payload/signature、任何 handler dependency shape、`agent_runs`／`agent_run_steps`／`agent_artifacts`／`agent_live_task` 寫入、side-effect order、UI/UX、schema 或 provider。
+- Inputs／outputs／side effects：LINE event 與 handler inputs/output 不變；runtime function 呼叫仍由各既有 handler 在原本條件與順序觸發。
+- Invariants：`VisitRuntimePort` 仍是 handler 的 typed dependency contract；composition root 只綁定原本四個 `visit-run` export，不另建第二個 runtime owner，也不把 runtime logic 移入 route。
+- Acceptance／test mapping：`visit-line-image`、`visit-line-offer`、`visit-line-invite-approval` application tests 覆蓋 injected runtime calls；route/import audit、typecheck/lint/build/full test 驗證 composition。真實 LINE/Supabase/UI acceptance 仍留在跨批次驗收。
+- Intentional change：只刪除 pass-through adapter 與其 forwarding-only test；沒有產品行為差異。Open question：canonical runtime transaction/outbox 仍受 U-01/U-02 阻擋。
+
+- [x] 直接由 composition root 綁定既有 `visit-run` exports。
+- [x] 移除 `legacy-runtime-adapter` 與 forwarding-only test，保留 typed handler contract。
+
+**Evidence（2026-07-31）：**
+
+- CodeGraph sync 後為 402 files／3,408 nodes／7,071 edges；`startVisitRun`、`reportVisitStep`、`saveVisitArtifact`、`endVisitRun` 的 live consumers 仍只落在原本的 image／offer／invite-approval handlers，沒有新增 route business logic owner。
+- production/test import 搜尋確認 `legacy-runtime-adapter`、factory 與 forwarding-only test 均為零；`VisitRuntimePort` 仍由三個 handler dependency contract 使用。
+- 同一驗證批通過：95 test files／473 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。此批未執行真實 LINE、Supabase、provider 或 Chrome functional journey；它們仍在跨批次最終驗收。
+- `docs/` 現在只保留本 canonical TODO；稽核的穩定規則與 evidence levels 已在本文件，歷史快照由 Git 追溯。
+
 ### WP-05 — Visit LINE text vertical slice
 
 **Goals:** G-02、G-03、G-05、G-06
@@ -1111,7 +1134,7 @@ Then the existing report artifact is retried without creating a second scheduled
 - [ ] CodeGraph確認legacy traffic/caller歸零。
 - [ ] 刪除shim、flag、shadow writer、dead schema/code/tests/dependency。
 - [ ] 跑 full verification與schema rehearsal。
-- [ ] 更新audit成final evidence，將本計畫標Complete。
+- [ ] 更新本文件的 final evidence，將本計畫標Complete。
 
 **Done when:** cleanup gate全通過，沒有永久transition artifact，release/rollback可由另一位工程師執行。
 
@@ -1210,7 +1233,7 @@ Runtime 方向已由 D-08 決定；目前仍缺兩項 material evidence：
 ## 13. Documentation policy
 
 - 本文件是唯一 plan、TODO、進度與 migration register。
-- audit 只保存量化證據，不另建第二份 roadmap。
+- 短期 audit／實驗證據附入對應 work package；歷史快照以 Git commit 追溯，不另建第二份 roadmap。
 - 行為 contract 寫在 tests；live symbol mapping 由 CodeGraph產生。
 - 不建立 route-level Markdown、micro-checkpoint、每日流水帳或平行計畫。
 - repo內過去 contracts/checkpoints 可由 Git歷史追溯；外部未版控舊plan已無原文，因此本文件以目前repo evidence重新建模，不宣稱逐字復原。

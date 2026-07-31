@@ -39,6 +39,5 @@ npm run verify:full
 ## 重構文件
 
 - [產品化重構 TODO](./docs/PRODUCTIZATION_TODO.md)：唯一執行計畫、進度表與 domain-level source map。
-- [重構效能與有效性稽核](./docs/refactor-effectiveness-audit-2026-07-31.md)：現況數據、證據強度與問題判斷。
 
 不要新增逐 route contract、micro-checkpoint 或平行計畫。行為契約放在 tests，symbol/consumer 影響以 CodeGraph 即時查詢。

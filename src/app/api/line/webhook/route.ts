@@ -8,6 +8,7 @@ import {
   dispatchVisitLineWebhookEvents,
   parseVisitLineWebhookPayload,
 } from "@/modules/visit/line-inbound";
+import { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } from "@/lib/visit-run";
 import { createVisitLineImageHandler } from "@/modules/visit/line-image-application";
 import { createVisitLineInviteApprovalHandler } from "@/modules/visit/line-invite-approval-application";
 import { createVisitLineOfferReplyHandler } from "@/modules/visit/line-offer-application";
@@ -26,7 +27,6 @@ import { createLegacyConversationLockAdapter } from "@/adapters/conversation/leg
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
 import { createLegacyVisitSettingsAdapter } from "@/adapters/visit/legacy-settings-adapter";
-import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
 
 const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineDeliveryPort = createLegacyVisitLineDeliveryAdapter();
@@ -37,7 +37,6 @@ const conversationLockPort = createLegacyConversationLockAdapter();
 const contactTagPort = supabaseOperationsRepository;
 const lineWorkflowPersistencePort = createLegacyVisitLineWorkflowAdapter();
 const visitSettingsPort = createLegacyVisitSettingsAdapter();
-const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
 const handleInviteApprovalReply = createVisitLineInviteApprovalHandler({
   workflow: lineWorkflowPersistencePort,
   delivery: lineDeliveryPort,
