@@ -742,6 +742,27 @@ At `cafa912` plus this documentation stage:
 - Agent schema evolution, instance write-owner migration, registry cutover,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AQ Agent instance update compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/agent-instance-update.contract.md`.
+- `src/modules/agents/agent-instance-update-rules.ts` owns `updated_at`,
+  enabled/settings filtering; `agent-instance-update-application.ts` owns
+  update result mapping and ordered activity side effects;
+  `src/adapters/agents/legacy-agent-instance-update-adapter.ts` keeps the
+  `line_agents` update and `line_agent_activity` inserts behind the port.
+- The `/api/agents/[slug]` PATCH route preserves exact slug filtering,
+  timestamp/field filtering, failure 400, success activity vocabulary/order,
+  returned row, and all Agent UI/data formats. GET remains on the prior
+  compatibility boundary.
+- Checkpoint: `ba40184`.
+- Full verification: 149 Vitest files / 475 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the update
+  rules, port, application, adapter, and route.
+- Agent schema evolution, instance write-owner migration, registry cutover,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
