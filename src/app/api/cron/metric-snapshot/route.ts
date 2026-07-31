@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GOAL_METRICS } from "@/lib/agent-goals";
 import { snapshotMetric } from "@/lib/agent-memory";
+import { parseCronAuth } from "@/modules/cron/auth-rules";
 
 // 每日指標快照：把每個目標指標當天的值寫進 metric_snapshots。
 //
@@ -12,13 +13,8 @@ import { snapshotMetric } from "@/lib/agent-memory";
 export const maxDuration = 120;
 
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "server misconfigured: CRON_SECRET not set" }, { status: 503 });
-  }
-  if (req.headers.get("x-cron-key") !== secret) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = parseCronAuth(process.env.CRON_SECRET, req.headers.get("x-cron-key"));
+  if (auth.kind !== "authorized") return NextResponse.json({ error: auth.message }, { status: auth.status });
 
   let written = 0;
   for (const metric of GOAL_METRICS) {

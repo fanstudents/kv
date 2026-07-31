@@ -5,6 +5,7 @@ import { releaseLock } from "@/lib/conversation-lock";
 import { toLegacyVisitOfferResolution } from "@/modules/visit/legacy-schema";
 import { addContactTag } from "@/lib/contact-tags";
 import { setLiveTask } from "@/lib/live-task-store";
+import { parseCronAuth } from "@/modules/cron/auth-rules";
 
 // 約拜訪逾時自動判斷：名片辨識後 3 分鐘還沒回「要／不要」→ 依設定「一律先略過」，
 // 標記客戶「待跟進」存起來、通知使用者，不自動寄邀約。
@@ -12,13 +13,8 @@ import { setLiveTask } from "@/lib/live-task-store";
 export async function GET(req: NextRequest) {
   // 一律要求密鑰（fail-closed）：以前是「有設定才驗證」，等於哪個環境漏設 CRON_SECRET，
   // 這支端點就對全世界開放——而它會觸發推播、爬蟲、燒 API 額度。
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "server misconfigured: CRON_SECRET not set" }, { status: 503 });
-  }
-  if (req.headers.get("x-cron-key") !== secret) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = parseCronAuth(process.env.CRON_SECRET, req.headers.get("x-cron-key"));
+  if (auth.kind !== "authorized") return NextResponse.json({ error: auth.message }, { status: auth.status });
 
   const supabase = getSupabase();
   const now = Date.now();
