@@ -894,6 +894,25 @@ At `cafa912` plus this documentation stage:
 - Contact-profile schema/provider evolution, reconciliation, activity
   write-owner migration, and production traffic evidence remain deferred.
 
+### WP6-AX Cron authentication compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/cron-auth.contract.md`.
+- `src/modules/cron/auth-rules.ts` now owns the pure `CRON_SECRET` /
+  `x-cron-key` decision; support daily report, team-lead report, metric
+  snapshot, and Visit timeout routes use it directly. The knowledge-base
+  recheck module keeps its compatibility-named wrapper.
+- The five cron entrypoints preserve the exact configured-secret match,
+  missing-secret 503, missing/mismatched-key 401, error messages, authorized
+  workflows, provider/data side effects, and all existing UI/data formats.
+- Checkpoint: `50c1b2f`.
+- Full verification: 168 Vitest files / 516 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the shared
+  rule to the four routes and the KB compatibility wrapper.
+- Secret rotation, scheduling infrastructure, provider changes, schema
+  evolution, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
