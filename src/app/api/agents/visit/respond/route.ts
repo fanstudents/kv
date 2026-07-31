@@ -1,22 +1,12 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
-import { researchContact } from "@/lib/contact-research";
-import { pushLineMessage } from "@/lib/line";
 import { buildThankYouEmailHtml, escapeHtml } from "@/lib/email-templates";
-import { getVisitAgentSettings } from "@/lib/visit-settings";
-import {
-  toLegacyPendingInviteFulfilmentPatch,
-  toLegacyPendingInviteStatusPatch,
-} from "@/modules/visit/legacy-schema";
 import {
   normalizeVisitLocation,
   parseVisitInviteChoice,
   selectVisitInviteSlot,
 } from "@/modules/visit/public-response";
-import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitRespondReadAdapter } from "@/adapters/visit/legacy-respond-read-adapter";
-
-const { createCalendarEvent, sendEmail } = legacyVisitProviders;
+import { createLegacyVisitRespondFulfilmentAdapter } from "@/adapters/visit/legacy-respond-fulfilment-adapter";
 
 type ContactInfo = { name?: string; title?: string; email?: string; company?: string } | null;
 
@@ -122,8 +112,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const inviteId = req.nextUrl.searchParams.get("invite");
-  const supabase = getSupabase();
   const readPort = createLegacyVisitRespondReadAdapter();
+  const fulfilmentPort = createLegacyVisitRespondFulfilmentAdapter();
 
   if (!inviteId) {
     return page("連結無效", "這個邀約連結不完整，請直接聯繫對方確認時間。", "error");
@@ -148,8 +138,8 @@ export async function POST(req: NextRequest) {
   const { label: chosenLabel, startISO, endISO } = selectVisitInviteSlot(row);
 
   try {
-    const settings = await getVisitAgentSettings(supabase);
-    const eventId = await createCalendarEvent({
+    const settings = await fulfilmentPort.getSettings();
+    const eventId = await fulfilmentPort.createCalendarEvent({
       summary: `${settings.senderName} 拜訪 ${contactName}${contact?.company ? `（${contact.company}）` : ""}`,
       description: `由 ${settings.senderName} 透過約拜訪 Agent 安排的${settings.meetingType}，對象：${contactName}${
         contact?.company ? ` / ${contact.company}` : ""
@@ -160,12 +150,9 @@ export async function POST(req: NextRequest) {
       attendeeEmail: row.to_email,
     });
 
-    await supabase
-      .from("pending_invites")
-      .update(toLegacyPendingInviteFulfilmentPatch(eventId, location))
-      .eq("id", inviteId);
+    await fulfilmentPort.updateInviteFulfilled(inviteId, eventId, location);
 
-    await sendEmail({
+    await fulfilmentPort.sendThankYouEmail({
       to: row.to_email,
       subject: `已確認見面時間：${chosenLabel}`,
       body: buildThankYouEmailHtml({
@@ -177,12 +164,12 @@ export async function POST(req: NextRequest) {
       html: true,
     });
 
-    await pushLineMessage(
+    await fulfilmentPort.pushLineMessage(
       row.line_user_id,
       `🎉 ${contactName}已選擇 ${chosenLabel}${location ? `，地點：${location}` : ""}，已自動建立行事曆邀請並寄出感謝信給對方。`
     ).catch(() => {});
 
-    await supabase.from("line_agent_activity").insert({
+    await fulfilmentPort.recordActivity({
       agent_slug: "visit",
       summary: `${contactName} 已確認 ${chosenLabel}${location ? `（地點：${location}）` : ""}，行事曆邀請與感謝信已寄出`,
       status: "success",
@@ -192,7 +179,7 @@ export async function POST(req: NextRequest) {
     // 用 after() 在回應送出後才跑——對方點確認的頁面不必等網路搜尋（要十幾秒）。
     if (contact?.name) {
       after(async () => {
-        const profileId = await researchContact({
+        const profileId = await fulfilmentPort.researchContact({
           contactId: (row.contact_id as string) ?? null,
           inviteId,
           name: contact.name as string,
@@ -201,7 +188,7 @@ export async function POST(req: NextRequest) {
           email: row.to_email ?? null,
         });
         if (profileId) {
-          await pushLineMessage(
+          await fulfilmentPort.pushLineMessage(
             row.line_user_id,
             `🔎 我順手查了 ${contactName}${contact.company ? `與 ${contact.company}` : ""} 的公開資料，行前功課整理好了——在「約拜訪」頁面可以看到公司近況、社群連結與可以聊的切入點。`
           ).catch(() => {});
@@ -215,16 +202,13 @@ export async function POST(req: NextRequest) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "建立行事曆或寄信失敗";
-    await supabase
-      .from("pending_invites")
-      .update(toLegacyPendingInviteStatusPatch("failed"))
-      .eq("id", inviteId);
-    await supabase.from("line_agent_activity").insert({
+    await fulfilmentPort.markInviteFailed(inviteId);
+    await fulfilmentPort.recordActivity({
       agent_slug: "visit",
       summary: `對方確認時段後，自動排程失敗：${message}`,
       status: "failed",
     });
-    await pushLineMessage(
+    await fulfilmentPort.pushLineMessage(
       row.line_user_id,
       `⚠️ ${contactName}選了 ${chosenLabel}，但自動安排行事曆時發生問題，請手動確認並聯繫對方。`
     ).catch(() => {});
