@@ -851,6 +851,27 @@ At `cafa912` plus this documentation stage:
   queue redesign, reconciliation, and production traffic evidence remain
   deferred.
 
+### WP6-AV Visit AI compatibility boundaries — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-ai-boundaries.contract.md`.
+- `src/modules/visit/ai-rules.ts` owns draft-email/card request mapping and
+  validation; `ai-application.ts` owns provider calls and ordered activity
+  side effects; `src/adapters/visit/legacy-ai-adapter.ts` keeps the existing
+  Visit provider port and `line_agent_activity` writes behind one adapter.
+- The `/api/agents/visit/draft-email` and `/api/agents/visit/parse-card` POST
+  routes preserve input defaults, validation strings, provider payloads,
+  success/error activity vocabulary, response envelopes, HTTP 400/502 statuses,
+  and all Visit UI/data formats.
+- Checkpoint: `381f0b7`.
+- Full verification: 164 Vitest files / 508 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps Visit rules,
+  application, port, adapter, and both route methods.
+- OpenAI/Google provider rotation, contact schema evolution, activity
+  write-owner migration, reconciliation, and production traffic evidence
+  remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
