@@ -542,6 +542,25 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
+### WP6-AG Knowledge Base delete compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-delete.contract.md`.
+- `src/modules/knowledge-base/delete-rules.ts` owns id parsing;
+  `delete-application.ts` preserves the provider outcome;
+  `src/adapters/knowledge-base/legacy-delete-adapter.ts` keeps
+  `removeKnowledgeDoc` behind the delete port.
+- The `/api/knowledge-base` DELETE route preserves missing-id HTTP 400,
+  built-in-document HTTP 409, not-found HTTP 404, successful `{ ok: true }`,
+  provider exceptions, and all Knowledge Base UI/data formats.
+- Checkpoint: `dea36ec`.
+- Full verification: 120 Vitest files / 430 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the delete
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
