@@ -14,7 +14,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 406 files／3,410 nodes／7,058 edges |
+| Last verified | 2026-07-31；CodeGraph index 405 files／3,401 nodes／7,026 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -175,7 +175,7 @@ RuntimeKernel / generic workflow / tool contracts
 | DM-06 Orders／Ray | Teachify webhook、test notification、orders page | `teachify_orders`、activity、agents；Teachify/LINE | Orders inbound workflow + order repository + delivery adapter | 保留 normalization/idempotency/notification orchestration；刪除 test-only legacy ownership | duplicate webhook、invalid signature/payload、partial delivery、outbox/replay evidence |
 | DM-07 Reporting／Vivian／Support | cron/manual report routes、support relay/log；dashboard actions | agents/activity/support conversations/subscribers；OpenAI/LINE/relay target | Reporting schedule workflow + artifact/delivery；Support inbound workflow | 合併 cron/manual重複；保留 schedule dedupe、report generation、relay provider | same-period dedupe、artifact parity、delivery receipt、provider failure/retry |
 | DM-08 Runtime／workflow | `agent-runs.ts` production helper、Visit legacy runtime adapter；已移除的 generic in-memory scaffold | existing agent_* tables；target additive runtime tables | 有第一個真實 consumer 時才建立 canonical runtime transaction/repository | 先 reconciliation，不重建空泛 contract；最終刪除 direct DB helper或讓它成唯一 compat adapter | schema mapping決策、Supabase repository、restart/resume/idempotency/outbox；兩種 profile production consumers |
-| DM-09 Agent model | `agent-data.ts`、`agent-catalog.ts`、DB `line_agents`、workflow execution profiles、TV/page local shapes | static TS + `line_agents` | ProductOffering／RoleTemplate／AgentInstance／ExecutionProfile／Presentation | 先 mapper 不改 UI；逐 consumer cutover；最後刪除重複 truth | catalog/dashboard/TV/meeting parity；新增 Agent 不需複製 route；old owner caller=0 |
+| DM-09 Agent model | `agent-data.ts`、`agent-catalog.ts`、DB `line_agents`、workflow execution profiles、TV/page local shapes | static TS + `line_agents` | RoleTemplate／AgentInstance／ExecutionProfile／Presentation；public catalog 保持獨立 input 直到有真實 consumer | 先 mapper 不改 UI；逐 consumer cutover；最後刪除重複 truth | catalog/dashboard/TV/meeting parity；新增 Agent 不需複製 route；old owner caller=0 |
 | DM-10 UI projections | dashboard、flow、TV、universe、meeting、agent pages 與各 API loaders | activity、runs、live task、KB、agents等多源資料 | stable read projections | 保留 frozen components；只改內部 data source/mappers | 每 surface authenticated before/after、loading/empty/error/data、desktop/mobile visual parity |
 
 ## 6. Decisions, assumptions and unknowns
@@ -799,23 +799,42 @@ Then the existing report artifact is retried without creating a second scheduled
 
 #### Canonical identity compatibility batch
 
-**Status（2026-07-31）：** compatibility foundation complete（`Contract tested` + `Render smoke passed`）。此批建立可驗證的 canonical identity 與 legacy mapping；既有 static roster、`line_agents` 與 public catalog 尚未被取代，逐 consumer cutover 留在後續工作包。
+**Status（2026-07-31）：** compatibility foundation complete（`Contract tested` + `Render smoke passed`）。此批建立可驗證的 canonical identity 與 legacy mapping；既有 static roster、`line_agents` 與 public catalog 尚未被取代，逐 consumer cutover 留在後續工作包。沒有 consumer 的 ProductOffering mapper 不保留為 production code。
 
 **Behavior contract (`behavior-contract/v1`, `agents.canonical-identity`)**
 
-- Scope：`ProductOffering`、`RoleTemplate`、`AgentInstance`、`ExecutionProfile`、`AgentPresentation` 的純 model；`AGENTS`、`line_agents`、`AGENT_CATALOG` 與 workflow contract 的 compatibility mapping；`GET /api/agents` 與 client status fallback。
+- Scope：`RoleTemplate`、`AgentInstance`、`ExecutionProfile`、`AgentPresentation` 的純 model；`AGENTS`、`line_agents` 與 workflow contract 的 compatibility mapping；`AGENT_CATALOG` 保持既有 public catalog input；`GET /api/agents` 與 client status fallback。
 - Non-goals：不改 UI/UX、route URL/method/status/payload、`AgentSlug`、`line_agents` schema／write 行為、workflow trigger semantics、prompt／provider／delivery；不把 public catalog 或 Super Agent Team 誤當 deployed runtime instance。
 - Invariants：static `AGENTS` 在 WP-10 前仍是既有 UI presentation baseline；`line_agents.enabled` 仍優先於 static fallback；legacy slug 永不改名；workflow binding 保留原 type/import contract；presentation 不能成為 runtime truth。
-- Acceptance：每一個既有 `AGENTS` entry 對應一個唯一 canonical instance 與 role template；同一個 `line_agents` override 只能改自己的 enabled/settings projection，不能改任何 presentation；每個 public catalog entry 對應一個 offering、但不會被偽裝成 deployed Agent。
+- Acceptance：每一個既有 `AGENTS` entry 對應一個唯一 canonical instance 與 role template；同一個 `line_agents` override 只能改自己的 enabled/settings projection，不能改任何 presentation；public catalog 保持獨立於 deployed Agent，直到有真實 projection consumer 才建立對應 mapper。
 - Evidence：本輪完成 mapper／route compatibility tests 與 static checks；full test、build 集中在 source cutover 後一次執行。依最新工作方式，完整 Chrome authenticated parity 留到後續程式碼批次全部完成後再統一執行。
 
 **Evidence（2026-07-31）：**
 
-- `identity.ts` 擁有 `ProductOffering`、`RoleTemplate`、`AgentInstance`、`ExecutionProfile`、`AgentPresentation` 與 duplicate-identity validation；不從名稱／展示文案猜 capability 或 workflow binding。
-- `LEGACY_AGENT_DATA` 是 static compatibility input；`CANONICAL_AGENT_REGISTRY` 產生 frozen `AGENTS` projection，因此原本 39 個 `AGENTS` caller 不需逐頁改 import，仍取得精確相同的 `AgentMeta` shape。`AGENT_CATALOG` 另映射為 `offering:<catalog-id>`，沒有混成 deployed instance。
+- `identity.ts` 擁有 `RoleTemplate`、`AgentInstance`、`ExecutionProfile`、`AgentPresentation` 與 duplicate-identity validation；不從名稱／展示文案猜 capability 或 workflow binding。
+- `LEGACY_AGENT_DATA` 是 static compatibility input；`CANONICAL_AGENT_REGISTRY` 產生 frozen `AGENTS` projection，因此原本 39 個 `AGENTS` caller 不需逐頁改 import，仍取得精確相同的 `AgentMeta` shape。`AGENT_CATALOG` 保持 public catalog 的既有獨立資料來源，沒有混成 deployed instance。
 - `line_agents` override 只覆寫同 slug 的 enabled/settings deployment state；`GET /api/agents` 與 `agent-status` fallback 已先改由 canonical status catalog 供應，API payload 與 UI shape 不變。workflow contract 保持原 import path，改為 re-export canonical types。
 - 新增 4 個 mapper contract tests；source cutover 後整批 `npm test` 為 106 files／521 tests、typecheck、lint、production build、`git diff --check` 通過。CodeGraph sync 後索引 456 files／3,700 nodes／7,736 edges，確認 `LEGACY_AGENT_DATA → CANONICAL_AGENT_REGISTRY → AGENTS` 的單向鏈結。
 - 本批前半已在登入 Chrome 實看 `/dashboard`、`/tv`、`/agents/support`：status projection、10/12 TV 值勤顯示與客服控制台畫面正常，console 無 error/warn；最終 `AGENTS` source projection 則由 exact-equality contract test 保護。依 batching 規則，完整 post-cutover Chrome 回歸不在本 micro-cut，而留在下一個跨批次驗收。Chrome 對直接 `/api/agents` 導航仍受 client blocker 擋住，故 API 實體契約證據來自 route test，未假稱 browser API acceptance。
+
+#### 進場清理 — Inactive public catalog mapper
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；這是刪除沒有 production consumer 的 ProductOffering draft，不改 public catalog 或 canonical deployed Agent identity。
+
+**Behavior contract (`behavior-contract/v1`, `agents.inactive-public-catalog-mapper`)**
+
+- Scope：移除 `ProductOffering`／legacy catalog input mapper 與只服務於該 mapper 的 adapter；保留 `AGENT_CATALOG` 和 deployed Agent identity model。
+- Non-goals：不改 public catalog UI、`AGENTS`、`line_agents`、route payload、AgentSlug、workflow binding、prompt/provider/delivery 或 UI/UX。
+- CodeGraph evidence：`mapLegacyProductOffering`、其 input/type 與 `LEGACY_PRODUCT_OFFERINGS` 沒有 production caller；source search 唯一 consumer 是 identity unit test。
+- Invariants：公開 catalog 仍不可被誤當 deployed instance；canonical identity 仍只由 legacy dashboard Agent → registry → `AGENTS` projection 建立。
+- Acceptance：舊 mapper/adapter/import 歸零，identity status/duplicate tests 仍通過；未來 public catalog 切換到 canonical projection 前，必須先有 real UI/API consumer 和新的 behavior contract。
+
+**Evidence（2026-07-31）：**
+
+- CodeGraph sync 後為 405 files／3,401 nodes／7,026 edges；`mapLegacyProductOffering`、`ProductOffering`、`LEGACY_PRODUCT_OFFERINGS` 都已不存在，刪除前沒有 production caller。
+- source 與 test import search 已歸零；唯一的舊 consumer 是為該 test-only mapper 寫的 identity unit assertion。
+- 完整驗證通過：94 test files／465 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check`。
+- identity test 保留 static status fallback、canonical identity 與 duplicate coverage；只移除 test-only ProductOffering mapper 的三個 assertion。這沒有 UI source change；完整 Chrome catalog／Agent pages 仍併入後續跨批次驗收。
 
 #### 進場清理 — Agent admin compatibility boundary
 
@@ -979,7 +998,7 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實 `recordSupportLogReply` 與 parser 都只有原本 public callback POST caller；conversation persistence helper 仍僅由 callback 與既有 support relay 共用；舊 rules／ports／application／legacy adapter import 為零。
 - focused `npx vitest run`（1 file／9 tests）、full `npm test`（105 files／517 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 對 `/agents/support` 實際展開 Agent 設定與串接狀態，before/after DOM 都為 7,274 chars、console 無 error/warn；未執行任何真實 callback 或 LINE message。
 
-- [x] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
+- [x] 定義 RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [x] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。
 - [ ] tools/model/knowledge/delivery policy 以 reference/config 組合。

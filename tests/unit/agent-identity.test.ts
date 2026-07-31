@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { AGENT_CATALOG } from "@/lib/agent-catalog";
 import { AGENTS, LEGACY_AGENT_DATA } from "@/lib/agent-data";
 import {
   applyLegacyLineAgentOverride,
@@ -8,7 +7,6 @@ import {
   LEGACY_AGENT_REGISTRY,
   toLegacyAgentMeta,
 } from "@/adapters/agents/legacy-agent-identity-adapter";
-import { LEGACY_PRODUCT_OFFERINGS } from "@/adapters/agents/legacy-product-offering-adapter";
 import {
   createCanonicalAgentRegistry,
   DuplicateCanonicalAgentError,
@@ -54,13 +52,10 @@ describe("canonical Agent identity compatibility", () => {
     expect(applyLegacyLineAgentOverride(visit, { slug: "support", enabled: false })).toBe(visit);
   });
 
-  it("preserves existing static status fallback and keeps product offerings separate from instances", () => {
+  it("preserves existing static status fallback", () => {
     expect(getLegacyAgentStatusCatalog()).toEqual(
       LEGACY_AGENT_DATA.map((agent) => ({ slug: agent.slug, status: agent.status }))
     );
-    expect(LEGACY_PRODUCT_OFFERINGS).toHaveLength(AGENT_CATALOG.length);
-    expect(LEGACY_PRODUCT_OFFERINGS.every((offering) => offering.id.startsWith("offering:"))).toBe(true);
-    expect(LEGACY_PRODUCT_OFFERINGS.some((offering) => offering.id === "agent:visit")).toBe(false);
   });
 
   it("rejects duplicate legacy identities instead of silently choosing an owner", () => {

@@ -40,19 +40,6 @@ export interface AgentInstance {
   settings?: Record<string, unknown> | null;
 }
 
-export interface ProductOffering {
-  id: string;
-  legacyCatalogId: string;
-  department: string;
-  departmentCode: string;
-  name: string;
-  tier: 1 | 2 | 3;
-  description: string;
-  fit: string;
-  needs: string;
-  color: string;
-}
-
 export interface AgentPresentation {
   legacySlug: AgentSlug;
   name: string;
@@ -89,18 +76,6 @@ export interface LegacyAgentIdentityInput {
   personEn: string;
   personZh: string;
   role: string;
-}
-
-export interface LegacyProductOfferingInput {
-  id: string;
-  dept: string;
-  deptEn: string;
-  name: string;
-  color: string;
-  tier: 1 | 2 | 3;
-  desc: string;
-  fit: string;
-  needs: string;
 }
 
 export interface AgentStatusCatalogEntry {
@@ -231,20 +206,5 @@ export function applyLineAgentOverride(
       enabled: override.enabled,
       settings: override.settings,
     },
-  };
-}
-
-export function mapLegacyProductOffering(input: LegacyProductOfferingInput): ProductOffering {
-  return {
-    id: `offering:${input.id}`,
-    legacyCatalogId: input.id,
-    department: input.dept,
-    departmentCode: input.deptEn,
-    name: input.name,
-    tier: input.tier,
-    description: input.desc,
-    fit: input.fit,
-    needs: input.needs,
-    color: input.color,
   };
 }
