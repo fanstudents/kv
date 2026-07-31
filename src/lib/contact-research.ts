@@ -1,7 +1,36 @@
 import "server-only";
 import { getSupabase } from "@/lib/supabase";
-import { webSearchJson } from "@/lib/openai";
+import { webSearchJson, chatJson } from "@/lib/openai";
+import { scrapeUrl } from "@/lib/kb-crawl";
 import { finishRun, logStep, startRun } from "@/lib/agent-runs";
+
+// webSearchJson 常常只拿到片段摘要，查不到公司在做什麼的情況不少見。與其每次都
+// 另外燒 Firecrawl 額度抓官網正文，只在「網路搜尋真的查不到公司簡介，而且手上有
+// 明確的官網網址」這個子集才補一次——網址優先用搜尋結果自己找到的官網連結，
+// 找不到才退而求其次用 email 網域猜（排除常見的免費信箱，猜了也是猜到信箱商）。
+const PUBLIC_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "yahoo.com",
+  "yahoo.com.tw",
+  "hotmail.com",
+  "outlook.com",
+  "icloud.com",
+  "me.com",
+  "msn.com",
+  "qq.com",
+  "163.com",
+  "126.com",
+  "live.com",
+  "aol.com",
+]);
+
+function pickOfficialSiteUrl(links: ProfileLink[], email?: string | null): string | null {
+  const siteLink = links.find((l) => l.kind === "website" && l.url);
+  if (siteLink) return siteLink.url;
+  const domain = email?.split("@")[1]?.toLowerCase().trim();
+  if (domain && !PUBLIC_EMAIL_DOMAINS.has(domain)) return `https://${domain}`;
+  return null;
+}
 
 // 約拜訪成交後的「行前功課」：對方一確認時段，Coco 就去網路上查這個人與這家公司——
 // 官網、新聞、LinkedIn／社群、近期成果——整理成一頁見面前可以先看的背景資料，
@@ -125,6 +154,46 @@ export async function researchContact(params: {
       confidence: Math.min(1, Math.max(0, Number(raw?.confidence) || 0.4)),
     };
 
+    // 網路搜尋沒查到公司在做什麼 → 只在這個子集才補一次 Firecrawl 抓官網正文。
+    // 額度用完、抓取失敗都當作沒有這份加強資料，不影響已經拿到的 web_search 結果。
+    if (!profile.companySummary && params.company) {
+      const siteUrl = pickOfficialSiteUrl(profile.links, params.email);
+      if (siteUrl) {
+        try {
+          await logStep(runId, "research-firecrawl", { status: "running", input: siteUrl, seq: 1 });
+          const page = await scrapeUrl(siteUrl);
+          if (page.markdown.trim().length > 0) {
+            const summarized = await chatJson({
+              model: "gpt-4o-mini",
+              operation: "官網簡介摘要",
+              agentSlug: "visit",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "你會拿到一個公司官網的正文內容，請用 2-3 句繁體中文摘要這家公司在做什麼、規模或近況。" +
+                    "只根據給你的內容判斷，看不出來就回空字串，不要用猜的填。只回傳 JSON：{\"summary\": \"...\"}",
+                },
+                { role: "user", content: page.markdown.slice(0, 6000) },
+              ],
+            });
+            const summary = String(summarized?.summary ?? "").trim();
+            if (summary) {
+              profile.companySummary = summary;
+              if (!profile.sources.includes(page.url)) profile.sources.push(page.url);
+              if (!profile.links.some((l) => l.url === page.url)) {
+                profile.links.push({ label: "公司官網", url: page.url, kind: "website" });
+              }
+            }
+          }
+          await logStep(runId, "research-firecrawl", { status: "done", output: page.url, seq: 1 });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "unknown";
+          await logStep(runId, "research-firecrawl", { status: "failed", output: message, seq: 1 }).catch(() => {});
+        }
+      }
+    }
+
     const found =
       profile.companySummary.length > 0 ||
       profile.personSummary.length > 0 ||
@@ -155,7 +224,7 @@ export async function researchContact(params: {
     await logStep(runId, "research-store", {
       status: "done",
       output: `${profile.links.length} 個連結、${profile.highlights.length} 則近況`,
-      seq: 1,
+      seq: 2,
     });
     await finishRun(runId, {
       status: "success",
