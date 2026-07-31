@@ -1,27 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createLegacyKnowledgeBaseReadAdapter } from "@/adapters/knowledge-base/legacy-read-adapter";
 import {
   addKnowledgeDoc,
-  listAgentAccess,
-  listKnowledgeDocs,
   removeKnowledgeDoc,
   updateKnowledgeDoc,
 } from "@/lib/knowledge-base";
+import { runKnowledgeBaseRead } from "@/modules/knowledge-base/read-application";
+import { parseKnowledgeBaseReadQuery } from "@/modules/knowledge-base/read-rules";
 import type { KnowledgeKind, KnowledgeLevel, KnowledgeStatus } from "@/lib/knowledge-base-data";
 
 const KINDS = ["faq", "sop", "fact", "table", "doc"];
 const STATUSES = ["draft", "published", "archived"];
 
 export async function GET(req: NextRequest) {
-  const status = req.nextUrl.searchParams.get("status");
-  const sourceDocId = req.nextUrl.searchParams.get("sourceDocId");
-  const [docs, access] = await Promise.all([
-    listKnowledgeDocs({
-      status: STATUSES.includes(status ?? "") ? (status as KnowledgeStatus) : undefined,
-      sourceDocId: sourceDocId ?? undefined,
-    }),
-    listAgentAccess(),
-  ]);
-  return NextResponse.json({ docs, access });
+  const filter = parseKnowledgeBaseReadQuery({
+    status: req.nextUrl.searchParams.get("status"),
+    sourceDocId: req.nextUrl.searchParams.get("sourceDocId"),
+  });
+  const result = await runKnowledgeBaseRead(filter, createLegacyKnowledgeBaseReadAdapter());
+  return NextResponse.json(result);
 }
 
 export async function POST(req: NextRequest) {
