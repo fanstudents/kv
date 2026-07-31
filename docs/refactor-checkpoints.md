@@ -73,13 +73,14 @@ Every stage must:
 | `8025673` | Shared activity read boundary | Reuse activity read port for general and agent-scoped activity routes |
 | `75501b2` | Goals history boundary | Trend query coercion, metric reader port, and HTTP-preserving cutover |
 | `84cca97` | Contacts read boundary | Nested contact/offers/invites query port and HTTP-preserving cutover |
+| `f8c5992` | Checklist read boundary | Checklist projection port and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `84cca97` plus this documentation stage:
+At `f8c5992` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 75 Vitest files / 363 tests passed;
+- 77 Vitest files / 366 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -168,6 +169,9 @@ At `84cca97` plus this documentation stage:
 - CodeGraph maps `runContactsRead`, `ContactsReadPort`, and
   `createLegacyContactsReadAdapter` through the Contacts module, adapter, and
   route; the existing nested Supabase read remains behind the adapter;
+- CodeGraph maps `runChecklistRead`, `ChecklistReadPort`, and
+  `createLegacyChecklistReadAdapter` through the Checklist module, adapter, and
+  route; the existing `checklist_status` projection remains behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -187,6 +191,25 @@ At `84cca97` plus this documentation stage:
   catalog count and tier labels before and after; CodeGraph maps the Contacts
   port, application, adapter, and route.
 - Contacts schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-Q Checklist read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/checklist-read.contract.md`.
+- `src/modules/checklist/read-application.ts` owns query-error mapping while
+  returning raw rows. `src/adapters/checklist/legacy-read-adapter.ts` keeps the
+  exact `checklist_status` `item_id, done` projection with no new filters or
+  ordering.
+- The route preserves HTTP 400 error mapping and raw success data; Todos UI,
+  checklist PATCH behavior, row formats, retention, and schema/data behavior
+  are untouched.
+- Checkpoint: `f8c5992`.
+- Full verification: 77 Vitest files / 366 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Checklist
+  port, application, adapter, and route.
+- Checklist schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
