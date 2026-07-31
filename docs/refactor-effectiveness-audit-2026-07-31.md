@@ -312,7 +312,45 @@ failure-description presence，不會真的執行 journey。
 - 若完成原 canonical productization plan：估 40–70 active hours，另加
   staging/canary observation，且依賴真實環境權限。
 
-## Resume gate
+## 稽核後修正進度（同日）
+
+上述數字與判讀是 corrective audit 當下的快照；後續已依本文件指出的問題改變
+施工方式，最新執行狀態仍以 `PRODUCTIZATION_TODO.md` 為準。
+
+### 已完成的修正
+
+- 已建立 ignored `.env.local` 與真實表單登入／登出 baseline；auth 可重現。
+- Supabase、Firecrawl、OpenAI credentials 仍未補齊，因此 real-data journey 仍
+  是正式 blocker，不用 fallback/empty UI 冒充 production-like evidence。
+- WP-02 已把 Goals、Checklist、Subscribers、Outputs/TV 從逐 route 四件套
+  收斂成 domain owner。
+- WP-03 已把 Knowledge Base 的 39 modules＋13 adapters 收斂成 5 個
+  capability modules＋4 個 provider/repository adapters。
+- Knowledge Base 受控 production surface 從 63 files / 2,145 lines 降為
+  20 files / 2,034 lines；focused tests 從 39 files / 957 lines 降為
+  9 files / 810 lines，整體仍維持 550 tests。
+- WP-03 共用 4 個 capability commits，不再一條 route／一個小檔各自 commit。
+- 每批都以 CodeGraph 重算 caller/impact，並用 authenticated Chrome 比對
+  `/knowledge-base`、`/knowledge-base/import`；最終兩頁 DOM 與改前相同，
+  console 無 error/warn。
+- Chrome 實點新增表單、網址匯入模式與重建索引。重建索引在缺 Supabase env
+  時仍會走既有空 `500`，前端顯示 JSON parse error；這條改前沒有 runtime
+  baseline，已記入 canonical TODO，補 credentials 後必須重跑，不能宣稱完成
+  production-like acceptance。
+
+### 對原效率警告的最新結論
+
+- 「逐 route 四件套膨脹」已在 WP-02/WP-03 實際反向收斂，不再只是承諾。
+- 「只驗 catalog」已改為 affected surface DOM＋真實互動＋API error path。
+- Thin adapter 只保留在 Supabase／Firecrawl／embedding 等替換邊界；單
+  action pass-through adapters 已刪除。
+
+## Resume gate（原始稽核，已由後續決策取代）
+
+使用者後續決定：在 Supabase credentials 暫時不可得時，可繼續做不改 schema、
+資料格式、API payload 與 UI 的結構收斂；real-data acceptance 保留為 blocker。
+因此下列五項不再全部是「動任何程式碼前」的 gate，但仍是 production-like
+驗收前的必要條件。
 
 下一批程式碼前必須先完成：
 

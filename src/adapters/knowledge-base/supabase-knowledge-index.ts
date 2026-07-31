@@ -1,9 +1,9 @@
 import "server-only";
 import { indexDocs, indexStats } from "@/lib/kb-search";
 import { listKnowledgeDocs } from "@/lib/knowledge-base";
-import type { KnowledgeBaseReindexPort } from "@/modules/knowledge-base/reindex-ports";
+import type { KnowledgeIndexRepository } from "@/modules/knowledge-base/search-index";
 
-export function createLegacyKnowledgeBaseReindexAdapter(): KnowledgeBaseReindexPort {
+export function createSupabaseKnowledgeIndex(): KnowledgeIndexRepository {
   return {
     listPublishedDocs: () => listKnowledgeDocs({ status: "published" }),
     indexDocs,

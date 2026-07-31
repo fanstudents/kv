@@ -386,7 +386,7 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 **Anchors:** DM-03 的 routes/modules/adapters、`lib/{knowledge-base,kb-import,kb-crawl,kb-search}.ts`.
 
-**狀態（2026-07-31）：** 進行中。document repository、access policy、ingestion、crawl provider 已完成收斂；index/search 尚待收斂。現階段不改 Supabase schema、資料格式、API payload 或 UI。
+**狀態（2026-07-31）：** 結構收斂完成，production-like acceptance 仍受 WP-01 credentials 阻擋。document repository、access policy、ingestion、crawl provider、index/search 均已有唯一 capability owner；Supabase schema、資料格式、API payload 與 UI 未改。
 
 **Behavior contract (`behavior-contract/v1`, `knowledge-base.capabilities`)**
 
@@ -397,15 +397,16 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 - UI states：登入後兩頁的 first-paint、empty、ready、error、控制項與 responsive layout 都維持原樣；本機無真實 provider 時只驗證既有 zero/empty path，不宣稱 real-data journey 通過。
 - Acceptance：文件 GET 同時回 `{ docs, access }`；POST/PATCH/DELETE 保留既有 validation/status；access PUT 僅接受 catalog slug 與 L1～L4；import GET 依 `sourceId` 回 sources 或 drafts；publish/discard 回原計數；crawl preview/import、reindex、recheck 保留成功與 provider failure contract。
 - Evidence：capability unit tests、route/API tests、全套 Vitest/lint/typecheck/build；每個切片以 authenticated Chrome 對 `/knowledge-base` 與 `/knowledge-base/import` 做相同 DOM 與 console error 比對。真實 Supabase/Firecrawl/OpenAI journey 延後到 WP-01 credentials 補齊。
+- Known acceptance gap：Chrome 實點「重建索引」在缺 Supabase env 時，route 因 `listKnowledgeDocs()` 的既有 fail-fast 行為回空的 `500`，前端顯示 JSON parse error。新舊 adapter 都委派相同 helper，但改前未留下這條 runtime baseline，因此不得把此 journey 宣稱為 regression-free；補齊 Supabase 後必須重跑。
 - Intentional changes：只有 module/file ownership 與命名；observable behavior 無變更。
 - Open question：缺少 Supabase migration provenance 的 runtime schema 仍由 WP-01/WP-04 處理，不在本批猜測或補 migration。
 
-- [ ] 依 capability 分成 document repository、access policy、ingestion、crawl provider、index/search。（index/search 尚待完成）
+- [x] 依 capability 分成 document repository、access policy、ingestion、crawl provider、index/search。
 - [x] 合併 CRUD/import action-specific ports與applications。
-- [ ] 將 Supabase rows、Firecrawl、embedding/OpenAI translation 留在 adapters。
-- [ ] 定義 upload→preview→publish/discard→index state/failure map。
-- [ ] 保持既有 API payload與KB頁面狀態。
-- [ ] legacy helper caller 歸零後刪除或降為唯一 adapter。
+- [x] 將 Supabase rows、Firecrawl、embedding/OpenAI translation 留在 adapters。
+- [x] 定義 upload→preview→publish/discard→index state/failure map。
+- [x] 保持既有 API payload與KB頁面狀態。
+- [x] legacy helper caller 歸零後刪除或降為唯一 adapter。
 
 **Verification:** CRUD、access、upload、crawl、publish/discard、reindex integration journeys；bad file/provider failure；authenticated KB desktop/mobile parity。
 
