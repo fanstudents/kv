@@ -74,13 +74,14 @@ Every stage must:
 | `75501b2` | Goals history boundary | Trend query coercion, metric reader port, and HTTP-preserving cutover |
 | `84cca97` | Contacts read boundary | Nested contact/offers/invites query port and HTTP-preserving cutover |
 | `f8c5992` | Checklist read boundary | Checklist projection port and HTTP-preserving cutover |
+| `c88c47f` | Subscribers read boundary | Subscriber query port, ordering, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `f8c5992` plus this documentation stage:
+At `c88c47f` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 77 Vitest files / 366 tests passed;
+- 79 Vitest files / 369 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -172,6 +173,9 @@ At `f8c5992` plus this documentation stage:
 - CodeGraph maps `runChecklistRead`, `ChecklistReadPort`, and
   `createLegacyChecklistReadAdapter` through the Checklist module, adapter, and
   route; the existing `checklist_status` projection remains behind the adapter;
+- CodeGraph maps `runSubscribersRead`, `SubscribersReadPort`, and
+  `createLegacySubscribersReadAdapter` through the Subscribers module, adapter,
+  and route; the existing `line_subscribers` query remains behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -210,6 +214,25 @@ At `f8c5992` plus this documentation stage:
   catalog count and tier labels before and after; CodeGraph maps the Checklist
   port, application, adapter, and route.
 - Checklist schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-R Subscribers read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/subscribers-read.contract.md`.
+- `src/modules/subscribers/read-application.ts` owns query-error mapping while
+  returning raw rows. `src/adapters/subscribers/legacy-read-adapter.ts` keeps
+  the exact `line_subscribers` `select("*")` and descending `last_seen_at`
+  ordering.
+- The route preserves HTTP 400 error mapping and raw success data; Subscribers
+  UI, PATCH/broadcast/relay writers, row formats, retention, and schema/data
+  behavior are untouched.
+- Checkpoint: `c88c47f`.
+- Full verification: 79 Vitest files / 369 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Subscribers
+  port, application, adapter, and route.
+- Subscribers schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
