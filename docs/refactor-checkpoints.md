@@ -79,13 +79,14 @@ Every stage must:
 | `4f3c8aa` | Checklist update boundary | PATCH coercion, timestamped upsert port, and HTTP-preserving cutover |
 | `78d5ce2` | Subscribers update boundary | PATCH field filtering, update port, and HTTP-preserving cutover |
 | `dd14d67` | Knowledge access update boundary | Catalog/level validation, access port, and HTTP-preserving cutover |
+| `8c12d78` | Goals update boundary | Goal payload validation, upsert port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `dd14d67` plus this documentation stage:
+At `8c12d78` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 91 Vitest files / 389 tests passed;
+- 94 Vitest files / 394 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -196,6 +197,9 @@ At `dd14d67` plus this documentation stage:
   `createLegacyKnowledgeAccessUpdateAdapter` through the Knowledge Base access
   modules, adapter, and route; the existing `setAgentAccess` helper remains
   behind the adapter;
+- CodeGraph maps `parseGoalUpdateRequest`, `runGoalUpdate`, and
+  `createLegacyGoalUpdateAdapter` through the Goals update modules, adapter,
+  and route; the existing `upsertGoal` helper remains behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ### WP6-P Contacts read compatibility boundary — Verified
@@ -329,6 +333,26 @@ At `dd14d67` plus this documentation stage:
   catalog count and tier labels before and after; CodeGraph maps the Knowledge
   Base access rules, port, application, adapter, and route.
 - Knowledge access schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-W Goals update compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/goals-update.contract.md`.
+- `src/modules/goals/update-rules.ts` preserves catalog validation, coercion,
+  date fallback, and `AgentGoal` assembly; `update-application.ts` owns
+  provider invocation and error mapping;
+  `src/adapters/goals/legacy-update-adapter.ts` keeps the existing `upsertGoal`
+  helper behind the update port.
+- The route preserves HTTP 400 validation, raw goal success, HTTP 500 provider
+  errors, and existing Goals UI/cache/progress behavior; row formats, retention,
+  and schema/data behavior are untouched.
+- Checkpoint: `8c12d78`.
+- Full verification: 94 Vitest files / 394 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the Goals
+  update rules, port, application, adapter, and route.
+- Goals schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
