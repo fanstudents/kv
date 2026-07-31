@@ -621,6 +621,26 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, import write-owner migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AK Knowledge Base import discard compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-import-discard.contract.md`.
+- `src/modules/knowledge-base/import-discard-rules.ts` owns string-id
+  filtering; `import-discard-application.ts` owns sequential removal and
+  deleted counting; `src/adapters/knowledge-base/legacy-import-discard-adapter.ts`
+  keeps `removeKnowledgeDoc` behind the discard port.
+- The `/api/knowledge-base/import` DELETE route preserves input order,
+  `{ removed: count }`, not-found/built-in non-counting, provider exceptions,
+  `maxDuration`, and all import UI/data formats. PDF POST, read GET, and
+  publish PUT remain unchanged.
+- Checkpoint: `dfd748f`.
+- Full verification: 132 Vitest files / 445 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the discard
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, import write-owner migration,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
