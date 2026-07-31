@@ -1026,6 +1026,23 @@ At code checkpoint `116885b` plus documentation checkpoint `fdcd0f7`:
 - Handler/provider decomposition, signature policy changes, schema migration,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-BE LINE image provider compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-line-image.contract.md`.
+- `VisitLineImagePort` and
+  `src/adapters/visit/legacy-line-image-adapter.ts` now own only LINE image
+  content retrieval and business-card parsing. The route preserves image
+  validation, run/activity tracking, exact contact/offer writes, locks, replies,
+  provider-error handling, and all existing ordering.
+- Checkpoint: `261ce21`.
+- Full verification: 176 Vitest files / 531 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the adapter to
+  the route and removes direct provider imports from the handler.
+- Image-flow application decomposition, provider replacement, schema
+  migration, reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
