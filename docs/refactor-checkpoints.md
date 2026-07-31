@@ -84,21 +84,26 @@ Every stage must:
 | `b3f33ae` | Goals delete boundary | Query-id validation, delete port, and HTTP-preserving cutover |
 | `edcd8c9` | Goals reset boundary | Default-goal reset port and HTTP-preserving cutover |
 | `cafa912` | Auth login boundary | Password parsing, auth decision port, and cookie-preserving cutover |
+| `d538b52` | Conversation lock boundary | Shared lock port for LINE webhook and timeout cron |
 
 ## Current Verification
 
-At code checkpoint `26249da` plus documentation checkpoint `56a4abc`:
+At code checkpoint `d538b52` plus the pending documentation checkpoint for
+WP6-BI:
 
 - `npm run verify:full` passed;
-- 179 Vitest files / 535 tests passed;
+- 180 Vitest files / 537 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
-  LINE activity persistence boundary; exact and normalized DOM snapshots both
-  matched;
+  conversation-lock boundary; application-only DOM snapshots matched exactly
+  after normalizing reload-only Next.js Dev Tools/alert nodes;
 - CodeGraph maps `createLegacyVisitLineActivityAdapter` through the adapter and
   LINE webhook route; `rg` confirms the route has no direct
   `line_agent_activity` table writes;
+- CodeGraph maps `createLegacyConversationLockAdapter` through the adapter,
+  LINE webhook route, and timeout cron; `rg` confirms the legacy lock helpers
+  have no direct route imports;
 - CodeGraph maps `parseVisitLineWebhookPayload` and the shared
   `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
 - The remaining CodeGraph bullets in this section are cumulative evidence from
@@ -1095,6 +1100,23 @@ At code checkpoint `26249da` plus documentation checkpoint `56a4abc`:
   to the webhook route and `rg` confirms no direct activity-table writes
   remain in the route.
 - Activity repository replacement, schema migration, reconciliation, and
+  production traffic evidence remain deferred.
+
+### WP6-BI Conversation lock compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/conversation-lock.contract.md`.
+- `ConversationLockPort` and
+  `src/adapters/conversation/legacy-lock-adapter.ts` now own the shared
+  binding to the existing conversation lock helper. The LINE webhook and
+  timeout cron keep their lock timing, filters, release error handling, and
+  surrounding workflow unchanged.
+- Checkpoint: `d538b52`.
+- Full verification: 180 Vitest files / 537 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome application-only snapshots
+  matched exactly before and after; CodeGraph maps the adapter to both routes
+  and `rg` confirms no direct legacy lock imports remain there.
+- Lock repository replacement, schema migration, reconciliation, and
   production traffic evidence remain deferred.
 
 ## Current Boundary
