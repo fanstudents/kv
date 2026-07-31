@@ -933,6 +933,26 @@ At `cafa912` plus this documentation stage:
 - Calendar/tag/activity provider evolution, schema changes, cache policy
   redesign, reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AZ Visit public response read compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/visit-respond-read.contract.md`.
+- `src/modules/visit/respond-ports.ts` defines the read/confirm/refetch
+  contract and `src/adapters/visit/legacy-respond-read-adapter.ts` owns the
+  existing `pending_invites` projection, optimistic confirmation, and refetch
+  query. The route keeps public HTML rendering/control flow and leaves POST
+  fulfilment unchanged.
+- `/api/agents/visit/respond` GET preserves all query values, pending/confirmed
+  branches, selected-slot labels, `pending` status filter, confirmation patch,
+  refetch behavior, headers, copy, and data/status assumptions.
+- Checkpoint: `3f7a9b0`.
+- Full verification: 172 Vitest files / 524 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the adapter,
+  port, shared slot selector, and route.
+- Public response workflow evolution, schema migration, POST cutover,
+  reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
