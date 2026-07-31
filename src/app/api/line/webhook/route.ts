@@ -12,6 +12,7 @@ import { dispatchVisitLineWebhookEvents } from "@/modules/visit/line-webhook-app
 import { createVisitLineImageHandler } from "@/modules/visit/line-image-application";
 import { createVisitLineInviteApprovalHandler } from "@/modules/visit/line-invite-approval-application";
 import { createVisitLineOfferReplyHandler } from "@/modules/visit/line-offer-application";
+import { createVisitLineTextHandler } from "@/modules/visit/line-text-application";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
@@ -129,37 +130,12 @@ async function handlePostback(event: LineEvent, userId: string, baseUrl: string)
   }
 }
 
-/** 使用者針對「已產生但尚未寄出的邀約信草稿」的回覆：寄出 / 取消 / 要求修改。 */
-async function handleTextMessage(event: LineEvent, userId: string, baseUrl: string) {
-  if (!event.replyToken) return;
-
-  const text = (event.message?.text ?? "").trim();
-
-  const handledApproval = await handleInviteApprovalReply(event, userId, text, baseUrl);
-  if (handledApproval) return;
-
-  const handledOffer = await handleVisitOfferReply(event, userId, text, baseUrl);
-  if (handledOffer) return;
-
-  try {
-    await lineDeliveryPort.replyText(
-      event.replyToken,
-      "已收到您的訊息！目前我最擅長的是名片辨識——直接傳一張名片照片給我，我會自動整理出聯絡資訊，並視需要幫您安排拜訪邀約。"
-    );
-    await lineActivityPort.record({
-      agent_slug: null,
-      summary: `收到來自 ${userId} 的訊息：「${event.message?.text?.slice(0, 40)}」，已自動回覆`,
-      status: "success",
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "回覆失敗";
-    await lineActivityPort.record({
-      agent_slug: null,
-      summary: `回覆來自 ${userId} 的訊息失敗：${message}`,
-      status: "failed",
-    });
-  }
-}
+const handleTextMessage = createVisitLineTextHandler({
+  handleInviteApprovalReply,
+  handleVisitOfferReply,
+  delivery: lineDeliveryPort,
+  activity: lineActivityPort,
+});
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
