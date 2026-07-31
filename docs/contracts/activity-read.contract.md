@@ -6,7 +6,7 @@ status: active
 owner_surface: api
 change_context:
   type: refactor
-  reason: Separate line-agent activity query coercion and storage access from the route.
+  reason: Separate shared line-agent activity query coercion and storage access from both activity routes.
   non_goals:
     - Change line_agent_activity rows, retention, or write owners.
     - Change dashboard activity consumers or response data shape.
@@ -26,12 +26,13 @@ mapping.
 ## Invariants
 
 1. `status` is read as an optional string; an empty string does not add a
-   filter. `limit` uses the existing `Number(value ?? "200")` coercion,
-   including `NaN` for invalid input.
-2. The query remains `select("*")`, ordered by `occurred_at` descending, with
-   the coerced limit; a truthy status adds `.eq("status", status)`.
+   filter. `limit` uses the existing `Number(value ?? "200")` coercion for the
+   general route, while the agent route keeps its fixed limit of `20`.
+2. The general query remains `select("*")`, ordered by `occurred_at` descending,
+   with the coerced limit; a truthy status adds `.eq("status", status)`. The
+   agent query adds `.eq("agent_slug", slug)` before ordering and limiting.
 3. Query errors return HTTP 400 with `{ error: message }`; successful responses
-   return the raw data value unchanged.
+   return the raw data value unchanged from either route.
 4. No UI, write path, row/retention policy, or schema/data behavior changes.
 
 ## Test Mapping
@@ -53,16 +54,17 @@ test_mapping:
 
 ## Evidence
 
-- CodeGraph maps the activity rules, application, port, adapter, and route as a
-  single boundary; `getSupabase` remains behind the legacy adapter.
-- Full verification at `9925600` plus this checkpoint: 70 Vitest files / 353
+- CodeGraph maps the activity rules, application, port, adapter, and both
+  activity routes as a single boundary; `getSupabase` remains behind the
+  legacy adapter.
+- Full verification at `8025673` plus this checkpoint: 70 Vitest files / 355
   tests, 93-page production build, and 130 Playwright smoke cases passed.
 - Chrome retained the Agent catalog count and tier labels before and after the
   activity route cutover.
 
 ## Intentional Changes
 
-- Activity query coercion and error mapping are now unit-tested and
-  provider-neutral.
+- Activity query coercion, agent scoping, and error mapping are now unit-tested
+  and provider-neutral.
 - Existing Supabase query shape, raw response rows, dashboard behavior, and
   activity data formats stay unchanged.
