@@ -189,11 +189,15 @@ export default function LiveTask({
   const flowRun: FlowRun = isLive
     ? { mode: "live", step: live!.step, status: live!.status, nodeId: live!.nodeId ?? undefined }
     : { mode: "idle" };
-  const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
-  // 拜訪前背景調查沒有名片那種實照可放——有抓到官網代表圖才有圖，多數時候只有一段文字摘要，
-  // 這種節點沒圖時要秀出可讀的摘要卡，而不是套用其他 Agent 通用的道具插畫。
+  // 拜訪前背景調查（research/found/firecrawl）跟名片掃描是完全不同的呈現：名片是
+  // 「這張照片本身就是重點」全螢幕大圖；背景調查是「圖只是輔助，摘要文字才是重點」，
+  // 兩者共用同一個 hasImage/imageVersion 欄位，用 nodeId 分流成不同版面。
   const isSummaryNode = live?.nodeId === "research" || live?.nodeId === "found" || live?.nodeId === "firecrawl";
-  const summaryText = isLive && isSummaryNode && !imageUrl ? live!.caption : null;
+  const liveImageUrl =
+    isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
+  const imageUrl = liveImageUrl && !isSummaryNode ? liveImageUrl : null;
+  const summaryImageUrl = liveImageUrl && isSummaryNode ? liveImageUrl : null;
+  const summaryText = isLive && isSummaryNode ? live!.caption : null;
 
   return (
     <div>
@@ -232,9 +236,17 @@ export default function LiveTask({
                 </div>
               ) : summaryText ? (
                 <div
-                  className="max-w-[80%] rounded-xl border border-white/10 bg-white/[0.04] px-6 py-5 shadow-2xl"
+                  className="flex max-w-[80%] flex-col items-center gap-4 rounded-xl border border-white/10 bg-white/[0.04] px-6 py-5 shadow-2xl"
                   style={{ borderColor: `${color}33` }}
                 >
+                  {summaryImageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={summaryImageUrl}
+                      alt="查到的公司代表圖"
+                      className="h-28 w-28 rounded-lg object-cover shadow-lg"
+                    />
+                  )}
                   <p className="whitespace-pre-line text-center text-sm leading-relaxed text-white/80">{summaryText}</p>
                 </div>
               ) : (

@@ -6,6 +6,27 @@ import { finishRun, logStep, startRun } from "@/lib/agent-runs";
 import { setLiveTask } from "@/lib/live-task-store";
 import { fetchWithRetry } from "@/lib/http";
 
+/**
+ * 直接 fetch 網頁原始碼抓 og:image，不動用 Firecrawl 額度——網路搜尋已經查到公司簡介、
+ * 不需要再花錢抓正文的情況，仍然想「順手」拿張代表圖時用這個，抓不到就算了。
+ */
+async function fetchOgImage(pageUrl: string): Promise<string | null> {
+  try {
+    const res = await fetchWithRetry(pageUrl, {}, { label: "og:image 頁面", timeoutMs: 8_000, retries: 0 });
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("html")) return null;
+    const html = await res.text();
+    const match =
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html) ??
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i.exec(html);
+    if (!match) return null;
+    return new URL(match[1], pageUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
 /** 把公開圖片（官網 og:image）下載成 data URL，供劇院模式直接顯示；抓不到就回 null，不影響其他資料。 */
 async function downloadImageAsDataUrl(url: string): Promise<string | null> {
   try {
@@ -41,6 +62,13 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
   "live.com",
   "aol.com",
 ]);
+
+/** 劇院卡片用的摘要文字：公司＋個人簡介，有查到近況再加一則當子標題。 */
+function buildTheaterSummary(profile: ContactProfile): string {
+  const parts = [profile.companySummary, profile.personSummary].filter(Boolean);
+  if (profile.highlights[0]) parts.push(`近況：${profile.highlights[0]}`);
+  return parts.join("\n") || "沒查到公開資料";
+}
 
 function pickOfficialSiteUrl(links: ProfileLink[], email?: string | null): string | null {
   const siteLink = links.find((l) => l.kind === "website" && l.url);
@@ -220,7 +248,7 @@ export async function researchContact(params: {
         }
         await logStep(runId, "firecrawl", {
           status: "done",
-          output: profile.companySummary || "官網也沒查到清楚的公司簡介",
+          output: buildTheaterSummary(profile).slice(0, 600),
           seq: 1,
         });
       } catch (err) {
@@ -229,9 +257,18 @@ export async function researchContact(params: {
       }
     } else {
       // 沒有走 Firecrawl 這條路——網路搜尋已經夠、或根本沒有可查的官網，直接收尾。
-      const summaryText = [profile.companySummary, profile.personSummary].filter(Boolean).join("\n") || "沒查到公開資料";
+      // 順手（不花 Firecrawl 額度）試著抓官網 og:image，圖文一起顯示比較好看；抓不到就純文字。
+      const websiteUrl = profile.links.find((l) => l.kind === "website")?.url;
+      if (websiteUrl) {
+        const ogImage = await fetchOgImage(websiteUrl);
+        if (ogImage) {
+          const dataUrl = await downloadImageAsDataUrl(ogImage);
+          if (dataUrl) await setLiveTask("visit", { image: dataUrl });
+        }
+      }
+      const summaryText = buildTheaterSummary(profile);
       await logStep(runId, "found", { status: "done", output: summaryText.slice(0, 600), seq: 1 });
-      await setLiveTask("visit", { status: "done", caption: summaryText.slice(0, 80) });
+      await setLiveTask("visit", { status: "done", caption: summaryText.slice(0, 200) });
     }
 
     const found =
