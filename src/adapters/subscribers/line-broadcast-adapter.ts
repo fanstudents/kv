@@ -2,9 +2,9 @@ import "server-only";
 import { pushLineRawMessages, type LineChannel } from "@/lib/line";
 import { buildPushMessages } from "@/lib/line-message-styles";
 import { getSupabase } from "@/lib/supabase";
-import type { SubscribersBroadcastPort } from "@/modules/subscribers/broadcast-ports";
+import type { SubscribersBroadcastPort } from "@/modules/subscribers/broadcast";
 
-export function createLegacySubscribersBroadcastAdapter(): SubscribersBroadcastPort {
+export function createLineSubscribersBroadcastAdapter(): SubscribersBroadcastPort {
   const supabase = getSupabase();
 
   return {

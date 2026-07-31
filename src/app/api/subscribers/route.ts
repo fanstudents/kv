@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { createLegacySubscribersReadAdapter } from "@/adapters/subscribers/legacy-read-adapter";
-import { runSubscribersRead } from "@/modules/subscribers/read-application";
+import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
+import { createSubscribersService } from "@/modules/subscribers/service";
+
+const subscribers = createSubscribersService(supabaseSubscribersRepository);
 
 export async function GET() {
-  const result = await runSubscribersRead(createLegacySubscribersReadAdapter());
+  const result = await subscribers.read();
   if (result.kind === "error") {
     return NextResponse.json({ error: result.message }, { status: 400 });
   }

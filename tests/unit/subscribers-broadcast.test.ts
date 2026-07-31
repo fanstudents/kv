@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { runSubscribersBroadcast, runSubscribersBroadcastRead } from "@/modules/subscribers/broadcast-application";
-import type { SubscribersBroadcastPort } from "@/modules/subscribers/broadcast-ports";
+import {
+  parseSubscribersBroadcastRequest,
+  runSubscribersBroadcast,
+  runSubscribersBroadcastRead,
+  type SubscribersBroadcastPort,
+} from "@/modules/subscribers/broadcast";
 
 const request = {
   kind: "ok" as const,
@@ -42,17 +46,53 @@ function fakePort(overrides?: Partial<SubscribersBroadcastPort>) {
   return { port, sends, logs };
 }
 
-describe("Subscribers broadcast application", () => {
-  it("returns broadcast logs and provider errors unchanged", async () => {
-    const { port } = fakePort();
-    await expect(runSubscribersBroadcastRead(port)).resolves.toEqual({ kind: "ok", data: [{ id: "log-1" }] });
-    await expect(runSubscribersBroadcastRead({ ...port, listLogs: async () => ({ data: null, error: { message: "read failed" } }) })).resolves.toEqual({
-      kind: "error",
-      message: "read failed",
+describe("Subscribers broadcast", () => {
+  it("keeps validation, defaults, filters, and presentation options", () => {
+    expect(parseSubscribersBroadcastRequest({ text: "  " })).toEqual({
+      kind: "invalid",
+      message: "缺少要推播的訊息內容",
+    });
+    expect(parseSubscribersBroadcastRequest({ text: " hello " })).toEqual({
+      kind: "ok",
+      input: {
+        tags: [],
+        channel: "all",
+        text: "hello",
+        style: "text",
+        title: "團隊公告",
+        accentColor: "#06C755",
+      },
+    });
+    expect(parseSubscribersBroadcastRequest({
+      tags: ["vip", 3, ""],
+      channel: "support",
+      text: "公告",
+      style: "buttons",
+      title: "重要通知",
+      accentColor: "#F59E0B",
+    })).toEqual({
+      kind: "ok",
+      input: {
+        tags: ["vip", ""],
+        channel: "support",
+        text: "公告",
+        style: "buttons",
+        title: "重要通知",
+        accentColor: "#F59E0B",
+      },
     });
   });
 
-  it("returns the existing missing-text and no-recipient errors", async () => {
+  it("returns logs and provider errors unchanged", async () => {
+    const { port } = fakePort();
+    await expect(runSubscribersBroadcastRead(port)).resolves.toEqual({ kind: "ok", data: [{ id: "log-1" }] });
+    await expect(runSubscribersBroadcastRead({
+      ...port,
+      listLogs: async () => ({ data: null, error: { message: "read failed" } }),
+    })).resolves.toEqual({ kind: "error", message: "read failed" });
+  });
+
+  it("keeps missing-text and no-recipient errors", async () => {
     const { port } = fakePort({ listRecipients: async () => ({ data: [], error: null }) });
     await expect(runSubscribersBroadcast({ kind: "invalid", message: "缺少要推播的訊息內容" }, port)).resolves.toEqual({
       kind: "error",
@@ -64,23 +104,21 @@ describe("Subscribers broadcast application", () => {
     });
   });
 
-  it("fans out independently, counts failures, and records the legacy log row", async () => {
+  it("fans out independently, counts failures, and records the log row", async () => {
     const { port, sends, logs } = fakePort();
     await expect(runSubscribersBroadcast(request, port)).resolves.toEqual({
       kind: "ok",
       data: { ok: true, recipientCount: 2, successCount: 1, failedCount: 1 },
     });
     expect(sends).toEqual(["U1", "U2"]);
-    expect(logs).toEqual([
-      {
-        tag_filter: "vip",
-        channel_filter: "support",
-        message_style: "buttons",
-        message_text: "公告",
-        recipient_count: 2,
-        success_count: 1,
-        failed_count: 1,
-      },
-    ]);
+    expect(logs).toEqual([{
+      tag_filter: "vip",
+      channel_filter: "support",
+      message_style: "buttons",
+      message_text: "公告",
+      recipient_count: 2,
+      success_count: 1,
+      failed_count: 1,
+    }]);
   });
 });

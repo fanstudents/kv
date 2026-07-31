@@ -1,6 +1,6 @@
 import { logConversationMessage } from "@/lib/support-conversations";
 import type { getSupabase } from "@/lib/supabase";
-import { createLegacySubscriberTouchAdapter } from "@/adapters/subscribers/legacy-touch-adapter";
+import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
 import type { SupportRelayPorts } from "@/modules/support/relay-ports";
 
 type LegacySupabaseClient = ReturnType<typeof getSupabase>;
@@ -8,8 +8,6 @@ type LegacySupabaseClient = ReturnType<typeof getSupabase>;
 export function createLegacySupportRelayAdapters(
   supabase: LegacySupabaseClient
 ): SupportRelayPorts {
-  const subscriberTouchPort = createLegacySubscriberTouchAdapter();
-
   return {
     relay: {
       async forward(request) {
@@ -41,7 +39,7 @@ export function createLegacySupportRelayAdapters(
     },
     subscribers: {
       async touch(lineUserId) {
-        await subscriberTouchPort.touch(lineUserId, "support");
+        await supabaseSubscribersRepository.touch(lineUserId, "support");
       },
     },
     conversations: {

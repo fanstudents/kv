@@ -17,7 +17,7 @@ import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
 import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
-import { createLegacySubscriberTouchAdapter } from "@/adapters/subscribers/legacy-touch-adapter";
+import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
@@ -28,7 +28,7 @@ import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime
 
 const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineDeliveryPort = createLegacyVisitLineDeliveryAdapter();
-const subscriberTouchPort = createLegacySubscriberTouchAdapter();
+const subscriberTouchPort = supabaseSubscribersRepository;
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 const lineActivityPort = createLegacyVisitLineActivityAdapter();
 const conversationLockPort = createLegacyConversationLockAdapter();
