@@ -71,13 +71,14 @@ Every stage must:
 | `6b9eef5` | Live Task history boundary | Visit history query ports, outcome mapping, and HTTP-preserving cutover |
 | `9925600` | Activity read boundary | Query coercion, activity read port, and HTTP-preserving cutover |
 | `8025673` | Shared activity read boundary | Reuse activity read port for general and agent-scoped activity routes |
+| `75501b2` | Goals history boundary | Trend query coercion, metric reader port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `8025673` plus this documentation stage:
+At `75501b2` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 70 Vitest files / 355 tests passed;
+- 73 Vitest files / 360 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -160,6 +161,9 @@ At `8025673` plus this documentation stage:
 - CodeGraph maps `parseAgentActivityReadRequest`, `runActivityRead`, and
   `createLegacyActivityReadAdapter` through the same Activity module and the
   agent-scoped route; the general activity route continues to share that port;
+- CodeGraph maps `parseGoalsHistoryRequest`, `runGoalsHistory`, and
+  `createLegacyGoalsHistoryAdapter` through the Goals history module, adapter,
+  and route; the existing `metricHistory` helper remains behind the adapter;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
