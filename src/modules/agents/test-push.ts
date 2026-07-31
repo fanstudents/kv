@@ -63,3 +63,59 @@ export function parseAgentTestPushRequest(
     },
   };
 }
+
+export interface AgentTestPushDelivery {
+  to: string;
+  text: string;
+  style: AgentTestPushStyle;
+  title: string;
+  accentColor: string;
+  channel: AgentTestPushChannel;
+}
+
+export interface AgentTestPushActivity {
+  agent_slug: string;
+  summary: string;
+  status: "failed" | "success";
+}
+
+export interface AgentTestPushPort {
+  send(delivery: AgentTestPushDelivery): Promise<void>;
+  recordFailure(activity: AgentTestPushActivity): Promise<void>;
+  recordSuccess(activity: AgentTestPushActivity): Promise<Record<string, unknown> | null>;
+}
+
+export type AgentTestPushResult =
+  | { kind: "success"; ok: true; activity: Record<string, unknown> | null }
+  | { kind: "error"; message: string };
+
+export async function runAgentTestPush(
+  input: AgentTestPushInput,
+  port: AgentTestPushPort
+): Promise<AgentTestPushResult> {
+  try {
+    await port.send({
+      to: input.to,
+      text: input.text,
+      style: input.style,
+      title: input.title,
+      accentColor: input.accentColor,
+      channel: input.channel,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "推播失敗";
+    await port.recordFailure({
+      agent_slug: input.slug,
+      summary: `測試推播失敗（${input.styleLabel}）：${message}`,
+      status: "failed",
+    });
+    return { kind: "error", message };
+  }
+
+  const activity = await port.recordSuccess({
+    agent_slug: input.slug,
+    summary: `已透過 LINE Messaging API 送出測試推播（${input.styleLabel}樣式）`,
+    status: "success",
+  });
+  return { kind: "success", ok: true, activity };
+}

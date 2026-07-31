@@ -622,6 +622,30 @@ Then the existing report artifact is retried without creating a second scheduled
 
 **Goals:** G-01、G-04、G-05
 
+#### 進場清理 — Agent admin compatibility boundary
+
+**狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；這只處理既有 route-slice 過細與假 adapter，不代表 WP-09 的 canonical Agent model 已開始或已完成。
+
+**Behavior contract (`behavior-contract/v1`, `agent.admin.compatibility`)**
+
+- Scope：`GET /api/agents`、`GET/PATCH /api/agents/[slug]`、`POST /api/agents/[slug]/test-push`，以及 schedule／GA4／GSC／pipeline 的四個 overview read route；`line_agents`、`line_agent_activity`、既有 LINE message renderer 與既有 Google／GA4／GSC／Teachify provider helper。
+- Non-goals：不改 `AGENTS`、`AGENT_CATALOG`、`line_agents` schema／資料格式、workflow contract、route URL/method/status/payload、UI/UX、LINE channel 選擇或外部 provider 選型；不把 presentation slug 當 canonical identity。
+- Ownership：`line_agents` 的 read/update/status fallback 與 activity 寫入收斂為一個 agent-admin repository；test push 保持獨立的 delivery capability；四個 overview route 直接使用其各自真正 provider helper，不保留只有一個 caller 的 generic port／adapter forwarding layer。
+- Invariants：unknown instance 仍 `404`；PATCH 仍只接受 boolean `enabled` 與 object `settings`、空/錯 JSON 仍做 timestamp-only update、activity 順序與文案不變；database enabled 仍覆寫 static default、provider 失敗仍 fallback；test push 的 input validation/style default/support channel/LINE renderer/activity/error `502` 不變；overview 的 `days` default、`{ ok, data }`／`{ ok:false, error }`、`502` 不變。
+- Verification：CodeGraph caller/impact map、focused contract/route tests、typecheck/lint，並以 Chrome 對 `/goals`、`/agents/support`、`/agents/operations`、`/agents/schedule` 做 before/after DOM + console comparison；不點擊會造成真實 LINE 或 provider side effect 的按鈕。
+
+- [x] 將 agent instance read/update/status 收斂成一個真實 `line_agents` admin boundary。
+- [x] 將 test push 收斂成一個 delivery capability，保留 LINE 與 activity 的明確 adapter。
+- [x] 移除四個 single-caller overview forwarding adapters 與通用 port，改由 route 直接呼叫既有 provider helper。
+- [x] 以 route contract 與 Chrome parity 證明 compatibility；CodeGraph 舊 caller 歸零。
+
+**Evidence（2026-07-31）：**
+
+- 14 個 module／8 個 adapter 的 route-slice 檔案收斂為 2 個有明確責任的 Agent module、2 個真實 adapter、1 個由四個同契約 route 共用的 response helper；7 條既有 API façade 的 URL、method、status/payload 不變。沒有把四種外部 overview provider 偽裝成同一個 Agent repository。
+- 14 個切碎的 unit test files 改為 6 個 capability/adapter/route contract files、14 個 focused tests；覆蓋 `line_agents` select/update/status、activity、PATCH parser、test-push LINE failure、四個 overview success/default/error，以及 route 的 `404`/`400`/`502` mapping。
+- CodeGraph sync 證實 `readAgentInstance`、`updateAgentInstance`、`readAgentStatuses`、`runAgentTestPush` 各只由原本 API façade 呼叫，`readOverview` 則由四個 overview route 共用；舊 application/port/legacy-adapter import 為零。
+- focused `npx vitest run`（6 files／14 tests）、full `npm test`（116 files／505 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome before/after：`/agents/support` 6,078、`/agents/operations` 6,656、`/agents/schedule` 6,224 chars 完全一致；`/goals` 11,042 chars 的產品 DOM 一致，唯一原始差異為 Next dev 的 `Open Next.js Dev Tools` 按鈕。四頁 console 無 error/warn；未點擊任何會發 LINE 或第三方 provider side effect 的控制項。
+
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。

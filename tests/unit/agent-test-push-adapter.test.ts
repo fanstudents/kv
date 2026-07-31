@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { buildPushMessages, pushLineRawMessages, getSupabase } = vi.hoisted(() => ({
   buildPushMessages: vi.fn(),
@@ -11,23 +11,25 @@ vi.mock("@/lib/line", () => ({ pushLineRawMessages }));
 vi.mock("@/lib/line-message-styles", () => ({ buildPushMessages }));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 
-import { createLegacyAgentTestPushAdapter } from "@/adapters/agents/legacy-test-push-adapter";
+import { createLineAgentTestPushAdapter } from "@/adapters/agents/line-agent-test-push-adapter";
 
-describe("legacy agent test-push adapter", () => {
-  it("keeps LINE message construction, channel routing, and activity persistence", async () => {
+beforeEach(() => vi.clearAllMocks());
+
+describe("LINE agent test-push adapter", () => {
+  it("keeps message construction, channel routing, and activity persistence", async () => {
     buildPushMessages.mockReturnValue([{ type: "text", text: "hello" }]);
     pushLineRawMessages.mockResolvedValue(undefined);
-    const failureQuery = { insert: vi.fn().mockResolvedValue({ error: null }) };
+    const failureQuery = { insert: vi.fn(async () => ({ error: null })) };
     const successQuery = {
       insert: vi.fn(),
       select: vi.fn(),
-      single: vi.fn().mockResolvedValue({ data: { id: "activity-1" }, error: null }),
+      single: vi.fn(async () => ({ data: { id: "activity-1" }, error: null })),
     };
     successQuery.insert.mockReturnValue(successQuery);
     successQuery.select.mockReturnValue(successQuery);
     const from = vi.fn((table: string) => (table === "line_agent_activity" && from.mock.calls.length === 1 ? failureQuery : successQuery));
     getSupabase.mockReturnValue({ from });
-    const adapter = createLegacyAgentTestPushAdapter();
+    const adapter = createLineAgentTestPushAdapter();
 
     await adapter.send({ to: "U1", text: "hello", style: "buttons", title: "Title", accentColor: "#06C755", channel: "support" });
     await adapter.recordFailure({ agent_slug: "support", summary: "failed", status: "failed" });

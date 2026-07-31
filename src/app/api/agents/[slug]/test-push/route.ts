@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createLegacyAgentTestPushAdapter } from "@/adapters/agents/legacy-test-push-adapter";
-import { runAgentTestPush } from "@/modules/agents/test-push-application";
-import { parseAgentTestPushRequest } from "@/modules/agents/test-push-rules";
+import { createLineAgentTestPushAdapter } from "@/adapters/agents/line-agent-test-push-adapter";
+import { parseAgentTestPushRequest, runAgentTestPush } from "@/modules/agents/test-push";
 
 // 客服 Agent（Amber）用的是獨立的 LINE 頻道（客服機器人既有帳號），不是其他 Agent
 // 共用的主頻道——測試推播沒有依 slug 分流的話，會拿主頻道的憑證發送，就算客服頻道
@@ -12,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const body = await req.json().catch(() => ({}));
   const parsed = parseAgentTestPushRequest(slug, body);
   if (parsed.kind === "invalid") return NextResponse.json({ error: parsed.message }, { status: 400 });
-  const result = await runAgentTestPush(parsed.input, createLegacyAgentTestPushAdapter());
+  const result = await runAgentTestPush(parsed.input, createLineAgentTestPushAdapter());
   if (result.kind === "error") return NextResponse.json({ error: result.message }, { status: 502 });
   return NextResponse.json({ ok: true, activity: result.activity });
 }
