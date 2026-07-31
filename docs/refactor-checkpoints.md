@@ -69,13 +69,14 @@ Every stage must:
 | `6dda162` | Live Task update boundary | POST payload rules, state update port, and HTTP-preserving cutover |
 | `fa309ba` | Live Task read boundary | State/run-step composition, read port, and HTTP-preserving cutover |
 | `6b9eef5` | Live Task history boundary | Visit history query ports, outcome mapping, and HTTP-preserving cutover |
+| `9925600` | Activity read boundary | Query coercion, activity read port, and HTTP-preserving cutover |
 
 ## Current Verification
 
-At `6b9eef5` plus this documentation stage:
+At `9925600` plus this documentation stage:
 
 - `npm run verify:full` passed;
-- 67 Vitest files / 347 tests passed;
+- 70 Vitest files / 353 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
@@ -152,6 +153,9 @@ At `6b9eef5` plus this documentation stage:
   `runLiveTaskHistory`, and `createLegacyLiveTaskHistoryAdapter` through the
   Live Task history modules and route; the shared `getSupabase` helper remains
   behind the legacy adapter;
+- CodeGraph maps `parseActivityReadRequest`, `runActivityRead`, and
+  `createLegacyActivityReadAdapter` through the Activity module, adapter, and
+  route; `getSupabase` remains behind the legacy read adapter;
 - no production Supabase schema or data was read or changed.
 
 ## Current Boundary
