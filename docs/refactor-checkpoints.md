@@ -763,6 +763,28 @@ At `cafa912` plus this documentation stage:
 - Agent schema evolution, instance write-owner migration, registry cutover,
   reconciliation, and production traffic evidence remain deferred.
 
+### WP6-AR Agent test-push compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/agent-test-push.contract.md`.
+- `src/modules/agents/test-push-rules.ts` owns request normalization,
+  style/title/accent defaults, validation, and support-channel selection;
+  `test-push-application.ts` owns provider-error mapping and activity
+  orchestration; `src/adapters/agents/legacy-test-push-adapter.ts` keeps the
+  existing LINE message builder/sender and `line_agent_activity` writes behind
+  the port.
+- The `/api/agents/[slug]/test-push` POST route preserves the existing input
+  defaults, validation messages, LINE delivery styles, support-vs-primary
+  channel routing, activity vocabulary, HTTP statuses, response envelope, and
+  all Agent UI/data formats.
+- Checkpoint: `c955e80`.
+- Full verification: 152 Vitest files / 481 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the test-push
+  rules, port, application, adapter, and route.
+- Agent schema evolution, provider credential rotation, message-template
+  redesign, reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
