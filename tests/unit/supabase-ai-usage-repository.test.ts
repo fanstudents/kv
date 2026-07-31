@@ -9,13 +9,13 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ai-usage", () => ({ budgetStatus }));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 
-import { createLegacyAiUsageReadAdapter } from "@/adapters/ai-usage/legacy-read-adapter";
+import { createSupabaseAiUsageRepository } from "@/adapters/ai-usage/supabase-ai-usage-repository";
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("legacy AI usage read adapter", () => {
+describe("Supabase AI usage repository", () => {
   it("keeps the existing query shape and budget helper", async () => {
-    const rows = [{ operation: "摘要", model: "gpt-4o-mini", cost_usd: 0.2 }];
+    const rows = [{ operation: "名片辨識", model: "gpt-4o-mini", cost_usd: 0.2 }];
     const limit = vi.fn().mockResolvedValue({ data: rows, error: null });
     const order = vi.fn(() => ({ limit }));
     const select = vi.fn(() => ({ order }));
@@ -24,10 +24,10 @@ describe("legacy AI usage read adapter", () => {
       daily: { spent: 1, limit: 5 },
       monthly: { spent: 4, limit: 60 },
     });
-    const adapter = createLegacyAiUsageReadAdapter();
+    const repository = createSupabaseAiUsageRepository();
 
-    await expect(adapter.listRows(2000)).resolves.toEqual({ data: rows, error: null });
-    await expect(adapter.getBudgetStatus()).resolves.toEqual({
+    await expect(repository.listRows(2000)).resolves.toEqual({ data: rows, error: null });
+    await expect(repository.getBudgetStatus()).resolves.toEqual({
       daily: { spent: 1, limit: 5 },
       monthly: { spent: 4, limit: 60 },
     });
@@ -38,13 +38,13 @@ describe("legacy AI usage read adapter", () => {
     expect(budgetStatus).toHaveBeenCalledOnce();
   });
 
-  it("maps a legacy query error to its message while keeping rows empty", async () => {
+  it("maps a query error to its message while keeping rows empty", async () => {
     const limit = vi.fn().mockResolvedValue({ data: null, error: { message: "database down" } });
     const order = vi.fn(() => ({ limit }));
     const select = vi.fn(() => ({ order }));
     getSupabase.mockReturnValue({ from: vi.fn(() => ({ select })) });
-    const adapter = createLegacyAiUsageReadAdapter();
+    const repository = createSupabaseAiUsageRepository();
 
-    await expect(adapter.listRows(2000)).resolves.toEqual({ data: [], error: { message: "database down" } });
+    await expect(repository.listRows(2000)).resolves.toEqual({ data: [], error: { message: "database down" } });
   });
 });

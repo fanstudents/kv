@@ -692,6 +692,29 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實四個 API orchestration function 各只有原 API façade caller，state repository 四個 caller 與 Visit-history repository 一個 caller 都符合設計；舊 live-task application/port/rules/legacy-adapter import 為零。
 - focused `npx vitest run`（5 files／26 tests）、full `npm test`（109 files／509 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome `/tv` before/after DOM 1,476 chars 完全一致，console 無 error/warn；未觸發 webhook、cron 或任何寫入控制項。
 
+#### 進場清理 — AI usage reporting boundary
+
+**狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；這是單一 dashboard read capability 的結構收斂，不是 AI budget policy、使用量資料模型或 Agent canonicalization 的改寫。
+
+**Behavior contract (`behavior-contract/v1`, `ai-usage.reporting`)**
+
+- Scope：`GET /api/ai-usage`、dashboard `/ai-usage`、`ai_usage_logs` read 與既有 `budgetStatus` helper。
+- Non-goals：不改 UI/UX、route URL/status/payload、資料表／資料格式、budget limits/cache/policy、統計公式或 Agent presentation mapping。
+- Invariants：查詢仍以 `created_at DESC` 讀最多 2,000 筆；query failure 仍為 `{ error }`／400 且不讀 budget；total、30/7-day、operation/model cost ordering、recent 前 50 筆與既有 coercion 不變；budget provider failure 保持原 route throw boundary。
+- Design：把同一個 AI usage report capability 的 rules、read port 與 orchestration 收斂為一個領域 module；保留一個真實負責 Supabase query 和 budget helper translation 的 repository，不保留 legacy forwarding adapter。
+- Verification：CodeGraph caller/import map、focused capability/repository/route contract tests、typecheck/lint/build，以及 Chrome 對 `/ai-usage` 的 before/after DOM + console comparison；不觸發任何 AI 呼叫。
+
+- [x] 收斂 report capability 與 Supabase usage repository，維持 API façade。
+- [x] 維持所有統計、error 與 budget semantics，補 route success/failure contract。
+- [x] 以 CodeGraph/Chrome parity 與 full verification 完成證據。
+
+**Evidence（2026-07-31）：**
+
+- 三個 route-slice module 加上一個 `legacy` adapter 收斂為單一 `usage.ts` capability 與一個真實的 Supabase usage repository；沒有建立跨 domain 的 reporting framework，`/api/ai-usage` 與 dashboard page 均未改。
+- 三個 focused test files／8 個既有 cases 收斂為兩個 capability/repository/route contract files／10 個 cases；保留 aggregation、window、coercion、recent ordering、2,000-row query、budget failure semantics，並補上 route 的 400／success payload。
+- CodeGraph sync 證實 `readAiUsage` 與 `createSupabaseAiUsageRepository` 各只有原本 `/api/ai-usage` GET façade caller；舊 read-application／read-ports／report-rules／legacy-adapter import 為零。
+- focused `npx vitest run`（2 files／10 tests）、full `npm test`（108 files／511 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome `/ai-usage` before capture 為初始 loading state（4,238 chars、三張 card 顯示 `…`），after 為 API resolve 後的既有 empty state（4,318 chars、`$0` + empty message）；標題、導航與 card labels 一致，console 無 error/warn，未觸發 AI/provider side effect。因兩次 capture 分別落在非同步載入前後，這筆 evidence 明確不把 raw DOM 字串當成完全相等。
+
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
 - [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。

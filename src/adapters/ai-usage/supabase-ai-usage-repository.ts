@@ -1,10 +1,9 @@
 import "server-only";
 import { budgetStatus } from "@/lib/ai-usage";
 import { getSupabase } from "@/lib/supabase";
-import type { AiUsageReadPort } from "@/modules/ai-usage/read-ports";
-import type { AiUsageRow } from "@/modules/ai-usage/report-rules";
+import type { AiUsageRepository, AiUsageRow } from "@/modules/ai-usage/usage";
 
-export function createLegacyAiUsageReadAdapter(): AiUsageReadPort {
+export function createSupabaseAiUsageRepository(): AiUsageRepository {
   return {
     async listRows(limit) {
       const { data, error } = await getSupabase()

@@ -34,6 +34,28 @@ export interface AiUsageReport {
   recent: AiUsageRow[];
 }
 
+export interface AiUsageBudgetSide {
+  spent: number;
+  limit: number;
+}
+
+export interface AiUsageBudgetStatus {
+  daily: AiUsageBudgetSide;
+  monthly: AiUsageBudgetSide;
+}
+
+export interface AiUsageRepository {
+  listRows(limit: number): Promise<{
+    data: AiUsageRow[];
+    error: { message: string } | null;
+  }>;
+  getBudgetStatus(): Promise<AiUsageBudgetStatus>;
+}
+
+export type AiUsageReadResult =
+  | { kind: "query-failed"; message: string }
+  | { kind: "ok"; report: AiUsageReport & { budget: AiUsageBudgetStatus } };
+
 function summarizeRows(rows: readonly AiUsageRow[]): AiUsageSummary {
   return {
     count: rows.length,
@@ -76,4 +98,13 @@ export function summarizeAiUsage(rows: readonly AiUsageRow[], now = Date.now()):
     models,
     recent: rows.slice(0, 50),
   };
+}
+
+export async function readAiUsage(repository: AiUsageRepository, now = Date.now()): Promise<AiUsageReadResult> {
+  const result = await repository.listRows(2000);
+  if (result.error) return { kind: "query-failed", message: result.error.message };
+
+  const report = summarizeAiUsage(result.data, now);
+  const budget = await repository.getBudgetStatus();
+  return { kind: "ok", report: { ...report, budget } };
 }
