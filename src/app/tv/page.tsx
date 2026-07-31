@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -956,15 +956,32 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
   const fullReport = `${brief.greeting}${brief.report}`;
   const { shown, done, skip } = useTypewriter(fullReport);
 
-  // 真實現正處理：每 1.5 秒輪詢；有真實任務就用真圖 + 真進度取代示意動畫
+  // 真實現正處理：每 1.5 秒輪詢；有真實任務就用真圖 + 真進度取代示意動畫。
+  // 任務一結束（active 變 false）不馬上清空——背景調查這類任務常常「剛整理好摘要，
+  // 下一輪詢就已經因為 run 結束而抓不到」，畫面會閃一下就消失。改成前端自己留著
+  // 最後一次看到的畫面幾秒鐘，純粹是這個分頁自己記住的狀態，不會動到後端共用的那一列，
+  // 也不會因為多留幾秒而讓別的流程（例如同時有名片在掃）跟著寫壞這份資料。
   const [live, setLive] = useState<LiveInfo | null>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     let alive = true;
     const load = () =>
       fetch(`/api/live-task?agent=${agent.slug}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
-          if (alive) setLive(d && d.active ? (d as LiveInfo) : null);
+          if (!alive) return;
+          if (d && d.active) {
+            if (holdTimerRef.current) {
+              clearTimeout(holdTimerRef.current);
+              holdTimerRef.current = null;
+            }
+            setLive(d as LiveInfo);
+          } else if (!holdTimerRef.current) {
+            holdTimerRef.current = setTimeout(() => {
+              if (alive) setLive(null);
+              holdTimerRef.current = null;
+            }, 5000);
+          }
         })
         .catch(() => {});
     load();
@@ -972,6 +989,8 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
     return () => {
       alive = false;
       clearInterval(id);
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
     };
   }, [agent.slug]);
 

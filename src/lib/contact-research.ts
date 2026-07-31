@@ -63,6 +63,25 @@ const PUBLIC_EMAIL_DOMAINS = new Set([
   "aol.com",
 ]);
 
+// 官網頁尾/頁首常常就擺著社群帳號連結，跟公司簡介一起抓正文時順手拿——
+// 這樣網路搜尋沒查到社群帳號時，還有 Firecrawl 這條路可以補。
+const SOCIAL_PATTERNS: { kind: string; label: string; re: RegExp }[] = [
+  { kind: "linkedin", label: "LinkedIn", re: /https?:\/\/(?:www\.)?linkedin\.com\/[^\s)\]"'<>]+/i },
+  { kind: "facebook", label: "Facebook", re: /https?:\/\/(?:www\.)?facebook\.com\/[^\s)\]"'<>]+/i },
+  { kind: "instagram", label: "Instagram", re: /https?:\/\/(?:www\.)?instagram\.com\/[^\s)\]"'<>]+/i },
+  { kind: "threads", label: "Threads", re: /https?:\/\/(?:www\.)?threads\.net\/[^\s)\]"'<>]+/i },
+];
+
+/** 從官網正文裡順手抓社群帳號連結（頁尾常見的一排社群圖示），抓不到就是空陣列。 */
+function extractSocialLinks(markdown: string): ProfileLink[] {
+  const found: ProfileLink[] = [];
+  for (const { kind, label, re } of SOCIAL_PATTERNS) {
+    const match = re.exec(markdown);
+    if (match) found.push({ label, url: match[0].replace(/[.,;]+$/, ""), kind });
+  }
+  return found;
+}
+
 /** 劇院卡片用的摘要文字：公司＋個人簡介，有查到近況再加一則當子標題。 */
 function buildTheaterSummary(profile: ContactProfile): string {
   const parts = [profile.companySummary, profile.personSummary].filter(Boolean);
@@ -229,6 +248,10 @@ export async function researchContact(params: {
         });
         const page = await scrapeUrl(siteUrl);
         if (page.markdown.trim().length > 0) {
+          // 網路搜尋這輪沒查到公司簡介，八成也沒查到社群帳號——官網頁尾常常就有，順手一起補。
+          for (const link of extractSocialLinks(page.markdown)) {
+            if (!profile.links.some((l) => l.kind === link.kind)) profile.links.push(link);
+          }
           const summarized = await chatJson({
             model: "gpt-4o-mini",
             operation: "官網簡介摘要",
@@ -258,12 +281,11 @@ export async function researchContact(params: {
           const dataUrl = await downloadImageAsDataUrl(page.imageUrl);
           if (dataUrl) await setLiveTask("visit", { image: dataUrl });
         }
-        const theaterSummary = buildTheaterSummary(profile);
-        await logStep(runId, "firecrawl", { status: "done", output: theaterSummary.slice(0, 600), seq: 1 });
-        // 這次執行結束後 run 狀態會變成 success，馬上就不在「進行中」名單裡了——
-        // 沒有這行，畫面上剛整理好的摘要會閃一下就消失。多寫這列讓它靠 agent_live_task
-        // 自己的 2 分鐘保鮮期多留一會兒，跟名片流程走到「已寄出」時的做法一致。
-        await setLiveTask("visit", { status: "done", caption: theaterSummary.slice(0, 200) });
+        await logStep(runId, "firecrawl", {
+          status: "done",
+          output: buildTheaterSummary(profile).slice(0, 600),
+          seq: 1,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : "unknown";
         await logStep(runId, "firecrawl", { status: "failed", output: message, seq: 1 }).catch(() => {});
@@ -279,10 +301,7 @@ export async function researchContact(params: {
           if (dataUrl) await setLiveTask("visit", { image: dataUrl });
         }
       }
-      const summaryText = buildTheaterSummary(profile);
-      await logStep(runId, "found", { status: "done", output: summaryText.slice(0, 600), seq: 1 });
-      // 同上：run 一結束就從「進行中」名單消失，補寫這列讓摘要靠 2 分鐘保鮮期多留一會兒。
-      await setLiveTask("visit", { status: "done", caption: summaryText.slice(0, 200) });
+      await logStep(runId, "found", { status: "done", output: buildTheaterSummary(profile).slice(0, 600), seq: 1 });
     }
 
     const found =
