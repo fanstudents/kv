@@ -87,8 +87,7 @@ Every stage must:
 
 ## Current Verification
 
-At code checkpoint `26249da` plus the pending documentation checkpoint for
-WP6-BH:
+At code checkpoint `26249da` plus documentation checkpoint `56a4abc`:
 
 - `npm run verify:full` passed;
 - 179 Vitest files / 535 tests passed;
