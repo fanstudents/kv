@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLegacyAgentInstanceReadAdapter } from "@/adapters/agents/legacy-agent-instance-read-adapter";
-import { getSupabase } from "@/lib/supabase";
+import { createLegacyAgentInstanceUpdateAdapter } from "@/adapters/agents/legacy-agent-instance-update-adapter";
 import { runAgentInstanceRead } from "@/modules/agents/agent-instance-read-application";
+import { runAgentInstanceUpdate } from "@/modules/agents/agent-instance-update-application";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -13,42 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const body = await req.json().catch(() => ({}));
-
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-  if (typeof body.enabled === "boolean") update.enabled = body.enabled;
-  if (body.settings && typeof body.settings === "object") update.settings = body.settings;
-
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("line_agents")
-    .update(update)
-    .eq("slug", slug)
-    .select()
-    .single();
-
-  if (error) {
-    await supabase.from("line_agent_activity").insert({
-      agent_slug: slug,
-      summary: `更新設定失敗：${error.message}`,
-      status: "failed",
-    });
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  if (typeof body.enabled === "boolean") {
-    await supabase.from("line_agent_activity").insert({
-      agent_slug: slug,
-      summary: body.enabled ? "Agent 已啟用" : "Agent 已停用",
-      status: "success",
-    });
-  }
-  if (body.settings && typeof body.settings === "object") {
-    await supabase.from("line_agent_activity").insert({
-      agent_slug: slug,
-      summary: "已更新 Agent 設定",
-      status: "success",
-    });
-  }
-
-  return NextResponse.json(data);
+  const result = await runAgentInstanceUpdate(slug, body, createLegacyAgentInstanceUpdateAdapter());
+  if (result.kind === "error") return NextResponse.json({ error: result.message }, { status: 400 });
+  return NextResponse.json(result.data);
 }
