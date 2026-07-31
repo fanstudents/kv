@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resetGoalsToDefault } from "@/lib/agent-goals-server";
 import { GOAL_METRICS } from "@/lib/agent-goals";
 import { AGENTS } from "@/lib/agent-data";
 import { createLegacyGoalUpdateAdapter } from "@/adapters/goals/legacy-update-adapter";
 import { createLegacyGoalsReadAdapter } from "@/adapters/goals/legacy-read-adapter";
 import { createLegacyGoalDeleteAdapter } from "@/adapters/goals/legacy-delete-adapter";
+import { createLegacyGoalsResetAdapter } from "@/adapters/goals/legacy-reset-adapter";
 import { runGoalUpdate } from "@/modules/goals/update-application";
 import { runGoalsRead } from "@/modules/goals/read-application";
 import { runGoalDelete } from "@/modules/goals/delete-application";
+import { runGoalsReset } from "@/modules/goals/reset-application";
 import { parseGoalUpdateRequest } from "@/modules/goals/update-rules";
 import { parseGoalDeleteRequest } from "@/modules/goals/delete-rules";
 
@@ -45,6 +46,6 @@ export async function DELETE(req: NextRequest) {
 
 /** 還原示範目標 */
 export async function POST() {
-  const goals = await resetGoalsToDefault();
-  return NextResponse.json({ goals });
+  const result = await runGoalsReset(createLegacyGoalsResetAdapter());
+  return NextResponse.json({ goals: result.data });
 }
