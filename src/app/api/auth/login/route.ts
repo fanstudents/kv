@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSessionToken, verifyPassword, SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
+import { SESSION_COOKIE, SESSION_MAX_AGE } from "@/lib/auth";
+import { createLegacyLoginAdapter } from "@/adapters/auth/legacy-login-adapter";
+import { runLogin } from "@/modules/auth/login-application";
+import { parseLoginRequest } from "@/modules/auth/login-rules";
 
 export async function POST(req: NextRequest) {
-  if (!process.env.AUTH_SECRET || !process.env.ADMIN_PASSWORD) {
-    return NextResponse.json(
-      { error: "伺服器尚未設定登入密碼（AUTH_SECRET / ADMIN_PASSWORD），請聯繫系統管理員" },
-      { status: 500 }
-    );
-  }
-
   const body = await req.json().catch(() => ({}));
-  const password = typeof body.password === "string" ? body.password : "";
-
-  if (!password || !verifyPassword(password)) {
-    return NextResponse.json({ error: "密碼錯誤" }, { status: 401 });
+  const result = runLogin(parseLoginRequest(body), createLegacyLoginAdapter());
+  if (result.kind === "config-error") {
+    return NextResponse.json({ error: result.message }, { status: 500 });
+  }
+  if (result.kind === "invalid-password") {
+    return NextResponse.json({ error: result.message }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE, createSessionToken(), {
+  res.cookies.set(SESSION_COOKIE, result.token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
