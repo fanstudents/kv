@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AGENTS } from "@/lib/agent-data";
-import { createLegacyKnowledgeAccessUpdateAdapter } from "@/adapters/knowledge-base/legacy-access-update-adapter";
-import { runKnowledgeAccessUpdate } from "@/modules/knowledge-base/access-application";
-import { parseKnowledgeAccessUpdateRequest } from "@/modules/knowledge-base/access-rules";
+import { createSupabaseKnowledgeRepository } from "@/adapters/knowledge-base/supabase-knowledge-repository";
+import { parseKnowledgeAccessUpdate, updateKnowledgeAccess } from "@/modules/knowledge-base/access-policy";
 
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const result = await runKnowledgeAccessUpdate(
-    parseKnowledgeAccessUpdateRequest(body, AGENTS),
-    createLegacyKnowledgeAccessUpdateAdapter(),
+  const result = await updateKnowledgeAccess(
+    parseKnowledgeAccessUpdate(body, AGENTS),
+    createSupabaseKnowledgeRepository(),
   );
   if (result.kind === "invalid") {
     return NextResponse.json({ error: result.message }, { status: 400 });

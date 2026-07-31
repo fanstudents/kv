@@ -386,8 +386,22 @@ Static comparison 找到的 19 個 migration provenance 缺口：
 
 **Anchors:** DM-03 的 routes/modules/adapters、`lib/{knowledge-base,kb-import,kb-crawl,kb-search}.ts`.
 
-- [ ] 依 capability 分成 document repository、access policy、ingestion、crawl provider、index/search。
-- [ ] 合併 CRUD/import action-specific ports與applications。
+**狀態（2026-07-31）：** 進行中。document repository 與 access policy 已完成第一批收斂；ingestion、crawl、index/search 尚待收斂。現階段不改 Supabase schema、資料格式、API payload 或 UI。
+
+**Behavior contract (`behavior-contract/v1`, `knowledge-base.capabilities`)**
+
+- Scope：`/knowledge-base`、`/knowledge-base/import`；`/api/knowledge-base{,/access,/import,/crawl,/reindex}`；`/api/cron/kb-recheck`；`knowledge_base`、`kb_sources`、`kb_chunks`；Firecrawl 與 embedding provider。
+- Non-goals：不改既有畫面、route method/status/payload、資料表欄位、草稿/發布語意、權限等級、provider 選型。
+- States：upload/crawl → source converting → draft preview → publish 或 discard → published docs 可 index；provider 失敗保留 failed/error 行為；網站內容變更只標記待複檢，不暗改已發布內容。
+- Invariants：draft 不得進搜尋；只索引有 content 的 published docs；L1～L4 access 上限語意不變；內建示範文件仍不可刪；PDF 限 12MB 且只收 `.pdf`；Firecrawl quota error 仍映射既有回應；cron secret 行為不變。
+- UI states：登入後兩頁的 first-paint、empty、ready、error、控制項與 responsive layout 都維持原樣；本機無真實 provider 時只驗證既有 zero/empty path，不宣稱 real-data journey 通過。
+- Acceptance：文件 GET 同時回 `{ docs, access }`；POST/PATCH/DELETE 保留既有 validation/status；access PUT 僅接受 catalog slug 與 L1～L4；import GET 依 `sourceId` 回 sources 或 drafts；publish/discard 回原計數；crawl preview/import、reindex、recheck 保留成功與 provider failure contract。
+- Evidence：capability unit tests、route/API tests、全套 Vitest/lint/typecheck/build；每個切片以 authenticated Chrome 對 `/knowledge-base` 與 `/knowledge-base/import` 做相同 DOM 與 console error 比對。真實 Supabase/Firecrawl/OpenAI journey 延後到 WP-01 credentials 補齊。
+- Intentional changes：只有 module/file ownership 與命名；observable behavior 無變更。
+- Open question：缺少 Supabase migration provenance 的 runtime schema 仍由 WP-01/WP-04 處理，不在本批猜測或補 migration。
+
+- [ ] 依 capability 分成 document repository、access policy、ingestion、crawl provider、index/search。（document/access 已完成）
+- [ ] 合併 CRUD/import action-specific ports與applications。（CRUD 已完成）
 - [ ] 將 Supabase rows、Firecrawl、embedding/OpenAI translation 留在 adapters。
 - [ ] 定義 upload→preview→publish/discard→index state/failure map。
 - [ ] 保持既有 API payload與KB頁面狀態。

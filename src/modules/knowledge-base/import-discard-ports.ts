@@ -1,5 +1,5 @@
-import type { KnowledgeBaseDeleteOutcome } from "./delete-ports";
+import type { KnowledgeDocumentDeleteOutcome } from "./documents";
 
 export interface KnowledgeBaseImportDiscardPort {
-  remove(id: string): Promise<KnowledgeBaseDeleteOutcome>;
+  remove(id: string): Promise<KnowledgeDocumentDeleteOutcome>;
 }

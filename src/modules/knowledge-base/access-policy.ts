@@ -14,9 +14,17 @@ export type KnowledgeAccessUpdateParseResult =
   | { kind: "invalid"; message: string }
   | { kind: "ok"; input: KnowledgeAccessUpdateRequest };
 
+export type KnowledgeAccessUpdateResult =
+  | { kind: "invalid"; message: string }
+  | { kind: "ok" };
+
+export interface KnowledgeAccessPolicyRepository {
+  setAccess(slug: AgentSlug, level: KnowledgeLevel): Promise<void>;
+}
+
 const VALID_LEVELS: KnowledgeLevel[] = [1, 2, 3, 4];
 
-export function parseKnowledgeAccessUpdateRequest(
+export function parseKnowledgeAccessUpdate(
   body: unknown,
   catalog: readonly KnowledgeAccessCatalogEntry[],
 ): KnowledgeAccessUpdateParseResult {
@@ -36,4 +44,13 @@ export function parseKnowledgeAccessUpdateRequest(
     kind: "ok",
     input: { agentSlug: agentSlug as AgentSlug, level: level as KnowledgeLevel },
   };
+}
+
+export async function updateKnowledgeAccess(
+  parsed: KnowledgeAccessUpdateParseResult,
+  repository: KnowledgeAccessPolicyRepository,
+): Promise<KnowledgeAccessUpdateResult> {
+  if (parsed.kind === "invalid") return parsed;
+  await repository.setAccess(parsed.input.agentSlug, parsed.input.level);
+  return { kind: "ok" };
 }
