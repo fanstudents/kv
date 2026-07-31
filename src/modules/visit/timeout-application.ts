@@ -1,9 +1,11 @@
 import type { ConversationLockPort } from "@/modules/conversation/lock-ports";
 import type { ContactTagPort } from "@/modules/operations/service";
 import type { LiveTaskStateRepository } from "@/modules/live-task/state";
-import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
-import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
-import type { VisitLineWorkflowPersistencePort } from "@/modules/visit/line-workflow-ports";
+import type {
+  VisitLineActivityPort,
+  VisitLineDeliveryPort,
+  VisitLineWorkflowPersistencePort,
+} from "@/modules/visit/line-contracts";
 
 export interface VisitTimeoutClock {
   now(): Date;

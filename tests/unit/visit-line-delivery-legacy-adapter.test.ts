@@ -9,7 +9,7 @@ const { pushLineMessage, replyLineMessage, replyLineRawMessages } = vi.hoisted((
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineMessage, replyLineMessage, replyLineRawMessages }));
 
-import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
+import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-adapters";
 
 describe("legacy Visit LINE delivery adapter", () => {
   it("keeps text and raw-message reply bindings", async () => {

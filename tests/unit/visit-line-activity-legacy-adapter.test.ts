@@ -11,7 +11,7 @@ const { insert, from, getSupabase } = vi.hoisted(() => {
 
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 
-import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
+import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-adapters";
 
 describe("legacy LINE activity adapter", () => {
   beforeEach(() => {

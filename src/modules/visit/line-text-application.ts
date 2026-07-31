@@ -1,5 +1,4 @@
-import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
-import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
+import type { VisitLineActivityPort, VisitLineDeliveryPort } from "@/modules/visit/line-contracts";
 import type { LineInboundEvent } from "@/modules/visit/line-inbound";
 
 export type VisitLineTextHandler = (

@@ -12,9 +12,9 @@
 | Release intent | Production slices；不做 big-bang rewrite |
 | Owner | CabLate 工程團隊 |
 | Repository | `F:/ownproject/kv` |
-| Branch／snapshot | `codex/kv-wp0-toolchain`／`265075b` |
+| Branch／snapshot | `codex/kv-wp0-toolchain`／`f866340` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-07-31；CodeGraph index 4,012 nodes／8,245 edges |
+| Last verified | 2026-07-31；CodeGraph index 448 files／3,666 nodes／7,704 edges |
 | Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
 | Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
 | Readiness | **Needs Revision**；runtime schema 選型已收斂，但真實環境與 legacy schema provenance 尚未關閉 |
@@ -503,6 +503,35 @@ Then the existing report artifact is retried without creating a second scheduled
 **Verification:** CodeGraph caller/impact mapping 已完成；authenticated Chrome 已實看 Visit、Orders、Team Lead 並安全點擊收合/展開互動，無 console error/warn。local schema rehearsal 已執行且如上因 U-02 失敗；Supabase repository、restart、duplicate、CAS、outbox failure 的真實 DB 驗證明確保留給 U-02 後的 WP-05/08，不宣稱已通過。
 
 **Done when:** U-03 的 schema／owner 決策已關閉，WP-05 實作者不需猜 mapper 或 minimum persistence；整份 plan 仍是 **Needs Revision**，直到 U-01/U-02 與 production-like evidence 關閉。
+
+#### 進場清理 — Visit LINE ingress boundary
+
+**Status（2026-07-31）：** structural cleanup complete（`Contract tested`）；這是 WP-05 前的 domain consolidation，不是 runtime cutover。它只消除同一條 Visit LINE workflow 的過細 ports／thin adapters，保留既有 event、payload、資料表、provider、side-effect 順序與畫面。Chrome cross-batch acceptance 仍待下一次集中驗收，不宣稱已完成 browser parity。
+
+**Behavior contract (`behavior-contract/v1`, `visit.line-ingress.boundary`)**
+
+- Scope：`POST /api/line/webhook`、`GET /api/cron/visit-timeout`，以及 Visit 的 inbound parse/normalize/fan-out、image/text/postback/offer/invite/timeout handler dependencies。
+- Non-goals：不改 LINE signature 驗證、route URL/method/status/payload、`contacts`／`visit_offers`／`pending_invites`／`line_agent_activity`／`agent_*` schema、OpenAI/Google/LINE 呼叫、runtime state、UI/UX；不實作 EventEnvelope、outbox、migration 或 schema 猜測。
+- Entrypoints／consumers：webhook `POST` 是 fan-out 的唯一 production caller；timeout `GET` 是 stale-offer application 的唯一 production caller；image/text/offer/invite/postback handlers 保留各自的實質 side-effect ordering。
+- Inputs／outputs：原始 LINE body 仍 parse 成原 `LineInboundEvent[]`；同一 event 仍由 `Promise.allSettled` 隔離 failure；所有 existing port method signatures、legacy row mappers、route response 和 reply/push payload 不變。
+- UI states：此批無 component 或 browser-visible data loader 改動；任何 UI evidence 僅檢查受影響既有 Visit/TV/Outputs read projection 未回歸。
+- Invariants：`line-inbound.ts` 是 ingress normalization + dispatch 的單一 owner；`line-contracts.ts` 是 LINE workflow external contracts 的單一 owner；`legacy-line-adapters.ts` 只聚合同一 workflow 的 thin legacy translations，不承擔 business branching。
+- Acceptance examples：缺 reply token 的 event 仍不觸發 handler；無 `source.userId` 的 text 仍使用 fallback user；一個 text handler 失敗時同 batch image handler 仍執行；timeout 的 stale offer query、resolve/tag/push/release 順序不變。
+- Test mapping：`visit-line-inbound.test.ts`、`visit-line-webhook-application.test.ts`、五個 legacy LINE adapter tests、handler/timeout tests；最後以 full test/typecheck/lint/build、CodeGraph importer map 和跨批次 Chrome journey 驗收。
+- Intentional changes：只有 internal owner/path consolidation；沒有產品行為變更。
+- Open questions：U-01/U-02 與 provider sandbox 未關閉前，不把 fixture coverage 說成 real LINE/Supabase acceptance；canonical EventEnvelope/runtime/outbox 留在 WP-05/06。
+
+- [x] 將 5 個 route-slice port modules 收斂為 `line-contracts.ts`。
+- [x] 將 inbound normalize 與 failure-isolated dispatch 收斂為 `line-inbound.ts`。
+- [x] 將 4 個 thin legacy LINE adapter 收斂為同一 compatibility boundary。
+- [x] 完成 full automated verification 與 CodeGraph owner/importer evidence。
+- [ ] 下一次跨批次集中跑 Chrome authenticated Visit／TV／Outputs journey；不觸發真實 LINE/provider side effect。
+
+**Evidence（2026-07-31）：**
+
+- production boundary 從 5 個 LINE port files、1 個 dispatch application、4 個 thin legacy adapter 收斂為 `line-contracts.ts`、`line-inbound.ts`、`legacy-line-adapters.ts` 三個具名 owner；總計淨刪 8 個 production files。image／text／offer／invite／postback／timeout 的 handler 保留，因為它們各自有可觀察的 side-effect ordering，不是假 forwarding layer。
+- CodeGraph sync 後全 repo 為 448 files／3,666 nodes／7,704 edges；舊 port／application／adapter import 為零。`dispatchVisitLineWebhookEvents` 仍只有 `/api/line/webhook` 的 `POST` caller；`runVisitTimeoutApplication` 仍只有 `/api/cron/visit-timeout` 的 `GET` caller。
+- `npm test` 106 files／521 tests、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 全數通過。這證明 static/fixture contract 與 build continuity；真實 LINE、Supabase、provider 與 authenticated browser journey 仍受 U-01/U-02/U-04 限制，列為下一次集中驗收。
 
 ### WP-05 — Visit LINE text vertical slice
 

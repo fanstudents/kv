@@ -4,9 +4,11 @@ import {
   type VisitApprovalTextIntent,
 } from "./line-inbound";
 import type { ConversationLockPort } from "@/modules/conversation/lock-ports";
-import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
-import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
-import type { VisitLineWorkflowPersistencePort } from "@/modules/visit/line-workflow-ports";
+import type {
+  VisitLineActivityPort,
+  VisitLineDeliveryPort,
+  VisitLineWorkflowPersistencePort,
+} from "@/modules/visit/line-contracts";
 import type { VisitRuntimePort } from "@/modules/visit/runtime-ports";
 import type { VisitSettingsPort } from "@/modules/visit/settings-ports";
 import type { VisitProviderPort } from "@/modules/visit/provider-port";

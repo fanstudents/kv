@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import { createLiveTaskStateRepository } from "@/adapters/live-task/live-task-state-repository";
-import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
-import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
+import {
+  createLegacyVisitLineActivityAdapter,
+  createLegacyVisitLineDeliveryAdapter,
+} from "@/adapters/visit/legacy-line-adapters";
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
 import { parseCronAuth } from "@/modules/cron/auth-rules";
 import { runVisitTimeoutApplication } from "@/modules/visit/timeout-application";

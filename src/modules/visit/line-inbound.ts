@@ -141,3 +141,50 @@ export function normalizeVisitLineInbound(event: LineInboundEvent): VisitLineInb
 
   return { kind: "ignored", reason: "unsupported-event" };
 }
+
+export interface VisitLineWebhookDispatchHandlers {
+  touchSubscriber: (userId: string) => Promise<void>;
+  handleImageMessage: (event: LineInboundEvent, userId: string) => Promise<void>;
+  handleTextMessage: (event: LineInboundEvent, userId: string, baseUrl: string) => Promise<void>;
+  handlePostback: (event: LineInboundEvent, userId: string, baseUrl: string) => Promise<void>;
+}
+
+export interface VisitLineWebhookDispatchInput {
+  events: LineInboundEvent[];
+  baseUrl: string;
+  fallbackUserId: string;
+  handlers: VisitLineWebhookDispatchHandlers;
+}
+
+/**
+ * Owns inbound payload normalization and the workflow's failure-isolated
+ * event fan-out. HTTP parsing and response mapping remain in the route.
+ */
+export async function dispatchVisitLineWebhookEvents({
+  events,
+  baseUrl,
+  fallbackUserId,
+  handlers,
+}: VisitLineWebhookDispatchInput): Promise<void> {
+  await Promise.allSettled(
+    events.map(async (event) => {
+      if (!event.replyToken) return;
+
+      const userId = event.source?.userId ?? fallbackUserId;
+      if (event.source?.userId) await handlers.touchSubscriber(event.source.userId).catch(() => {});
+
+      const inbound = normalizeVisitLineInbound({
+        ...event,
+        source: { ...event.source, userId },
+      });
+
+      if (inbound.kind === "image") {
+        await handlers.handleImageMessage(event, userId);
+      } else if (inbound.kind === "text") {
+        await handlers.handleTextMessage(event, userId, baseUrl);
+      } else if (inbound.kind === "postback") {
+        await handlers.handlePostback(event, userId, baseUrl);
+      }
+    })
+  );
+}

@@ -9,7 +9,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ getLineMessageContentAsDataUrl }));
 vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({ legacyVisitProviders: { parseBusinessCard } }));
 
-import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
+import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-adapters";
 
 describe("legacy Visit LINE image adapter", () => {
   it("keeps LINE content retrieval and card parsing provider bindings", async () => {

@@ -1,7 +1,48 @@
 import type {
+  LegacyContactRow,
   LegacyPendingInviteStatus,
   LegacyPreparedInvite,
-} from "@/modules/visit/legacy-schema";
+  LegacyVisitOfferRow,
+} from "./legacy-schema";
+import type { VisitBusinessCard } from "./provider-port";
+
+/**
+ * The external contracts for the Visit LINE workflow.
+ *
+ * These are grouped by the business boundary rather than by each webhook
+ * handler. Implementations remain separate only where they own meaningful
+ * side-effect ordering (image, offer, invite approval, timeout).
+ */
+export type VisitLineActivityStatus = "success" | "failed" | "pending";
+
+export interface VisitLineActivityRecord {
+  agent_slug?: string | null;
+  summary: string;
+  status: VisitLineActivityStatus;
+}
+
+export interface VisitLineActivityPort {
+  record(activity: VisitLineActivityRecord): Promise<void>;
+}
+
+export interface VisitLineDeliveryPort {
+  replyText(replyToken: string, text: string): Promise<void>;
+  replyMessages(replyToken: string, messages: unknown[]): Promise<void>;
+  pushText(lineUserId: string, text: string): Promise<void>;
+}
+
+export type VisitLineContactIdRow = Pick<LegacyContactRow, "id">;
+export type VisitLineOfferIdRow = Pick<LegacyVisitOfferRow, "id">;
+
+export interface VisitLineCardPersistencePort {
+  createContact(contact: VisitBusinessCard, lineUserId: string): Promise<VisitLineContactIdRow | null>;
+  createOffer(lineUserId: string, contactId: string | undefined): Promise<VisitLineOfferIdRow | null>;
+}
+
+export interface VisitLineImagePort {
+  getImageDataUrl(messageId: string): Promise<string>;
+  parseBusinessCard(imageDataUrl: string): Promise<VisitBusinessCard>;
+}
 
 export type VisitLineContactField = "name" | "company" | "title" | "email" | "phone";
 export type VisitLineOfferResolution = "accepted" | "declined" | "timed_out";

@@ -1,5 +1,5 @@
 import type { ContactTagPort } from "@/modules/operations/service";
-import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
+import type { VisitLineDeliveryPort } from "@/modules/visit/line-contracts";
 import type { LineInboundEvent } from "@/modules/visit/line-inbound";
 
 export type VisitLinePostbackOfferHandler = (

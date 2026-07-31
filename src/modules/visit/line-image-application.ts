@@ -1,10 +1,12 @@
 import type { ContactTagPort } from "@/modules/operations/service";
 import type { ConversationLockPort } from "@/modules/conversation/lock-ports";
-import type { VisitLineActivityPort } from "@/modules/visit/line-activity-ports";
-import type { VisitLineCardPersistencePort } from "@/modules/visit/line-card-ports";
-import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
+import type {
+  VisitLineActivityPort,
+  VisitLineCardPersistencePort,
+  VisitLineDeliveryPort,
+  VisitLineImagePort,
+} from "@/modules/visit/line-contracts";
 import type { LineInboundEvent } from "@/modules/visit/line-inbound";
-import type { VisitLineImagePort } from "@/modules/visit/line-image-ports";
 import type { VisitRuntimePort } from "@/modules/visit/runtime-ports";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 

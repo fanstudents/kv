@@ -5,9 +5,9 @@ import {
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import {
+  dispatchVisitLineWebhookEvents,
   parseVisitLineWebhookPayload,
 } from "@/modules/visit/line-inbound";
-import { dispatchVisitLineWebhookEvents } from "@/modules/visit/line-webhook-application";
 import { createVisitLineImageHandler } from "@/modules/visit/line-image-application";
 import { createVisitLineInviteApprovalHandler } from "@/modules/visit/line-invite-approval-application";
 import { createVisitLineOfferReplyHandler } from "@/modules/visit/line-offer-application";
@@ -15,11 +15,13 @@ import { createVisitLinePostbackHandler } from "@/modules/visit/line-postback-ap
 import { createVisitLineTextHandler } from "@/modules/visit/line-text-application";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
-import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
-import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
+import {
+  createLegacyVisitLineActivityAdapter,
+  createLegacyVisitLineCardAdapter,
+  createLegacyVisitLineDeliveryAdapter,
+  createLegacyVisitLineImageAdapter,
+} from "@/adapters/visit/legacy-line-adapters";
 import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
-import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
-import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";

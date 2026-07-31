@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   dispatchVisitLineWebhookEvents,
   type VisitLineWebhookDispatchHandlers,
-} from "@/modules/visit/line-webhook-application";
+} from "@/modules/visit/line-inbound";
 
 function createHandlers(overrides?: Partial<VisitLineWebhookDispatchHandlers>) {
   const calls: string[] = [];

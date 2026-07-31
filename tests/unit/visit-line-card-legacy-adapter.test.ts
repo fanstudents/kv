@@ -5,7 +5,7 @@ const { getSupabase } = vi.hoisted(() => ({ getSupabase: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 
-import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
+import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-adapters";
 
 describe("legacy Visit LINE card adapter", () => {
   it("keeps the exact contacts and visit_offers insert projections", async () => {

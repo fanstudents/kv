@@ -18,7 +18,7 @@ import type {
   VisitLineWorkflowPersistencePort,
   VisitStaleOffer,
   VisitStaleOfferQuery,
-} from "@/modules/visit/line-workflow-ports";
+} from "@/modules/visit/line-contracts";
 
 function contactDetails(value: unknown): VisitLineContactDetails | null {
   return (value as VisitLineContactDetails | null) ?? null;
