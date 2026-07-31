@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { replyLineMessage, replyLineRawMessages } = vi.hoisted(() => ({
+const { pushLineMessage, replyLineMessage, replyLineRawMessages } = vi.hoisted(() => ({
+  pushLineMessage: vi.fn(),
   replyLineMessage: vi.fn(),
   replyLineRawMessages: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/line", () => ({ replyLineMessage, replyLineRawMessages }));
+vi.mock("@/lib/line", () => ({ pushLineMessage, replyLineMessage, replyLineRawMessages }));
 
 import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
 
@@ -17,8 +18,10 @@ describe("legacy Visit LINE delivery adapter", () => {
 
     await adapter.replyText("reply-1", "hello");
     await adapter.replyMessages("reply-2", messages);
+    await adapter.pushText("line-1", "push hello");
 
     expect(replyLineMessage).toHaveBeenCalledWith("reply-1", "hello");
     expect(replyLineRawMessages).toHaveBeenCalledWith("reply-2", messages);
+    expect(pushLineMessage).toHaveBeenCalledWith("line-1", "push hello");
   });
 });

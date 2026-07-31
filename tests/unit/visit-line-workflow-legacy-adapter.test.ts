@@ -8,6 +8,8 @@ const query = vi.hoisted(() => {
     eq: vi.fn(),
     order: vi.fn(),
     limit: vi.fn(),
+    lt: vi.fn(),
+    gt: vi.fn(),
     maybeSingle: vi.fn(),
     update: vi.fn(),
     insert: vi.fn(),
@@ -56,6 +58,47 @@ describe("legacy Visit LINE workflow persistence adapter", () => {
 
     expect(query.update).toHaveBeenNthCalledWith(1, { status: "declined", resolved_at: "2026-07-31T00:00:00.000Z" });
     expect(query.update).toHaveBeenNthCalledWith(2, { company: "Acme" });
+  });
+
+  it("keeps the stale-offer query and maps joined contact names", async () => {
+    query.limit.mockReturnValueOnce({
+      then: (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({
+          data: [
+            {
+              id: "offer-1",
+              line_user_id: "line-1",
+              contact_id: "contact-1",
+              contacts: { name: "Alice" },
+            },
+            {
+              id: "offer-2",
+              line_user_id: null,
+              contact_id: null,
+              contacts: null,
+            },
+          ],
+        }).then(resolve),
+    });
+    const adapter = createLegacyVisitLineWorkflowAdapter();
+
+    await expect(
+      adapter.findStaleOffers({
+        olderThan: "2026-07-31T11:57:00.000Z",
+        notOlderThan: "2026-07-31T11:40:00.000Z",
+        limit: 20,
+      })
+    ).resolves.toEqual([
+      { id: "offer-1", lineUserId: "line-1", contactId: "contact-1", contactName: "Alice" },
+      { id: "offer-2", lineUserId: null, contactId: null, contactName: null },
+    ]);
+
+    expect(from).toHaveBeenCalledWith("visit_offers");
+    expect(query.select).toHaveBeenCalledWith("id, line_user_id, contact_id, contacts(name)");
+    expect(query.eq).toHaveBeenCalledWith("status", "pending");
+    expect(query.lt).toHaveBeenCalledWith("created_at", "2026-07-31T11:57:00.000Z");
+    expect(query.gt).toHaveBeenCalledWith("created_at", "2026-07-31T11:40:00.000Z");
+    expect(query.limit).toHaveBeenCalledWith(20);
   });
 
   it("maps prepared invites through the unchanged legacy row shape", async () => {

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { replyLineMessage, replyLineRawMessages } from "@/lib/line";
+import { pushLineMessage, replyLineMessage, replyLineRawMessages } from "@/lib/line";
 import type { VisitLineDeliveryPort } from "@/modules/visit/line-delivery-ports";
 
 export function createLegacyVisitLineDeliveryAdapter(): VisitLineDeliveryPort {
@@ -10,6 +10,9 @@ export function createLegacyVisitLineDeliveryAdapter(): VisitLineDeliveryPort {
     },
     async replyMessages(replyToken, messages) {
       await replyLineRawMessages(replyToken, messages);
+    },
+    async pushText(lineUserId, text) {
+      await pushLineMessage(lineUserId, text);
     },
   };
 }

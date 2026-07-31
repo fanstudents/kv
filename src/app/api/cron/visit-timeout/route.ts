@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
-import { pushLineMessage } from "@/lib/line";
-import { toLegacyVisitOfferResolution } from "@/modules/visit/legacy-schema";
-import { setLiveTask } from "@/lib/live-task-store";
-import { parseCronAuth } from "@/modules/cron/auth-rules";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
 import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
+import { createLegacyLiveTaskUpdateAdapter } from "@/adapters/live-task/legacy-update-adapter";
+import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
+import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
+import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
+import { parseCronAuth } from "@/modules/cron/auth-rules";
+import { runVisitTimeoutApplication } from "@/modules/visit/timeout-application";
 
 const conversationLockPort = createLegacyConversationLockAdapter();
 const contactTagPort = createLegacyContactTagAdapter();
+const lineDeliveryPort = createLegacyVisitLineDeliveryAdapter();
+const lineWorkflowPort = createLegacyVisitLineWorkflowAdapter();
 
-// 約拜訪逾時自動判斷：名片辨識後 3 分鐘還沒回「要／不要」→ 依設定「一律先略過」，
+// 約拜訪逾時自動判斷：名片辨識後 3 分鐘還沒回「要／不要」→ 依設定「一律先略過」、
 // 標記客戶「待跟進」存起來、通知使用者，不自動寄邀約。
 // 由外部排程器每 1～2 分鐘呼叫一次（帶 x-cron-key）。
 export async function GET(req: NextRequest) {
@@ -19,53 +22,14 @@ export async function GET(req: NextRequest) {
   const auth = parseCronAuth(process.env.CRON_SECRET, req.headers.get("x-cron-key"));
   if (auth.kind !== "authorized") return NextResponse.json({ error: auth.message }, { status: auth.status });
 
-  const supabase = getSupabase();
-  const now = Date.now();
-  // 只處理「3 分鐘前～20 分鐘內」的待決定名片，避免波及更早的歷史資料
-  const olderThan = new Date(now - 3 * 60 * 1000).toISOString();
-  const notOlderThan = new Date(now - 20 * 60 * 1000).toISOString();
-
-  const { data: stale } = await supabase
-    .from("visit_offers")
-    .select("id, line_user_id, contact_id, contacts(name)")
-    .eq("status", "pending")
-    .lt("created_at", olderThan)
-    .gt("created_at", notOlderThan)
-    .limit(20);
-
-  let handled = 0;
-  for (const offer of stale ?? []) {
-    const name = (offer.contacts as { name?: string } | null)?.name ?? "這位客戶";
-
-    await supabase
-      .from("visit_offers")
-      .update(toLegacyVisitOfferResolution("timed_out", new Date().toISOString()))
-      .eq("id", offer.id);
-
-    if (offer.contact_id) await contactTagPort.add(offer.contact_id, "待跟進");
-
-    await supabase.from("line_agent_activity").insert({
-      agent_slug: "visit",
-      summary: `名片「${name}」逾時未回覆（3 分鐘），已自動略過並標記「待跟進」`,
-      status: "success",
-    });
-
-    await setLiveTask("visit", {
-      step: 2,
-      status: "done",
-      caption: `逾時未回覆，已標記待跟進（${name}）`,
-    });
-
-    if (offer.line_user_id) {
-      await pushLineMessage(
-        offer.line_user_id,
-        `名片「${name}」等了 3 分鐘沒收到你的指示，我先幫你標記「待跟進」存起來了 📌\n要安排拜訪的話再跟我說，或重新傳一次名片即可。`
-      ).catch(() => {});
-      await conversationLockPort.release(offer.line_user_id, "visit").catch(() => {});
-    }
-
-    handled++;
-  }
+  const handled = await runVisitTimeoutApplication({
+    workflow: lineWorkflowPort,
+    tags: contactTagPort,
+    activity: createLegacyVisitLineActivityAdapter(),
+    liveTask: createLegacyLiveTaskUpdateAdapter(),
+    delivery: lineDeliveryPort,
+    lock: conversationLockPort,
+  });
 
   return NextResponse.json({ ok: true, handled });
 }

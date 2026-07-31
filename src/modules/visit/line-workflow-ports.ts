@@ -4,8 +4,21 @@ import type {
 } from "@/modules/visit/legacy-schema";
 
 export type VisitLineContactField = "name" | "company" | "title" | "email" | "phone";
-export type VisitLineOfferResolution = "accepted" | "declined";
+export type VisitLineOfferResolution = "accepted" | "declined" | "timed_out";
 export type VisitLinePendingInviteStatus = Extract<LegacyPendingInviteStatus, "pending" | "cancelled" | "failed">;
+
+export interface VisitStaleOffer {
+  id: string;
+  lineUserId: string | null;
+  contactId: string | null;
+  contactName: string | null;
+}
+
+export interface VisitStaleOfferQuery {
+  olderThan: string;
+  notOlderThan: string;
+  limit: number;
+}
 
 export interface VisitLineContactDetails {
   id: string;
@@ -32,6 +45,7 @@ export interface VisitLineApprovalInvite {
 
 export interface VisitLineWorkflowPersistencePort {
   findPendingOffer(lineUserId: string): Promise<VisitLineOfferConversation | null>;
+  findStaleOffers(query: VisitStaleOfferQuery): Promise<readonly VisitStaleOffer[]>;
   resolveOffer(id: string, outcome: VisitLineOfferResolution, resolvedAt: string): Promise<void>;
   updateContactField(contactId: string, field: VisitLineContactField, value: string): Promise<void>;
   findContact(contactId: string): Promise<VisitLineContactDetails | null>;

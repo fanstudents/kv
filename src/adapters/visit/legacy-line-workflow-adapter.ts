@@ -16,6 +16,8 @@ import type {
   VisitLineOfferResolution,
   VisitLinePendingInviteStatus,
   VisitLineWorkflowPersistencePort,
+  VisitStaleOffer,
+  VisitStaleOfferQuery,
 } from "@/modules/visit/line-workflow-ports";
 
 function contactDetails(value: unknown): VisitLineContactDetails | null {
@@ -43,6 +45,29 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
       if (!data) return null;
       return { id: data.id as string, contact: contactDetails(data.contacts) };
     },
+
+    async findStaleOffers(query: VisitStaleOfferQuery): Promise<readonly VisitStaleOffer[]> {
+      const { data } = await getClient()
+        .from("visit_offers")
+        .select("id, line_user_id, contact_id, contacts(name)")
+        .eq("status", "pending")
+        .lt("created_at", query.olderThan)
+        .gt("created_at", query.notOlderThan)
+        .limit(query.limit);
+
+      return ((data ?? []) as Array<{
+        id: string;
+        line_user_id: string | null;
+        contact_id: string | null;
+        contacts: { name?: string | null } | null;
+      }>).map((offer) => ({
+        id: offer.id,
+        lineUserId: offer.line_user_id ?? null,
+        contactId: offer.contact_id ?? null,
+        contactName: offer.contacts?.name ?? null,
+      }));
+    },
+
     async resolveOffer(id, outcome: VisitLineOfferResolution, resolvedAt) {
       await getClient().from("visit_offers").update(toLegacyVisitOfferResolution(outcome, resolvedAt)).eq("id", id);
     },
