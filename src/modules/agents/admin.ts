@@ -1,3 +1,5 @@
+import { mapLineAgentOverride, type AgentStatusCatalogEntry } from "@/modules/agents/identity";
+
 export type AgentInstanceRecord = Record<string, unknown>;
 
 export interface AgentAdminActivity {
@@ -6,10 +8,7 @@ export interface AgentAdminActivity {
   status: "failed" | "success";
 }
 
-export interface AgentStatusCatalogEntry {
-  slug: string;
-  status: string;
-}
+export type { AgentStatusCatalogEntry } from "@/modules/agents/identity";
 
 export interface AgentStatusRow {
   slug: string;
@@ -116,7 +115,8 @@ export function buildAgentStatusMap(
 ): AgentStatusMap {
   const enabled: AgentStatusMap = {};
   for (const row of rows ?? []) {
-    enabled[row.slug] = Boolean(row.enabled);
+    const override = mapLineAgentOverride(row);
+    enabled[override.legacySlug] = override.enabled;
   }
   for (const agent of catalog) {
     if (!(agent.slug in enabled)) enabled[agent.slug] = agent.status === "active";

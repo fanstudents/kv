@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { AGENTS } from "@/lib/agent-data";
+import { getLegacyAgentStatusCatalog } from "@/adapters/agents/legacy-agent-identity-adapter";
 import type { AgentSlug } from "@/lib/types";
 
 // 前端讀「這位 Agent 現在有沒有啟用」的單一入口，資料來自 line_agents 表。
@@ -10,7 +10,9 @@ import type { AgentSlug } from "@/lib/types";
 
 type StatusMap = Record<string, boolean>;
 
-const fallback: StatusMap = Object.fromEntries(AGENTS.map((a) => [a.slug, a.status === "active"]));
+const fallback: StatusMap = Object.fromEntries(
+  getLegacyAgentStatusCatalog().map((agent) => [agent.slug, agent.status === "active"])
+);
 
 let cache: StatusMap = fallback;
 let loaded = false;

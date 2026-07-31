@@ -1,4 +1,8 @@
 import type { AgentActivity, AgentMeta, AgentSlug } from "./types";
+import {
+  createCanonicalAgentRegistry,
+  type CanonicalAgent,
+} from "@/modules/agents/identity";
 
 // AI 生成的台灣人形象照（虛構人物，不存在於現實），存放在 public/avatars/
 // 自行託管，每位 Agent 固定一張臉。
@@ -26,7 +30,11 @@ export function avatarUrl(seed: string, colorHex: string) {
   )}`;
 }
 
-export const AGENTS: AgentMeta[] = [
+/**
+ * Compatibility input only. Runtime identity is built below; UI consumers keep
+ * importing AGENTS until each frozen projection is deliberately cut over.
+ */
+export const LEGACY_AGENT_DATA: AgentMeta[] = [
   {
     slug: "teamlead",
     name: "總管 Agent",
@@ -256,6 +264,34 @@ export const AGENTS: AgentMeta[] = [
     recipients: 1,
   },
 ];
+
+export const CANONICAL_AGENT_REGISTRY = createCanonicalAgentRegistry(LEGACY_AGENT_DATA);
+
+/** Keeps the pre-refactor AgentMeta contract exact for all existing UI imports. */
+export function projectCanonicalAgentMeta(agent: CanonicalAgent): AgentMeta {
+  const { presentation } = agent;
+  return {
+    slug: presentation.legacySlug,
+    name: presentation.name,
+    shortName: presentation.shortName,
+    tagline: presentation.tagline,
+    description: presentation.description,
+    color: presentation.color,
+    status: presentation.fallbackStatus,
+    metrics: presentation.metrics.map((metric) => ({ ...metric })),
+    lastRun: presentation.lastRun,
+    recipients: presentation.recipients,
+    personEn: presentation.personEn,
+    personZh: presentation.personZh,
+    role: presentation.role,
+  };
+}
+
+/**
+ * Frozen UI compatibility export. Existing callers receive the same AgentMeta
+ * values, now projected from the canonical identity registry.
+ */
+export const AGENTS: AgentMeta[] = CANONICAL_AGENT_REGISTRY.agents.map(projectCanonicalAgentMeta);
 
 export function getAgent(slug: string): AgentMeta | undefined {
   return AGENTS.find((a) => a.slug === slug);

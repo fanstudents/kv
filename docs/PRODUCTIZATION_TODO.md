@@ -622,6 +622,26 @@ Then the existing report artifact is retried without creating a second scheduled
 
 **Goals:** G-01、G-04、G-05
 
+#### Canonical identity compatibility batch
+
+**Status（2026-07-31）：** compatibility foundation complete（`Contract tested` + `Render smoke passed`）。此批建立可驗證的 canonical identity 與 legacy mapping；既有 static roster、`line_agents` 與 public catalog 尚未被取代，逐 consumer cutover 留在後續工作包。
+
+**Behavior contract (`behavior-contract/v1`, `agents.canonical-identity`)**
+
+- Scope：`ProductOffering`、`RoleTemplate`、`AgentInstance`、`ExecutionProfile`、`AgentPresentation` 的純 model；`AGENTS`、`line_agents`、`AGENT_CATALOG` 與 workflow contract 的 compatibility mapping；`GET /api/agents` 與 client status fallback。
+- Non-goals：不改 UI/UX、route URL/method/status/payload、`AgentSlug`、`line_agents` schema／write 行為、workflow trigger semantics、prompt／provider／delivery；不把 public catalog 或 Super Agent Team 誤當 deployed runtime instance。
+- Invariants：static `AGENTS` 在 WP-10 前仍是既有 UI presentation baseline；`line_agents.enabled` 仍優先於 static fallback；legacy slug 永不改名；workflow binding 保留原 type/import contract；presentation 不能成為 runtime truth。
+- Acceptance：每一個既有 `AGENTS` entry 對應一個唯一 canonical instance 與 role template；同一個 `line_agents` override 只能改自己的 enabled/settings projection，不能改任何 presentation；每個 public catalog entry 對應一個 offering、但不會被偽裝成 deployed Agent。
+- Evidence：本輪完成 mapper／route compatibility tests 與 static checks；full test、build 集中在 source cutover 後一次執行。依最新工作方式，完整 Chrome authenticated parity 留到後續程式碼批次全部完成後再統一執行。
+
+**Evidence（2026-07-31）：**
+
+- `identity.ts` 擁有 `ProductOffering`、`RoleTemplate`、`AgentInstance`、`ExecutionProfile`、`AgentPresentation` 與 duplicate-identity validation；不從名稱／展示文案猜 capability 或 workflow binding。
+- `LEGACY_AGENT_DATA` 是 static compatibility input；`CANONICAL_AGENT_REGISTRY` 產生 frozen `AGENTS` projection，因此原本 39 個 `AGENTS` caller 不需逐頁改 import，仍取得精確相同的 `AgentMeta` shape。`AGENT_CATALOG` 另映射為 `offering:<catalog-id>`，沒有混成 deployed instance。
+- `line_agents` override 只覆寫同 slug 的 enabled/settings deployment state；`GET /api/agents` 與 `agent-status` fallback 已先改由 canonical status catalog 供應，API payload 與 UI shape 不變。workflow contract 保持原 import path，改為 re-export canonical types。
+- 新增 4 個 mapper contract tests；source cutover 後整批 `npm test` 為 106 files／521 tests、typecheck、lint、production build、`git diff --check` 通過。CodeGraph sync 後索引 456 files／3,700 nodes／7,736 edges，確認 `LEGACY_AGENT_DATA → CANONICAL_AGENT_REGISTRY → AGENTS` 的單向鏈結。
+- 本批前半已在登入 Chrome 實看 `/dashboard`、`/tv`、`/agents/support`：status projection、10/12 TV 值勤顯示與客服控制台畫面正常，console 無 error/warn；最終 `AGENTS` source projection 則由 exact-equality contract test 保護。依 batching 規則，完整 post-cutover Chrome 回歸不在本 micro-cut，而留在下一個跨批次驗收。Chrome 對直接 `/api/agents` 導航仍受 client blocker 擋住，故 API 實體契約證據來自 route test，未假稱 browser API acceptance。
+
 #### 進場清理 — Agent admin compatibility boundary
 
 **狀態（2026-07-31）：** structural cleanup complete（`Contract tested` + `Render smoke passed`）；這只處理既有 route-slice 過細與假 adapter，不代表 WP-09 的 canonical Agent model 已開始或已完成。
@@ -784,8 +804,8 @@ Then the existing report artifact is retried without creating a second scheduled
 - CodeGraph sync 證實 `recordSupportLogReply` 與 parser 都只有原本 public callback POST caller；conversation persistence helper 仍僅由 callback 與既有 support relay 共用；舊 rules／ports／application／legacy adapter import 為零。
 - focused `npx vitest run`（1 file／9 tests）、full `npm test`（105 files／517 tests）、`npm run typecheck`、`npm run lint`、`npm run build`、`git diff --check` 通過。Chrome 對 `/agents/support` 實際展開 Agent 設定與串接狀態，before/after DOM 都為 7,274 chars、console 無 error/warn；未執行任何真實 callback 或 LINE message。
 
-- [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
-- [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
+- [x] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
+- [x] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
 - [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。
 - [ ] tools/model/knowledge/delivery policy 以 reference/config 組合。
 - [ ] version/validation gate；禁止 Presentation 成為 runtime truth。
