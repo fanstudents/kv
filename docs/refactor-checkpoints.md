@@ -521,6 +521,27 @@ At `cafa912` plus this documentation stage:
 - Knowledge Base schema evolution, write-owner migration, reconciliation, and
   production traffic evidence remain deferred.
 
+### WP6-AF Knowledge Base update compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/knowledge-base-update.contract.md`.
+- `src/modules/knowledge-base/update-rules.ts` preserves id/level/status/kind
+  validation and field coercion; `update-application.ts` owns success,
+  not-found, and provider-error mapping;
+  `src/adapters/knowledge-base/legacy-update-adapter.ts` keeps
+  `updateKnowledgeDoc` behind the port.
+- The `/api/knowledge-base` PATCH route preserves HTTP 400/404 mappings,
+  success document JSON, content/owner/reviewAt semantics, version/indexing,
+  and existing provider behavior; Knowledge Base UI and data formats are
+  untouched.
+- Checkpoint: `a4df682`.
+- Full verification: 117 Vitest files / 426 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps the update
+  rules, port, application, adapter, and route.
+- Knowledge Base schema evolution, write-owner migration, reconciliation, and
+  production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
