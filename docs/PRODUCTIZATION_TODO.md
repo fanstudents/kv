@@ -1,320 +1,557 @@
-# KV 產品化重構 TODO
+# KV 產品化重構執行計畫
 
-> 狀態：Needs Revision — 暫停新增 route-specific 抽象，先完成環境、基線與架構收斂。  
-> 更新日期：2026-07-31  
-> 唯一執行計畫（SSOT）：本文件  
-> 現況證據：[重構效能與有效性稽核](./refactor-effectiveness-audit-2026-07-31.md)
+> 這是唯一的 Plan／TODO／進度表／domain migration register。
+> 現況量化證據見：[重構效能與有效性稽核](./refactor-effectiveness-audit-2026-07-31.md)。
 
-## 1. 目標與完成定義
+## Plan identity
 
-我們要在原專案上漸進重構，不重寫 UI，也不另開空白專案。最終結果必須：
+| Field | Value |
+|---|---|
+| Lifecycle | Active |
+| Profile | Migration |
+| Release intent | Production slices；不做 big-bang rewrite |
+| Owner | CabLate 工程團隊 |
+| Repository | `F:/ownproject/kv` |
+| Branch／snapshot | `codex/kv-wp0-toolchain`／`996a4e0` |
+| Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
+| Last verified | 2026-07-31；CodeGraph index 4,465 nodes／8,967 edges |
+| Requirements source | 本對話：產品化、UI／UX 不變、沿用現有資料格式、可維護可擴充 |
+| Known drift | 本計畫之後若 route、schema、public contract、runtime owner 或測試入口有變，開工前重跑 CodeGraph preflight |
+| Readiness | **Needs Revision**；WP-01 與 WP-02 可執行，但真實環境與 runtime schema reconciliation 尚未關閉 |
 
-- 保留目前所有頁面、URL、文案、版面、互動與資料格式。
-- 將業務能力、Agent 定義、事件、workflow、runtime、資料存取與外部服務分清楚。
-- 讓 Agent、工具、流程、模型、觸發器與輸出可以組態化擴充，而不是寫死在 route。
-- 將現有 legacy 路徑逐領域切換到可測試、可觀測、可回退的新 owner。
-- 減少薄包裝、單一 consumer interface、重複 DTO 與逐 route 文件。
-- 以真實登入、真實資料與代表性操作證明功能，而不只證明頁面能 render。
+## 1. Outcome and scope
 
-完成不是「檔案搬完」，而是以下條件全部成立：
+### Outcome
 
-- [ ] 所有受保護核心頁面有 authenticated before/after evidence。
-- [ ] 核心業務 journey 有 functional E2E；關鍵 provider 有 contract/integration test。
-- [ ] UI visual snapshot 無非預期差異。
-- [ ] domain owner、runtime、repository、provider adapter 的責任沒有重疊。
-- [ ] legacy compatibility seam 已列清單，能切流、回退，最後能刪除。
-- [ ] 真實資料格式保持相容；schema 變更有 migration、rehearsal 與 rollback。
-- [ ] CI 執行 lint、typecheck、unit、integration、build、E2E。
-- [ ] production-like 環境完成 canary、reconciliation 與 observation。
-- [ ] 文件只剩本 TODO、稽核證據與專案入口，不再逐 route 複製契約。
+工程團隊能在不改變既有 UI／UX 與外部行為的前提下，可靠地理解、修改、測試與擴充 KV；每個業務能力只有一個 owner，Agent 能由角色、workflow、tools、runtime 與 presentation 組合，而不是複製 route 或寫死整條流程。
 
-目前估計完成度：**25–30%**。已做出不少安全邊界與測試骨架，但 runtime persistence、真實功能 E2E、domain consolidation、data cutover 與 legacy cleanup 尚未完成。
+### Final success evidence
 
-## 2. 不變條件
+- 核心後台 journey 能在 authenticated、real-data 或明確 production-like 環境重複執行。
+- UI URL、文案、DOM、responsive、loading／empty／error state 與操作結果沒有非預期差異。
+- route 只處理 transport；業務規則、orchestration、repository 與 provider ownership 可由 CodeGraph 證明。
+- runtime 已被至少兩條不同 execution profile 的 production flow 重用，不是無 consumer 的 framework。
+- migration 有 parity、cutover、rollback、reconciliation 與 legacy deletion evidence。
+- production code 的薄抽象與重複 owner 明顯減少，且每個保留的 port／adapter 都有可說明的替換邊界。
 
-### UI／UX freeze
+### In scope
 
-- 不改 DOM 結構、視覺、responsive 行為、路由、文案、操作順序與 loading／empty／error state。
-- 前端只允許為 data source cutover 做內部接線；任何可見差異都需先取得明確同意。
-- 每個會影響頁面的工作包都要保存 before/after URL、viewport、DOM/screenshot 與互動結果。
+- Authenticated baseline、schema／env inventory 與測試證據校正。
+- 現有 `modules`／`adapters`／`lib` 的 domain consolidation。
+- Visit、Meeting、Knowledge Base、Orders、Reporting 的漸進 cutover。
+- 既有 runtime persistence 與新 `platform/runtime` 的 reconciliation。
+- Agent definition／instance／execution／presentation owner 整理。
+- Frozen UI 的 read projection cutover。
+- Production-like acceptance、legacy cleanup 與最終文件收尾。
 
-### 資料相容
+### Non-goals
 
-- 現階段沿用 Dennis 的資料格式與既有 Supabase schema。
-- 不因為「目標架構比較漂亮」而提前改 table 或 payload。
-- 未來確需改 schema 時，先建立 backward-compatible migration 與 dual-read/write 或 adapter，再切換 consumer。
+- NG-01：不重寫前端、不重新設計 UI／UX。
+- NG-02：不另開空白專案做第二套產品。
+- NG-03：不為「未來也許會用」先建立 framework、port、adapter 或資料表。
+- NG-04：不在沒有 backward compatibility 與 rehearsal 前改既有 payload／schema。
+- NG-05：本階段不做一般性 security scan；但 auth、secret、RLS 等既有邊界不得被弱化。
+- NG-06：不以 route 數、commit 數、文件數或測試數量當作完成度。
 
-### 登入與公開面
+## 2. GORE core
 
-- 不移除登入牆。它由原作者 commit `2536d71` 在 2026-07-18 建立，不是本次重構新增。
-- refactor commit `cafa912` 只抽出 auth 邊界，沒有改變 guard 行為。
-- 公開目錄、公開 landing、webhook 與 cron 的公開／驗證規則維持現況。
-- 本機登入使用 ignored `.env.local`；至少要有 `AUTH_SECRET` 與 `ADMIN_PASSWORD`。
-- 真實後台資料另需 Supabase credentials。不得將 secret commit 進 repo。
+### Actors and intent
 
-## 3. 架構收斂原則
+| Actor／consumer | Job／outcome | Current pain／risk | Product intent |
+|---|---|---|---|
+| CabLate 工程團隊 | 安全接手、修改、擴充、除錯與 release | ownership 分散、薄抽象暴增、缺真實功能證據 | 將 Dennis 的作品變成長期可維護產品 |
+| 後台操作者 | 以原本畫面完成管理、會議、知識庫、Visit 等工作 | backend 改動可能靜默破壞資料或互動 | 重構期間與完成後操作行為不變 |
+| 外部系統／事件來源 | LINE、Teachify、cron、Google、OpenAI 等可重送且可追溯 | failure、retry、duplicate 與 delivery ownership 不一致 | 流程具備冪等、恢復與可觀測性 |
+| 後續開發者 | 能新增 Agent／workflow／provider 而不複製整套 code | Agent、事件、流程與展示資料混合 | 以清楚模型與共享能力組合擴充 |
 
-### 應保留的邊界
+### Goal model
 
-只有符合至少一項才值得成為 port／adapter：
+| Goal ID | Type | Goal | Observable outcome |
+|---|---|---|---|
+| G-01 | Primary | 工程團隊能以可預測成本安全擴充 KV | 新功能能找到唯一 owner、建立高訊號測試並局部 release |
+| G-02 | Continuity | 重構期間既有產品能力持續可用 | authenticated journeys、API contract、UI visual parity 持續通過 |
+| G-03 | Supporting | 建立可信的功能證據 | render smoke 與 functional／production-like evidence 被分開記錄 |
+| G-04 | Transition | 每個 domain 從多重 legacy owner 收斂成一個 owner | CodeGraph 無重複 orchestration、純 alias adapter 與 route-specific 四件組 |
+| G-05 | Supporting | runtime 由真實垂直流程驅動形成 | 至少兩種 execution profile 共用 persistence／idempotency／outbox 能力 |
+| G-06 | Cutover | 新 owner 可受控接管流量與資料 | shadow／parity／feature flag 或直接可回退切換的 evidence 達標 |
+| G-07 | Cleanup | transitional code 不永久化 | legacy caller 歸零，shim／flag／重複 schema／dead tests 被刪除 |
 
-- 多個 consumer 共用。
-- 外部 provider 或基礎設施邊界。
-- transaction、idempotency、lease、CAS、outbox、retry 或 replay 邊界。
-- 有實質 mapping、translation、policy 或 failure semantics。
-- 需要獨立替換、測試或觀測。
+### Requirements and invariants
 
-### 必須合併的形狀
+| ID | Type | Requirement／invariant | Evidence |
+|---|---|---|---|
+| I-01 | UI invariant | URL、文案、DOM、視覺、responsive、操作順序與 UI state 不變 | authenticated before/after interaction + visual evidence |
+| I-02 | Data invariant | 現階段沿用 Dennis 的 payload 與既有 Supabase 格式 | contract tests、mapper tests、schema rehearsal |
+| I-03 | Auth invariant | 不移除登入牆；公開 route、webhook、cron 規則維持現況 | negative auth tests + real login evidence |
+| R-01 | Environment | `.env.local` 能重現登入、Supabase 與必要 provider | env key presence、server identity、journey result |
+| R-02 | Ownership | 一項 business behavior 只有一個 owner | CodeGraph impact／caller map |
+| R-03 | Abstraction | port／adapter 必須有多 consumer、provider、transaction 或實質 translation 理由 | boundary allowlist + review |
+| R-04 | Verification | 每批依風險通過 static、unit、integration、functional、visual 或 production-like evidence | verification ledger |
+| R-05 | Migration | 新舊共存需有 compatibility window、reconciliation、cutover、rollback、cleanup | migration gates |
+| R-06 | Maintainability | consolidation 預設減少檔案與 owner；增加時需提出可量化理由 | before/after file、LOC、consumer delta |
 
-以下預設視為過度抽象：
+## 3. Verified current state
+
+以下 Fact 以 `996a4e0` 為 snapshot；Requirement、Decision 與 Unknown 不混作 Fact。
+
+| ID | Fact | Stable anchor | Planning impact |
+|---|---|---|---|
+| F-01 | API 有 56 個 `route.ts` | `src/app/api/**/route.ts` | route 是 compatibility surface，不應按 route 建 architecture |
+| F-02 | `src/modules` 197 files、`src/adapters` 72 files；其中 144 files 不超過 15 行 | 以 `rg --files` + line count 重跑 | 需要 domain consolidation，不再新增四件組 |
+| F-03 | `runGoalsRead`、`runChecklistRead`、`runSubscribersRead`、`runKnowledgeBaseRead` 都只有 route production caller | CodeGraph `impact <symbol> --depth 2` | 這些 interface/application 預設進 collapse list |
+| F-04 | `RuntimeKernel` 沒有 production caller，只有 runtime unit tests；repository 是 in-memory | `src/platform/runtime/kernel.ts`、`in-memory.ts` | 禁止先擴寫 generic runtime |
+| F-05 | `agent_runs`、`agent_run_steps`、`agent_artifacts` 已有 migration 與 Supabase helper；Visit 已透過 `visit-run.ts` 使用 | `20260725_agent_runtime_core.sql`、`agent-runs.ts`、`visit-run.ts` | 新 kernel 必須與現有 schema／behavior reconciliation |
+| F-06 | 新 `RunRecord` 要求 workflow/deployment/correlation/version 等欄位，既有 `agent_runs` schema 使用 agent_slug/trigger/status/meta | runtime contracts vs runtime migration | target schema 尚未決定，屬 material Unknown |
+| F-07 | `AGENTS` 影響至少 76 個 CodeGraph symbols；catalog、TV、runtime profile 又各有不同 Agent shape | `agent-data.ts`、`agent-catalog.ts`、workflow contracts | Agent model 不能直接一次替換 |
+| F-08 | UI 已直接 consume 多個 API；Visit、Meeting、KB 是高互動面 | UI `fetch("/api/...")` consumers | backend work 必須驗證受影響 UI，不只 catalog |
+| F-09 | E2E 有 public/protected/API/visual smoke，但 protected access 使用 synthetic signed cookie | `tests/e2e/**` | 現有證據不是 real login／real-data functional E2E |
+| F-10 | repo 沒有團隊可用的 `.env.local`；`.env.example` 已存在 | `.env.example`、`.gitignore` | WP-01 是第一個 execution gate |
+| F-11 | migrations 沒有建立所有被 code 使用的 legacy tables | `supabase/migrations/**` 對照 `.from(...)` | clean rebuild 的 schema provenance 是 Unknown |
+
+### Key architecture finding
+
+```text
+目前 production Visit
+LINE route
+  → Visit applications
+  → legacy runtime adapter
+  → visit-run.ts
+  → agent-runs.ts
+  → existing Supabase agent_* tables
+
+目前 platform runtime
+RuntimeKernel
+  → RuntimeRepository / OutboxRepository
+  → InMemory repositories
+  → unit tests only
+```
+
+目標不是讓兩套永久共存，也不是丟掉已運作的 schema。必須先決定如何以 compatibility mapper／repository 將既有 production path 收斂到 canonical runtime。
+
+## 4. Architecture rules
+
+### Keep allowlist
+
+符合至少一項才保留獨立 boundary：
+
+- 多個 production consumer 共用。
+- LINE／OpenAI／Google／Teachify／Supabase 等外部 provider。
+- transaction、idempotency、lease、CAS、outbox、retry、replay 或 reconciliation。
+- 有實質 payload／row／error translation。
+- 必須獨立替換、sandbox、觀測或 rate-limit。
+- application service 明確協調多個 side effects、等待或 failure branch。
+
+### Collapse list
 
 - application 只有 `return port.method(input)`。
-- interface 只有一個 method、單一 consumer，且沒有替換需求。
+- 單一 consumer、單 method 且無替換理由的 interface。
 - adapter 只有 `{ method: existingHelper }` 或純 alias。
-- 一個 CRUD route 各自擁有 rules／ports／application／adapter 四件組。
-- 每個 route 再複製一份 Markdown contract。
+- 同一 CRUD resource 依 HTTP method 切成多套 rules／ports／application／adapter。
+- route、application 與 legacy helper 同時擁有相同行為。
+- 測試只重複驗證 forwarding 或 fixture 欄位存在。
 
-合併方向：
+### Target responsibility
 
-- 同領域的 rules 合併成少量 policy/value object。
-- 同一 repository/provider 的 operations 合併成 shared port。
-- orchestration 依「業務 use case」分組，不依 HTTP method 分組。
-- HTTP route 只做 parse、auth、呼叫 use case、response mapping。
-- legacy adapter 只在真的隔離舊資料／provider 時保留；純 alias 直接內聯。
+| Layer | Owns | Must not own |
+|---|---|---|
+| Route／transport | auth、parse、HTTP status、response mapping | business policy、DB query、provider orchestration |
+| Domain | entity/value、invariant、decision policy | HTTP、Supabase row、provider SDK |
+| Application／workflow | use case、step ordering、failure／wait／handoff | SDK details、UI presentation |
+| Repository／provider adapter | persistence/provider translation、transaction/resilience | business branching、route response |
+| Runtime | run/event/step/artifact/outbox state與恢復 | Agent 銷售展示、任一 domain 特例 |
+| Projection | read model 與 UI-compatible mapping | write-side business truth |
+| Presentation | frozen UI state 與 interaction | runtime/database ownership |
 
-### 規模護欄
+## 5. Domain migration register
 
-每個工作包合併前後都記錄：
+這張表取代逐 route source map。每個 work package 開始前要用 CodeGraph 重驗該列，不能只相信文件。
 
-- production files／LOC 的淨變化。
-- 新增與刪除的 owner、port、adapter 數。
-- single-consumer abstraction 數量。
-- CodeGraph consumer／dependency 變化。
-- 測試層級與真實功能證據。
+| ID | Current source／consumers | Data／providers | Target owner | Keep／collapse／delete | Cutover／deletion gate |
+|---|---|---|---|---|---|
+| DM-01 Auth／routing | `proxy.ts`、`lib/auth.ts`、login/logout routes、login/Sidebar | signed cookie；`AUTH_SECRET`／`ADMIN_PASSWORD` | shared auth policy + session adapter | 保留 guard；合併無價值 login四件組；不做 bypass | real login、wrong password、expired/missing cookie、public/protected matrix 通過 |
+| DM-02 Operations CRUD | goals/checklist/subscribers/contacts/activity routes；dashboard/todos/subscribers/outputs/TV consumers | `agent_goals`、`checklist_status`、`line_subscribers`、`contacts`、`line_agent_activity` | 少量 Operations domain services + shared repositories | 合併 read/write route四件組；保留 broadcast、tag 等真實 multi-side-effect use case | API payload parity + authenticated UI operations；CodeGraph 無純 forwarding owner |
+| DM-03 Knowledge Base | KB CRUD/import/crawl/reindex/access routes；KB pages | `knowledge_base`、`knowledge_access`、`kb_sources`、`kb_chunks`、`kb_citations`；Firecrawl/OpenAI/Supabase | KB domain + ingestion/search services + repository/provider adapters | 合併 39 modules/13 adapters 的 action slices；保留 upload/crawl/index provider與transaction邊界 | CRUD/import/publish/crawl/reindex functional journeys、row parity、failure recovery；legacy helpers caller 歸零 |
+| DM-04 Meeting | 9 meeting routes、meeting page、TV command | `meetings`、`meeting_turns`、recording storage；OpenAI realtime/audio | Meeting session domain + realtime/audio/storage adapters | 合併 route-specific start/finish/log/speak/transcribe四件組；保留 session orchestration與provider adapters | start→command/voice→turn log→finish journey，recording failure/retry，UI parity |
+| DM-05 Visit／Coco | LINE webhook、visit APIs、timeout cron；visit page、outputs、TV/live task | contacts、offers、invites、locks、runs/artifacts/live task；LINE/OpenAI/Google | Visit domain workflow on canonical runtime | 保留 offer/invite/text/image/postback side-effect ordering；合併重複 workflow/runtime ports與alias adapters | 先 text vertical slice，再 image/offer/approval/timeout；shadow compare、duplicate/retry、delivery receipt、legacy caller=0 |
+| DM-06 Orders／Ray | Teachify webhook、test notification、orders page | `teachify_orders`、activity、agents；Teachify/LINE | Orders inbound workflow + order repository + delivery adapter | 保留 normalization/idempotency/notification orchestration；刪除 test-only legacy ownership | duplicate webhook、invalid signature/payload、partial delivery、outbox/replay evidence |
+| DM-07 Reporting／Vivian／Support | cron/manual report routes、support relay/log；dashboard actions | agents/activity/support conversations/subscribers；OpenAI/LINE/relay target | Reporting schedule workflow + artifact/delivery；Support inbound workflow | 合併 cron/manual重複；保留 schedule dedupe、report generation、relay provider | same-period dedupe、artifact parity、delivery receipt、provider failure/retry |
+| DM-08 Runtime／workflow | `agent-runs.ts` production helper、Visit legacy runtime adapter；isolated `platform/runtime` | existing agent_* tables；new in-memory repo/outbox contract | canonical runtime repository/kernel adopted by vertical slices | 先 reconciliation，不新增空泛 contract；最終刪除 direct DB helper或讓它成唯一 compat adapter | schema mapping決策、Supabase repository、restart/resume/idempotency/outbox；兩種 profile production consumers |
+| DM-09 Agent model | `agent-data.ts`、`agent-catalog.ts`、DB `line_agents`、workflow execution profiles、TV/page local shapes | static TS + `line_agents` | ProductOffering／RoleTemplate／AgentInstance／ExecutionProfile／Presentation | 先 mapper 不改 UI；逐 consumer cutover；最後刪除重複 truth | catalog/dashboard/TV/meeting parity；新增 Agent 不需複製 route；old owner caller=0 |
+| DM-10 UI projections | dashboard、flow、TV、universe、meeting、agent pages 與各 API loaders | activity、runs、live task、KB、agents等多源資料 | stable read projections | 保留 frozen components；只改內部 data source/mappers | 每 surface authenticated before/after、loading/empty/error/data、desktop/mobile visual parity |
 
-預設 gate：
+## 6. Decisions, assumptions and unknowns
 
-- 同一行為不得同時由 route、application 與 legacy helper 三處擁有。
-- 新增一個 abstraction 必須說明替換點或第二個 consumer；否則不新增。
-- consolidation 工作包原則上應減少檔案數；若增加，需有可量化理由。
-- 不再以 commit 數、route 數或 contract 數當作進度。
+### Decisions
 
-## 4. 現況架構與目標映射
+| ID | Decision | Reason／consequence |
+|---|---|---|
+| D-01 | 在原 repo 漸進重構 | 保留行為與 Git history，避免雙系統漂移 |
+| D-02 | 單一 TODO；tests 與 CodeGraph 承擔 contract／source map | 避免文件再次按 route 膨脹 |
+| D-03 | 不移除登入牆 | 它是原產品邊界；本機問題用 env 解決 |
+| D-04 | domain-first、vertical-slice runtime | 抽象必須由真實 consumer 證明 |
+| D-05 | 先做 Operations consolidation pilot | 低風險驗證新的模組粒度，再碰 KB/Meeting/Visit |
+| D-06 | 沿用現有資料格式；schema 只做 additive/backward-compatible change | 降低不可逆 migration 風險 |
+| D-07 | 真實 UI 驗證依 affected surface，不用 catalog 取代後台功能 | browser evidence 要能證明受影響 journey |
 
-下表是施工入口，不複製逐 symbol 清單；每個工作包開始前以 CodeGraph 重新產生 live impact map。
+### Assumptions
 
-| 領域／能力 | 現有主要入口 | 目標 owner | 目前問題 | 下一個 gate |
+| ID | Assumption | Recheck point | If wrong |
+|---|---|---|---|
+| A-01 | 團隊可取得本機或 staging Supabase 與必要 provider credentials | WP-01 | 無法做 real-data evidence，計畫維持 Needs Revision |
+| A-02 | 既有 API payload 與 table rows 是現階段 compatibility source | 每個 domain before baseline | 先由 owner 決定 intentional change，不在 refactor 偷改 |
+| A-03 | UI freeze 可透過 mapper/projection 達成 | DM-09/10 cutover | 停止切換，回退 data source，另開產品決策 |
+
+### Material unknowns／resolution
+
+| ID | Unknown | Resolution package | Blocks | Success／fallback |
 |---|---|---|---|---|
-| Web／UI | `src/app/**`, `src/components/**` | frozen presentation | UI 可 render，但真實登入與操作證據不足 | 建 authenticated journey baseline |
-| Auth／routing | `src/proxy.ts`, `src/lib/auth.ts`, `src/app/api/auth/**` | shared auth policy + session adapter | 本機 env 遺失被誤判成路由問題 | `.env.local` + login/session E2E |
-| Agent catalog／definition | `src/lib/agent-*`, `src/modules/agents/**` | Offering / RoleTemplate / Instance / Presentation | 產品、角色、instance、展示資料混合 | 定義 canonical model 與 mapping |
-| Runtime／workflow | `src/platform/runtime/**`, `src/platform/workflows/**` | execution runtime + workflow engine | kernel 有骨架，持久化與切流未完成 | event store/run state/outbox |
-| Visit／Coco／LINE | `src/app/api/line/**`, `src/lib/visit-*`, `src/modules/visit/**`, `src/adapters/visit/**` | Visit domain + workflow/application services | 最完整也最分散；已有多個薄檔 | 先 consolidation，再 shadow/cutover |
-| Orders／Ray | `src/app/api/**orders**`, `src/lib/teachify-*`, `src/modules/orders/**` | Orders domain + inbound workflow | duplicate/outbox semantics 未落地 | idempotent inbound + outbox |
-| Reporting／Vivian | reporting/cron routes、`src/modules/reporting/**` | Reporting domain + schedule workflow | 排程、報表、傳送耦合 | dedupe + artifact + delivery |
-| Meeting | `src/app/meeting/**`, `src/app/api/meeting/**`, `src/lib/meeting-*`, `src/modules/meeting/**` | Meeting domain + realtime/session adapters | command、session、storage、audio 分散 | consolidation + functional journey |
-| Knowledge base | `src/app/api/knowledge-base/**`, `src/lib/kb-*`, `src/modules/knowledge-base/**` | KB domain + ingestion/search providers | 逐 CRUD/import action 切得過細 | repository/provider consolidation |
-| Goals／Checklist／Subscribers | 對應 routes、`src/modules/{goals,checklist,subscribers}/**` | Operations domain services | route-specific 四件組最明顯 | 合併 shared repository/use cases |
-| Projection／dashboard | dashboard APIs、UI data loaders | read-model projections | UI 仍未由 canonical runtime projection 驅動 | parity cutover |
-| External providers | LINE/OpenAI/Google/Teachify/Supabase helpers | provider adapters | failure、retry、rate-limit 契約不一致 | provider contract tests |
+| U-01 | 可用 `.env.local`、Supabase project、fixture/staging 的真實狀態 | WP-01 | 所有 functional E2E與schema rehearsal | 取得環境；否則只允許 structural work並維持 Needs Revision |
+| U-02 | legacy tables 的完整 canonical migration／schema provenance | WP-01 | clean rebuild與未來schema change | dump/introspection對照 migrations；缺口建 baseline migration，不猜 schema |
+| U-03 | 新 RuntimeKernel 應直接映射既有 `agent_*` tables，或需 additive schema extension | WP-04 | runtime implementation、Visit cutover | timeboxed reconciliation；優先 compat mapper，只有缺失能力才 additive migration |
+| U-04 | LINE/OpenAI/Google/Teachify 是否有 sandbox 或可安全重播 fixture | WP-01 + 各 domain preflight | production-like provider verification | sandbox；否則 contract fixture + staging canary，明列 deferred evidence |
 
-### Agent、事件與 workflow 的分界
+## 7. Work package DAG
 
-- Agent 類型是可配置的能力／角色／執行 profile，不等於事件。
-- 事件描述「發生了什麼」，例如訂單建立、LINE 訊息收到、meeting command 提交。
-- workflow 決定事件之後的步驟、等待、分支、工具與交付。
-- runtime 負責 run、step、state、artifact、handoff、retry、resume 與觀測。
-- UI 只讀 projection，不直接承擔 runtime 的真實狀態模型。
+```text
+WP-00 plan repair（本批）
+  → WP-01 environment + authenticated/schema baseline
+      ├─→ WP-02 Operations consolidation pilot
+      │     ├─→ WP-03 Knowledge Base consolidation
+      │     └─→ WP-04 Runtime reconciliation
+      │             → WP-05 Visit text vertical slice
+      │                   → WP-06 Visit remaining cutover
+      │
+      ├─→ WP-07 Meeting consolidation
+      └─→ WP-08 Orders + Reporting cutover
 
-## 5. 執行順序
+WP-05 + WP-07 + WP-08
+  → WP-09 Agent model ownership
+      → WP-10 Frozen UI projection cutover
+          → WP-11 Production-like acceptance + legacy cleanup
+```
 
-任一階段未達 Done when，不得把後續階段標成完成。每一階段以一個有意義的 domain outcome commit 收尾。
+| WP | Produces | Depends on | Serial integration point |
+|---|---|---|---|
+| WP-00 | executable canonical plan | none | TODO |
+| WP-01 | reproducible env、authenticated baseline、schema inventory | WP-00 + credentials | `.env.local`／Supabase project |
+| WP-02 | validated consolidation pattern | WP-01 | shared architecture rules |
+| WP-03 | canonical KB owner | WP-02 | KB routes/repository |
+| WP-04 | runtime schema/contract decision + repository plan | WP-01、WP-02 | runtime contracts/schema |
+| WP-05 | first production runtime slice | WP-04 | LINE text routing/runtime |
+| WP-06 | Visit cutover + legacy deletion | WP-05 | LINE webhook/timeout |
+| WP-07 | canonical Meeting owner | WP-01、WP-02 | Meeting APIs/storage |
+| WP-08 | Orders/Reporting production slices | WP-01、WP-02、WP-04 | webhooks/cron/outbox |
+| WP-09 | canonical Agent model/mappers | WP-05、WP-07、WP-08 | Agent registry |
+| WP-10 | UI read projections | WP-09 + relevant domain cutover | UI data loaders |
+| WP-11 | canary、reconciliation、cleanup、final evidence | all | release/cleanup |
 
-### P0 — 文件與進度收斂（本次）
+## 8. Work package TODO
 
-- [x] 建立本文件作為唯一 canonical TODO。
-- [x] 將登入誤判、完成度與過度抽象問題寫入稽核。
-- [x] 停止新增逐 route contract 與 micro-checkpoint。
-- [x] 移除舊 contract 集合與 checkpoint ledger；由 Git history 保留。
-- [x] 外部 project card 收斂為短入口。
-- [x] commit 本階段（本文件收斂批次）。
+### WP-00 — Plan repair and live migration register
 
-Done when：repo 只有 TODO 與 audit 兩份 refactor 文件；外部索引只保留 README／AGENTS；所有連結有效。
+**Goals:** G-01、G-04、G-07
 
-### P1 — 可重現本機環境與 authenticated baseline
+**Status:** complete in this batch.
 
-- [x] 提供 `.env.example`，明列 auth、Supabase 與 optional provider keys。
-- [ ] 建立 ignored `.env.local`，使用團隊持有的實際值。
-- [ ] 重啟 dev server，記錄 port、commit、env key presence（不記 secret）。
-- [ ] 驗證 `/login` 正確／錯誤密碼與 session cookie。
-- [ ] 登入 `/dashboard`，確認真實資料 source，不使用 synthetic cookie 冒充登入證據。
-- [ ] 點過 dashboard、主要產品頁、核心互動頁，保存 before evidence。
-- [ ] 建一組可重複執行的 authenticated Playwright setup。
+- [x] 用 CodeGraph 重驗 route→application consumers。
+- [x] 建立 domain migration register。
+- [x] 將 generic runtime foundation 改為 reconciliation + vertical slice。
+- [x] 加入 GORE、DAG、unknown、cutover／cleanup gates。
+- [x] 保持一份 canonical plan。
+- [x] 驗證、commit 本批。
 
-Done when：新成員依 README 可登入並看到同一份資料；測試會在缺 env 時明確 fail/skip，而非假綠。
+**Done when:** 新執行者能從 WP-01 開始，不需自行發明模組粒度或 migration 順序。
 
-### P2 — Domain consolidation 與肥大回收
+### WP-01 — Reproducible environment and behavior baseline
 
-- [ ] 用 CodeGraph 對 `modules`、`adapters`、legacy helpers 建 consumer map。
-- [ ] 建 allowlist：真正跨 consumer/provider/transaction 的 boundary。
-- [ ] 建 collapse list：single-consumer interface、delegate application、alias adapter、route-only rules。
-- [ ] 先處理 CRUD-heavy 領域：Goals／Checklist／Subscribers／Contacts／Activity。
-- [ ] 再處理 Knowledge Base，將 read/write/import/crawl/reindex 收斂成 domain services + repository/provider ports。
-- [ ] 再處理 Meeting 與 Visit；保留有實質 side-effect ordering 的 application services。
-- [ ] 刪除被取代的 helper、port、adapter、測試重複與 dead exports。
-- [ ] 每個領域跑 CodeGraph impact diff、unit/integration、build 與受影響 UI journey。
+**Goals:** G-02、G-03
 
-Done when：不再有逐 route 四件組；沒有純 alias adapter；domain owner 唯一；production file count/LOC 明顯下降且功能證據不退步。
+**Requirements:** R-01、R-04、I-01～I-03
 
-### P3 — 測試層級修正
+**Anchors:** `.env.example`、`proxy.ts`、`lib/auth.ts`、`playwright.config.ts`、`tests/e2e/**`、`supabase/migrations/**`.
 
-- [ ] 將現有證據標成 Structural／Contract／Render smoke／Functional／Production-like。
-- [ ] 刪除只驗證「fixture 有欄位」或重複 implementation detail 的低訊號測試。
-- [ ] 保留高價值 domain rule、mapping、failure semantics 測試。
-- [ ] 為 auth、Visit、Orders、Reporting、Meeting、KB 建 API integration tests。
-- [ ] 為 dashboard、Visit、Meeting、KB 建 authenticated interaction journeys。
-- [ ] 視覺 snapshot 只保留代表性 viewport/surface，避免全頁重複。
-- [ ] CI 分 fast gate 與 full gate；任何 skip 都需顯示原因。
+- [ ] 團隊建立 ignored `.env.local`；只記 key presence，不記 secret。
+- [ ] 記錄 server port、commit、Supabase project class（local/staging），避免環境漂移。
+- [ ] 用真實密碼完成 login／logout／missing/wrong password／session expiry。
+- [ ] 登入 dashboard，確認資料 source；不得用 synthetic cookie 冒充 real login evidence。
+- [ ] 點過 Dashboard、Visit、Meeting、KB、Subscribers/Todos 的代表性讀寫或互動。
+- [ ] 建 browser evidence manifest：URL、viewport、data source、操作、結果、screenshot/DOM。
+- [ ] introspect 實際 schema，對照 migrations 與所有 `.from("table")`；標出 missing provenance。
+- [ ] 將 tests 分成 synthetic render smoke 與 authenticated functional suite。
 
-Done when：測試失敗能指出業務能力壞掉；render smoke 不再被描述為完整功能驗證。
+**Verification**
 
-### P4 — Runtime persistence foundation
+- login/session API negative + positive checks。
+- affected pages 無 page error；實際互動後 DB/API 結果一致。
+- local schema rehearsal 能重建，或明確產出 U-02 缺口與 resolution branch。
 
-- [ ] 定義 Run／Step／Event／Artifact／Handoff／ToolCall 的 canonical schema。
-- [ ] 建 repository ports 與 Supabase adapters；沿用現有格式時由 mapper 相容。
-- [ ] 建 event append、run state transition 與 optimistic concurrency。
-- [ ] 建 idempotency key、lease/CAS 與 duplicate suppression。
-- [ ] 建 outbox、retry policy、dead-letter/replay 與 delivery receipt。
-- [ ] 建 trace/correlation ID、structured log 與最低觀測指標。
-- [ ] migration 先在 local Supabase rehearsal；產生 rollback 與 reconciliation query。
+**Rollback:** 不修改產品 behavior；若環境不可得，保留 Unknown，禁止宣稱 functional verified。
 
-Done when：process restart 後可 resume；重送不重複副作用；event、state、artifact 與 delivery 可追溯。
+**Done when:** 新成員依 README 能登入同一資料環境，且 baseline 可重複。
 
-### P5 — Visit／Coco cutover
+### WP-02 — Operations consolidation pilot
 
-- [ ] 將 LINE inbound 正規化成 domain event。
-- [ ] workflow 驅動 text/image/postback/invite/offer/approval。
-- [ ] 將 research、AI、persistence、delivery 變成共享 capability/provider boundary。
-- [ ] timeout 與 webhook 共用同一 workflow/run state。
-- [ ] legacy/new 路徑支援 shadow、compare、feature flag 與 rollback。
-- [ ] 跑真實或 production-like LINE journey 與 duplicate/retry/failure cases。
-- [ ] 穩定後刪除 legacy ownership，不只留下 wrapper。
+**Goals:** G-01、G-03、G-04
 
-Done when：Coco 核心 journey 全由新 runtime 擁有，輸出與現況相容，可觀測且可回退。
+**Anchors:** `modules/{goals,checklist,subscribers,contacts,activity}`、對應 adapters/routes/UI。
 
-### P6 — Orders／Ray 與 Reporting／Vivian cutover
+- [ ] CodeGraph 建 consumer map與 boundary allowlist/collapse list。
+- [ ] Goals 收斂 read/update/delete/reset/history 到單一 domain service + repository。
+- [ ] Checklist 收斂 read/update；Subscribers 收斂 read/update，broadcast 保留為 application use case。
+- [ ] Contacts/Activity 建共享 repository/read model，不複製 query port。
+- [ ] route 只保留 parse/auth/HTTP mapping。
+- [ ] 刪除 forwarding applications、single-consumer ports、alias adapters與低訊號 tests。
+- [ ] 記錄 production files/LOC、owner、consumer before/after。
 
-- [ ] Teachify/order inbound 正規化與驗證。
-- [ ] duplicate suppression、transaction 與 outbox。
-- [ ] reporting schedule dedupe、artifact generation、delivery receipt。
-- [ ] provider failure、retry、partial failure 與 replay 測試。
-- [ ] shadow compare 舊新版輸出，再逐步切流。
-- [ ] 刪除 legacy owner 與無用 compatibility seam。
+**Verification:** focused rules/repository integration、API parity、authenticated Todos/Subscribers/Outputs/TV interactions、CodeGraph dead caller scan。
 
-Done when：訂單與報表 journey 由共享 runtime 執行，重送安全、結果一致、可追溯。
+**Rollback:** 每個 domain 一個 commit；回退該 domain，不共用未驗證 global rewrite。
 
-### P7 — Agent model ownership
+**Done when:** 這些 domain 無逐 route 四件組，檔案/owner 減少且功能證據不退步。此結果是後續 consolidation template。
+
+### WP-03 — Knowledge Base consolidation
+
+**Goals:** G-02、G-03、G-04
+
+**Anchors:** DM-03 的 routes/modules/adapters、`lib/{knowledge-base,kb-import,kb-crawl,kb-search}.ts`.
+
+- [ ] 依 capability 分成 document repository、access policy、ingestion、crawl provider、index/search。
+- [ ] 合併 CRUD/import action-specific ports與applications。
+- [ ] 將 Supabase rows、Firecrawl、embedding/OpenAI translation 留在 adapters。
+- [ ] 定義 upload→preview→publish/discard→index state/failure map。
+- [ ] 保持既有 API payload與KB頁面狀態。
+- [ ] legacy helper caller 歸零後刪除或降為唯一 adapter。
+
+**Verification:** CRUD、access、upload、crawl、publish/discard、reindex integration journeys；bad file/provider failure；authenticated KB desktop/mobile parity。
+
+**Rollback:** route-level compatibility façade 可回接 legacy owner，未完成前不改 schema contract。
+
+**Done when:** KB capability 有唯一 owner，39 modules/13 adapters 不再按 route action 分裂。
+
+### WP-04 — Runtime schema and contract reconciliation
+
+**Goals:** G-03、G-05
+
+**Unknown:** U-03
+
+**Anchors:** `platform/{events,runtime,workflows,artifacts}`、`lib/agent-runs.ts`、`lib/visit-run.ts`、runtime migration.
+
+- [ ] 列出 existing schema ↔ `RunRecord/Event/Outbox` field map。
+- [ ] 比較三個方案：A. kernel mapper到既有表；B. additive columns/tables；C. 收斂kernel contract到既有模型。
+- [ ] 以 Visit text、Orders webhook、scheduled report 三種 profile 驗證必要欄位。
+- [ ] 決定 idempotency、CAS/version、lease、outbox、event persistence 的最低 production slice。
+- [ ] 在本 TODO 更新 Decision、target map、migration/rehearsal與rollback。
+- [ ] 未決前禁止新增 generic node kind、tool registry 或無 consumer schema。
+
+**Verification:** schema rehearsal、repository contract tests、restart/duplicate/CAS/outbox failure cases。
+
+**Fallback:** 優先 compatibility mapper；若 existing schema 不足，才建立 additive migration，舊 writer 仍可運作。
+
+**Done when:** U-03 關閉，WP-05 實作者不需猜 schema/owner；此時整份 plan 才可候選 Ready。
+
+### WP-05 — Visit LINE text vertical slice
+
+**Goals:** G-02、G-03、G-05、G-06
+
+**Anchors:** LINE webhook、text application、workflow、Visit persistence/delivery/runtime adapters。
+
+- [ ] LINE event normalize 成 canonical EventEnvelope。
+- [ ] text journey 使用 canonical runtime repository/kernel。
+- [ ] 保存既有 reply、tag、activity、live-task與run/artifact behavior。
+- [ ] delivery 走 idempotent outbox/receipt；provider failure可 retry/reconcile。
+- [ ] legacy/new 支援 shadow compare 或可回退 routing。
+- [ ] 只抽出 text slice 真正需要的 runtime capability。
+
+**Verification:** duplicate event、normal reply、waiting input、provider failure/retry、process restart/resume、LINE fixture/sandbox；Visit/TV/Outputs UI parity。
+
+**Rollback:** flag/routing 回 legacy text handler；new writes需可reconcile，不造成雙重delivery。
+
+**Done when:** 一條真實 production-like text flow 由canonical runtime擁有且可回退。
+
+### WP-06 — Visit remaining flow cutover
+
+**Goals:** G-04～G-07
+
+- [ ] 依序移轉 image/card → offer → approval/invite → postback → timeout。
+- [ ] webhook 與 timeout 共用同一 run/workflow state。
+- [ ] 每 slice 重用 WP-05 能力；若需新增 abstraction，必須出現第二 consumer或實質新邊界。
+- [ ] parity/reconciliation 達標後切流。
+- [ ] 刪除 Visit legacy runtime/workflow alias adapters與直接 owner。
+
+**Verification:** 每 slice happy/failure/duplicate/retry；完整 card-to-invite journey；timeout/recovery；authenticated UI/TV evidence。
+
+**Done when:** LINE/timeout 核心 journey 全由新 owner執行，legacy caller歸零。
+
+### WP-07 — Meeting consolidation
+
+**Goals:** G-02～G-04
+
+- [ ] 將 start/command/realtime/log/recording/speak/transcribe/finish 收斂成 Meeting session use cases。
+- [ ] storage、OpenAI realtime、audio/transcription 分成 provider adapters。
+- [ ] 統一 meeting/turn lifecycle、failure與cleanup。
+- [ ] 保持 meeting page request/response與UI state。
+
+**Verification:** start→command/voice→turn→finish、recording upload/read、provider timeout/error、authenticated visual/interaction。
+
+**Rollback:** API façade 可回接 legacy function；storage/schema change 必須 additive。
+
+**Done when:** route-specific四件組移除，session lifecycle唯一且可測。
+
+### WP-08 — Orders and Reporting production slices
+
+**Goals:** G-03～G-06
+
+- [ ] Teachify event normalize、signature/payload contract、duplicate suppression。
+- [ ] order persistence與notification用 transaction/outbox semantics。
+- [ ] scheduled/manual report 共用同一 generation workflow。
+- [ ] report artifact與delivery receipt可追溯到run。
+- [ ] 第二種 execution profile 重用 WP-04/05 runtime，驗證抽象不是 Visit 特例。
+
+**Verification:** duplicate/invalid webhook、partial provider failure、same-period cron dedupe、artifact parity、replay；Orders/Support dashboard actions。
+
+**Done when:** 至少 short-event + scheduled-batch 共用canonical runtime；legacy Orders/Reporting owner可刪。
+
+### WP-09 — Canonical Agent model
+
+**Goals:** G-01、G-04、G-05
 
 - [ ] 定義 ProductOffering、RoleTemplate、AgentInstance、ExecutionProfile、Presentation。
-- [ ] 將觸發器、workflow、tools、model policy、knowledge scope、delivery policy 做成 reference/config。
-- [ ] 建 validation 與 versioning；禁止 UI metadata 反向成為 runtime truth。
-- [ ] 將 Dennis 現有 Agent 資料映射到 canonical model，不直接改畫面。
-- [ ] 清除 `agent-data`、catalog、instance、runtime 的重複 owner。
+- [ ] 建 static catalog、`AGENTS`、`line_agents`、workflow binding 的 compatibility mappers。
+- [ ] 逐 consumer切換：runtime/API → dashboard/meeting/TV → public catalog。
+- [ ] tools/model/knowledge/delivery policy 以 reference/config 組合。
+- [ ] version/validation gate；禁止 Presentation 成為 runtime truth。
 
-Done when：新增 Agent 主要是配置與組合能力，不需複製 route 或硬編排一整套程式。
+**Verification:** CodeGraph impact、model validation、catalog/dashboard/TV/meeting parity；新增 fixture Agent 不需新增 route。
 
-### P8 — Frozen UI data cutover
+**Rollback:** mapper保留舊shape，逐consumer回退。
+
+**Done when:** agent identity與展示資料不再有多個相互矛盾owner。
+
+### WP-10 — Frozen UI projection cutover
+
+**Goals:** G-02、G-06
 
 - [ ] 建 canonical read projections。
-- [ ] 依 dashboard → flow → TV → universe → meeting 次序切換 data source。
-- [ ] 每頁保存 authenticated before/after screenshot、DOM 與互動結果。
-- [ ] 比對 loading/empty/error/data states 與 responsive viewport。
-- [ ] 禁止為配合 backend 重構調整可見 UI；差異必須修在 mapper/projection。
+- [ ] 依 dashboard → flow → TV → universe → meeting → agent pages 切換。
+- [ ] mapper保持所有既有UI shape與fallback state。
+- [ ] 每個 surface保存 authenticated before/after。
 
-Done when：UI/UX 零非預期差異，資料來自 canonical projection，不再依賴 legacy aggregation。
+**Verification:** loading/empty/error/data、interaction、desktop/mobile visual、API failure recovery。
 
-### P9 — Production-like acceptance 與 cleanup
+**Rollback:** data loader feature flag回舊projection；不改component視覺。
 
-- [ ] staging 使用可代表正式環境的 schema、資料與 provider sandbox。
-- [ ] 執行 auth、Visit、Orders、Reporting、Meeting、KB 核心 journeys。
-- [ ] canary 切流、shadow reconciliation、錯誤率/latency/duplicate 指標觀察。
-- [ ] 驗證 rollback、replay 與資料修復程序。
-- [ ] 刪除 feature flag、shadow writer、legacy helper、dead schema 與臨時 bridge。
-- [ ] 最後跑 `npm run verify:full`、schema rehearsal 與完整 browser checklist。
+**Done when:** UI零非預期差異，資料來自canonical owner。
 
-Done when：連續觀察期無重大差異，legacy execution 被移除，release/rollback runbook 可執行。
+### WP-11 — Production-like acceptance and cleanup
 
-### P10 — 完成驗收
+**Goals:** G-01～G-07
 
-- [ ] 對照第 1 節逐項簽核。
-- [ ] CodeGraph 證明 route 不直接擁有 DB/provider business orchestration。
-- [ ] production source 與抽象數量回到可解釋範圍。
-- [ ] TODO 所有項目完成或有明確接受的 follow-up owner/date。
-- [ ] 將 audit 更新為 final evidence，標記本 TODO complete。
+- [ ] staging執行 Auth、Visit、Meeting、KB、Orders、Reporting journeys。
+- [ ] canary/shadow reconciliation，觀察error/latency/duplicate/data drift。
+- [ ] 演練rollback、replay、資料修復。
+- [ ] CodeGraph確認legacy traffic/caller歸零。
+- [ ] 刪除shim、flag、shadow writer、dead schema/code/tests/dependency。
+- [ ] 跑 full verification與schema rehearsal。
+- [ ] 更新audit成final evidence，將本計畫標Complete。
 
-## 6. 每個工作包的固定格式
+**Done when:** cleanup gate全通過，沒有永久transition artifact，release/rollback可由另一位工程師執行。
 
-開始前：
+## 9. Verification and migration gates
 
-1. 寫一句 business/domain outcome。
-2. 用 CodeGraph 列 entrypoint、consumer、side effect、data table、provider 與 affected UI。
-3. 保存 before 行為；有 UI 就必須在登入後點實際功能。
-4. 說明保留、合併、刪除哪些 owner 與 rollback seam。
+### Evidence levels
 
-實作中：
+只使用以下標記，不得把低層證據升級描述：
 
-1. 先建立或修正高訊號 characterization test。
-2. 搬移 ownership，不複製 ownership。
-3. 將 adapter 限制在 translation/infrastructure。
-4. 保持 payload/schema/UI 相容。
+1. `Structurally verified`
+2. `Contract tested`
+3. `Render smoke passed`
+4. `Functionally verified`
+5. `Production-like verified`
 
-完成前：
+### Per-change minimum
 
-1. focused unit/integration。
-2. lint、typecheck、build。
-3. affected API functional checks。
-4. affected authenticated Chrome journey；必要時 visual diff。
-5. CodeGraph impact diff 與 dead consumer 檢查。
-6. 記錄 production LOC/file delta、test evidence、rollback。
-7. 一個 domain outcome 一個 commit，更新本 TODO checkbox。
-
-## 7. 驗證矩陣
-
-| 變更 | 最低驗證 |
+| Change | Required evidence |
 |---|---|
-| 純文件 | link/encoding check + public browser sanity |
-| 純 domain rule | focused unit + typecheck |
-| route/application | unit + API integration + build + affected UI interaction |
-| repository/schema | integration + schema rehearsal + rollback query |
-| provider adapter | contract test + failure/retry case；可用時跑 sandbox |
+| Docs only | links/encoding/stale-ref + browser sanity |
+| Domain rule | focused unit + typecheck |
+| Route/application | unit + API integration + affected authenticated interaction |
+| Repository/schema | integration + local schema rehearsal + rollback/reconcile query |
+| Provider adapter | contract + timeout/retry/partial failure；可用時sandbox |
 | UI data source | authenticated before/after + interaction + visual |
-| runtime/cutover | full journey + duplicate/retry/restart/replay + canary evidence |
+| Runtime/cutover | duplicate/retry/restart/replay + parity + canary/rollback |
 
-驗證用語只能使用：
+### Cutover gate
 
-- `Structurally verified`
-- `Contract tested`
-- `Render smoke passed`
-- `Functionally verified`
-- `Production-like verified`
+| Gate | Required evidence | Abort／rollback trigger |
+|---|---|---|
+| Contract parity | same input/output/error semantics | unexplained payload/status/UI difference |
+| Data integrity | counts/keys/status/reconciliation match | missing、duplicate、unrecoverable divergence |
+| Side-effect safety | idempotency + delivery receipt + retry | duplicate external delivery or lost action |
+| Observability | correlation/run id、error、latency可查 | failure無法定位或replay |
+| UI continuity | affected authenticated surface parity | any non-approved visible/interaction change |
+| Rollback | old path仍可用且不反向遺失資料 | rollback會造成資料/side-effect conflict |
 
-不得把較低層證據描述成較高層完成。
+### Cleanup gate
 
-## 8. 文件政策
+- old route owner無traffic/caller。
+- compatibility window已滿足。
+- reconciliation無未處理差異。
+- rollback policy已更新。
+- shim/flag/dual-write/dead schema/code/test/dependency已刪。
+- CodeGraph與README指向新owner。
 
-- 本文件是唯一 plan、TODO、進度表與 domain-level source map。
-- audit 只保存量化證據、判斷與最終成效，不再變成第二份 TODO。
-- 外部 `projects/kv/README.md` 只作專案入口，不複製計畫內容。
-- 行為契約寫在可執行 tests；symbol/consumer 映射由 CodeGraph 即時產生。
-- 不建立 route-level Markdown、每日流水帳、每 commit checkpoint 或另一份 parallel plan。
-- 歷史文件已存在 Git commit `410083a` 及更早歷史，需要追溯時由 Git 讀取。
+## 10. Work-package operating rule
 
-## 9. 下一次開工點
+每個 work package：
 
-下一階段只做 P1，不再繼續抽 route：
+1. 先用 CodeGraph重驗 entrypoint、caller、table、provider、affected UI。
+2. 保存真實 before；UI-affecting work 必須登入並點受影響功能。
+3. 寫清 business/domain outcome、keep/collapse/delete、rollback seam。
+4. 先修高訊號 characterization test，再搬 ownership。
+5. 保持 payload/schema/UI compatibility。
+6. 跑該 package 的最低證據與 `git diff --check`。
+7. 記錄 production file/LOC、owner/consumer、test evidence before/after。
+8. 一個 domain outcome 一個 commit，更新本文件 checkbox。
 
-1. 團隊提供／確認 `.env.local` 所需值與可用 Supabase 環境。
-2. 重啟 server 並完成真實登入。
-3. 保存 authenticated dashboard 與核心功能 before baseline。
-4. 把 Playwright synthetic session 與真實登入測試分開命名。
-5. P1 commit 後才進 P2 consolidation。
+禁止：
+
+- 一條 route 一組 rules/ports/application/adapter。
+- 沒第二 consumer／provider／transaction 理由就新增 port。
+- 用 catalog smoke 代替後台 affected journey。
+- 用 synthetic cookie 證明真實登入。
+- 新路徑能跑就宣稱完成，卻不刪 legacy。
+
+## 11. Traceability
+
+| Goal | Requirements | Work packages | Final evidence |
+|---|---|---|---|
+| G-01 | R-02、R-03、R-06 | WP-02～11 | owner/LOC/consumer delta、extension acceptance |
+| G-02 | I-01～03、R-01 | WP-01、03、05～11 | authenticated functional + visual parity |
+| G-03 | R-04 | WP-01～11 | evidence-level ledger |
+| G-04 | R-02、R-03 | WP-02、03、06～09 | CodeGraph owner/caller evidence |
+| G-05 | R-02、R-05 | WP-04、05、08、09 | two production execution profiles |
+| G-06 | R-04、R-05 | WP-05、06、08、10、11 | parity/canary/rollback |
+| G-07 | R-05、R-06 | WP-06、08～11 | legacy caller=0 + deletion evidence |
+
+## 12. Readiness verdict
+
+### Verdict: Needs Revision
+
+不是方向未決，而是兩項 material evidence 尚未取得：
+
+- U-01／U-02：真實環境與完整 schema provenance。
+- U-03：既有 production runtime schema 與新 kernel contract 的收斂決策。
+
+**First executable package:** WP-01。它不改產品行為，能關閉 environment/schema blocker。
+
+**可平行的低風險工作:** WP-02 的 CodeGraph collapse inventory；實際修改需等 authenticated baseline。
+
+**升級為 Ready 的條件:** WP-01 完成、WP-04 reconciliation decision 寫回本計畫，且 forward/backward traceability 無 blocker。
+
+## 13. Documentation policy
+
+- 本文件是唯一 plan、TODO、進度與 migration register。
+- audit 只保存量化證據，不另建第二份 roadmap。
+- 行為 contract 寫在 tests；live symbol mapping 由 CodeGraph產生。
+- 不建立 route-level Markdown、micro-checkpoint、每日流水帳或平行計畫。
+- repo內過去 contracts/checkpoints 可由 Git歷史追溯；外部未版控舊plan已無原文，因此本文件以目前repo evidence重新建模，不宣稱逐字復原。
