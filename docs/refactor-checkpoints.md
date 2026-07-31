@@ -87,15 +87,19 @@ Every stage must:
 
 ## Current Verification
 
-At `cafa912` plus this documentation stage:
+At code checkpoint `116885b` plus documentation checkpoint `fdcd0f7`:
 
 - `npm run verify:full` passed;
-- 104 Vitest files / 408 tests passed;
+- 174 Vitest files / 527 tests passed;
 - production build generated 93 pages;
 - 130 Playwright smoke cases passed;
 - Chrome retained the Agent catalog count and tier labels before and after the
-  Contacts read cutover; reload-only Next.js development-tool nodes were
+  LINE webhook payload boundary; reload-only Next.js development-tool nodes were
   normalized out of the snapshot comparison;
+- CodeGraph maps `parseVisitLineWebhookPayload` and the shared
+  `LineInboundEvent` type through the LINE webhook route and inbound normalizer;
+- The remaining CodeGraph bullets in this section are cumulative evidence from
+  earlier compatibility boundaries, not a separate pending verification run;
 - CodeGraph maps `processOrderPayload`, `OrdersPorts`, and
   `createLegacyOrdersAdapters` only through the Orders module, legacy adapter,
   and Teachify route;
