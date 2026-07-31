@@ -913,6 +913,26 @@ At `cafa912` plus this documentation stage:
 - Secret rotation, scheduling infrastructure, provider changes, schema
   evolution, and production traffic evidence remain deferred.
 
+### WP6-AY TV idle compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/tv-idle.contract.md`.
+- `src/modules/tv/idle-rules.ts` owns supported agent query values;
+  `idle-application.ts` owns schedule caching, Visit tags, and Teamlead
+  activity aggregation; `src/adapters/tv/legacy-idle-adapter.ts` keeps the
+  existing Google/contact-tags/Supabase calls behind `TvIdlePort`.
+- `/api/tv/idle` preserves schedule/Visit/Teamlead envelopes, ten-minute
+  cache and `cached` flag, 24-hour activity cutoff, exact projection/order/
+  limit, top-three aggregation, unknown-agent 400, provider-failure fallback,
+  and all TV/UI/data formats.
+- Checkpoint: `6e8b9e1`.
+- Full verification: 171 Vitest files / 523 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps rules,
+  application, port, adapter, and route.
+- Calendar/tag/activity provider evolution, schema changes, cache policy
+  redesign, reconciliation, and production traffic evidence remain deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
