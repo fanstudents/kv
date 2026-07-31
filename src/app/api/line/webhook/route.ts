@@ -16,12 +16,6 @@ import {
   type LineInboundEvent,
 } from "@/modules/visit/line-inbound";
 import { dispatchVisitLineWebhookEvents } from "@/modules/visit/line-webhook-application";
-import {
-  toLegacyPendingInviteInsert,
-  toLegacyPendingInviteRevisionPatch,
-  toLegacyPendingInviteStatusPatch,
-  toLegacyVisitOfferResolution,
-} from "@/modules/visit/legacy-schema";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
@@ -29,6 +23,7 @@ import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-c
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
 import { createLegacyContactTagAdapter } from "@/adapters/contacts/legacy-tag-adapter";
+import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
 import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
 
 const {
@@ -43,6 +38,7 @@ const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 const lineActivityPort = createLegacyVisitLineActivityAdapter();
 const conversationLockPort = createLegacyConversationLockAdapter();
 const contactTagPort = createLegacyContactTagAdapter();
+const lineWorkflowPersistencePort = createLegacyVisitLineWorkflowAdapter();
 const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
 
 export async function GET() {
@@ -222,20 +218,11 @@ async function handleVisitOfferReply(
   const supabase = getSupabase();
   if (!event.replyToken) return false;
 
-  const { data: offer } = await supabase
-    .from("visit_offers")
-    .select("*, contacts(id, name, title, company, email, phone)")
-    .eq("line_user_id", userId)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const offer = await lineWorkflowPersistencePort.findPendingOffer(userId);
 
   if (!offer) return false;
 
-  const contact = offer.contacts as
-    | { id: string; name: string; title?: string; company?: string; email: string; phone?: string }
-    | null;
+  const contact = offer.contact;
   if (!contact) return false;
 
   let intent: Awaited<ReturnType<typeof interpretCardReply>>;
@@ -264,10 +251,7 @@ async function handleVisitOfferReply(
   }
 
   if (intent.type === "cancel") {
-    await supabase
-      .from("visit_offers")
-      .update(toLegacyVisitOfferResolution("declined", new Date().toISOString()))
-      .eq("id", offer.id);
+    await lineWorkflowPersistencePort.resolveOffer(offer.id, "declined", new Date().toISOString());
     await reportVisitStep({
       userId,
       nodeId: "tag",
@@ -290,7 +274,7 @@ async function handleVisitOfferReply(
   }
 
   if (intent.type === "correction") {
-    await supabase.from("contacts").update({ [intent.field]: intent.value }).eq("id", contact.id);
+    await lineWorkflowPersistencePort.updateContactField(contact.id, intent.field, intent.value);
     const updated: VisitBusinessCard = {
       name: intent.field === "name" ? intent.value : contact.name ?? "",
       company: intent.field === "company" ? intent.value : contact.company ?? "",
@@ -306,11 +290,7 @@ async function handleVisitOfferReply(
   }
 
   // intent.type === "confirm"：重新讀一次 contacts，確保拿到修正後的最新資料。
-  const { data: freshContact } = await supabase
-    .from("contacts")
-    .select("id, name, title, company, email")
-    .eq("id", contact.id)
-    .single();
+  const freshContact = await lineWorkflowPersistencePort.findContact(contact.id);
   const finalContact = freshContact ?? contact;
 
   if (!finalContact.email || !EMAIL_RE.test(finalContact.email)) {
@@ -321,10 +301,7 @@ async function handleVisitOfferReply(
     return true;
   }
 
-  await supabase
-    .from("visit_offers")
-    .update(toLegacyVisitOfferResolution("accepted", new Date().toISOString()))
-    .eq("id", offer.id);
+  await lineWorkflowPersistencePort.resolveOffer(offer.id, "accepted", new Date().toISOString());
 
   try {
     // 你已確認 → 開始比對雙方行事曆空檔
@@ -367,23 +344,17 @@ async function handleVisitOfferReply(
       senderName: settings.senderName,
     });
 
-    const { data: invite } = await supabase
-      .from("pending_invites")
-      .insert(
-        toLegacyPendingInviteInsert(userId, {
-          contactId: finalContact.id,
-          toEmail: finalContact.email,
-          subject: draft.subject,
-          body: draft.body,
-          slots: [
-            { label: slots[0].label, start: slots[0].start, end: slots[0].end },
-            { label: slots[1].label, start: slots[1].start, end: slots[1].end },
-          ],
-          requiresApproval: settings.requireApproval,
-        })
-      )
-      .select()
-      .single();
+    const invite = await lineWorkflowPersistencePort.createPendingInvite(userId, {
+      contactId: finalContact.id,
+      toEmail: finalContact.email,
+      subject: draft.subject,
+      body: draft.body,
+      slots: [
+        { label: slots[0].label, start: slots[0].start, end: slots[0].end },
+        { label: slots[1].label, start: slots[1].start, end: slots[1].end },
+      ],
+      requiresApproval: settings.requireApproval,
+    });
 
     if (settings.requireApproval) {
       // 邀約信草稿已備妥，等你核准後寄出
@@ -471,27 +442,17 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
   const supabase = getSupabase();
   if (!event.replyToken) return false;
 
-  const { data: invite } = await supabase
-    .from("pending_invites")
-    .select("*, contacts(id, name, title, company, email)")
-    .eq("line_user_id", userId)
-    .eq("status", "awaiting_approval")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const invite = await lineWorkflowPersistencePort.findPendingApprovalInvite(userId);
 
   if (!invite) return false;
 
-  const contact = invite.contacts as { id: string; name: string; title?: string; company?: string; email: string } | null;
+  const contact = invite.contact;
   if (!contact) return false;
 
   const approvalIntent = classifyVisitApprovalText(text);
 
   if (approvalIntent.type === "cancel") {
-    await supabase
-      .from("pending_invites")
-      .update(toLegacyPendingInviteStatusPatch("cancelled"))
-      .eq("id", invite.id);
+    await lineWorkflowPersistencePort.updateInviteStatus(invite.id, "cancelled");
     await replyLineMessage(event.replyToken, "好的，已取消，不會寄出這封信。");
     await conversationLockPort.release(userId, VISIT_AGENT);
     return true;
@@ -516,10 +477,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
         caption: `寄出邀約信給 ${contact.name}…`,
       });
       await sendEmail({ to: contact.email, subject: invite.subject, body: html, html: true });
-      await supabase
-        .from("pending_invites")
-        .update(toLegacyPendingInviteStatusPatch("pending"))
-        .eq("id", invite.id);
+      await lineWorkflowPersistencePort.updateInviteStatus(invite.id, "pending");
       await saveVisitArtifact({
         userId,
         title: `邀約信：${contact.name}`,
@@ -546,10 +504,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "寄信失敗";
-      await supabase
-        .from("pending_invites")
-        .update(toLegacyPendingInviteStatusPatch("failed"))
-        .eq("id", invite.id);
+      await lineWorkflowPersistencePort.updateInviteStatus(invite.id, "failed");
       await lineActivityPort.record({
         agent_slug: "visit",
         summary: `核准後寄信失敗：${message}`,
@@ -574,10 +529,7 @@ async function handleInviteApprovalReply(event: LineEvent, userId: string, text:
       previousBody: invite.body,
       instruction: text,
     });
-    await supabase
-      .from("pending_invites")
-      .update(toLegacyPendingInviteRevisionPatch(revised.subject, revised.body))
-      .eq("id", invite.id);
+    await lineWorkflowPersistencePort.updateInviteDraft(invite.id, revised.subject, revised.body);
     await replyLineMessage(
       event.replyToken,
       `已依您的要求調整 ✏️\n\n主旨：${revised.subject}\n內文：\n${revised.body}\n\n提議時段：${invite.slot1} 或 ${invite.slot2}\n\n這樣可以的話請回覆「寄出」，還要調整請繼續告訴我，不寄了請回覆「取消」。`
