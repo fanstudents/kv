@@ -7,7 +7,15 @@ import {
 } from "@/lib/line";
 import { getAvailableTags, addContactTag } from "@/lib/contact-tags";
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
-import { parseBusinessCard, draftInviteEmail, interpretCardReply, reviseInviteEmail, type ParsedCard } from "@/lib/openai";
+import {
+  parseBusinessCard,
+  rotateImageDataUrl,
+  draftInviteEmail,
+  interpretCardReply,
+  reviseInviteEmail,
+  type ParsedCard,
+  type CardFields,
+} from "@/lib/openai";
 import { findFreeSlots, sendGmail } from "@/lib/google";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import { getVisitAgentSettings } from "@/lib/visit-settings";
@@ -34,7 +42,7 @@ const SEND_WORDS = ["寄出", "寄", "送出", "可以寄", "send", "Send"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const VISIT_AGENT = "visit";
 
-function formatCardReply(contact: ParsedCard): string {
+function formatCardReply(contact: CardFields): string {
   const fields = [
     ["姓名", contact.name],
     ["公司", contact.company],
@@ -77,6 +85,19 @@ async function handleImageMessage(event: LineEvent, userId: string) {
       image: imageDataUrl,
     });
     contact = await parseBusinessCard(imageDataUrl);
+    // LINE 傳來的照片幾乎不帶 EXIF 方向、拍歪很常見，辨識時模型已經判斷出要轉幾度，
+    // 這裡把劇院螢幕上的圖也一併轉正，不然使用者只看得到辨識結果是對的，畫面卻還是歪的。
+    if (contact.rotation !== 0) {
+      const uprightImageDataUrl = await rotateImageDataUrl(imageDataUrl, contact.rotation);
+      await reportVisitStep({
+        userId,
+        nodeId: "scan",
+        step: 0,
+        status: "active",
+        caption: "辨識名片中…",
+        image: uprightImageDataUrl,
+      });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "名片辨識失敗";
     await supabase.from("line_agent_activity").insert({
@@ -293,7 +314,7 @@ async function handleVisitOfferReply(
 
   if (intent.type === "correction") {
     await supabase.from("contacts").update({ [intent.field]: intent.value }).eq("id", contact.id);
-    const updated: ParsedCard = {
+    const updated: CardFields = {
       name: intent.field === "name" ? intent.value : contact.name ?? "",
       company: intent.field === "company" ? intent.value : contact.company ?? "",
       title: intent.field === "title" ? intent.value : contact.title ?? "",

@@ -197,7 +197,18 @@ export interface ParsedCard {
   title: string;
   email: string;
   phone: string;
+  /**
+   * 手機直接拍名片常常整張是歪的，而且 LINE 轉傳的照片幾乎不帶 EXIF 方向資訊，
+   * 沒辦法用檔案本身的中繼資料轉正——這裡直接讓看得懂圖片內容的模型順便判斷
+   * 「要順時針轉幾度文字才會正常」，比另外疊一次辨識呼叫便宜。
+   */
+  rotation: 0 | 90 | 180 | 270;
 }
+
+const VALID_ROTATIONS = new Set([0, 90, 180, 270]);
+
+/** 只講聯絡欄位、不含拍照角度的場合用這個型別（例如比對使用者的文字修正）。 */
+export type CardFields = Omit<ParsedCard, "rotation">;
 
 export async function parseBusinessCard(imageDataUrl: string): Promise<ParsedCard> {
   const data = await chatCompletion({
@@ -211,12 +222,13 @@ export async function parseBusinessCard(imageDataUrl: string): Promise<ParsedCar
           "- Email：務必包含正確的 @ 與網域，每個英文字母、數字都要核對，不要因為看起來像常見網域就自動改寫（例如不要把 .con 自動改成 .com，除非圖片上真的是 .com）。\n" +
           "- 電話：務必保留完整位數與正確的每一碼數字，不要四捨五入或憑印象填入常見號碼。\n" +
           "- 如果某個欄位因為印刷模糊、反光、字太小而無法百分之百確定，請填空字串，絕對不要用猜的填入看似合理的內容。\n" +
-          "只回傳 JSON 物件，欄位為 name, company, title, email, phone。",
+          "- 另外判斷這張照片本身有沒有拍歪：這張圖要「順時針」轉幾度，上面印刷的文字才會是正常、水平、由左至右可讀的方向？只能回答 0、90、180 或 270 其中一個數字，圖片本身已經正的話填 0。\n" +
+          "只回傳 JSON 物件，欄位為 name, company, title, email, phone, rotation。",
       },
       {
         role: "user",
         content: [
-          { type: "text", text: "請仔細辨識這張名片圖片中的聯絡資訊，注意小字與容易混淆的字元。" },
+          { type: "text", text: "請仔細辨識這張名片圖片中的聯絡資訊，注意小字與容易混淆的字元，並判斷需要順時針旋轉幾度才會正。" },
           { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
         ],
       },
@@ -233,13 +245,31 @@ export async function parseBusinessCard(imageDataUrl: string): Promise<ParsedCar
     // leave parsed as {}
   }
 
+  const rotation = VALID_ROTATIONS.has(Number(parsed.rotation)) ? (Number(parsed.rotation) as ParsedCard["rotation"]) : 0;
+
   return {
     name: parsed.name ?? "",
     company: parsed.company ?? "",
     title: parsed.title ?? "",
     email: parsed.email ?? "",
     phone: parsed.phone ?? "",
+    rotation,
   };
+}
+
+/** 把 data URL 依偵測出的角度順時針轉正；0 度或格式不對就原樣回傳，不丟例外。 */
+export async function rotateImageDataUrl(imageDataUrl: string, degrees: number): Promise<string> {
+  if (degrees === 0) return imageDataUrl;
+  const match = /^data:([^;]+);base64,([\s\S]*)$/.exec(imageDataUrl);
+  if (!match) return imageDataUrl;
+  const [, contentType, b64] = match;
+  try {
+    const sharp = (await import("sharp")).default;
+    const rotated = await sharp(Buffer.from(b64, "base64")).rotate(degrees).toBuffer();
+    return `data:${contentType};base64,${rotated.toString("base64")}`;
+  } catch {
+    return imageDataUrl;
+  }
 }
 
 export async function draftInviteEmail(params: {
@@ -303,7 +333,7 @@ export type CardReplyIntent =
  * 看不懂就回傳 other，交由呼叫端提示使用者換句話說，而不是硬猜。
  */
 export async function interpretCardReply(params: {
-  currentCard: ParsedCard;
+  currentCard: CardFields;
   userText: string;
 }): Promise<CardReplyIntent> {
   const data = await chatCompletion({
