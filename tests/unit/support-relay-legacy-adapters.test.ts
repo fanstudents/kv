@@ -25,7 +25,8 @@ describe("Support relay legacy adapters", () => {
       "`舊系統回應 ${response.status}`",
       '.from("line_agent_activity")',
       'agent_slug: "support"',
-      'touchSubscriber(lineUserId, "support")',
+      "createLegacySubscriberTouchAdapter",
+      'subscriberTouchPort.touch(lineUserId, "support")',
       'logConversationMessage(lineUserId, "customer", text)',
     ]) {
       expect(source).toContain(anchor);

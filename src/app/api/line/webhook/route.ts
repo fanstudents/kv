@@ -4,7 +4,6 @@ import {
 } from "@/lib/line";
 import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
-import { touchSubscriber } from "@/lib/subscribers";
 import {
   classifyVisitApprovalText,
   classifyVisitDecisionText,
@@ -16,6 +15,7 @@ import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
 import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-delivery-adapter";
+import { createLegacySubscriberTouchAdapter } from "@/adapters/subscribers/legacy-touch-adapter";
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-activity-adapter";
 import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
@@ -33,6 +33,7 @@ const {
 } = legacyVisitProviders;
 const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineDeliveryPort = createLegacyVisitLineDeliveryAdapter();
+const subscriberTouchPort = createLegacySubscriberTouchAdapter();
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 const lineActivityPort = createLegacyVisitLineActivityAdapter();
 const conversationLockPort = createLegacyConversationLockAdapter();
@@ -603,7 +604,7 @@ export async function POST(req: NextRequest) {
     baseUrl,
     fallbackUserId: "未知使用者",
     handlers: {
-      touchSubscriber: (userId) => touchSubscriber(userId, "primary"),
+      touchSubscriber: (userId) => subscriberTouchPort.touch(userId, "primary"),
       handleImageMessage,
       handleTextMessage,
       handlePostback,
