@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setAgentAccess } from "@/lib/knowledge-base";
 import { AGENTS } from "@/lib/agent-data";
-import type { AgentSlug } from "@/lib/types";
+import { createLegacyKnowledgeAccessUpdateAdapter } from "@/adapters/knowledge-base/legacy-access-update-adapter";
+import { runKnowledgeAccessUpdate } from "@/modules/knowledge-base/access-application";
+import { parseKnowledgeAccessUpdateRequest } from "@/modules/knowledge-base/access-rules";
 
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const agentSlug = body.agentSlug as AgentSlug;
-  const level = Number(body.level);
-
-  if (!AGENTS.some((a) => a.slug === agentSlug) || ![1, 2, 3, 4].includes(level)) {
-    return NextResponse.json({ error: "agentSlug 或 level 不合法" }, { status: 400 });
+  const result = await runKnowledgeAccessUpdate(
+    parseKnowledgeAccessUpdateRequest(body, AGENTS),
+    createLegacyKnowledgeAccessUpdateAdapter(),
+  );
+  if (result.kind === "invalid") {
+    return NextResponse.json({ error: result.message }, { status: 400 });
   }
-
-  await setAgentAccess(agentSlug, level as 1 | 2 | 3 | 4);
   return NextResponse.json({ ok: true });
 }
