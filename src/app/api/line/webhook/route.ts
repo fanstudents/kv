@@ -6,12 +6,12 @@ import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import {
   parseVisitLineWebhookPayload,
-  type LineInboundEvent,
 } from "@/modules/visit/line-inbound";
 import { dispatchVisitLineWebhookEvents } from "@/modules/visit/line-webhook-application";
 import { createVisitLineImageHandler } from "@/modules/visit/line-image-application";
 import { createVisitLineInviteApprovalHandler } from "@/modules/visit/line-invite-approval-application";
 import { createVisitLineOfferReplyHandler } from "@/modules/visit/line-offer-application";
+import { createVisitLinePostbackHandler } from "@/modules/visit/line-postback-application";
 import { createVisitLineTextHandler } from "@/modules/visit/line-text-application";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
@@ -65,8 +65,6 @@ export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
 }
 
-type LineEvent = LineInboundEvent;
-
 function formatCardReply(contact: VisitBusinessCard): string {
   const fields = [
     ["姓名", contact.name],
@@ -98,37 +96,11 @@ const handleImageMessage = createVisitLineImageHandler({
   renderTagQuickReply: buildTagQuickReply,
 });
 
-/** 使用者點了 Flex 卡片按鈕或標籤選單（postback）。 */
-async function handlePostback(event: LineEvent, userId: string, baseUrl: string) {
-  if (!event.replyToken) return;
-  const params = new URLSearchParams(event.postback?.data ?? "");
-  const action = params.get("action");
-
-  if (action === "confirm") {
-    await handleVisitOfferReply(event, userId, "要", baseUrl);
-    return;
-  }
-  if (action === "cancel") {
-    await handleVisitOfferReply(event, userId, "不要", baseUrl);
-    return;
-  }
-  if (action === "tag") {
-    const contactId = params.get("contact");
-    const value = params.get("value");
-    if (contactId && value) {
-      const tags = await contactTagPort.add(contactId, value);
-      await lineDeliveryPort.replyText(
-        event.replyToken,
-        `已標上「${value}」✅${tags.length ? `\n目前標籤：${tags.join("、")}` : ""}`
-      );
-    }
-    return;
-  }
-  if (action === "tag_done") {
-    await lineDeliveryPort.replyText(event.replyToken, "好的，標籤完成 👍 有需要再傳名片給我。");
-    return;
-  }
-}
+const handlePostback = createVisitLinePostbackHandler({
+  handleVisitOfferReply,
+  tags: contactTagPort,
+  delivery: lineDeliveryPort,
+});
 
 const handleTextMessage = createVisitLineTextHandler({
   handleInviteApprovalReply,
