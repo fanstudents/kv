@@ -11,7 +11,6 @@ import { getVisitAgentSettings } from "@/lib/visit-settings";
 import { touchSubscriber } from "@/lib/subscribers";
 import { acquireLock, releaseLock } from "@/lib/conversation-lock";
 import { getSupabase } from "@/lib/supabase";
-import { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } from "@/lib/visit-run";
 import {
   classifyVisitApprovalText,
   classifyVisitDecisionText,
@@ -29,6 +28,7 @@ import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createLegacyVisitLineImageAdapter } from "@/adapters/visit/legacy-line-image-adapter";
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-card-adapter";
+import { createLegacyVisitRuntimeAdapter } from "@/adapters/visit/legacy-runtime-adapter";
 
 const {
   draftInviteEmail,
@@ -39,6 +39,7 @@ const {
 } = legacyVisitProviders;
 const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
+const { endVisitRun, reportVisitStep, saveVisitArtifact, startVisitRun } = createLegacyVisitRuntimeAdapter();
 
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-agent-console webhook" });
