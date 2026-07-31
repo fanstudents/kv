@@ -829,6 +829,28 @@ At `cafa912` plus this documentation stage:
   template redesign, reconciliation, and production traffic evidence remain
   deferred.
 
+### WP6-AU Subscribers broadcast compatibility boundary — Verified
+
+- Behavior contract:
+  `F:/ownproject/kv/docs/contracts/subscribers-broadcast.contract.md`.
+- `src/modules/subscribers/broadcast-rules.ts` owns body normalization and
+  defaults; `broadcast-application.ts` owns log-read mapping, recipient
+  selection outcome, Promise.allSettled fan-out counts, and broadcast-log
+  payload construction; `src/adapters/subscribers/legacy-broadcast-adapter.ts`
+  keeps Supabase and LINE operations behind the port.
+- The `/api/subscribers/broadcast` GET/POST routes preserve the existing log
+  projection/order/limit, filters, styles, title/accent defaults, validation
+  messages, query errors, no-recipient behavior, per-recipient failure counts,
+  response envelopes/statuses, and all Subscribers UI/data formats.
+- Checkpoint: `212b482`.
+- Full verification: 161 Vitest files / 501 tests, 93-page production build,
+  and 130 Playwright smoke cases passed. Chrome retained the protected Agent
+  catalog count and tier labels before and after; CodeGraph maps broadcast
+  rules, application, port, adapter, and both route methods.
+- Subscriber/LINE schema evolution, provider credential rotation, delivery
+  queue redesign, reconciliation, and production traffic evidence remain
+  deferred.
+
 ## Current Boundary
 
 Safe TypeScript, compatibility, provider-port, and route strangler work may
