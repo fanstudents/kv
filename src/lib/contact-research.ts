@@ -258,11 +258,12 @@ export async function researchContact(params: {
           const dataUrl = await downloadImageAsDataUrl(page.imageUrl);
           if (dataUrl) await setLiveTask("visit", { image: dataUrl });
         }
-        await logStep(runId, "firecrawl", {
-          status: "done",
-          output: buildTheaterSummary(profile).slice(0, 600),
-          seq: 1,
-        });
+        const theaterSummary = buildTheaterSummary(profile);
+        await logStep(runId, "firecrawl", { status: "done", output: theaterSummary.slice(0, 600), seq: 1 });
+        // 這次執行結束後 run 狀態會變成 success，馬上就不在「進行中」名單裡了——
+        // 沒有這行，畫面上剛整理好的摘要會閃一下就消失。多寫這列讓它靠 agent_live_task
+        // 自己的 2 分鐘保鮮期多留一會兒，跟名片流程走到「已寄出」時的做法一致。
+        await setLiveTask("visit", { status: "done", caption: theaterSummary.slice(0, 200) });
       } catch (err) {
         const message = err instanceof Error ? err.message : "unknown";
         await logStep(runId, "firecrawl", { status: "failed", output: message, seq: 1 }).catch(() => {});
@@ -280,6 +281,8 @@ export async function researchContact(params: {
       }
       const summaryText = buildTheaterSummary(profile);
       await logStep(runId, "found", { status: "done", output: summaryText.slice(0, 600), seq: 1 });
+      // 同上：run 一結束就從「進行中」名單消失，補寫這列讓摘要靠 2 分鐘保鮮期多留一會兒。
+      await setLiveTask("visit", { status: "done", caption: summaryText.slice(0, 200) });
     }
 
     const found =
@@ -308,6 +311,10 @@ export async function researchContact(params: {
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+
+    // /tv 大約每 1.5 秒輪詢一次；run 一結束（下面 finishRun）馬上就不算「進行中」，
+    // 沒有這個小延遲，摘要剛整理好可能連一次輪詢都還沒撈到就已經消失。
+    await new Promise((resolve) => setTimeout(resolve, 4000));
 
     await finishRun(runId, {
       status: "success",
