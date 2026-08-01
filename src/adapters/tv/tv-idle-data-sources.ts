@@ -1,13 +1,13 @@
 import "server-only";
 import { listWeekOverview } from "@/lib/google";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import type { TvIdleDataSources } from "@/modules/tv/idle";
 
 export function createTvIdleDataSources(): TvIdleDataSources {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 

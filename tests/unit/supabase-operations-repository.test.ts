@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSupabase, getAvailableTags, addContactTag } = vi.hoisted(() => ({
-  getSupabase: vi.fn(),
+const { getMainSupabase, getAvailableTags, addContactTag } = vi.hoisted(() => ({
+  getMainSupabase: vi.fn(),
   getAvailableTags: vi.fn(),
   addContactTag: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/contact-tags", () => ({ getAvailableTags, addContactTag }));
 
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
@@ -24,7 +24,7 @@ describe("Supabase Operations repository", () => {
     query.order.mockReturnValue(query);
     const select = vi.fn(() => query);
     const from = vi.fn(() => ({ select }));
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
 
     await expect(supabaseOperationsRepository.listContacts()).resolves.toEqual({
       data: [{ id: "c1", visit_offers: [], pending_invites: [] }],
@@ -50,7 +50,7 @@ describe("Supabase Operations repository", () => {
     query.order.mockReturnValue(query);
     const select = vi.fn(() => query);
     const from = vi.fn(() => ({ select }));
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
 
     await expect(supabaseOperationsRepository.listActivity({
       agentSlug: "visit",
@@ -76,7 +76,7 @@ describe("Supabase Operations repository", () => {
     query.limit.mockReturnValue(query);
     query.eq.mockReturnValue(query);
     query.order.mockReturnValue(query);
-    getSupabase.mockReturnValue({ from: vi.fn(() => ({ select: vi.fn(() => query) })) });
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => ({ select: vi.fn(() => query) })) });
 
     await supabaseOperationsRepository.listActivity({ agentSlug: null, status: "", limit: 200 });
     expect(query.eq).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe("Supabase Operations repository", () => {
 
   it("keeps contact tag reads and writes behind the shared repository", async () => {
     const client = { id: "supabase-client" };
-    getSupabase.mockReturnValue(client);
+    getMainSupabase.mockReturnValue(client);
     getAvailableTags.mockResolvedValue(["潛在客戶", "合作夥伴"]);
     addContactTag.mockResolvedValue(["潛在客戶", "待跟進"]);
 

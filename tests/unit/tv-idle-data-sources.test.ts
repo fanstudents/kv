@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { listWeekOverview, getAvailableTags, getSupabase } = vi.hoisted(() => ({
+const { listWeekOverview, getAvailableTags, getMainSupabase } = vi.hoisted(() => ({
   listWeekOverview: vi.fn(),
   getAvailableTags: vi.fn(),
-  getSupabase: vi.fn(),
+  getMainSupabase: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/google", () => ({ listWeekOverview }));
 vi.mock("@/lib/contact-tags", () => ({ getAvailableTags }));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createTvIdleDataSources } from "@/adapters/tv/tv-idle-data-sources";
 
@@ -25,7 +25,7 @@ describe("TV idle data sources", () => {
     query.gte.mockReturnValue(query);
     query.order.mockReturnValue(query);
     const client = { from: vi.fn(() => query) };
-    getSupabase.mockReturnValue(client);
+    getMainSupabase.mockReturnValue(client);
     listWeekOverview.mockResolvedValue({ dayCounts: [], upcoming: [], warnings: [] });
     getAvailableTags.mockResolvedValue(["vip"]);
     const dataSources = createTvIdleDataSources();

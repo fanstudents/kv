@@ -1,12 +1,12 @@
 import "server-only";
 import { addContactTag, getAvailableTags } from "@/lib/contact-tags";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import type { OperationsRepository } from "@/modules/operations/service";
 
 const CONTACTS_SELECT =
   "*, visit_offers(status, created_at, resolved_at), pending_invites(id, status, subject, body, slot1, slot2, chosen_slot, location, calendar_event_id, to_email, created_at, resolved_at)";
 
-const getClient = () => getSupabase();
+const getClient = () => getMainSupabase();
 
 export const supabaseOperationsRepository: OperationsRepository = {
   async listContacts() {
