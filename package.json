@@ -21,9 +21,9 @@
     "test:e2e:run:smoke": "playwright test --grep-invert @visual",
     "test:e2e:update": "npm run build && playwright test --grep @visual --update-snapshots",
     "acceptance:openai": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts",
-    "schema:start": "supabase db start --yes",
-    "schema:rehearse": "supabase db start --yes && supabase db reset --local --no-seed --yes",
-    "schema:types": "supabase gen types typescript --local --schema public > src/lib/database.types.ts",
+    "schema:start": "npx --no-install supabase db start --yes",
+    "schema:rehearse": "npx --no-install supabase db start --yes && npx --no-install supabase db reset --local --no-seed --yes",
+    "schema:types": "npx --no-install supabase gen types typescript --local --schema public > src/lib/database.types.ts",
     "schema:types:check": "npm run schema:types && git diff --exit-code -- src/lib/database.types.ts",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "verify:full": "npm run verify && npm run test:e2e:run:smoke"
