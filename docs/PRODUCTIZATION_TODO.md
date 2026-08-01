@@ -101,16 +101,16 @@ Frozen UI／pages
 | ID | Fact | Evidence／anchor | Planning impact |
 |---|---|---|---|
 | F-01 | 共有 56 個 API `route.ts`；route 是 compatibility surface，不是模組切分單位 | `src/app/api/**/route.ts` | 不再按 route 建四件組 |
-| F-02 | `src/modules` 49 files、`src/adapters` 39 files；兩者合計只有 7 files 不超過 15 行 | `rg --files`＋line count | 早期 197／72 files 的過度拆分已大幅修正，不再機械式 consolidation |
+| F-02 | `src/modules` 50 files、`src/adapters` 40 files；兩者合計只有 7 files 不超過 15 行 | `rg --files`＋line count | WP-T只增加一個domain owner與一個external adapter；不再按route機械式拆分 |
 | F-03 | 目前只有一份 docs 文件 | `docs/PRODUCTIZATION_TODO.md` | 保持單一 SSOT，但文件本身也必須瘦身 |
 | F-04 | `createGoalsService` 有 goals／history 兩個 route consumer；Support report runner 有 cron／manual 兩個 consumer | CodeGraph callers | 這類共享 owner 有真實保留理由 |
 | F-05 | Visit LINE ingress、Meeting realtime、Orders notification 等 capability 各有自己的 domain owner | `src/modules/visit/line-inbound.ts`、`meeting/realtime.ts`、`orders/orders.ts` | event 類型維持 domain workflow，不強迫成 Agent type 或共用 runtime |
 | F-06 | 無 production caller 的 generic `RuntimeKernel`／in-memory scaffold 與 Visit draft runtime 已刪除 | CodeGraph 查無 `RuntimeKernel`；commits `d524d5a`、`8216f33` | 禁止在第一個真實 consumer 前重建平台 |
 | F-07 | canonical Agent identity compatibility foundation 已存在；`AGENTS` 仍維持 legacy-compatible projection | `src/lib/agent-data.ts`、`src/modules/agents/identity.ts` | 全面 consumer cutover 改為需求觸發，不作固定前置工作 |
 | F-08 | `.env.local` 只有 `AUTH_SECRET`、`ADMIN_PASSWORD`、`APP_BASE_URL` | key-name-only inventory | 可驗 auth；不能驗 Supabase 或 provider journey |
-| F-09 | 最後完整自動驗證為 95 test files／473 tests、typecheck、lint、build；Playwright smoke 132／132 | commits `5fc13ec`、`a979489` | 只證明 contract／test-env render continuity，不是 real-data acceptance |
-| F-10 | Teaching live project 有 47 public tables；KV source 只讀 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` | live schema introspection＋`src/lib/teaching-system.ts` | Teaching 是共享外部產品，不納入 KV baseline ownership |
-| F-11 | `getPipelineOverview` 同時供 Operations API 與 `operationsContext` 使用；四個 Supabase query 未檢查各自的 `error` | CodeGraph callers／callees＋`src/lib/teaching-system.ts` | 外部 boundary 有保留理由，但需移入 Operations owner並修正 silent-zero failure |
+| F-09 | 最新完整自動驗證為 97 test files／480 tests、typecheck、lint、build | 本工作批release gate＋既有Playwright smoke 132／132 | 只證明 contract／test-env render continuity，不是 real-data acceptance |
+| F-10 | Teaching live project 有 47 public tables；KV source 只讀 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` | live schema introspection＋`src/adapters/operations/teaching-pipeline-source.ts` | Teaching 是共享外部產品，不納入 KV baseline ownership |
+| F-11 | `getPipelineOverview` 同時供 Operations API 與 `operationsContext` 使用；四個query已逐一檢查error，任一失敗會使整份snapshot unavailable | CodeGraph callers／impact＋`tests/unit/{operations-pipeline,meeting-context,agent-overview-routes}.test.ts` | silent-zero failure已關閉；live read-only acceptance仍需Teaching env |
 
 ### Current source map
 
@@ -125,7 +125,7 @@ Frozen UI／pages
 | Visit／Coco | LINE webhook、timeout、research、AI、public respond APIs；Visit／TV／Outputs | `modules/visit/*` | `adapters/visit/*`；主 Supabase／LINE／Google／OpenAI | ownership substantially consolidated；real event/data/recovery blocked |
 | Orders／Reporting／Support | Teachify webhook、cron/manual reports、Support relay/callback | `modules/{orders,reporting,support}` | `adapters/{orders,reporting,support}`；主 Supabase與外部 providers | structure/contract/render done；delivery/retry evidence blocked |
 | Agent identity／chat／TV | dashboard、Agent pages、TV、agent-chat API | `modules/{agents,agent-chat,live-task,tv}`＋`src/lib/agent-data.ts` | Agent／chat／live-task adapters；static roster＋主 Supabase | compatibility foundation done；全面 cutover deferred |
-| Teaching pipeline | Operations pipeline API、Operations page、Meeting/chat live context | legacy `src/lib/teaching-system.ts`；target 為 Operations domain owner | **獨立 Teaching Supabase，唯讀四表** | live contract 已取得；typed adapter、failure semantics與real-data驗收待完成 |
+| Teaching pipeline | Operations pipeline API、Operations page、Meeting/chat live context | `src/modules/operations/pipeline.ts`＋`src/adapters/operations/teaching-pipeline-source.ts` | **獨立 Teaching Supabase，唯讀四表** | typed boundary／failure semantics／consumer cutover完成；live real-data驗收待env |
 
 ### Progress by evidence dimension
 
@@ -133,7 +133,7 @@ Frozen UI／pages
 |---|---|---|---|---|---|
 | Auth | Done | Done | Functionally verified | N/A | auth 行為改變時重驗 |
 | Operations | Done | Done | Render smoke | Blocked | 取得主 Supabase 後跑 CRUD journeys |
-| Teaching pipeline | Legacy helper；target已決定 | Success payload已有route tests | Operations render smoke | Live schema acquired；failure semantics未驗 | 執行WP-T |
+| Teaching pipeline | Done；單一domain＋adapter | Success／empty／partial failure／timeout與兩consumer已測 | Operations＋TV affected Chrome passed | Live schema acquired；real-data read pending env | 提供Teaching runtime env後跑read-only acceptance |
 | Knowledge Base | Done | Done | Render smoke | Blocked | 先關 schema/RPC drift，再跑 ingestion/search |
 | Meeting | Done | Done | Render smoke | Blocked | 有 staging／OpenAI 後跑完整 session |
 | Visit | Substantially done | Done for current paths | Render smoke | Blocked | 真實需求或可靠性風險決定下一個 slice |
@@ -254,7 +254,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；`supabase/baseline.sql`、env與Opera
 | WP-00 | 現況、版本、映射、依賴與完成維度重新可信 | Complete | none | 本文件與 current source map |
 | WP-F | 新需求在現有產品可持續交付，並局部改善被碰到區域 | Ready／ongoing | affected source preflight | feature evidence；可能觸發 WP-D |
 | WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Active：acquisition complete，rehearsal pending | CabLate核准空白staging project＋runtime env | baseline replay／catalog diff／migration classification |
-| WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Ready | live四表schema＋既有API contract | adapter contract／fixtures／兩個consumer cutover／legacy deletion |
+| WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Implementation complete；live acceptance pending env | live四表schema＋既有API contract | 已產出adapter contract／fixtures／兩consumer cutover／legacy deletion |
 | WP-B | 核心 journey 有real-data/provider-safe baseline | Pending by affected domain | 主庫journey依WP-DB；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
 | WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
@@ -277,7 +277,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；`supabase/baseline.sql`、env與Opera
 
 **Outcome／goals:** 支援G-02、G-03、G-04與I-02、I-05、R-01、R-02、R-06。Operations API與Meeting context維持現有成功payload；Teaching故障不再被呈現成可信的零資料。
 
-**Current anchors:** `src/lib/teaching-system.ts#getPipelineOverview`；`src/app/api/agents/operations/pipeline/route.ts`；`src/lib/meeting-context.ts#operationsContext`。CodeGraph顯示同一overview有這兩種production consumer，外部adapter seam成立。
+**Current anchors:** `src/modules/operations/pipeline.ts#buildPipelineOverview`；`src/adapters/operations/teaching-pipeline-source.ts#getPipelineOverview`；`src/app/api/agents/operations/pipeline/route.ts`；`src/lib/meeting-context.ts#operationsContext`。CodeGraph impact顯示domain mapping經單一adapter composition供Meeting consumer使用；route的function-value引用另以source map／route contract補足。
 
 **Target ownership:**
 
@@ -289,12 +289,13 @@ WP-F、WP-DB與WP-T可依衝突面並行；`supabase/baseline.sql`、env與Opera
 
 **Steps:**
 
-1. 以現有`PipelineOverview`與兩個consumer建立success／empty／provider-error change contract。
-2. 在Operations domain內建立一個`TeachingPipelineSource` contract與既有business mapping；不為四張表各建service／port／adapter。
-3. adapter加入精確row types、四個query的error檢查與一致failure translation；保持anon/read-only且不新增寫入。
-4. route與Meeting context切到同一Operations owner；外部成功payload與UI維持不變。
-5. 用fixture驗證正常、真正empty、permission/schema error與部分query失敗；live Teaching只做read-only integration。
-6. CodeGraph確認`src/lib/teaching-system.ts`零caller後刪除legacy檔與過期mock。
+- [x] 以現有`PipelineOverview`與兩個consumer建立success／empty／provider-error change contract。
+- [x] 在Operations domain內建立一個`TeachingPipelineSource` contract與既有business mapping；未為四張表各建service／port／adapter。
+- [x] adapter加入精確row types、四個query的error檢查與一致failure translation；保持anon/read-only且未新增寫入。
+- [x] route與Meeting context切到同一Operations use case；外部成功payload與UI維持不變。
+- [x] 用fixture驗證正常、真正empty、permission／部分query失敗與timeout。
+- [ ] 提供`TEACHING_SUPABASE_URL`／`TEACHING_SUPABASE_ANON_KEY`後，對live Teaching執行四表read-only acceptance並核對count／sample shape。
+- [x] CodeGraph sync後確認legacy符號消失，並刪除`src/lib/teaching-system.ts`與過期mock。
 
 **Failure contract:**
 
@@ -303,11 +304,13 @@ WP-F、WP-DB與WP-T可依衝突面並行；`supabase/baseline.sql`、env與Opera
 | True empty | 四個query成功且row count為0 | 回傳既有零值／空陣列success payload | empty fixture＋route contract |
 | Missing env／auth拒絕 | client preflight或Supabase error | API走既有502 boundary；Meeting不得產生「0筆」敘述 | negative fixture＋consumer test |
 | Schema drift／單一query失敗 | 每個query檢查`error`；任一失敗即整份snapshot unavailable | 不混合部分成功資料，不回傳假零值 | partial-failure tests |
-| Timeout／network failure | bounded request timeout | 同provider failure；保留可診斷cause但不洩漏key | timeout fixture／log assertion |
+| Timeout／network failure | 共用8秒`AbortSignal`（測試可注入較短timeout） | 同provider failure；不洩漏key | timeout fixture |
 
-**Failure／rollback:** 任一consumer parity失敗時回退import到既有helper；不得以catch後回傳全零作rollback。外部不可用時由既有API 502／Meeting failure boundary處理，或先保留最後成功snapshot，但後者必須有獨立需求與freshness contract。
+**Failure／rollback:** 任一consumer parity失敗時回退整個WP-T commit，不保留半套新舊路徑；不得以catch後回傳全零作rollback。外部不可用時由既有API 502／Meeting failure boundary處理，或另行設計最後成功snapshot，但後者必須有獨立需求與freshness contract。
 
-**Done when:** 兩個consumer通過contract與affected browser驗證；Teaching error不再冒充empty；CodeGraph無direct Teaching query散落；legacy helper刪除；未新增local table、dual-write或generic data-source framework。
+**Current completion:** code／contract／affected Chrome gate已完成；唯一未關閉項是live Teaching read-only acceptance，原因是runtime env尚未放入KV。這不阻塞後續主庫WP-DB，但在宣稱Teaching real-data production-like前必須補驗。
+
+**Done when:** 兩個consumer通過contract與affected browser驗證；Teaching error不再冒充empty；CodeGraph無direct Teaching query散落；legacy helper刪除；未新增local table、dual-write或generic data-source framework；live read-only count／shape已核對。
 
 **Deferred decision:** 只有觀測到Teaching availability／latency影響SLO時，才規劃KV-owned read snapshot與同步／reconciliation；只有Teaching產品ownership移交時，才規劃完整schema與data migration。兩者都不是WP-T完成條件。
 
@@ -378,7 +381,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；`supabase/baseline.sql`、env與Opera
 ### Cleanup gate
 
 - legacy route owner沒有 caller／traffic。
-- `src/lib/teaching-system.ts`只有在兩個consumer皆切換且CodeGraph零caller後刪除；不得留下永久forwarding shim。
+- WP-T legacy `src/lib/teaching-system.ts`已在兩個consumer切換、CodeGraph sync與source search確認後刪除，未留下forwarding shim。
 - compatibility window與reconciliation完成。
 - shim、flag、shadow/dual-write、dead schema/code/test/dependency已刪或有明確保留決策。
 - README／本文件與CodeGraph指向新owner。

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import TrendChart from "@/components/agents/charts/TrendChart";
-import type { PipelineOverview } from "@/lib/teaching-system";
+import type { PipelineOverview } from "@/modules/operations/pipeline";
 import type { WeekOverview } from "@/lib/google";
 import type { AgentSlug } from "@/lib/types";
 import { buildTrafficDemo } from "@/lib/ga4-demo";

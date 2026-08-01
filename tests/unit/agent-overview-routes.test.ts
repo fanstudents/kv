@@ -10,7 +10,7 @@ const { getSearchOverview, getTrafficOverview, getPipelineOverview, listWeekOver
 
 vi.mock("@/lib/gsc", () => ({ getSearchOverview }));
 vi.mock("@/lib/ga4", () => ({ getTrafficOverview }));
-vi.mock("@/lib/teaching-system", () => ({ getPipelineOverview }));
+vi.mock("@/adapters/operations/teaching-pipeline-source", () => ({ getPipelineOverview }));
 vi.mock("@/lib/google", () => ({ listWeekOverview }));
 
 import { GET as getSearch } from "@/app/api/agents/expense/seo-overview/route";

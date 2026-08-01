@@ -7,7 +7,7 @@ import AgentPageShell from "@/components/agents/AgentPageShell";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import TrendChart from "@/components/agents/charts/TrendChart";
-import type { PipelineOverview } from "@/lib/teaching-system";
+import type { PipelineOverview } from "@/modules/operations/pipeline";
 
 const OPS_COLOR = "#F97316"; // 跟 Morgan(營運 Agent)頭像色一致
 const OPS_SECONDARY_COLOR = "#64748B"; // 中性灰藍,跟主色明顯區隔(不靠色相辨識)

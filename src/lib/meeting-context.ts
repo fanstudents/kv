@@ -4,7 +4,7 @@ import { listWeekOverview } from "@/lib/google";
 import { getSearchOverview } from "@/lib/gsc";
 import { getTrafficOverview } from "@/lib/ga4";
 import { getOrderRevenueSummary } from "@/lib/teachify-order-stats";
-import { getPipelineOverview } from "@/lib/teaching-system";
+import { getPipelineOverview } from "@/adapters/operations/teaching-pipeline-source";
 import { knowledgeContext } from "@/lib/knowledge-base";
 import { AGENTS } from "@/lib/agent-data";
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
