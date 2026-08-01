@@ -1,15 +1,36 @@
 import "server-only";
 
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
+import type { Json } from "@/lib/database.types";
 import type {
   ContactProfileRow,
+  VisitProfileLink,
   VisitResearchRepository,
 } from "@/modules/visit/research";
 
+function profileLinks(value: Json): VisitProfileLink[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || Array.isArray(item) || typeof item !== "object") return [];
+    if (typeof item.label !== "string" || typeof item.url !== "string") return [];
+    return [{
+      label: item.label,
+      url: item.url,
+      ...(typeof item.kind === "string" ? { kind: item.kind } : {}),
+    }];
+  });
+}
+
+function stringList(value: Json): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
 export function createSupabaseVisitResearchRepository(): VisitResearchRepository {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 
@@ -31,10 +52,15 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
         .eq("status", "done")
         .gte("created_at", sinceIso)
         .maybeSingle();
-      return (data?.id as string) ?? null;
+      return data?.id ?? null;
     },
 
     async storeProfile({ input, profile, status, runId }) {
+      const links: Json = profile.links.map((link) => ({
+        label: link.label,
+        url: link.url,
+        ...(link.kind ? { kind: link.kind } : {}),
+      }));
       const { data, error } = await getClient()
         .from("contact_profiles")
         .insert({
@@ -44,7 +70,7 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
           company: input.company,
           company_summary: profile.companySummary || null,
           person_summary: profile.personSummary || null,
-          links: profile.links,
+          links,
           highlights: profile.highlights,
           talking_points: profile.talkingPoints,
           sources: profile.sources,
@@ -55,7 +81,7 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
         .select("id")
         .single();
       if (error) throw new Error(error.message);
-      return data.id as string;
+      return data.id;
     },
 
     async storeFailure({ input, errorDetail, runId }) {
@@ -79,7 +105,13 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
           )
           .order("created_at", { ascending: false })
           .limit(limit);
-        return (data ?? []) as ContactProfileRow[];
+        return (data ?? []).map((row): ContactProfileRow => ({
+          ...row,
+          links: profileLinks(row.links),
+          highlights: stringList(row.highlights),
+          talking_points: stringList(row.talking_points),
+          sources: stringList(row.sources),
+        }));
       } catch {
         return [];
       }

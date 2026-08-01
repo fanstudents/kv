@@ -1,12 +1,10 @@
 import "server-only";
 
 import { getLineMessageContentAsDataUrl, pushLineMessage, replyLineMessage, replyLineRawMessages } from "@/lib/line";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import {
   toLegacyContactInsert,
   toLegacyVisitOfferInsert,
-  type LegacyContactRow,
-  type LegacyVisitOfferRow,
 } from "@/modules/visit/legacy-schema";
 import type {
   VisitLineActivityPort,
@@ -46,9 +44,9 @@ export function createLegacyVisitLineDeliveryAdapter(): VisitLineDeliveryPort {
 }
 
 export function createLegacyVisitLineCardAdapter(): VisitLineCardPersistencePort {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 
@@ -59,7 +57,7 @@ export function createLegacyVisitLineCardAdapter(): VisitLineCardPersistencePort
         .insert(toLegacyContactInsert(contact, lineUserId))
         .select()
         .single();
-      return data as Pick<LegacyContactRow, "id"> | null;
+      return data ? { id: data.id } : null;
     },
     async createOffer(lineUserId, contactId) {
       const { data } = await getClient()
@@ -67,15 +65,15 @@ export function createLegacyVisitLineCardAdapter(): VisitLineCardPersistencePort
         .insert(toLegacyVisitOfferInsert(lineUserId, contactId))
         .select()
         .single();
-      return data as Pick<LegacyVisitOfferRow, "id"> | null;
+      return data ? { id: data.id } : null;
     },
   };
 }
 
 export function createLegacyVisitLineActivityAdapter(): VisitLineActivityPort {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 

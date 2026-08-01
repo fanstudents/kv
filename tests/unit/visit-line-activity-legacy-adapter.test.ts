@@ -2,14 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const { insert, from, getSupabase } = vi.hoisted(() => {
+const { insert, from, getMainSupabase } = vi.hoisted(() => {
   const insert = vi.fn();
   const from = vi.fn(() => ({ insert }));
-  const getSupabase = vi.fn(() => ({ from }));
-  return { insert, from, getSupabase };
+  const getMainSupabase = vi.fn(() => ({ from }));
+  return { insert, from, getMainSupabase };
 });
 
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-line-adapters";
 
@@ -28,7 +28,7 @@ describe("legacy LINE activity adapter", () => {
 
     await adapter.record(activity);
 
-    expect(getSupabase).toHaveBeenCalledOnce();
+    expect(getMainSupabase).toHaveBeenCalledOnce();
     expect(from).toHaveBeenCalledWith("line_agent_activity");
     expect(insert).toHaveBeenCalledWith(activity);
   });

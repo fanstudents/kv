@@ -19,9 +19,9 @@ const query = vi.hoisted(() => {
   return query;
 });
 const from = vi.hoisted(() => vi.fn(() => query));
-const getSupabase = vi.hoisted(() => vi.fn(() => ({ from })));
+const getMainSupabase = vi.hoisted(() => vi.fn(() => ({ from })));
 
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
 
@@ -133,5 +133,23 @@ describe("legacy Visit LINE workflow persistence adapter", () => {
       slot2_end: "2026-08-04T15:00:00.000Z",
       status: "awaiting_approval",
     });
+  });
+
+  it("fails explicitly when Supabase cannot return the inserted invite", async () => {
+    query.single.mockResolvedValue({ data: null, error: { message: "insert failed" } });
+    const adapter = createLegacyVisitLineWorkflowAdapter();
+    const invite = {
+      contactId: "contact-1",
+      toEmail: "alice@example.com",
+      subject: "拜訪邀請",
+      body: "您好",
+      slots: [
+        { label: "週一 10:00", start: "2026-08-03T10:00:00.000Z", end: "2026-08-03T11:00:00.000Z" },
+        { label: "週二 14:00", start: "2026-08-04T14:00:00.000Z", end: "2026-08-04T15:00:00.000Z" },
+      ] as const,
+      requiresApproval: true,
+    };
+
+    await expect(adapter.createPendingInvite("line-1", invite)).rejects.toThrow("insert failed");
   });
 });

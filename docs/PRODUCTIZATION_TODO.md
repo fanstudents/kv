@@ -193,20 +193,23 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 - [x] 已決定以 repo canonical migration 重建 local DB 後產生型別；本地 drift command 先落地，PR CI 接入留給 WP-21。
 - [x] 從 `20260801000000_live_baseline.sql` 重建 local Main DB，產生 `src/lib/database.types.ts`。
 - [~] `createClient<Database>` 與 `getMainSupabase` 已建立；舊 consumer 暫由同 singleton 的 `getSupabase` 相容入口維持，Teaching client 保持獨立。
-- [ ] 逐 domain 修復不相容 query／mapping；不改資料格式。
+- [~] 逐 domain 修復不相容 query／mapping；Visit／Visit history 已完成，其餘 consumer 待分批處理，不改資料格式。
 - [x] 加入 `schema:types`／`schema:types:check`；生成結果必須能由 migration 重現且 Git diff 為零。
 - [ ] 完整 verify、Main DB contract tests、受影響頁面 Chrome smoke。
 
-WP-03 第一段契約與證據（2026-08-02，commit 待本批建立）：
+WP-03 分段契約與證據（2026-08-02）：
 
 - 範圍只有 generated type、更新／drift 指令與 typed-client migration seam；不改 query、資料、API、UI 或外部 side effect。
 - `getMainSupabase` 與既有 `getSupabase` 必須共用一個 client、保留 service-role 優先／anon fallback／缺設定失敗契約；由 `tests/unit/supabase-client.test.ts` 固定。
 - Main migration 與程式使用表名已比對；差集中的 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` 均由 Teaching adapter 使用，不併入 Main type。
-- 相容入口刪除條件：32 個既有 Main import 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production caller 歸零。
-- 下一段從 Visit domain 開始；每段獨立修正型別、測試與受影響頁面，不一次打開 51-symbol blast radius。
+- 相容入口刪除條件：既有 Main imports 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production caller 歸零；Visit 批次後尚餘 30 個 consumer files。
+- 每段獨立修正型別、測試與受影響頁面，不一次打開整包 blast radius。
 - `schema:types:check` 通過；`npm run verify` 全通過：102 test files／513 tests、lint、typecheck、93-page production build。
 - Chrome 變更前後皆驗證登入後 `/agents/visit`；頁面完成載入、`行前功課` empty state 與 disabled 狀態不變，變更後實際點擊 `重新整理` 通過既有 Main client runtime path。
-- CodeGraph 已同步；`getMainSupabase` 目前只有相容入口與 contract test，符合本段只建立 migration seam、不偷搬 domain 的範圍。
+- 第一段 `2264b04`：generated types、reproduction／drift commands、typed client 與共用 singleton 相容入口。
+- 第二段（commit 待本批建立）：7 個 Visit／Visit-history adapters 已改用 `getMainSupabase`，舊入口在本 domain 歸零；nullable foreign keys、dynamic contact patch、research JSON projection 與 failed invite insert 都有明確 mapping／failure contract。
+- 第二段 focused evidence：9 test files／17 tests；完整 `npm run verify` 為 102 test files／514 tests、lint、typecheck、93-page production build全過。
+- 第二段 Chrome：變更前後皆驗證登入後 `/agents/visit`；變更後實際刷新行前功課、展開 Agent 設定，完成載入、empty／disabled state 與設定畫面不變。
 
 出口：Main query 具編譯期 schema 契約；無跨 DB type 混用。
 

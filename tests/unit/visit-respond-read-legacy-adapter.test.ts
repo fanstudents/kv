@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { getSupabase } = vi.hoisted(() => ({ getSupabase: vi.fn() }));
+const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createLegacyVisitRespondReadSource } from "@/adapters/visit/legacy-respond-sources";
 
@@ -25,7 +25,7 @@ describe("legacy Visit respond read source", () => {
       .mockResolvedValueOnce({ data: { id: "i1", status: "confirmed", contacts: { name: "Dennis" } } });
     query.single.mockResolvedValue({ data: { id: "i1", status: "confirmed", chosen_slot: "1" } });
     const client = { from: vi.fn(() => query) };
-    getSupabase.mockReturnValue(client);
+    getMainSupabase.mockReturnValue(client);
     const adapter = createLegacyVisitRespondReadSource();
 
     await expect(adapter.findInvite("i1")).resolves.toEqual({ id: "i1", status: "pending" });

@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const getSupabase = vi.hoisted(() => vi.fn());
+const getMainSupabase = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createSupabaseVisitSettings } from "@/adapters/visit/supabase-visit-settings";
 
@@ -33,7 +33,7 @@ describe("Supabase Visit settings", () => {
       senderName: "Dennis",
       requireApproval: false,
     });
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
 
     await expect(createSupabaseVisitSettings().get()).resolves.toEqual({
       rangeStartDays: 4,
@@ -59,7 +59,7 @@ describe("Supabase Visit settings", () => {
       senderName: "",
       requireApproval: "false",
     });
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
     const settings = createSupabaseVisitSettings();
 
     await expect(settings.get()).resolves.toEqual({
@@ -76,13 +76,13 @@ describe("Supabase Visit settings", () => {
 
   it("reuses the lazy Supabase client across reads", async () => {
     const db = createClient(null);
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
     const settings = createSupabaseVisitSettings();
 
     await settings.get();
     await settings.get();
 
-    expect(getSupabase).toHaveBeenCalledOnce();
+    expect(getMainSupabase).toHaveBeenCalledOnce();
     expect(db.single).toHaveBeenCalledTimes(2);
   });
 });

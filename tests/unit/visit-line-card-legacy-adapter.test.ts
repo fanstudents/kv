@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { getSupabase } = vi.hoisted(() => ({ getSupabase: vi.fn() }));
+const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createLegacyVisitLineCardAdapter } from "@/adapters/visit/legacy-line-adapters";
 
@@ -19,7 +19,7 @@ describe("legacy Visit LINE card adapter", () => {
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data: { id: "offer-1" }, error: null }),
     };
-    getSupabase.mockReturnValue({
+    getMainSupabase.mockReturnValue({
       from: vi.fn((table: string) => (table === "contacts" ? contactQuery : offerQuery)),
     });
     const adapter = createLegacyVisitLineCardAdapter();

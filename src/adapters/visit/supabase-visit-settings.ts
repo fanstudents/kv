@@ -1,13 +1,13 @@
 import "server-only";
 
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import type { VisitSettings, VisitSettingsPort } from "@/modules/visit/settings-ports";
 
 export function createSupabaseVisitSettings(): VisitSettingsPort {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
 
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 
@@ -18,7 +18,9 @@ export function createSupabaseVisitSettings(): VisitSettingsPort {
         .select("settings")
         .eq("slug", "visit")
         .single();
-      const settings = (data?.settings ?? {}) as Record<string, unknown>;
+      const settings = data?.settings && typeof data.settings === "object" && !Array.isArray(data.settings)
+        ? data.settings
+        : {};
 
       return {
         rangeStartDays: Number(settings.rangeStartDays) || 3,

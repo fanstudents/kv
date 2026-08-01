@@ -2,13 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 const {
   pushLineMessage,
-  getSupabase,
+  getMainSupabase,
   getVisitSettings,
   createCalendarEvent,
   sendEmail,
 } = vi.hoisted(() => ({
   pushLineMessage: vi.fn(),
-  getSupabase: vi.fn(),
+  getMainSupabase: vi.fn(),
   getVisitSettings: vi.fn(),
   createCalendarEvent: vi.fn(),
   sendEmail: vi.fn(),
@@ -16,7 +16,7 @@ const {
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineMessage }));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/adapters/visit/supabase-visit-settings", () => ({
   createSupabaseVisitSettings: () => ({ get: getVisitSettings }),
 }));
@@ -37,7 +37,7 @@ describe("legacy Visit respond fulfilment source", () => {
     query.eq.mockReturnValue(query);
     query.insert.mockReturnValue(query);
     const client = { from: vi.fn(() => query) };
-    getSupabase.mockReturnValue(client);
+    getMainSupabase.mockReturnValue(client);
     getVisitSettings.mockResolvedValue({ senderName: "Dennis" });
     createCalendarEvent.mockResolvedValue("event-1");
     sendEmail.mockResolvedValue(undefined);

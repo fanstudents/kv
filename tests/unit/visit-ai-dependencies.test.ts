@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { draftInviteEmail, parseBusinessCard, getSupabase } = vi.hoisted(() => ({
+const { draftInviteEmail, parseBusinessCard, getMainSupabase } = vi.hoisted(() => ({
   draftInviteEmail: vi.fn(),
   parseBusinessCard: vi.fn(),
-  getSupabase: vi.fn(),
+  getMainSupabase: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({ legacyVisitProviders: { draftInviteEmail, parseBusinessCard } }));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createLegacyVisitAiDependencies } from "@/adapters/visit/legacy-ai-dependencies";
 
@@ -17,7 +17,7 @@ describe("legacy Visit AI dependencies", () => {
     draftInviteEmail.mockResolvedValue({ subject: "邀約", body: "內容" });
     parseBusinessCard.mockResolvedValue({ name: "Dennis", company: "TBR", title: "", email: "", phone: "" });
     const activityQuery = { insert: vi.fn().mockResolvedValue({ error: null }) };
-    getSupabase.mockReturnValue({ from: vi.fn(() => activityQuery) });
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => activityQuery) });
     const adapter = createLegacyVisitAiDependencies();
 
     await expect(adapter.draftInviteEmail({ contactName: "Dennis", contactTitle: "", company: "", meetingType: "喝咖啡", slot1: "A", slot2: "B", senderName: "" })).resolves.toEqual({ subject: "邀約", body: "內容" });

@@ -1,6 +1,6 @@
 import "server-only";
 import { pushLineMessage as pushLegacyLineMessage } from "@/lib/line";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createSupabaseVisitSettings } from "@/adapters/visit/supabase-visit-settings";
 import {
@@ -18,10 +18,10 @@ import type {
 import type { VisitInviteChoice } from "@/modules/visit/public-response";
 
 export function createLegacyVisitRespondFulfilmentSource(): VisitRespondFulfilmentSource {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
   const settings = createSupabaseVisitSettings();
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 
@@ -57,9 +57,9 @@ export function createLegacyVisitRespondFulfilmentSource(): VisitRespondFulfilme
 }
 
 export function createLegacyVisitRespondReadSource(): VisitRespondReadSource {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 

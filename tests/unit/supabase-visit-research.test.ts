@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const getSupabase = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+const getMainSupabase = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createSupabaseVisitResearchRepository } from "@/adapters/visit/supabase-visit-research";
 
@@ -22,7 +22,21 @@ function createClient() {
   const storedSelect = vi.fn(() => ({ single: storedSingle }));
   const profileInsert = vi.fn(() => ({ select: storedSelect }));
 
-  const profileListLimit = vi.fn().mockResolvedValue({ data: [{ id: "profile-1" }] });
+  const storedProfile = {
+    id: "profile-1",
+    person_name: "Dennis",
+    company: "CabLate",
+    company_summary: "Company",
+    person_summary: "Person",
+    links: [{ label: "官網", url: "https://example.test", kind: "website" }],
+    highlights: ["News"],
+    talking_points: ["Topic"],
+    sources: ["https://example.test"],
+    confidence: 0.8,
+    status: "done",
+    created_at: "2026-08-02T00:00:00.000Z",
+  };
+  const profileListLimit = vi.fn().mockResolvedValue({ data: [storedProfile] });
   const profileListOrder = vi.fn(() => ({ limit: profileListLimit }));
   const activityInsert = vi.fn().mockResolvedValue({ error: null });
   let profileSelectCall = 0;
@@ -60,7 +74,7 @@ describe("Supabase Visit research repository", () => {
 
   it("maps contacts, recent-profile lookup, profile storage, list, and activity", async () => {
     const db = createClient();
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
     const repository = createSupabaseVisitResearchRepository();
 
     await expect(repository.findContact("contact-1")).resolves.toEqual({
@@ -85,7 +99,7 @@ describe("Supabase Visit research repository", () => {
       profile: {
         companySummary: "Company",
         personSummary: "Person",
-        links: [],
+        links: [{ label: "官網", url: "https://example.test", kind: "website" }],
         highlights: [],
         talkingPoints: [],
         sources: [],
@@ -106,7 +120,20 @@ describe("Supabase Visit research repository", () => {
       errorDetail: "provider unavailable",
       runId: "run-1",
     });
-    await expect(repository.listProfiles(10)).resolves.toEqual([{ id: "profile-1" }]);
+    await expect(repository.listProfiles(10)).resolves.toEqual([{
+      id: "profile-1",
+      person_name: "Dennis",
+      company: "CabLate",
+      company_summary: "Company",
+      person_summary: "Person",
+      links: [{ label: "官網", url: "https://example.test", kind: "website" }],
+      highlights: ["News"],
+      talking_points: ["Topic"],
+      sources: ["https://example.test"],
+      confidence: 0.8,
+      status: "done",
+      created_at: "2026-08-02T00:00:00.000Z",
+    }]);
     await repository.recordActivity({ summary: "done", status: "success" });
 
     expect(db.contactSelect).toHaveBeenCalledWith("name,company,title,email");
@@ -120,6 +147,7 @@ describe("Supabase Visit research repository", () => {
       person_name: "Dennis",
       status: "done",
       run_id: "run-1",
+      links: [{ label: "官網", url: "https://example.test", kind: "website" }],
     }));
     expect(db.profileInsert).toHaveBeenCalledWith({
       contact_id: "contact-1",
@@ -136,11 +164,11 @@ describe("Supabase Visit research repository", () => {
       summary: "done",
       status: "success",
     });
-    expect(getSupabase).toHaveBeenCalledOnce();
+    expect(getMainSupabase).toHaveBeenCalledOnce();
   });
 
   it("keeps profile-list failures as the existing empty projection", async () => {
-    getSupabase.mockImplementation(() => {
+    getMainSupabase.mockImplementation(() => {
       throw new Error("missing database");
     });
 

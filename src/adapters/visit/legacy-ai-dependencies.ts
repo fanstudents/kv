@@ -1,10 +1,10 @@
 import "server-only";
 import { legacyVisitProviders } from "./legacy-provider-adapter";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import type { VisitAiDependencies } from "@/modules/visit/ai";
 
 export function createLegacyVisitAiDependencies(): VisitAiDependencies {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   return {
     parseBusinessCard: legacyVisitProviders.parseBusinessCard,
     draftInviteEmail: legacyVisitProviders.draftInviteEmail,
