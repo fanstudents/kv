@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-03 Daily report typed boundary（`85afccd`）｜進行中：WP-03、WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-03 Support typed boundary（`ec808ee`）｜進行中：WP-03、WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已核准並分批執行
 
@@ -203,7 +203,7 @@ Provider 工作包固定拆成兩軌：
 - [x] 已決定以 repo canonical migration 重建 local DB 後產生型別；本地 drift command 先落地，PR CI 接入留給 WP-21。
 - [x] 從 `20260801000000_live_baseline.sql` 重建 local Main DB，產生 `src/lib/database.types.ts`。
 - [~] `createClient<Database>` 與 `getMainSupabase` 已建立；舊 consumer 暫由同 singleton 的 `getSupabase` 相容入口維持，Teaching client 保持獨立。
-- [~] 逐 domain 修復不相容 query／mapping；Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting 已完成，其餘 consumer 待分批處理，不改資料格式。
+- [~] 逐 domain 修復不相容 query／mapping；Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting、Support 已完成；剩餘 Agent runtime、Knowledge Base、Teachify stats 待分批處理，不改資料格式。
 - [x] 加入 `schema:types`／`schema:types:check`；生成結果必須能由 migration 重現且 Git diff 為零。
 - [~] 每個完成的 domain 均需通過 focused contract tests 與 typecheck；完整 verify、Main DB contract tests 與受影響頁面 Chrome smoke 於 WP-03 domain cutover 集中執行，未遷移 domain 仍待處理。
 
@@ -212,7 +212,7 @@ WP-03 分段契約與證據（2026-08-02）：
 - 範圍只有 generated type、更新／drift 指令與 typed-client migration seam；不改 query、資料、API、UI 或外部 side effect。
 - `getMainSupabase` 與既有 `getSupabase` 必須共用一個 client、保留 service-role 優先／anon fallback／缺設定失敗契約；由 `tests/unit/supabase-client.test.ts` 固定。
 - Main migration 與程式使用表名已比對；差集中的 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` 均由 Teaching adapter 使用，不併入 Main type。
-- 相容入口刪除條件：既有 Main imports 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production reference 歸零；Daily reporting 批次後尚餘 10 個 reference files，其中 9 個會在 runtime 呼叫、1 個只取用舊 client 的 type。
+- 相容入口刪除條件：既有 Main imports 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production reference 歸零；Support 批次後尚餘 7 個 runtime reference files，type-only reference 已歸零。
 - 每段獨立修正型別、測試與受影響頁面，不一次打開整包 blast radius。
 - `schema:types:check` 通過；最新 `npm run verify` 全通過：102 test files／514 tests、lint、typecheck、93-page production build。
 - Chrome 變更前後皆驗證登入後 `/agents/visit`；頁面完成載入、`行前功課` empty state 與 disabled 狀態不變，變更後實際點擊 `重新整理` 通過既有 Main client runtime path。
@@ -244,6 +244,8 @@ WP-03 分段契約與證據（2026-08-02）：
 - 第十三段 focused evidence：`meeting-context` 加上前一段 Meeting suite 共 5 test files／25 tests 與 typecheck 全過。未呼叫 Google、GA4、GSC、Teachify 或 knowledge provider；Meeting／Agent live Chrome journey 留待 WP-03 集中驗證。
 - 第十四段 `85afccd`：Daily Support／Team Lead report composition 與兩個 report repository DI type 改用 `getMainSupabase`；summary provider、LINE delivery、clock、display-name fallback、read／activity write 與 route／cron response contract 不變。
 - 第十四段 focused evidence：`daily-report-runners`、`daily-report-adapters` 共 2 test files／6 tests 與 typecheck 全過。OpenAI summary／LINE delivery 均為 mock，沒有觸發 cron、真實 recipient、usage 或 activity write；Real Acceptance 維持各 provider gate。
+- 第十五段 `ec808ee`：Support webhook composition、relay dependency type 與 customer conversation persistence 改用 `getMainSupabase`；signature gate、raw relay payload／header、8-second timeout、support activity、subscriber touch、conversation insert 與 route response contract 不變。
+- 第十五段 focused evidence：`support-conversations`、`support-log-reply`、`support-relay-legacy-adapters`、`support-relay-application`、`support-relay-inbound` 共 5 test files／23 tests 與 typecheck 全過。沒有執行 webhook、fetch relay、LINE 或真實 DB write；Support Real Acceptance 仍受 safe fixture／relay target／channel credentials gate。
 
 出口：Main query 具編譯期 schema 契約；無跨 DB type 混用。
 
@@ -506,7 +508,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
-- [~] WP-03 已核准並完成十四段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting；尚餘 9 個 runtime caller files 與 1 個 type-only reference file，後續逐 domain 遷移且每段開始前確認。
+- [~] WP-03 已核准並完成十五段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting、Support；尚餘 7 個 runtime caller files，後續只剩 Agent runtime、Knowledge Base、Teachify stats 三組 domain。
 - [~] WP-02 已有 `.env.example` 能力分組／opt-in gate、integration status、純設定 preflight 與 OpenAI acceptance harness；仍需補跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
 - [~] WP-10 Preparation 已完成第一組 local failure contracts；Real Acceptance 仍明確等待安全 key、成本上限與 cleanup 設計。
 - [x] Provider 工作包採 Preparation／Real Acceptance 兩軌；缺 key 只阻塞 Real Acceptance，不阻塞 source ownership、contract、fixture 與安全 gate 整理。
@@ -529,9 +531,9 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ## 9. 目前 readiness 判定
 
-- 最新完成：`WP-03` Daily report typed boundary（`85afccd`）；`WP-03` 已完成第十四段，WP-03／WP-02／WP-10 Preparation 均仍在逐 domain／能力執行。
+- 最新完成：`WP-03` Support typed boundary（`ec808ee`）；`WP-03` 已完成第十五段，WP-03／WP-02／WP-10 Preparation 均仍在逐 domain／能力執行。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
-- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 9 個 runtime callers 與 1 個 type-only reference。
+- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 7 個 runtime callers，type-only legacy reference 已歸零。
 - 外部功能：Preparation 可在缺 key 時繼續；純設定 preflight 已可區分「未設定」與「尚未驗證」，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
