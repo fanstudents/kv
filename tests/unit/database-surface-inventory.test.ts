@@ -11,12 +11,14 @@ function sourceFiles(directory: string): string[] {
   });
 }
 
-function migrationSql(): string {
-  return readdirSync(join(process.cwd(), "supabase", "migrations"))
+function schemaSql(): string {
+  const baseline = readFileSync(join(process.cwd(), "supabase", "baseline.sql"), "utf8");
+  const migrations = readdirSync(join(process.cwd(), "supabase", "migrations"))
     .filter((name) => name.endsWith(".sql"))
     .sort()
     .map((name) => readFileSync(join(process.cwd(), "supabase", "migrations", name), "utf8"))
     .join("\n");
+  return `${baseline}\n${migrations}`.replaceAll('"', "");
 }
 
 describe("database surface inventory", () => {
@@ -33,8 +35,8 @@ describe("database surface inventory", () => {
     expect(declared).toEqual(uniqueActual);
   });
 
-  it("keeps migration coverage claims synchronized with SQL", () => {
-    const sql = migrationSql();
+  it("keeps schema coverage claims synchronized with SQL", () => {
+    const sql = schemaSql();
 
     for (const surface of DATABASE_SURFACES) {
       if (surface.owner === "teaching-system") {
@@ -42,20 +44,29 @@ describe("database surface inventory", () => {
         continue;
       }
 
-      const creates = new RegExp(`create table if not exists public\\.${surface.table}\\b`, "i").test(sql);
+      const creates = new RegExp(
+        `create table(?: if not exists)? public\\.${surface.table}\\b`,
+        "i"
+      ).test(sql);
       const alters = new RegExp(`alter table public\\.${surface.table}\\b`, "i").test(sql);
       const expected = creates ? "defined" : alters ? "alter-only" : "missing";
       expect(surface.coverage, surface.table).toBe(expected);
     }
   });
 
-  it("records known schema-to-code drift explicitly", () => {
-    expect(DATABASE_SURFACES.find((surface) => surface.table === "kb_chunks")?.notes).toContain("embedding");
-    expect(DATABASE_SURFACES.find((surface) => surface.table === "kb_sources")?.notes).toContain(
-      "last_checked_at"
-    );
+  it("records the acquired primary baseline and external teaching boundary", () => {
+    expect(
+      DATABASE_SURFACES.filter((surface) => surface.owner === "kv-primary").every(
+        (surface) => surface.coverage === "defined"
+      )
+    ).toBe(true);
+    expect(
+      DATABASE_SURFACES.filter((surface) => surface.owner === "teaching-system").every(
+        (surface) => surface.coverage === "external"
+      )
+    ).toBe(true);
     expect(DATABASE_NON_TABLE_SURFACES).toContainEqual(
-      expect.objectContaining({ kind: "rpc", name: "match_kb_chunks", coverage: "missing" })
+      expect.objectContaining({ kind: "rpc", name: "match_kb_chunks", coverage: "defined" })
     );
   });
 });

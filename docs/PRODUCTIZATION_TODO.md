@@ -11,11 +11,11 @@
 | Release intent | Demand-driven production slices；不做 big-bang rewrite |
 | Owner | CabLate 工程團隊 |
 | Repository | `F:/ownproject/kv` |
-| Branch／planning base | `codex/kv-wp0-toolchain`／`a979489` |
+| Branch／planning base | `codex/kv-wp0-toolchain`／`b81d33c` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-08-01；CodeGraph 402 files／3,408 nodes／7,071 edges |
+| Last verified | 2026-08-01；CodeGraph 402 files／3,408 nodes／7,331 edges；兩個 Supabase project 已 read-only introspect |
 | Requirements source | 本對話：保留 UI／UX 與現有資料格式，在持續承接需求時漸進產品化 |
-| Readiness | **Needs Revision**：程式結構可繼續維護；資料庫真相、真實資料與 provider 驗收尚未關閉 |
+| Readiness | **Needs Revision**：主庫 schema truth 已取得；clean-room replay、Teaching 外部契約、真實資料與 provider 驗收尚未關閉 |
 
 ## 1. Outcome and boundaries
 
@@ -180,37 +180,39 @@ Frozen UI／pages
 
 ### Verified static evidence
 
-- Source 共引用 32 個 Supabase table name；其中主系統 28 個、teaching project 4 個。
-- Local repo 有 7 份 migration：建立 13 張表；`contacts`、`knowledge_base` 只有 `ALTER`，沒有 base `CREATE`；另有 13 張主系統 legacy table 沒有 base DDL。
-- Teaching project 的 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` 是獨立資料庫，repo 內沒有其 migration。
-- Source 使用 RPC `match_kb_chunks`，repo migration 沒有建立該 function。
-- `kb_sources` source 另使用 `url`、`source_type`、`content_hash`、`last_checked_at`；local migration 沒有這些欄位。
-- `kb_chunks` source insert `title`、`source_page`、`embedding`；migration 的欄位契約不完整相容，不能先假設 production schema 等同 repo SQL。
-- `fanstudents/kv` 檢查快照 `98bcafc` 比 local 多 `20260730_runtime_hardening.sql`，但仍只有增量 migration，且直接依賴既有 `ai_usage_logs`／`agent_*` tables；它是 delta reference，不是 clean-rebuild baseline。
+- Chrome 直接進入 tbr 組織的 Supabase Dashboard；OAuth connector 因協作者無組織授權權限失敗，但不影響 project-level read access。
+- Main project `time_alert`（ref `ytrolpaeuckdwgvifdhl`）已 read-only introspect：32 public tables、310 columns、66 constraints、66 indexes、6 public functions、94 public／storage policies、1 custom auth trigger、1 private Storage bucket，以及 33 筆 migration history metadata。
+- `supabase/baseline.sql` 已由 live catalog 產生；包含原 repo 缺少的 base DDL、`match_kb_chunks`、KB 實際欄位、RLS／ACL 與 `meeting-recordings` bucket metadata；不含 production rows、auth users、secret 或 migration statement bodies。
+- Local 7 份 migration 與 `fanstudents` 的增量 migration 只能當歷史 delta；`baseline.sql` 才是目前主庫的 clean-environment candidate，尚未經空白環境重播，所以不能宣稱 rebuild verified。
+- CodeGraph／source 對第二個 `教學系統` project（ref `wsaknnhjgiqmkendeyrj`）只引用 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations`；live project 實際有 47 public tables，屬共享產品資料庫，不應整包複製進 KV。
+- Teaching 的四表契約已取得，但它們依賴共享的 `organizations`、`user_profiles`、`is_super_admin()` 與 `auth.users`；KV 應把它視為 external data contract，而不是假裝擁有其 migration。
 
-### Missing provenance
+### Remaining database work
 
-| Project | Missing／partial schema truth | Consequence |
+| Project | Current truth／remaining gap | Consequence |
 |---|---|---|
-| Main Supabase | `contacts`、`knowledge_base` 只有 alter；`agent_goals`、`ai_usage_logs`、`broadcast_logs`、`checklist_status`、`contact_profiles`、`knowledge_access`、`line_*`、`pending_invites`、`visit_offers` 無 base DDL；KB RPC/columns drift | 不能 clean rebuild、驗證 query 或安全設計 migration |
-| Teaching Supabase | `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` 無 repo migration | Operations／Meeting/chat pipeline 無真實資料基線 |
+| Main Supabase | Live schema truth 與 baseline candidate 已取得；尚未在空白 Supabase 重播、diff、rollback rehearsal | 可以停止猜 schema，但 schema change／release 前仍要完成 replay gate |
+| Teaching Supabase | 四個 consumer table 的 live contract 已取得；它是 47-table 共享系統且有外部 FK／RLS dependency | 建立 adapter contract／fixture，不把整個 Teaching DB 納入 KV ownership |
+| Runtime env | `.env.local` 目前只有 auth keys，沒有兩個 Supabase endpoint／key | 尚不能從本機執行 authenticated real-data journey |
 | Providers | LINE／OpenAI／Google／Teachify／Firecrawl key或安全 fixture尚未提供 | 不能把 mock/empty UI 升級成 production-like evidence |
 
 ### Resolution package DB-01
 
-**Owner／input:** CabLate／原作者提供兩個正確 Supabase project 的 read access 或 schema-only dump；不需要 production rows、個資或 secret 落入 Git。
+**State:** Acquisition complete；rehearsal and contract closure active。Schema 透過 Dashboard read-only 取得；原始 catalog snapshot 僅留在本機稽核目錄，不提交大型 dump。
 
 **Required evidence:**
 
-1. Main 與 Teaching 各自的 tables、columns、PK/FK、indexes、extensions、RLS/policies、functions/triggers，以及相關 Storage bucket metadata。
-2. project identity 只記 class／reference，不把 key 或 dump 中的敏感內容提交。
-3. source query、local 7 migrations、`fanstudents` 第 8 份 delta 與 actual schema 的差異表。
-4. 由 actual schema 建立 baseline 後，在空白 local／staging 重播 migration；先修 dependency 與 KB RPC/column drift。
-5. Supabase Data API exposure、grant 與 RLS 依該 project 的實際設定驗證，不預設新表一定 exposed 或 hidden。
+1. [x] 取得 Main 與 Teaching 的 tables、columns、PK/FK、indexes、extensions、RLS/policies、functions/triggers 與 Storage metadata。
+2. [x] 只記 project class／reference；不把 key、production rows 或 auth users提交 Git。
+3. [x] 以 CodeGraph／source 確認 Main 28 tables＋1 RPC，以及 Teaching 4-table consumer contract；主庫 live baseline 已補齊 repo migration 缺口。
+4. [ ] 在乾淨 Supabase local／staging 套用 `supabase/baseline.sql`，比對 catalog counts／definitions，修正 replay dependency。
+5. [ ] 將既有 7 份 migration 分類為已吸收歷史或 post-baseline delta，避免 clean setup 重複建立同一物件。
+6. [ ] 為 Teaching 四表建立明確 adapter contract、fixture 與 ownership 說明；不複製 47-table shared schema。
+7. [ ] 補入本機 Supabase env 後，驗證 Main Data API／grant／RLS 與 affected authenticated journeys。
 
-**Blocks:** schema change、runtime repository、real DB CRUD、KB ingestion/search、provider-backed journey、production cutover。
+**Blocks now:** 主庫 schema 猜測已解除；clean rebuild 宣告、runtime real DB CRUD、KB ingestion/search、Teaching integration、provider-backed journey與 production cutover仍受後續 gate 限制。
 
-**Fallback:** 未取得前只允許不依賴 schema 猜測的 feature／pure-domain／contract工作，整體 verdict 保持 Needs Revision。
+**Safety rule:** `baseline.sql` 只套用 clean environment；不得直接推回來源 production project。後續 production 變更一律以 forward-only delta migration進行。
 
 ## 6. Execution tracks and active TODO
 
@@ -235,7 +237,7 @@ WP-F 可以與 WP-DB 並行。WP-DB 只阻塞 data/provider/schema 相關驗收�
 |---|---|---|---|---|
 | WP-00 | 現況、版本、映射、依賴與完成維度重新可信 | Complete | none | 本文件與 current source map |
 | WP-F | 新需求在現有產品可持續交付，並局部改善被碰到區域 | Ready／ongoing | affected source preflight | feature evidence；可能觸發 WP-D |
-| WP-DB | 兩個 Supabase 可重建且 schema provenance 清楚 | Blocked on external input；acquisition action ready | project access或schema-only dump | baseline migration／rehearsal／env identity |
+| WP-DB | Main 可重建；Teaching 有受控 external contract | Active：acquisition complete，rehearsal pending | clean Supabase target＋runtime env | baseline replay／catalog diff／Teaching contract fixture |
 | WP-B | 核心 journey 有 real-data/provider-safe baseline | Pending | WP-DB＋provider fixture | 可比較的 before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
 | WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
