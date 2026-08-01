@@ -1,12 +1,12 @@
 import { logConversationMessage } from "@/lib/support-conversations";
-import type { getSupabase } from "@/lib/supabase";
+import type { getMainSupabase } from "@/lib/supabase";
 import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
 import type { SupportRelayPorts } from "@/modules/support/relay";
 
-type LegacySupabaseClient = ReturnType<typeof getSupabase>;
+type SupportSupabaseClient = ReturnType<typeof getMainSupabase>;
 
 export function createSupportRelayDependencies(
-  supabase: LegacySupabaseClient
+  supabase: SupportSupabaseClient
 ): SupportRelayPorts {
   return {
     relay: {

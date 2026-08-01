@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyLineSignature } from "@/lib/line";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { createSupportRelayDependencies } from "@/adapters/support/support-relay-dependencies";
 import {
   parseSupportRelayPayload,
@@ -23,7 +23,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-line-signature");
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const ports = createSupportRelayDependencies(supabase);
 
   if (!verifyLineSignature(rawBody, signature, "support")) {
