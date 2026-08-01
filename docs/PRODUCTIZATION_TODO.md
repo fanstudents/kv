@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-03 第七段（Conversation lock typed boundary，`1bc8b0c`）｜進行中：WP-03｜CodeGraph 於各批驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-02 configuration preflight（`7e13e96`）｜進行中：WP-03、WP-02｜CodeGraph 於各批驗證後同步
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已核准並分批執行
 
@@ -184,8 +184,8 @@ Provider 工作包固定拆成兩軌：
 
 目的：讓後續 provider 工作包共用安全、可重複、可診斷的驗收方式；不建立巨大通用 runtime。
 
-- [~] `.env.example` 已依能力分組；仍需標出 required／optional／read-only／write-capable，並補上 `OPENAI_ACCEPTANCE` 等 opt-in gate。
-- [~] `integration-status` 與 OpenAI acceptance 已有部分 credential gate，且不輸出 secret；仍需拆出不呼叫 provider 的純設定 preflight，避免把「有設定」與「真實可用」混成同一狀態。
+- [x] `.env.example` 已依能力分組，標出 required／optional／read-only／write-capable，並加入本地 `OPENAI_ACCEPTANCE=0` opt-in gate。
+- [x] `getIntegrationPreflight()` 已提供不呼叫 provider 的純設定檢查，只回報缺少的變數名稱與「尚未驗證連線」；它與既有 live `getIntegrationStatus()`／UI `connected` semantics 分離，且不輸出 secret。
 - [ ] 定義 staging／sandbox／fixture 規則與 cleanup 規則。
 - [ ] 為 webhook／cron 定義安全觸發方式、簽章 fixture、重複事件與回復方式。
 - [~] 已有獨立 `acceptance:openai`、acceptance Vitest config 與 opt-in gate；其餘 provider 仍需各自 command／test tag，且不得塞進每次 unit verify。
@@ -193,6 +193,8 @@ Provider 工作包固定拆成兩軌：
 - [x] 已決定每個 provider 保有自己的 adapter／錯誤語意；WP-02 只提供驗收格式與 gate，不發明跨 provider framework。
 
 出口：後續各 integration 可用同一驗收格式，但沒有新的無需求抽象。
+
+完成證據（2026-08-02）：`7e13e96` 的 preflight unit tests 證明空白／完整 env matrix 不呼叫 Google OAuth／Calendar，且輸出不包含 fixture secret；既有 integrations status route contract 保持不變。
 
 ### WP-03 — Main Supabase 型別契約 `[~]`
 
@@ -489,7 +491,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
 - [~] WP-03 已核准並完成七段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock；尚餘 19 個 runtime caller files 與 3 個 type-only reference files，後續逐 domain 遷移且每段開始前確認。
-- [~] WP-02 已有 `.env.example` 能力分組、integration status 與 OpenAI acceptance harness；仍需補純設定 preflight、跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
+- [~] WP-02 已有 `.env.example` 能力分組／opt-in gate、integration status、純設定 preflight 與 OpenAI acceptance harness；仍需補跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
 - [x] Provider 工作包採 Preparation／Real Acceptance 兩軌；缺 key 只阻塞 Real Acceptance，不阻塞 source ownership、contract、fixture 與安全 gate 整理。
 - [!] 確認 canonical GitHub repo 與部署目標。
 - [!] Real Acceptance 前逐一提供安全 credentials／sandbox／fixture／recipient；未提供時保留明確 pending evidence，不用假資料宣稱真實功能完成。
@@ -510,10 +512,10 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ## 9. 目前 readiness 判定
 
-- 最新完成：`WP-03` 第七段（Conversation lock typed Main DB boundary，`1bc8b0c`）；`WP-04` 已完成，WP-03 整包仍在逐 domain 執行。
+- 最新完成：`WP-02` configuration preflight（`7e13e96`）；`WP-03` 已完成第七段，WP-03／WP-02 均仍在逐 domain／能力執行。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 19 個 runtime callers 與 3 個 type-only references。
-- 外部功能：Preparation 可在缺 key 時繼續；Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
+- 外部功能：Preparation 可在缺 key 時繼續；純設定 preflight 已可區分「未設定」與「尚未驗證」，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
 
