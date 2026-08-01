@@ -1,510 +1,485 @@
-# KV 產品化控制計畫
+# KV 產品化重構總清單
 
-> 這是唯一的產品化 Plan／TODO／現況索引。完成批次的細節由 Git、tests 與 CodeGraph 保存；本文件只保留會影響下一步決策、依賴、驗證或交接的內容。
+> 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
+>
+> 最後校準：2026-08-02｜基準 commit：`6d0199f`｜CodeGraph：409 files／3,484 nodes／7,325 edges
+>
+> 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-01 可執行
 
-## Plan identity
+## 0. 怎麼使用這份清單
 
-| Field | Value |
+狀態：`[x]` 完成、`[ ]` 未完成、`[~]` 進行中、`[!]` 外部阻塞、`[?]` 需先討論。
+
+執行規則：
+
+- 一次只執行一個已核准的工作包；開始下一包前先跟使用者確認。
+- 先完成同一工作包內可修改的程式，再集中跑一次完整驗證與修正。
+- 每個工作包都要有：來源映射、行為契約、實作、測試、受影響頁面 Chrome 驗證、CodeGraph／搜尋清理、文件證據、獨立 commit。
+- UI／UX 完全凍結；除非另有需求，不調整畫面、文案、導覽、互動或 API 回應形狀。
+- 真實 provider／資料庫未驗證時只能寫「結構完成」或「本機契約通過」，不能宣稱功能完成。
+- 不按 route 固定建立 rules／ports／application／adapter。只有穩定邊界、第二個真實 consumer，或已知可靠性需求才新增抽象。
+- 不做全面重寫。保留可運作產品，採 domain-first、touch-and-migrate 漸進整理。
+- 新功能走 Feature lane；碰到舊邊界時，只整理該需求真正經過的路徑。
+
+## 1. 完成定義
+
+KV 可被視為完成產品化重構，必須同時符合：
+
+- [ ] 現有主要使用者旅程在真實或受控 staging 環境有可重複的功能證據。
+- [ ] UI／UX 與既有外部契約沒有非預期改變。
+- [ ] 每個核心業務決策、狀態與 provider translation 都有清楚且單一的 owner。
+- [ ] Main DB schema 可重建、可型別檢查；Teaching DB 被明確視為獨立唯讀來源。
+- [ ] 外部 provider 的設定、失敗、重試／去重、成本與診斷方式有明確邊界。
+- [ ] `npm run verify`、關鍵 journey smoke、CI、部署與 rollback 可重複執行。
+- [ ] 日常需求可沿既有模組擴充，不必把規則再塞回 route、component 或大型 `lib`。
+- [ ] 過渡 adapter、重複實作、死碼與無價值薄包裝已移除；保留的相容層都有理由。
+- [ ] 維運者能由本文件與程式碼快速定位產品面、domain、資料來源、provider 與故障點。
+
+這不是「所有檔案都搬完」或「抽象越多越好」。完成標準是交付安全、owner 清楚、功能可證明、後續需求有自然落點。
+
+不包含：另開空白專案重寫、全面 UI redesign、為未知未來建立通用 Agent runtime、未經 migration 設計改資料格式，或在沒有獨立需求時進行一般性 security scan。既有 auth、secret、RLS、webhook signature 邊界仍不得被弱化。
+
+## 2. 不可破壞的產品契約
+
+- [ ] 外部展示站：`/agents-catalog/**`。
+- [ ] 管理後台：`/dashboard`、`/goals`、`/todos`、`/subscribers`、`/outputs`、`/agents/**`、`/knowledge-base/**` 等。
+- [ ] 沉浸／即時畫面：`/meeting`、`/tv`、`/tv/console`、`/universe`。
+- [ ] 登入與 session 行為：`/login`、middleware、auth API。
+- [ ] API 的 status、JSON shape、錯誤語意與既有 side effects。
+- [ ] Main Supabase 與 Teaching Supabase 的既有資料格式。
+- [ ] LINE、Google、OpenAI、Firecrawl、Teachify 等外部服務契約。
+- [ ] webhook／cron 的驗證、冪等、排程與可重放語意。
+
+任何工作包若需要改上述契約，必須另立產品需求與 migration／cutover 計畫，不能偷偷混在重構裡。
+
+## 3. 現況全貌與程式碼映射
+
+本清單的事實來源：使用者確認的產品目標／限制、目前 Git 工作樹與歷史、CodeGraph production caller／impact、`src/app`／`modules`／`adapters`／`lib` source、migration 與 staging rehearsal、`.env.example`／本機 key presence、automated tests／production build、Chrome journey evidence。來源互相衝突時以較新的可重複證據為準，未知就維持未知。
+
+### 3.1 架構責任
+
+目標依賴方向：
+
+```text
+page/component -> API route/composition -> modules/<domain> -> port/interface
+                                             ^                    |
+                                             |                    v
+                                      domain rule            adapters/provider
+                                                                  |
+                                                                  v
+                                                     Supabase / external services
+```
+
+- `src/app/**`：HTTP／頁面入口、輸入輸出轉換、composition；不擁有核心業務規則。
+- `src/modules/<domain>/**`：use case、domain rule、穩定 port；不直接知道 SDK 或環境變數。
+- `src/adapters/<domain>/**`：Supabase、OpenAI、LINE、Google 等協定翻譯與資料映射。
+- `src/lib/**`：共用技術工具或尚待盤點的 legacy 能力；不能再成為新業務邏輯的預設落點。
+- `src/components/**`：畫面呈現與互動；產品化重構期間保持視覺與操作不變。
+
+Agent 是產品能力／執行者；webhook、cron、postback、button action 是觸發事件；研究、回覆、報告、訂單處理等才是 workflow。三者不能混成同一種抽象。
+
+### 3.2 產品能力索引
+
+| 能力 | 主要 UI | 主要入口／模組 | 資料與 provider |
+|---|---|---|---|
+| Auth／後台 | `/login`、dashboard layout | `api/auth/**`、`modules/auth` | cookie/session、Main DB |
+| Operations／Goals／Todos | `/dashboard`、`/goals`、`/todos` | `modules/operations`、`goals`、`checklist` | Main DB、Teaching read model |
+| Subscribers | `/subscribers` | `modules/subscribers` | Main DB、LINE broadcast |
+| Knowledge Base | `/knowledge-base/**` | `modules/knowledge-base`、KB APIs | Main DB、Firecrawl、OpenAI embedding |
+| Meeting | `/meeting` | `modules/meeting`、9 個 meeting APIs | Main DB、OpenAI audio/realtime |
+| Visit | `/agents/visit` | `modules/visit`、LINE webhook、timeout cron | Main DB、OpenAI、LINE、Google |
+| Orders | `/agents/orders` | `modules/orders`、Teachify webhook | Main DB、Teachify、LINE |
+| Reporting／Schedule／SEO | report、teamlead、schedule、expense pages | `modules/reporting`、agent APIs、cron | Main DB、OpenAI、GA4、GSC、Calendar、LINE |
+| Support | `/agents/support` | `modules/support`、support webhook／cron | Main DB、support LINE／relay |
+| Agent／Chat／Live Task | agent pages、super agents、TV | `modules/agents`、`agent-chat`、`live-task`、`tv` | Main DB、OpenAI、LINE |
+
+### 3.3 資料與環境真相
+
+| 邊界 | 現況 | 決策 |
+|---|---|---|
+| Main Supabase | migration baseline 已可在 `kv-staging` clean replay；DB-only 功能基線完成；本機未設 service-role key | 我方擁有 schema；維持既有資料格式，後續補 generated types；只有實際 privileged journey 需要時才把 service-role 視為 blocker |
+| Teaching Supabase | 獨立專案、四張表、目前唯讀 | 保留獨立 adapter，不合併成 Main DB，不假裝擁有 migration |
+| OpenAI | shared official SDK ownership 已完成；本機缺 key | 先 fail-closed；有安全 key 後跑受控真實驗收 |
+| LINE primary／support | `.env.local` 缺 token／secret | 按 workflow 分開驗收，不混用身份 |
+| Google | Calendar／Gmail／GA4／GSC credentials 未齊 | 按 read／write 能力分包驗收 |
+| Firecrawl | key 未提供 | KB crawl 工作包阻塞 |
+| Teachify | secret／安全 fixture 未提供 | webhook 契約可先測，真實驗收阻塞 |
+| Cron／support callbacks | `CRON_SECRET`、`SUPPORT_LOG_SECRET`、relay target 未提供 | 先測 fail-closed 與簽章／auth contract；真實觸發需安全 secret／target |
+| GitHub／CI | 本地已有 CI 與三組 scheduled workflows；`origin` 目前回覆 repository not found，無法確認遠端 runs／protection | 先恢復 canonical repo 存取，再稽核而不是重做 CI |
+| 部署 | scheduled workflows 指向 `https://kva.zeabur.app`；app deploy、staging／production promotion、rollback 尚未確認 | 將 Zeabur 視為線索而不是完整 deployment truth |
+
+Secrets 只放本機 `.env.local` 或正式 secret store，不寫入 Git／TODO／測試 fixture。
+
+## 4. 已完成基線（只保留可驗證結果）
+
+- [x] 建立 domain-first 產品化方向，停止一條 route 一套 layers 的擴張方式。
+- [x] Operations、Knowledge Base、Meeting、Orders、Reporting、Support、Agent／TV／Live Task、Visit 主要路徑已有 module／adapter ownership 基礎。
+- [x] 清除一批未接 production composition 的 scaffold、dead ports 與重複薄包裝。
+- [x] Main Supabase migration baseline 與我方 `kv-staging` clean replay。
+- [x] Main DB-only 功能驗收基線。
+- [x] Teaching Supabase typed read-only adapter 與 live read acceptance。
+- [x] OpenAI official SDK shared transport 與主要 OpenAI adapters ownership 收斂。
+- [x] OpenAI fail-closed acceptance harness；缺 key 時明確失敗，不偽裝成功。
+- [x] 目前未提交的 Visit lock／settings 改動已通過 `npm run verify`：100 test files／503 tests／93-page build；尚缺 Chrome、清理證據與 commit。
+
+代表性歷史 commits：`410083a`、`996a4e0`、`b39bd33`、`99856c3`、`c163f1b`、`005c478`、`f866340`、`cc0780c`、`4bbec8e`、`9a96303`、`d11c38e`、`18c9097`、`6d0199f`。完整歷史以 Git 為準，不在本文件複製流水帳。
+
+## 5. 執行路線與依賴
+
+```text
+WP-01 Visit 邊界收尾 ──> WP-04 Contact Research owner
+
+WP-03 Main DB types ─┐
+WP-05 Frontend 內部品質 ├─> WP-22 最終清理／交接
+WP-06 Source／套件收斂 ┤
+WP-07 測試架構 ───────┘
+
+WP-02 整合驗收基礎 ─┬─> WP-10 OpenAI ─┬─> WP-11 KB
+                     │                 └─> WP-12 Visit AI
+                     ├─> WP-13 Visit delivery
+                     ├─> WP-14 Google reads
+                     ├─> WP-15 LINE journeys
+                     ├─> WP-16 Orders
+                     ├─> WP-17 Reporting
+                     └─> WP-18 Support
+
+Main migration ──> WP-03 Main DB types
+
+provider 實證 ──> WP-20 條件式可靠性整理 ──> WP-22 最終清理／交接
+canonical GitHub repo ──> WP-21 CI／release ────────────────┘
+
+WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner 內 touch-and-migrate。
+```
+
+建議順序不是「先把全部 architecture 做完」；是先收掉已開始的安全改動，再建立共同驗收基礎，接著按照拿得到的 credentials／真實需求逐條完成 provider journey。
+
+## 6. 工作包清單
+
+### WP-01 — Visit conversation lock／settings 邊界收尾 `[~]`
+
+目的：完成已核准、已實作但尚未提交的 ownership cleanup，不擴大到其他 Visit workflow。
+
+- [x] `conversation-lock` 改為 `modules/conversation/lock-ports` → `adapters/conversation/supabase-conversation-lock`。
+- [x] `visit-settings` 改為 `modules/visit/settings-ports` → `adapters/visit/supabase-visit-settings`。
+- [x] 移除兩組 legacy lib／forwarding adapter 與低訊號 forwarding tests。
+- [x] route／respond composition 改接直接 adapter。
+- [x] direct contract tests 覆蓋 lock owner／expiry／TTL／release 與 settings default／mapping。
+- [x] 集中跑完整 `npm run verify`。
+- [ ] 用 Chrome 驗證受影響的真實後台 Visit 頁面與可安全操作流程；不拿 `/agents-catalog` 代替。
+- [ ] `rg` 與 CodeGraph 確認舊 import／死碼已清乾淨。
+- [ ] 更新本工作包證據並獨立 commit。
+
+出口：行為不變、無舊入口殘留、UI smoke 通過、commit 可獨立回退。
+
+### WP-02 — 真實整合驗收基礎 `[ ]`
+
+目的：讓後續 provider 工作包共用安全、可重複、可診斷的驗收方式；不建立巨大通用 runtime。
+
+- [ ] 將 `.env.example` 整理成能力分組，標出 required／optional／read-only／write-capable。
+- [ ] 建立 credential preflight，只回報 key 是否存在與設定錯誤，不輸出 secret。
+- [ ] 定義 staging／sandbox／fixture 規則與 cleanup 規則。
+- [ ] 為 webhook／cron 定義安全觸發方式、簽章 fixture、重複事件與回復方式。
+- [ ] 建立 provider acceptance command／test tag；可單獨執行，不塞進每次 unit verify。
+- [ ] 統一驗收證據欄位：環境、journey、輸入、輸出、side effect、cleanup、時間、限制。
+- [ ] 每個 provider 仍保有自己的 adapter／錯誤語意；不在此包發明跨 provider framework。
+
+出口：後續各 integration 可用同一驗收格式，但沒有新的無需求抽象。
+
+### WP-03 — Main Supabase 型別契約 `[?]`
+
+目的：以已擁有的 migration 產生 Database types，消除 `src/lib/supabase.ts` 的 `createClient<any>` 擴散風險。
+
+- [ ] 執行前先討論 generated types 的來源、更新命令與 CI drift gate。
+- [ ] 從 canonical Main migration／staging 產生 `Database` type。
+- [ ] 將 Main client 改為 `createClient<Database>`；Teaching client 保持獨立 type。
+- [ ] 逐 domain 修復不相容 query／mapping；不改資料格式。
+- [ ] 加入 schema type regeneration／drift 說明與檢查。
+- [ ] 完整 verify、Main DB contract tests、受影響頁面 Chrome smoke。
+
+出口：Main query 具編譯期 schema 契約；無跨 DB type 混用。
+
+### WP-04 — Contact Research workflow ownership `[?]`
+
+目的：修正目前 `src/lib/contact-research.ts` 同時擁有 30-day dedupe、OpenAI search、run tracking、DB 儲存、activity 與 failure compensation 的混合責任。
+
+- [ ] 執行前畫出 research GET／POST／Visit respond 共同資料流與 side effects。
+- [ ] 以現有行為建立 characterization／failure contract。
+- [ ] 將 workflow sequencing 移到 `modules/visit/research`。
+- [ ] 只為已存在的 DB repository、research provider、run/activity tracking 建立必要 ports。
+- [ ] adapters 保留 Supabase／OpenAI translation；route 只做 HTTP／composition。
+- [ ] 移除或改名 `legacy-research-source`、`legacy-respond-sources` 中已失去用途的 forwarding。
+- [ ] 保持 30-day dedupe、結果 shape、run 狀態、活動紀錄與失敗補償不變。
+- [ ] mock contract + 完整 verify；有 OpenAI key 後再補真實 acceptance。
+
+出口：use case 有單一 owner；不是把一個大函式機械拆成更多小檔。
+
+### WP-05 — 前端內部可維護性 `[?]`
+
+目的：畫面與操作完全不變，只整理 component、資料取得、view model 與重複互動邏輯，讓後端 owner 改動不再靠人工猜哪些頁面會壞。
+
+- [ ] 執行前用 CodeGraph 建立 page → component／hook → API／data source 映射。
+- [ ] 找出大型 component、重複資料轉換、重複 loading／error handling、跨頁共享但各自維護的 view model。
+- [ ] 只有兩個以上真實 consumer 或明確一致語意時才抽 shared hook／component／view model。
+- [ ] 將純 presentation 與 server／provider contract 隔開；不把 domain rule 搬進 React。
+- [ ] 保持 route、DOM 關鍵結構、CSS、文案、responsive、loading／empty／error 與互動順序不變。
+- [ ] 為管理後台、Visit、KB、Meeting、Agent chat 等關鍵 surface 補最小 affected-page browser contract。
+- [ ] 每次只整理一個 UI domain；不得一次改全站 component hierarchy。
+
+出口：前端改動可局部驗證，沒有建立另一套 design system 或重新設計 UI。
+
+### WP-06 — 剩餘 source ownership 與 npm 套件收斂 `[?]`
+
+目的：系統性處理 `src/lib`、`legacy-*`、自幹輪子與過細 layers，但只執行有證據的合併／替換。
+
+- [ ] 以 domain 為單位把剩餘來源標成：穩定共用工具、domain workflow、provider translation、demo／fixture、dead／duplicate。
+- [ ] 建立 `src/lib/**` consumer／impact 清單；業務 owner 移至 module，協定翻譯移至 adapter，真正共用工具保留。
+- [ ] 逐項審查 `legacy-*`：有實質 mapping／compatibility 就保留並說明；純 forwarding 才合併／刪除。
+- [ ] 找出自製 HTTP client、validation、schema、retry、date／cron、file parsing、provider protocol 與 error mapping。
+- [ ] 先確認真實契約與維護成本，再比較官方／成熟 npm 套件；有明確收益才替換。
+- [ ] 優先沿用已採用的 OpenAI SDK、Zod、Supabase、`googleapis`、`unpdf` 等能力，避免平行實作。
+- [ ] 合併只有一個 owner／consumer、沒有替換或測試價值的 rules／ports／application／adapter layers。
+- [ ] 每批只動一個 domain，保留 characterization 與 Chrome／provider gates。
+
+出口：程式碼量下降或責任密度提升；不能只把同樣邏輯搬到更多檔案。
+
+### WP-07 — 測試架構與品質訊號 `[?]`
+
+目的：讓測試直接保護產品行為，減少 forwarding test、重複 mock 與「數量增加但信號不增加」。
+
+- [ ] 將現有 tests 依 domain 與 unit／contract／DB integration／provider acceptance／browser journey 分類。
+- [ ] 把關鍵 business branches、error／partial failure、資料 mapping 與外部 contract 對到具體測試 owner。
+- [ ] 移除只確認函式被轉呼叫、沒有 transformation／policy 價值的低訊號 tests。
+- [ ] 共用安全 fixture／builder，但不建立會遮蔽真實 payload 的萬用 mock framework。
+- [ ] 將 real provider tests 與一般 `npm run verify` 分離；明確標示 credential gate。
+- [ ] 建立最小關鍵 journey browser suite，並保留人工 Chrome 驗證作為高風險改動 gate。
+- [ ] 量測 flaky／duration／failure usefulness；不以武斷 coverage 百分比當品質 KPI。
+
+出口：測試失敗能指出被破壞的產品契約；測試數量不再被當成重構進度。
+
+### WP-10 — OpenAI 真實 provider 驗收 `[!]`
+
+阻塞：安全的 `OPENAI_API_KEY` 與可接受的測試成本。
+
+- [x] shared official SDK／adapter ownership／fail-closed harness。
+- [ ] Agent chat：文字回應、錯誤與 usage。
+- [ ] Structured JSON：schema validation 與 malformed response。
+- [ ] Embedding：向量維度、usage 與失敗。
+- [ ] TTS／STT：有效媒體、content type、錯誤。
+- [ ] Realtime client secret：短期 token、session config、不洩漏 server key。
+- [ ] 驗證 `ai_usage_logs`／run evidence 與 cleanup。
+
+出口：所有現用 OpenAI 能力有受控真實證據；不只是 mock。
+
+### WP-11 — Knowledge Base crawl／index／search `[!]`
+
+依賴：WP-02、WP-10；阻塞：Firecrawl key。
+
+- [ ] Firecrawl URL fetch → import draft 的真實契約。
+- [ ] draft／publish／access policy 行為。
+- [ ] chunk／embedding／index 與重建流程。
+- [ ] search relevance 基本 fixture、空結果、provider failure。
+- [ ] recheck cron 的 auth、重試／重入與 run evidence。
+- [ ] `/knowledge-base`、import 頁與相關 API Chrome journey。
+- [ ] 清除驗收資料與記錄成本。
+
+出口：從來源擷取到可搜尋結果的完整 journey 可重複。
+
+### WP-12 — Visit AI journey `[!]`
+
+依賴：WP-02、WP-10、必要時 WP-04；阻塞：OpenAI key。
+
+- [ ] 名片 parse 的 image／structured output／錯誤處理。
+- [ ] 邀請 email draft／revise 的輸入、輸出與 usage。
+- [ ] Contact research dedupe／run／profile store。
+- [ ] 僅驗證 AI 與 DB side effects，不在此包寄信或發 LINE。
+- [ ] `/agents/visit` 受影響功能 Chrome journey。
+
+出口：Visit 的 AI 能力可獨立證明，不與 delivery 成敗混在一起。
+
+### WP-13 — Visit delivery workflow `[!]`
+
+依賴：WP-02；阻塞：LINE primary、Gmail、Calendar credentials／sandbox recipient。
+
+- [ ] LINE webhook signature、text／image／postback routing。
+- [ ] pending invite／approval／offer／respond 狀態轉移。
+- [ ] Gmail draft／send 邊界與安全收件者。
+- [ ] Calendar event create／update 邊界與 cleanup。
+- [ ] timeout cron、lock 競爭、expired recovery。
+- [ ] delivery 部分成功時的狀態與人工復原方式。
+- [ ] `/agents/visit` 與相關 webhook 的 end-to-end staging journey。
+
+出口：一條受控 Visit 從 inbound 到 delivery／recovery 可重複驗證。
+
+### WP-14 — Google read capabilities `[!]`
+
+依賴：WP-02；阻塞：Google credentials 與可讀測試資產。
+
+- [ ] Schedule／TV 的 Calendar read。
+- [ ] Reporting 的 GA4 read 與期間邊界。
+- [ ] SEO overview 的 GSC read。
+- [ ] empty／permission denied／quota／token expiry 行為。
+- [ ] 對應後台頁面 Chrome 驗證，不用 demo fallback 代替真實證據。
+
+出口：三種 read capability 有各自契約、錯誤與 UI 證據。
+
+### WP-15 — LINE delivery／broadcast journeys `[!]`
+
+依賴：WP-02；阻塞：primary／support LINE credentials 與安全 recipient。
+
+- [ ] Agent test push。
+- [ ] Subscriber broadcast：目標集合、部分失敗、結果摘要。
+- [ ] Orders／Reporting 使用的 primary delivery。
+- [ ] Support 使用的獨立 channel identity。
+- [ ] reply token、push、rate-limit／provider error 的差異。
+- [ ] 驗證 recipient allowlist，避免測試訊息誤發。
+
+出口：LINE channel identity 與各 journey 明確，不共用錯誤 token。
+
+### WP-16 — Teachify Orders `[!]`
+
+依賴：WP-02、必要時 WP-15；阻塞：secret 與去識別 fixture／sandbox event。
+
+- [ ] signature validation、payload mapping、invalid event。
+- [ ] 訂單 persistence 與既有資料 shape。
+- [ ] duplicate／retry／out-of-order event 行為。
+- [ ] notification success／failure 不破壞訂單主狀態。
+- [ ] `/agents/orders` 與 test-notify Chrome journey。
+
+出口：同一事件重送不造成不可接受的重複 side effect，且可診斷。
+
+### WP-17 — Reporting／Team Lead `[!]`
+
+依賴：WP-02、WP-10、WP-14、必要時 WP-15。
+
+- [ ] manual 與 cron 共用同一 application owner。
+- [ ] 報表期間、資料來源、OpenAI summary 與 delivery 契約。
+- [ ] missing data、provider failure、重跑／補跑行為。
+- [ ] report run／usage／delivery evidence。
+- [ ] report、teamlead、traffic overview 頁面 Chrome journey。
+
+出口：manual／scheduled report 結果一致且可安全重跑。
+
+### WP-18 — Support workflow `[!]`
+
+依賴：WP-02、必要時 WP-10／WP-15；阻塞：support LINE、relay target／safe fixture。
+
+- [ ] support webhook inbound／signature／conversation mapping。
+- [ ] log reply、relay、callback 的責任與錯誤語意。
+- [ ] daily report data／summary／delivery。
+- [ ] primary 與 support channel 完全隔離。
+- [ ] `/agents/support` 與受控 webhook journey。
+
+出口：support inbound、人工操作、relay 與日報各有可追蹤結果。
+
+### WP-20 — 條件式可靠性整理 `[?]`
+
+只處理由 WP-10～18 的真實證據暴露出的問題，不預先建平台。
+
+- [ ] 對每條 write／delivery workflow 評估 idempotency key、retry、timeout、partial failure、replay、dead-letter／manual recovery。
+- [ ] 有兩個真實 consumer 或共同故障模式時，才抽 shared primitive。
+- [ ] 優先利用現有 `agent_runs`、`agent_run_steps`、`ai_usage_logs`、activity 資料，而不是另建平行 runtime。
+- [ ] 每個 reliability change 都有故障注入或契約測試。
+- [ ] 將仍屬產品特定的規則留在 domain module。
+
+出口：可靠性改動對應已觀察風險；沒有「為了未來也許會用」的框架。
+
+### WP-21 — GitHub、CI、部署與 rollback `[!]`
+
+阻塞：canonical GitHub repo 與部署目標尚未決定。
+
+- [ ] 確認／恢復我方 canonical GitHub repo、權限與 branch policy；目前 `origin` 回覆 repository not found。
+- [ ] 修正 remote；保護使用者既有歷史，不 force-push。
+- [ ] 稽核現有 `.github/workflows/ci.yml`：locked install、lint、typecheck、tests、build、Playwright smoke 是否在遠端真實通過。
+- [ ] 稽核三組 scheduled workflows 的 secrets、目標 URL、UTF-8、timeout、失敗通知與手動觸發。
+- [ ] 補足最小 Playwright／browser smoke，只跑關鍵且穩定 journeys。
+- [ ] provider acceptance 與一般 PR CI 分離，避免 secret／成本／不穩定外部依賴阻塞每次 PR。
+- [ ] 明確 staging／production deploy command、migration ordering、health check。
+- [ ] 建立 rollback：app version、migration compatibility、secret rollback、failed webhook／cron recovery。
+- [ ] 記錄 release owner 與最低可觀測訊號。
+
+出口：合併、部署、驗證、回退是一條可重複流程。
+
+### WP-22 — 最終結構清理與交接 `[ ]`
+
+依賴：已選定的 provider journeys、WP-20、WP-21。
+
+- [ ] 確認 WP-03～07 與已選定 provider／reliability 包的出口都已達成，未執行項目有明確接受理由。
+- [ ] 移除最後的 dead code、過渡 re-export／flag、過期 tests、demo fallback 誤用與未接 composition。
+- [ ] 更新冷啟動文件／runbook；不新增重複 architecture 文件。
+- [ ] 全量 verify、CodeGraph drift、production build、關鍵 UI／API／provider matrix、staging cutover rehearsal。
+
+出口：沒有無主流程與無理由抽象；新工程師可由 domain 與本文件找到正確修改點。
+
+### WP-F — 持續 Feature lane `[~]`
+
+每個新需求都遵守：
+
+- [ ] 先寫可觀察的使用者／營運結果與不變契約。
+- [ ] 用 CodeGraph 找真正 production entry、owner、data/provider side effects。
+- [ ] 在現有 domain owner 內修改；只有 owner 不清楚時才做最小 consolidation。
+- [ ] 先做 characterization／contract，再改實作。
+- [ ] 同一批完成程式碼後集中 verify 與 affected-page Chrome 驗證。
+- [ ] 一個 coherent commit；若觸發新的結構債或 provider 缺口，回填本清單。
+
+## 7. 每個工作包的固定驗收模板
+
+執行時直接在對應工作包下補證據，不另開報告文件。
+
+- [ ] Scope：明確列出 included／excluded paths 與 journeys。
+- [ ] Before：目前 production composition、行為與失敗語意。
+- [ ] Contract：UI、API、資料、事件、side effect 哪些不能變。
+- [ ] Code：單一 owner、依賴方向、移除項目與保留理由。
+- [ ] Static：lint、typecheck、build、`rg`、CodeGraph。
+- [ ] Automated：unit／contract／integration 結果與數量。
+- [ ] Data/provider：使用的環境、fixture、side effects、cleanup；未執行要寫明阻塞。
+- [ ] Browser：改動前後受影響真實頁面／操作；API-only 也要走會觸發該 API 的 UI（若產品沒有 UI 才記錄例外）。
+- [ ] Regression：相鄰 journey 與 auth／navigation smoke。
+- [ ] Commit：hash、回退方式、殘留風險。
+
+證據等級：
+
+1. Static：只能證明結構／型別／build。
+2. Mock／contract：只能證明我方邏輯與預期協定。
+3. Local DB／controlled integration：證明真實資料邊界。
+4. Staging journey：證明 UI／API／DB／provider／side effect 串起來。
+5. Production-like／release：證明部署、觀測、rollback 與操作流程。
+
+低等級證據不能冒充高等級完成。
+
+## 8. 開始下一批前要決定的事
+
+- [x] 先完成 WP-01；這是目前已核准且正在工作樹中的改動。
+- [ ] WP-01 commit 後，先討論下一包；建議優先 WP-02，或從 WP-03～07 選一個不需外部 credentials 的 bounded domain batch。
+- [ ] 決定 WP-03 Main DB types 的執行時點。
+- [ ] 決定 WP-04 Contact Research 是否在 OpenAI 真實驗收前先做 ownership repair。
+- [!] 確認 canonical GitHub repo 與部署目標。
+- [!] 逐一提供安全 credentials／sandbox／fixture；不能提供的工作包維持阻塞，不用假資料宣稱完成。
+
+### 目標追蹤
+
+| 產品化目標 | 對應工作包 |
 |---|---|
-| Lifecycle | Active |
-| Profile | Master；只有實際 schema／traffic migration 套用 Migration gates |
-| Release intent | Demand-driven production slices；不做 big-bang rewrite |
-| Owner | CabLate 工程團隊 |
-| Repository | `F:/ownproject/kv` |
-| Branch／planning base | `codex/kv-wp0-toolchain`／`81814d4` |
-| Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-08-02；CodeGraph 411 files／3,498 nodes／7,347 edges；100 test files／498 tests、typecheck、lint、93-page production build全過；KV staging、Teaching live read、OpenAI ownership repair與WP-B-OAI affected Chrome均已通過；真實OpenAI provider acceptance仍等待server-only key |
-| Requirements source | 本對話：保留 UI／UX 與現有資料格式，漸進產品化；同一實作批先完成可安全修改的程式碼，再集中執行heavy驗收 |
-| Readiness | **Implementation Ready**：主庫 clean-room replay、Main authenticated journeys與Teaching live read已完成；其餘provider真實驗收依各自sandbox／fixture推進 |
-
-## 1. Outcome and boundaries
-
-### Outcome
-
-CabLate 工程團隊能在不停止產品需求、不改變既有 UI／UX 與外部契約的前提下，以可預測成本理解、修改、驗證與擴充 KV。產品化採逐步改善，不要求先完成理論上的最終平台。
-
-### Productized 的判定
-
-- 新工程師能重建開發環境並找到畫面、API、business owner、資料來源與外部 provider。
-- 核心 journey 有可重複的 authenticated／real-data 或明確 production-like 證據。
-- 新需求能在單一 domain owner 內完成；碰到 legacy 時只遷移必要邊界。
-- UI URL、文案、互動、DOM／visual、loading／empty／error state 沒有非預期差異。
-- schema、外部 side effect、cutover 與 rollback 都有真實 rehearsal／reconciliation 證據。
-- 無 consumer 的 framework、永久 shim、重複 owner 與只測 forwarding 的低訊號測試已清除。
-
-### Non-goals
-
-- NG-01：不重寫前端、不重新設計 UI／UX。
-- NG-02：不另開空白專案建立第二套產品。
-- NG-03：不為「未來也許會用」先建 framework、port、adapter、runtime 或資料表。
-- NG-04：不在沒有 schema truth、backward compatibility 與 rehearsal 前改既有資料格式。
-- NG-05：不強迫所有事件、workflow 或 Agent 共用同一套 runtime。
-- NG-06：不把 route 數、檔案數、LOC、commit 或測試數量當作完成度；這些只作為異常訊號。
-- NG-07：本階段不做一般性 security scan；既有 auth、secret、RLS 與 public callback 邊界不得被弱化。
-
-## 2. GORE core
-
-### Actors and intent
-
-| Actor／consumer | Job／outcome | Current pain／risk | Product intent |
-|---|---|---|---|
-| CabLate 工程團隊 | 持續交付需求、除錯與 release | 原始 ownership、schema 與真實驗收不清；先前又曾過度拆層 | 讓產品每一批都更容易修改，而不是等待大型重構完成 |
-| 後台操作者 | 以原畫面完成管理、會議、KB、Visit、Orders 等工作 | backend 改動可能靜默破壞資料或 side effect | 重構前後的可觀察行為保持一致 |
-| 外部系統／事件來源 | LINE、Teachify、cron、Google、OpenAI 等可重送且可恢復 | duplicate、partial failure、delivery receipt 與 replay 不一致 | 只在真實風險與 consumer 證明後補可靠性能力 |
-| Teaching system owner | 獨立維護教學產品與其資料語意 | KV 直接依賴 raw schema，可能把外部故障誤判成零資料 | 保留 Teaching 作為 source of truth，KV 只消費明確唯讀契約 |
-| 後續開發者 | 新增 Agent、workflow、provider 或 UI 資料需求 | presentation、event、domain workflow 與 runtime 容易混成一套 | 從現有 domain owner 組合能力，不複製整條流程 |
-
-### Goal model
-
-| Goal ID | Type | Goal | Observable outcome |
-|---|---|---|---|
-| G-01 | Primary | 工程團隊可持續且安全地擴充 KV | 新需求有明確 owner、局部改動、相稱驗證與可回退 release |
-| G-02 | Continuity | 整理期間既有產品持續可用 | affected authenticated journey、API contract 與 UI parity 無非預期差異 |
-| G-03 | Enabling | 建立環境、資料與行為的可信基線 | KV 主庫可在自有環境重建；Teaching 有可驗證、可替換的唯讀外部契約 |
-| G-04 | Maintainability | 一項 business behavior 只有一個 owner | CodeGraph 無重複 orchestration、route-specific 四件組與無理由 alias adapter |
-| G-05 | Evolution | 產品化由需求與已知風險驅動 | shared abstraction 至少由第二 consumer、外部邊界或 transaction／recovery 需求證明 |
-| G-06 | Acceptance／cleanup | 切換後可驗證、可恢復且沒有永久 transition artifact | production-like evidence、rollback rehearsal、legacy caller／traffic 歸零 |
-
-### Requirements and invariants
-
-| ID | Type | Requirement／invariant | Evidence |
-|---|---|---|---|
-| I-01 | UI invariant | URL、文案、responsive、互動順序與 loading／empty／error state不做非預期變更 | affected before/after browser interaction＋visual/DOM evidence |
-| I-02 | Contract invariant | 沿用目前 API payload、status、webhook、cron 與 Dennis 的資料格式，除非另有產品決策 | focused contract／integration tests |
-| I-03 | Data invariant | 不從 TypeScript cast 或 query 猜 database schema | schema-only introspection／dump＋migration rehearsal |
-| I-04 | Continuity invariant | 缺環境只能降低 evidence level，不能用 fallback 冒充 real-data verified | evidence ledger |
-| I-05 | Cross-database invariant | KV 主庫是自有 persistence；Teaching 是外部 source of truth。未經 ownership 決策不得跨庫寫入、dual-write、複製其 47-table schema或建立跨庫 transaction | dependency rule＋adapter contract＋CodeGraph caller check |
-| R-01 | Ownership | route 僅負責 auth／parse／HTTP mapping；business decision 與 side effect ordering 位於 domain/application owner | CodeGraph caller／impact map |
-| R-02 | Abstraction | 獨立 boundary 必須有多 consumer、外部 provider、transaction／recovery 或實質 translation | boundary review＋consumer evidence |
-| R-03 | Delivery | 每批是可獨立 review、驗收、commit 與回退的 domain outcome | change contract＋commit＋rollback seam |
-| R-04 | Feature lane | 產品需求不等待全案重構；被碰到的 legacy 只做完成需求所需的最小收斂 | feature intake record＋affected evidence |
-| R-05 | Documentation | 只有一份 live plan；歷史施工細節不在文件內重複累積 | `docs/` count＋Git history |
-| R-06 | External data truth | Teaching 的 unavailable／permission／schema error 不得被轉成「0 筆資料」；true empty與unavailable必須可區分，若未來加入snapshot則stale也必須可見 | adapter failure tests＋API／Meeting contract evidence |
-
-## 3. Verified current state
-
-以下 Fact 以 `766e814` 為 planning base；需求、推論、假設與未知不混作 Fact。
-
-### Current architecture
-
-```text
-Frozen UI／pages
-  → API routes（auth、parse、HTTP、composition）
-    → src/modules/<domain>（rules、capability、workflow）
-      → src/adapters/<domain>（Supabase／provider／legacy translation）
-        → shared provider client或仍在使用的具體legacy helper
-          → Supabase／LINE／OpenAI／Google／Teachify／Firecrawl
-```
-
-目前是「modular monolith＋legacy compatibility boundary」。它已足以健康維護既有功能，但不代表資料庫、provider、runtime reliability 與 production-like acceptance 已產品化完成。
-
-| ID | Fact | Evidence／anchor | Planning impact |
-|---|---|---|---|
-| F-01 | 共有 56 個 API `route.ts`；route 是 compatibility surface，不是模組切分單位 | `src/app/api/**/route.ts` | 不再按 route 建四件組 |
-| F-02 | `src/modules` 50 files、`src/adapters` 40 files；兩者合計只有 7 files 不超過 15 行 | `rg --files`＋line count | WP-T只增加一個domain owner與一個external adapter；不再按route機械式拆分 |
-| F-03 | 目前只有一份 docs 文件 | `docs/PRODUCTIZATION_TODO.md` | 保持單一 SSOT，但文件本身也必須瘦身 |
-| F-04 | `createGoalsService` 有 goals／history 兩個 route consumer；Support report runner 有 cron／manual 兩個 consumer | CodeGraph callers | 這類共享 owner 有真實保留理由 |
-| F-05 | Visit LINE ingress、Meeting realtime、Orders notification 等 capability 各有自己的 domain owner | `src/modules/visit/line-inbound.ts`、`meeting/realtime.ts`、`orders/orders.ts` | event 類型維持 domain workflow，不強迫成 Agent type 或共用 runtime |
-| F-06 | 無 production caller 的 generic `RuntimeKernel`／in-memory scaffold 與 Visit draft runtime 已刪除 | CodeGraph 查無 `RuntimeKernel`；commits `d524d5a`、`8216f33` | 禁止在第一個真實 consumer 前重建平台 |
-| F-07 | canonical Agent identity compatibility foundation 已存在；`AGENTS` 仍維持 legacy-compatible projection | `src/lib/agent-data.ts`、`src/modules/agents/identity.ts` | 全面 consumer cutover 改為需求觸發，不作固定前置工作 |
-| F-08 | `.env.local` 已配置 auth 與 CabLate `kv-staging` publishable access；尚無 Main service role、Teaching 與其他 provider keys | key-name-only inventory＋staging Data API probe | 可開始 Main RLS／一般使用者 journey；privileged routes與外部 provider仍有各自 gate |
-| F-09 | 最新完整自動驗證為 100 test files／498 tests、typecheck、lint、production build | WP-OAI release gate＋既有Playwright smoke 132／132 | 自動gate之外，另有Main staging／Teaching live／affected authenticated Chrome evidence |
-| F-10 | Teaching live project 有 47 public tables；KV source 只讀 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` | live schema introspection＋`src/adapters/operations/teaching-pipeline-source.ts` | Teaching 是共享外部產品，不納入 KV baseline ownership |
-| F-11 | `getPipelineOverview` 同時供 Operations API 與 `operationsContext` 使用；四個query已逐一檢查error，任一失敗會使整份snapshot unavailable | CodeGraph callers／impact＋`tests/unit/{operations-pipeline,meeting-context,agent-overview-routes}.test.ts` | silent-zero failure已關閉；live read-only acceptance仍需Teaching env |
-
-### Current source map
-
-每個實作批開始前仍須用 CodeGraph 重驗；本表是 cold-start 索引，不取代 live caller map。
-
-| Domain | UI／entrypoints | Current owner | Data／provider boundary | Current evidence |
-|---|---|---|---|---|
-| Auth | `/login`、auth routes、`proxy.ts` | `src/modules/auth/auth.ts`＋`src/lib/auth.ts` | signed cookie、auth env | real form login/logout verified；無資料庫依賴 |
-| Operations | `/goals`、`/todos`、`/subscribers`、`/outputs`、`/tv` 與相關 APIs | `modules/{goals,checklist,subscribers,operations}` | `adapters/{goals,checklist,subscribers,operations}`；主 Supabase | staging read與Goals create已過；update/delete/error semantics待本批關閉 |
-| Knowledge Base | `/knowledge-base{,/import}`、KB／cron APIs | `modules/knowledge-base/*` | `adapters/knowledge-base/*`；主 Supabase／Firecrawl／OpenAI | live schema/RPC與empty render已確認；DB-only CRUD/access待本批，provider ingestion/search另有gate |
-| Meeting | `/meeting`、9 個 Meeting APIs | `modules/meeting/{session,audio,conversation,realtime}.ts` | `adapters/meeting/*`；主 Supabase／Storage／OpenAI | schema/storage已replay；session/turn/recording persistence待本批，voice/AI另有gate |
-| Visit／Coco | LINE webhook、timeout、research、AI、public respond APIs；Visit／TV／Outputs | `modules/visit/*` | `adapters/visit/*`；主 Supabase／LINE／Google／OpenAI | ownership substantially consolidated；real event/data/recovery blocked |
-| Orders／Reporting／Support | Teachify webhook、cron/manual reports、Support relay/callback | `modules/{orders,reporting,support}` | `adapters/{orders,reporting,support}`；主 Supabase與外部 providers | structure/contract/render done；delivery/retry evidence blocked |
-| Agent identity／chat／TV | dashboard、Agent pages、TV、agent-chat API | `modules/{agents,agent-chat,live-task,tv}`＋`src/lib/agent-data.ts` | Agent／chat／live-task adapters；static roster＋主 Supabase | compatibility foundation done；全面 cutover deferred |
-| Teaching pipeline | Operations pipeline API、Operations page、Meeting/chat live context | `src/modules/operations/pipeline.ts`＋`src/adapters/operations/teaching-pipeline-source.ts` | **獨立 Teaching Supabase，唯讀四表** | typed boundary／failure semantics／consumer cutover與live real-data驗收完成 |
-
-### Progress by evidence dimension
-
-| Area | Ownership／structure | Contract | Render／auth | Real data／provider | Next trigger |
-|---|---|---|---|---|---|
-| Auth | Done | Done | Functionally verified | N/A | auth 行為改變時重驗 |
-| Operations | Done | Done | Authenticated Chrome CRUD/reset passed | Main DB-only journey verified | 真實Operations需求或資料契約變更 |
-| Teaching pipeline | Done；單一domain＋adapter | Success／empty／partial failure／timeout與兩consumer已測 | Operations authenticated Chrome passed | Live四表count／shape與real-data頁面已驗 | Teaching schema／RLS／consumer契約變更時重驗 |
-| Knowledge Base | Done | Done | Authenticated Chrome CRUD/access passed | DB-only journey complete；provider pending | 取得OpenAI／Firecrawl sandbox後驗ingestion/search |
-| Meeting | Done | Done | Authenticated Chrome persistence/storage passed | DB/storage journey complete；voice provider pending | 取得OpenAI sandbox後驗voice |
-| Visit | Substantially done | Done for current paths | Render smoke | Blocked | 真實需求或可靠性風險決定下一個 slice |
-| Orders／Reporting／Support | Done for current owners | Done | Render smoke | Blocked | 真實 webhook／cron/delivery fixture |
-| Agent model | Compatibility foundation done | Done | Render smoke | Partially blocked | 第一個新增 Agent／workflow／provider 需求 |
-| UI projections | Existing UI preserved | Existing API contracts | Smoke passed | Blocked | 只有資料來源實際改變或重複 mapping 時建立 projection |
-
-### Completed structural consolidation ledger
-
-| Area | Representative commits | Result |
-|---|---|---|
-| Corrective audit／plan reset | `410083a`、`996a4e0` | 發現 route-level 四件組膨脹並改成 domain-first |
-| Operations | `b39bd33`、`88449ae`、`a5c5685`、`b5f9fc0` | Goals／Checklist／Subscribers／read models 收成少量 owner |
-| Knowledge Base | `99856c3`～`265075b` | Documents／ingestion／crawl／search 依 capability 收斂 |
-| Meeting | `c163f1b`～`7a034ab` | Session／audio／conversation／realtime 收斂 |
-| Orders／Reporting／Support | `005c478`、`21fe9e2`、`015800b`、`caff8a9` | 保留真實 side-effect 與 provider boundary，移除 route alias |
-| Agent／UI read boundaries | `f866340`、`035c192`、`ff51633`、`eeecb1e` | identity compatibility、live-task、AI usage、TV read model 收斂 |
-| Visit／dead scaffold cleanup | `cc0780c`、`fc97689`、`c610836`、`8216f33`、`d524d5a`、`5fc13ec` | 保留 live workflow，刪除無 consumer runtime與薄包裝 |
-| Schema／cross-batch evidence | `4bbec8e`、`a979489` | 記錄 provenance 缺口與 test-env smoke，不冒充 real data |
-| Teaching external boundary | `9a96303` | 單一Operations domain＋typed read-only adapter；關閉silent-zero並刪除legacy helper |
-| OpenAI provider ownership | 本批commit | 官方SDK成為單一server protocol owner；prompt／mapping回各domain，刪除872行跨domain聚合helper；production＋manifest淨減34行，新增contract tests使總diff淨增409行 |
-
-## 4. Architecture and evolution decisions
-
-| ID | Decision | Consequence／revisit trigger |
-|---|---|---|
-| D-01 | 在原 repo 漸進整理 | 保留 Git history、既有 UI/API/data compatibility；不建立平行產品 |
-| D-02 | 目前 modular monolith 架構已可維護 | 停止為架構外觀繼續拆／併；只有需求、重複 owner或高風險 failure 才改 |
-| D-03 | 採 touch-and-migrate | 新需求碰到 legacy 時，先固定 affected behavior，再移動完成需求所需的最小邊界 |
-| D-04 | 事件類型、Agent identity、domain workflow、runtime reliability 分開建模 | Visit text、Orders webhook、daily report 不因都會「發生」就強制共用 workflow runtime |
-| D-05 | 舊 WP-04 的 event／CAS／lease／outbox 設計降級為候選 primitives，不再是預先選定的完整 canonical runtime | 先取得 schema truth；第一個真實流程只建必要能力，第二 consumer 出現才提升共享 abstraction |
-| D-06 | 保留 Agent identity compatibility foundation；全面 config／consumer cutover 改為需求觸發 | 新增 Agent／workflow／provider 時用真實 acceptance 證明 model，不做 catalog-driven 搬家 |
-| D-07 | 不執行 blanket UI projection cutover | 只有資料來源改變、跨頁重複 mapping 或寫讀 ownership 衝突時建立 projection |
-| D-08 | cheap gates 每批跑，heavy browser/provider/schema 驗證依 affected domain 集中跑 | 不用 docs-only 或 API-only micro-cut 反覆測無關 catalog；cutover 前不得延後高風險 evidence |
-| D-09 | 本文件維持 live current state；歷史 evidence 由 Git 承擔 | 不再新增 route-level Markdown、micro-checkpoint 或每日流水帳 |
-| D-10 | KV 主庫與 Teaching 保持兩個明確 owner | Main 在 CabLate 自有 Supabase 重建；Teaching 暫作 external read-only provider。現在不複製四表、不dual-write；只有可靠性 evidence 才規劃本地 snapshot，只有產品 ownership 轉移才另開完整 data migration |
-| D-11 | npm 套件採 touch-and-adopt，不另開全站換套件階段 | 套件必須實際接管外部 protocol、schema validation、parser 或已證明的 reliability primitive；domain policy、prompt、side-effect ordering與未證明的 abstraction仍由KV擁有。直接使用的套件必須列為direct dependency，並有runtime／bundle／rollback gate |
-
-### Boundary keep／collapse gate
-
-保留獨立 boundary 必須至少符合一項：
-
-- 兩個以上 production consumers 共用。
-- 外部 provider／SDK／protocol 需要替換、sandbox、timeout、rate-limit 或 error translation。
-- transaction、idempotency、lease、CAS、outbox、retry、replay 或 reconciliation。
-- payload／database row／error 有實質 translation。
-- application 明確協調多個 side effects、等待或 failure branch。
-
-預設收斂：single-caller interface、純 forwarding application、alias adapter、同一 CRUD resource 的 route-specific 四件組、只驗證 forwarding 的測試。
-
-**停止條件：** 如果改動不能降低重複 owner、縮小需求 blast radius、提高 failure 可驗證性或支援已知 consumer，就停止結構重構。
-
-## 5. Database and environment truth
-
-### Verified static evidence
-
-- Chrome 直接進入 tbr 組織的 Supabase Dashboard；OAuth connector 因協作者無組織授權權限失敗，但不影響 project-level read access。
-- Main project `time_alert`（ref `ytrolpaeuckdwgvifdhl`）已 read-only introspect：32 public tables、310 columns、66 constraints、66 indexes、6 public functions、94 public／storage policies、1 custom auth trigger、1 private Storage bucket，以及 33 筆 migration history metadata。
-- `supabase/migrations/20260801000000_live_baseline.sql` 已由 live catalog 產生並成為唯一active baseline migration；包含原 repo 缺少的 base DDL、`match_kb_chunks`、KB 實際欄位、RLS／ACL 與 `meeting-recordings` bucket metadata；不含 production rows、auth users、secret 或 migration statement bodies。
-- CabLate `kv-staging`（ref `gizswqvyavkfrtndfzsb`，Seoul）已由空白 project 套用canonical baseline；修正catalog經JS傳遞造成的bigint sequence max rounding後，重播成功。
-- Staging 與來源catalog精確核對：32 public tables、310 columns、66 constraints、66 indexes、6 public functions、94 public／storage policies、32個RLS-enabled tables、1 custom auth trigger、1 private Storage bucket；`metric_snapshots_id_seq` max為`9223372036854775807`。
-- Publishable key經PostgREST讀取`agent_goals`回HTTP 200／空集合，證明Data API exposure與anon read path可用；service-role與authenticated UI／CRUD仍須分開驗收。
-- 本機以既有登入狀態在Chrome驗收`/goals`、`/subscribers`、`/outputs`、`/knowledge-base`：四頁均載入staging且無console error；Goals第一次讀取依既有行為初始化16筆demo goals，UI建立暫存目標後雲端count變17，精確清理後頁面恢復16。Main read／create已證明；update、app-level delete與service-role路徑仍未關閉。
-- DDL後advisor顯示來源baseline既有債務：63項security WARN，以及73項performance建議（37 WARN／36 INFO）；這些不是replay drift，也不在本批擴成全面安全整改，後續依實際journey與風險排入hardening slice。
-- 原Local 7 份增量 migration均早於8/1 live snapshot且已被baseline吸收，已自active migration chain移除，由Git history保存；後續只新增forward-only delta。
-- CodeGraph／source 對第二個 `教學系統` project（ref `wsaknnhjgiqmkendeyrj`）只引用 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations`；live project 實際有 47 public tables，屬共享產品資料庫，不應整包複製進 KV。
-- Teaching 的四表契約已取得，但它們依賴共享的 `organizations`、`user_profiles`、`is_super_admin()` 與 `auth.users`；KV 應把它視為 external data contract，而不是假裝擁有其 migration。
-
-### Database ownership and data flow
-
-| Data／capability | Source of truth | KV responsibility | Freshness／failure contract | Future trigger |
-|---|---|---|---|---|
-| Agent、LINE、Meeting、KB、Contacts、Tasks | CabLate KV Supabase | schema、migration、read/write、recovery與release全權負責 | 由自有 staging／production 驗證；錯誤不可由empty fallback掩蓋 | 正常 forward-only migration |
-| Teaching pipeline summary | Teaching Supabase | 唯讀四表、轉成 `PipelineOverview`、保留API／UI契約 | empty、unavailable、permission/schema error必須可區分；live驗收記錄時間與project identity | 有持續availability／latency證據才加本地snapshot |
-| Teaching 47-table domain | Teaching system owner | 不擁有、不複製、不跨庫寫入 | 透過external contract隔離schema drift | 只有產品ownership正式轉移才啟動獨立data migration |
-
-### Remaining database work
-
-| Project | Current truth／remaining gap | Consequence |
-|---|---|---|
-| Main Supabase | `kv-staging` clean replay、catalog diff與Main DB-only affected journeys已通過 | 可以clean rebuild並承接需求；forward migration rollback留到第一個真實delta |
-| Teaching Supabase | 四個 consumer table 的 live contract 已取得；它是 47-table 共享系統且有外部 FK／RLS dependency | 建立 adapter contract／fixture，不把整個 Teaching DB 納入 KV ownership |
-| Runtime env | `.env.local` 已有Main staging URL／publishable key；沒有secret/service-role、Teaching endpoint／key | 先用目前實際anon contract跑完整Main journey；只有route確實需要bypass RLS時才把secret key列為blocker，不為勾選項目先升權 |
-| Providers | Main／Teaching設定可用；`OPENAI_API_KEY`、LINE／Google／Teachify／Firecrawl key或安全 fixture尚未提供 | WP-B-OAI可先完成caller map、failure contract與fail-closed harness；沒有key不得把mock／render升級成production-like evidence |
-
-### Resolution package DB-01
-
-**State:** Clean replay complete；runtime acceptance active。Schema 透過 Dashboard read-only 取得；原始 catalog snapshot 僅留在本機稽核目錄，不提交大型 dump。
-
-**Required evidence:**
-
-1. [x] 取得 Main 與 Teaching 的 tables、columns、PK/FK、indexes、extensions、RLS/policies、functions/triggers 與 Storage metadata。
-2. [x] 只記 project class／reference；不把 key、production rows 或 auth users提交 Git。
-3. [x] 以 CodeGraph／source確認Main consumers與Teaching 4-table contract；以live catalog補齊Main 32 tables、6 functions及repo migration缺口。
-4. [x] 在CabLate空白`kv-staging`套用canonical baseline，修正bigint序列上限精度並比對catalog counts／definitions一致。
-5. [x] 將既有7份migration分類為已吸收歷史並自active chain移除，避免clean setup重複建立同一物件；後續只加forward-only delta。
-6. [x] 由 WP-T 為Teaching四表建立明確adapter contract、fixture、錯誤語意與ownership；不複製47-table shared schema。
-7. [x] Main publishable env、Data API與authenticated pages已通過；WP-MAIN另完成Goals create／update／API delete／reset、Checklist toggle、Subscribers tag update、KB CRUD／access、Meeting DB／Storage persistence、signed URL與Outputs read。應用runtime不需secret；只有管理者清理無delete policy的錄音測試物件時使用一次server secret，未寫入env／browser／Git。
-
-**Blocks now:** 主庫schema猜測、clean rebuild、Main DB-only runtime baseline與Teaching live integration均已解除；KB provider ingestion/search、其他provider-backed journey、rollback rehearsal與production cutover仍受各自後續gate限制。
-
-**Safety rule:** canonical baseline migration只套用clean environment；不得直接push到來源production project。後續production變更一律以forward-only delta migration進行。
-
-## 6. Execution tracks and active TODO
-
-### Work graph
-
-```text
-WP-00 Current-state／plan reset（完成）
-
-WP-F Feature lane（隨時可執行）
-  └─ affected baseline → 最小需求實作 → touch-and-migrate → affected evidence
-
-WP-DB KV primary rebuild → WP-MAIN Main DB-only functional baseline ─┐
-WP-T Teaching external boundary ──────────────────────────────────────┼→ WP-B Evidence ledger
-Provider credentials／sandbox ────────────────────────────────────────┘
-      → WP-D Demand/risk-driven domain slice
-          → WP-R Shared reliability primitive（只有第二 consumer 證明時）
-              → WP-X Cutover／cleanup
-```
-
-WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與Operations public contract各有單一serial owner。WP-DB只負責KV主庫，WP-T只負責Teaching外部讀取，兩者不得混成同一repository或migration。
-
-| WP | Outcome | State | Depends on | Produces／next gate |
-|---|---|---|---|---|
-| WP-00 | 現況、版本、映射、依賴與完成維度重新可信 | Complete | none | 本文件與 current source map |
-| WP-F | 新需求在現有產品可持續交付，並局部改善被碰到區域 | Ready／ongoing | affected source preflight | feature evidence；可能觸發 WP-D |
-| WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Replay complete | `kv-staging`＋Main runtime env | baseline replay／catalog diff／Data API evidence；handoff給WP-MAIN |
-| WP-MAIN | 不依賴外部provider的Main資料功能在staging可讀寫、可辨識錯誤並可清理測試資料 | Complete | WP-DB；既有UI/API/data contract | Main DB-only functional baseline與key-class evidence |
-| WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Complete | live四表schema＋既有API contract | adapter contract／fixtures／兩consumer cutover／legacy deletion／live read acceptance |
-| WP-OAI | OpenAI協定由官方SDK與一個shared transport擁有；prompt／mapping回到既有domain adapter | Complete | Node 22、既有provider contracts | provider真實journey仍依WP-B sandbox gate；一般維護不再受舊聚合owner阻礙 |
-| WP-B | 核心 journey 有real-data/provider-safe baseline | Main＋Teaching baseline complete；WP-B-OAI active／credential pending；其他external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
-| WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
-| WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
-| WP-X | 新路徑穩定、舊路徑歸零、團隊可 release／rollback | Pending | affected WP-D／WP-R | production-like evidence＋cleanup |
-
-### WP-F — Feature lane
-
-每項需求依序：
-
-1. 用 CodeGraph 找 affected UI、API、business owner、data/provider、callers與tests。
-2. 保存使用者可觀察的 before；只對 affected surface 建 change contract。
-3. 若已有乾淨 owner，直接在該 owner實作；不要為了產品化再包一層。
-4. 若碰到 legacy，先固定 contract，再把完成需求所需的最小 decision／side effect 移到 domain owner。
-5. 若受 DB／provider阻塞，完成可獨立驗證的 pure logic／contract；將 integration evidence 明列 deferred owner與gate。
-6. 一個需求 outcome 一個 commit；不要把無關全域清理混入。
-
-**Done when:** 需求完成、affected behavior有相稱 evidence、blast radius沒有擴大，且沒有新增無刪除條件的 transitional code。
-
-### WP-MAIN — Main staging functional baseline
-
-**Outcome／goals:** 支援G-02、G-03、G-04與I-01～I-05。工程師能以目前Main staging完成不依賴LINE／OpenAI／Google／Teachify／Firecrawl的代表性資料journey；資料庫錯誤不得被成功空集合掩蓋，UI／UX、API成功payload與既有資料格式不變。
-
-**Scope／non-changes:** 重用現有Goals、Checklist、Subscribers、Knowledge Base、Meeting owner與adapter；不建立route-level四層模組、不改UI、不在本批全面重寫RLS、不呼叫會產生真實外部副作用的provider。Goals空庫仍維持16筆示範目標的既有可見結果，但初始化／reset任一步驟失敗必須可診斷，不能回傳假成功。
-
-**Implementation wave（先改完，最後集中驗）:**
-
-1. 以CodeGraph與source重驗上述entrypoint、repository、caller與現有tests；只修會影響本批journey的忽略error、部分寫入或假empty路徑。
-2. 完成Goals read／create／update／delete／reset與Checklist toggle；讓Supabase read/write error走既有API failure boundary，保留成功payload。
-3. 完成Subscribers list／update，以及Outputs／activity等Main read model；LINE profile、broadcast等外部副作用只保留fixture contract。
-4. 完成Knowledge Base document CRUD／access與empty index/RPC；PDF、crawl、embedding/search只做到無憑證時的明確failure，不宣稱provider成功。
-5. 完成Meeting start／turn／finish／private recording persistence；transcribe／speak／realtime AI保留provider gate。
-6. 先使用publishable key驗證實際現況；只有某條server route因合法RLS需求無法完成時，才取得server-only secret key並記錄該route，禁止把secret放進browser或Git。
-
-**集中驗收：** 程式碼wave完成後才一次執行focused＋full tests、typecheck、lint、build；再以同一批Chrome session點完affected頁面與互動，逐條核對staging row／storage side effect，最後刪除所有`codex-e2e-*`暫存資料。失敗回到實際owner修正後，只重跑affected gate與一次final full gate。
-
-**Done when:** Goals與Checklist具完整UI/API/DB create-or-update/delete evidence；Subscribers與read models有真實staging evidence；KB DB-only與Meeting persistence完成且provider缺失不冒充成功；測試資料清零；CodeGraph無新增低訊號boundary；本批以coherent outcome commit並更新本文件。
-
-**Current completion:** 完成。CodeGraph確認沿用既有owner，未新增route-level四層包裝；99 test files／491 tests、typecheck、lint、production build全過。Chrome以真實登入依序驗Goals、Todos、Subscribers、Knowledge Base、Meeting與Outputs，無console error；API補驗Goals delete／reset與Meeting multipart recording。Staging核對meeting turn／finish／recording path／signed URL與subscriber／KB／checklist／access side effect，最後確認16筆預設Goals且所有`codex-e2e-*` DB／Storage資料為0。錄音正式保留／刪除政策仍屬產品生命週期決策；本批未為方便測試而開放anon delete。
-
-### WP-T — Teaching external data boundary
-
-**Outcome／goals:** 支援G-02、G-03、G-04與I-02、I-05、R-01、R-02、R-06。Operations API與Meeting context維持現有成功payload；Teaching故障不再被呈現成可信的零資料。
-
-**Current anchors:** `src/modules/operations/pipeline.ts#buildPipelineOverview`；`src/adapters/operations/teaching-pipeline-source.ts#getPipelineOverview`；`src/app/api/agents/operations/pipeline/route.ts`；`src/lib/meeting-context.ts#operationsContext`。CodeGraph impact顯示domain mapping經單一adapter composition供Meeting consumer使用；route的function-value引用另以source map／route contract補足。
-
-**Target ownership:**
-
-| Capability | Target owner | Responsibility | Forbidden responsibility |
-|---|---|---|---|
-| Pipeline model／分類／統計 | `src/modules/operations/pipeline.ts` | canonical `PipelineOverview`、row-to-domain translation與aggregation | 建立Supabase client、認識env或隱藏provider error |
-| Teaching reads | `src/adapters/operations/teaching-pipeline-source.ts` | typed四表select、read-only client、timeout／error translation | business分類、跨庫寫入、把error轉成empty |
-| HTTP／Meeting consumers | 既有route與`operationsContext` | 呼叫同一Operations use case並維持既有輸出 | 直接query Teaching或各自重做mapping |
-
-**Steps:**
-
-- [x] 以現有`PipelineOverview`與兩個consumer建立success／empty／provider-error change contract。
-- [x] 在Operations domain內建立一個`TeachingPipelineSource` contract與既有business mapping；未為四張表各建service／port／adapter。
-- [x] adapter加入精確row types、四個query的error檢查與一致failure translation；保持anon/read-only且未新增寫入。
-- [x] route與Meeting context切到同一Operations use case；外部成功payload與UI維持不變。
-- [x] 用fixture驗證正常、真正empty、permission／部分query失敗與timeout。
-- [x] 以Teaching project URL＋publishable client key執行四表read-only acceptance：`projects` 60、`project_sessions` 45、`enterprise_inquiries` 0、`quotations` 25；四表精確select均成功，三張非空表的sample shape符合adapter contract，且未讀取／記錄production row內容。
-- [x] CodeGraph sync後確認legacy符號消失，並刪除`src/lib/teaching-system.ts`與過期mock。
-
-**Failure contract:**
-
-| State／failure | Detection | Required behavior | Evidence |
-|---|---|---|---|
-| True empty | 四個query成功且row count為0 | 回傳既有零值／空陣列success payload | empty fixture＋route contract |
-| Missing env／auth拒絕 | client preflight或Supabase error | API走既有502 boundary；Meeting不得產生「0筆」敘述 | negative fixture＋consumer test |
-| Schema drift／單一query失敗 | 每個query檢查`error`；任一失敗即整份snapshot unavailable | 不混合部分成功資料，不回傳假零值 | partial-failure tests |
-| Timeout／network failure | 共用8秒`AbortSignal`（測試可注入較短timeout） | 同provider failure；不洩漏key | timeout fixture |
-
-**Failure／rollback:** 任一consumer parity失敗時回退整個WP-T commit，不保留半套新舊路徑；不得以catch後回傳全零作rollback。外部不可用時由既有API 502／Meeting failure boundary處理，或另行設計最後成功snapshot，但後者必須有獨立需求與freshness contract。
-
-**Current completion:** Complete。code／contract／live Teaching四表read-only acceptance與Operations authenticated Chrome real-data頁面均已完成；本機只保存publishable client設定，未使用service role，未寫入Teaching。
-
-**Done when:** 兩個consumer通過contract與affected browser驗證；Teaching error不再冒充empty；CodeGraph無direct Teaching query散落；legacy helper刪除；未新增local table、dual-write或generic data-source framework；live read-only count／shape已核對。
-
-**Deferred decision:** 只有觀測到Teaching availability／latency影響SLO時，才規劃KV-owned read snapshot與同步／reconciliation；只有Teaching產品ownership移交時，才規劃完整schema與data migration。兩者都不是WP-T完成條件。
-
-### WP-OAI — OpenAI dependency adoption and ownership repair
-
-**Outcome／contribution:** 支援G-01、G-02、G-04與R-01、R-02、R-04。移除同時擁有Knowledge Base、Visit、Meeting、Agent Chat與Contact Research的872行`src/lib/openai.ts`；官方`openai` SDK只擁有OpenAI protocol，`zod`只擁有外部structured payload validation，KV domain仍擁有prompt、model選擇、usage identity、fallback與side-effect ordering。
-
-**Scope／non-goals:** entrypoints為`src/lib/{kb-import,kb-search,contact-research,chat-canvas}.ts`與既有`src/adapters/{agent-chat,visit,meeting}/*`。不改UI／UX、API payload、資料格式、prompt文案、model、temperature、token limits、usage logging、provider fallback或真正外部side effect；本批不切Responses API、不新增retry／queue／workflow framework，也不為每個OpenAI function建立port／service／adapter四件組。
-
-**Dependency adoption gate:**
-
-| Candidate | Decision in this package | Owns | Must not own／rollback |
-|---|---|---|---|
-| official `openai` SDK | Adopt as exact direct dependency；Node runtime固定`>=22` | auth header、request serialization、Chat／Responses／Embeddings／Audio client protocol與SDK error shape | 不搬prompt／domain parsing；若contract或build不相容，整批回退到原fetch path，不保留雙transport |
-| `zod` | Adopt as exact direct dependency | 既有structured JSON與provider response的runtime shape validation | 不用schema推導business model；驗證行為必須維持既有error boundary |
-| retry／queue／frontend fetch framework | Reject for this package | none | 未證明idempotency與第二consumer前不導入；UI data fetching不在本批 |
-
-**Behavior contract (`behavior-contract/v1`, `shared.openai-provider-ownership`):**
-
-- Consumers／state：保留上述所有既有caller、`OPENAI_API_KEY` env、既有models與真實業務context；server-only邊界不變。
-- Outputs／side effects：成功回傳shape、OpenAI request options、AI usage記錄時機／operation identity、Meeting audio binary、Realtime client secret與Visit／KB／chat failure propagation均不變；不新增DB、LINE、Email、Storage或browser side effect。
-- UI states：Meeting、Visit、Knowledge Base與Agent chat的first-paint／loading／ready／empty／error畫面與互動完全照舊。
-- Invariants：一個shared SDK client／protocol owner；domain prompts只存在於domain-owned provider；不得留下`@/lib/openai`caller、純轉傳adapter或新generic AI framework；Zod failure不得被轉成可信empty/success。
-- Acceptance examples：相同mock response必須產生相同domain output；missing key／non-2xx／malformed JSON維持既有failure；Meeting audio／Realtime、Visit邀約、KB embedding／extraction與Agent chat的request semantics由focused tests固定。
-- Evidence mapping：CodeGraph caller／impact、既有Meeting／Visit／KB／Agent Chat suites與新增shared-client contract；整批完成後跑typecheck／lint／full tests／build，再用authenticated Chrome逐一檢查四個affected UI且不觸發真實provider side effect。
-- Intentional changes：只有dependency graph、internal ownership與provider error normalization可因SDK型別而改；任何外部可觀察差異都視為regression。Open question只有production Node 22宣告位置，實作前以manifest／build結果關閉。
-
-**Implementation wave（先改完，最後集中驗）:**
-
-1. 固定shared client與各domain provider的request／response／error contract，補上缺少的malformed response案例。
-2. 加入exact direct dependencies與Node 22 manifest gate；建立單一server-only OpenAI client／protocol helper。
-3. 將Meeting、Visit、Agent Chat、Knowledge Base／Research prompt與mapping移入既有domain owner，刪除純轉傳與`src/lib/openai.ts`。
-4. 以CodeGraph／source search確認舊import為0、沒有route-level四層或重複SDK client；檢查production file／LOC delta只作bloat警報，不當成功指標。
-5. 集中執行focused＋full automated gates與affected Chrome；失敗只回到真實owner修正，最後一次full gate後提交coherent outcome。
-
-**Done when／rollback:** 所有既有consumer通過contract，`src/lib/openai.ts`與薄轉傳歸零，shared transport只有真實多domain consumer，UI/API/data／side-effect契約不變，dependency與Node runtime可重建。任一高風險consumer parity或build失敗即回退整個WP-OAI commit；不保留兩套transport、feature flag或compatibility shim。
-
-**Current completion:** Complete。官方`openai@7.3.0`與`zod@4.4.3`為exact direct dependencies，Node manifest固定`>=22`；server-side API-key呼叫只由`src/adapters/openai/client.ts`擁有，Knowledge Base、Contact Research、Visit、Meeting、Agent Chat與Reporting保留各自prompt／mapping／fallback。瀏覽器Realtime SDP以短效token直連`/realtime/calls`，刻意維持client-only WebRTC邊界，不把server SDK打進前端bundle。CodeGraph與source search確認`src/lib/openai.ts`、舊import與第二個server transport皆為0；production＋manifest為898 additions／932 deletions（淨減34），新增contract tests後全批為1,418 additions／1,009 deletions。100 test files／498 tests、typecheck、lint、93-page production build與`git diff --check`全過。Authenticated Chrome實際巡Meeting、Visit、Knowledge Base、Team Lead、Support、Goals，並開啟Agent chat、輸入／清除草稿後關閉；所有頁面無visible error或console error，未觸發OpenAI、LINE或Email side effect。
-
-### WP-B — Core functional baseline
-
-依dependency分成現在可完成與外部gate，不再把兩者混成一條模糊清單：
-
-- **已完成：** Auth login→protected page→logout；WP-MAIN的Operations read/write、Knowledge Base DB-only CRUD/access/empty RPC、Meeting persistence/storage與相鄰Main read models。
-- **已完成（WP-T）：** Operations API／頁面與Meeting context的success、true empty、unavailable contracts，以及Operations頁面的live real-data驗收。
-- **現在執行（WP-B-OAI）：** 固定KB embedding/search、Meeting conversation/audio/realtime與Agent Chat的controlled acceptance；目前credential pending，先完成fail-closed harness，不冒充真實provider成功。
-- **取得其餘sandbox／安全fixture才執行：** KB crawl的Firecrawl、Visit LINE／Google、Teachify webhook與LINE delivery；未取得前只驗contract與明確failure。
-
-每條 journey 保存 input、data source、side effect、result、error/recovery與browser/API/DB evidence。沒有執行到的路徑保持 Pending，不用整頁 smoke 取代。
-
-#### WP-B-OAI — Controlled OpenAI provider acceptance
-
-**State／boundary:** Active；`OPENAI_API_KEY` pending。沿用`behavior-contract/v1`的`shared.openai-provider-ownership`，本批只提升真實provider evidence，不改UI／UX、prompt、model、API payload、資料格式或side-effect ordering，也不藉驗收切Responses API、升級model或加入retry／queue framework。
-
-**Entrypoints／consumers:** `src/adapters/openai/client.ts`；Knowledge Base import/search；Meeting conversation/transcription/speech/realtime-session；Agent Chat reply。Visit email／Contact Research可先做不寄信、不建Calendar、不LINE推播的provider-only acceptance；Reporting與其他外部delivery留在各自sandbox批次。
-
-**Acceptance contract:**
-
-- 缺`OPENAI_API_KEY`時harness必須fail closed並明示credential gate，不得skip後仍回報成功。
-- Controlled fixture只使用合成文字／音訊；不得送production row、聯絡人、會議錄音或其他個資到provider。
-- 每個call核對model、request shape、domain output與error boundary；structured output必須經既有Zod驗證，malformed／refusal／incomplete不得成為可信success。
-- KB embedding須核對向量維度、chunk對應與`ai_usage` operation；Meeting audio核對非空transcript／audio bytes，Realtime只建立短效client secret，不自動取得麥克風或開啟長連線。
-- DB evidence以本批`startedAt`＋operation／`agent_slug` correlation只讀核對；保留`ai_usage_logs`作成本audit，不建立domain fixture row，也不得改schema、RLS或production資料。
-- 最後以authenticated Chrome檢查KB、Meeting與Agent Chat affected states；不點寄信、LINE、Calendar或cron delivery。
-
-**Execution wave:**
-
-1. CodeGraph重驗上述entrypoint、caller、API route、DB write與tests；以官方OpenAI docs核對目前SDK／Realtime client-secret contract。
-2. 建立explicit opt-in acceptance harness；沒有`OPENAI_ACCEPTANCE=1`或key時非零退出，不加入一般unit test的假綠結果。
-3. 先完成合成fixture、request／response檢查、usage correlation與cleanup query；此步不需要真實key即可review，但不能標為provider verified。
-4. 取得server-only OpenAI key後集中跑Chat、Embedding、Transcription、Speech與Realtime client secret；核對staging usage後清理fixture。
-5. 完成affected Chrome、full automated gates、CodeGraph sync與coherent commit；任一parity失敗只回到該domain owner修正。
-
-**Current completion:** fail-closed acceptance harness、合成fixture、production adapter串接、usage correlation query與MP4／MP3／OGG／WAV／WebM transcription檔名處理已完成；缺key時已證明非零失敗且沒有provider call。100 test files／498 tests、typecheck、lint、93-page production build、`git diff --check`與CodeGraph sync全過。Authenticated Chrome以production build實際巡Meeting、Knowledge Base、Goals並開啟／關閉Agent Chat；頁面無app console error、未送出訊息，也未觸發OpenAI或其他external side effect。真實Chat／JSON／Embedding／TTS／STT／Realtime client-secret與usage row尚未執行，因此本work package維持Active／credential pending。
-
-**Done／rollback:** 所有contracted provider surfaces皆有真實成功與明確failure evidence，usage／DB side effect可reconcile、未新增domain fixture row，Chrome行為照舊，standard key從未進browser／Git。若SDK或domain parity失敗，回退affected provider change；不得保留第二套transport或用mock替代done gate。
-
-### WP-D — Demand/risk-driven domain slice
-
-候選順序不是固定 roadmap；每次由當下需求、營運風險與 WP-B evidence決定：
-
-| Trigger | 最小 slice | 不自動擴張成 |
-|---|---|---|
-| KB actual schema/RPC drift 阻礙功能 | 修正 baseline／mapping／integration test | 全面重寫 KB平台 |
-| LINE／Teachify duplicate或lost delivery有證據 | 對該一條 flow 加 admission／idempotency／receipt | 通用 Agent runtime |
-| Cron/report無法追蹤或安全重跑 | 對該 business period 加 artifact／replay semantics | 所有 background job framework |
-| 新增一個 Agent／workflow／provider | 擴充 identity/config與該 consumer mapper | 全 catalog／UI一次搬遷 |
-| 多頁出現相同資料 mapping或source切換 | 建一個共享 read projection | blanket UI projection cutover |
-
-### WP-R — Shared reliability primitive
-
-只有第二個真實 consumer出現且語意相同時才抽出。共享的通常是 idempotency、atomic claim、outbox、receipt、correlation或reconciliation；domain workflow、event parsing與Agent presentation仍各自擁有。
-
-**Rejection gate:** 如果 abstraction 只能靠名稱相似、fixture或未來想像證明，留在第一個 domain內。
-
-## 7. Verification, cutover and cleanup
-
-### Evidence levels
-
-1. `Structurally verified`
-2. `Contract tested`
-3. `Render smoke passed`
-4. `Functionally verified`
-5. `Production-like verified`
-
-不得把低層證據升級描述。Current source map、test-env Playwright、mock provider與empty fallback都不能單獨證明 real-data journey。
-
-### Evidence by change
-
-**Batch policy:** 同一WP先完成所有可安全修改的程式碼與focused contract，不在每個route或API-only micro-cut後重跑Chrome／full build。Heavy gate只在WP整合點集中跑一次；若失敗，修正後跑affected gate，最後再跑一次full gate。不可延後的只有dirty-worktree檢查、不可逆資料操作、migration／secret風險與低成本syntax/type evidence。
-
-| Change | Minimum during implementation | Heavy／deferred gate |
-|---|---|---|
-| Docs／plan only | encoding、links/anchors、stale refs、`git diff --check` | 只有改變 runtime claim或操作指令時才需browser sanity |
-| Pure domain rule | focused unit＋typecheck | affected integration before release |
-| Route／application | focused contract／API tests＋cheap static gates | domain batch結束時點 affected authenticated interaction |
-| Repository／schema | integration＋local rehearsal＋rollback/reconcile query | staging real-data／migration gate |
-| Provider adapter | fixture contract＋timeout/error/partial failure | sandbox／canary when available |
-| UI data source／interaction | component/contract＋before baseline | affected authenticated desktop/mobile interaction＋visual |
-| Runtime／cutover | duplicate/retry/restart/replay＋parity | canary、telemetry、rollback rehearsal |
-
-### Cutover gate
-
-- Same input/output/error與UI contract有 parity evidence。
-- 資料 key、count、state與side effect可reconcile。
-- duplicate delivery／lost action有 prevention與receipt。
-- correlation、error、latency與replay結果可查。
-- old path仍可安全回退，且rollback不會反向遺失資料。
-
-### Cleanup gate
-
-- legacy route owner沒有 caller／traffic。
-- WP-T legacy `src/lib/teaching-system.ts`已在兩個consumer切換、CodeGraph sync與source search確認後刪除，未留下forwarding shim。
-- compatibility window與reconciliation完成。
-- shim、flag、shadow/dual-write、dead schema/code/test/dependency已刪或有明確保留決策。
-- README／本文件與CodeGraph指向新owner。
-- 另一位工程師能依env/runbook重跑release與rollback。
-
-## 8. Traceability and readiness
-
-| Goal | Requirements／invariants | Work packages | Outcome evidence |
-|---|---|---|---|
-| G-01 | R-01～R-04 | WP-F、WP-D、WP-X | 新需求局部交付、owner明確、可回退 |
-| G-02 | I-01、I-02、I-04、R-06 | WP-F、WP-MAIN、WP-T、WP-B、WP-X | affected functional＋visual parity；external error不冒充empty |
-| G-03 | I-03～I-05、R-06 | WP-DB、WP-MAIN、WP-T、WP-B | Main clean replay／DB-only journey、Teaching contract、env identity與real journey |
-| G-04 | R-01、R-02、R-06 | WP-F、WP-MAIN、WP-T、WP-D | CodeGraph owner/caller與contract evidence |
-| G-05 | R-02、R-04 | WP-D、WP-R | 第二 consumer或真實可靠性需求 |
-| G-06 | R-03 | WP-X | production-like、rollback、legacy deletion |
-
-### Verdict: Main＋Teaching baseline complete；其他external acceptance按需進行
-
-**整體 blocker:** Main baseline、WP-MAIN、Teaching live read與WP-OAI ownership repair均已完成。LINE／OpenAI／Google／Teachify／Firecrawl等provider-backed journeys仍受各自sandbox／fixture限制；它們不阻塞一般需求與局部重構，只阻塞對應domain的production-like宣告。
-
-**現在可執行:** WP-F可立即承接產品需求；只有遇到可證明的ownership／可靠性問題時才開WP-D。取得對應sandbox後，再逐domain補provider-backed WP-B evidence，不另開無需求支撐的全域重構階段。
-
-**被阻塞:** LINE／OpenAI／Google／Teachify／Firecrawl production-like journey需相應sandbox／fixture。Main secret key只有實際route證明需要時才成為blocker。Teaching local snapshot與完整data migration不是blocker。
-
-**升級條件:** Teaching consumer已具production-like read baseline；其餘domain只在取得provider sandbox與真實需求後逐一升級，不要求先搬完整個系統。
-
-## 9. Documentation policy
-
-- 本文件是唯一 live plan、TODO、現況索引與 readiness verdict。
-- 完成批次只在 ledger 保留一行 outcome＋代表 commit；詳細 evidence由Git、tests、Playwright artifacts或DB query保存。
-- Live symbol mapping由CodeGraph重驗；本文件只保留cold-start所需的stable owner path。
-- 不建立route-level Markdown、micro-checkpoint、每日流水帳或另一份runtime／migration roadmap。
-- 文件每次更新都移除過期snapshot、已完成細節與不再改變決策的段落；單一文件不等於可以無限制增長。
+| UI／UX 與外部契約不變 | WP-01、03～07、10～18、固定驗收模板 |
+| domain owner 清楚、架構不膨脹 | WP-01、04、06、20、22 |
+| 前端可維護且可驗證 | WP-05、07、21 |
+| Main／Teaching 資料契約可信 | 已完成基線、WP-03 |
+| 外部功能真實可用 | WP-02、10～18 |
+| failure／retry／recovery 有依據 | WP-16～20 |
+| CI、部署、rollback 可重複 | WP-21、22 |
+| 需求可持續並行 | WP-F |
+
+## 9. 目前 readiness 判定
+
+- 第一個可執行工作包：`WP-01`，剩 Chrome／清理證據／commit。
+- 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、部分 Visit legacy boundaries 與 `src/lib` ownership 仍待需求／風險驅動收斂。
+- 資料庫：Main／Teaching 基線可用；Main generated types 尚未完成。
+- 外部功能：多數仍是 credential-gated，不能只靠 unit tests 宣稱正常。
+- 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
+- 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
+
+## 10. 文件政策
+
+- 本文件是唯一 TODO／產品化控制面。
+- Git 歷史保存過程；不建立 `TODO-v2`、每日報告、重構日誌或重複 architecture 文件。
+- 穩定且需要冷啟動的知識才進 README／runbook；短期調查只留在 commit／task context。
+- 完成的工作包只保留結論、證據與 commit，不持續堆疊逐日敘事。
