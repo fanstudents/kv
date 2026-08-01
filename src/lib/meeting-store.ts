@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabase } from "./supabase";
+import { getMainSupabase } from "./supabase";
 
 // 視訊會議室的持久化：meetings（一場會議）＋ meeting_turns（會議中每一句）。
 // 錄音檔存 Supabase Storage 的 meeting-recordings（私有）bucket，播放時才簽發 signed URL。
@@ -15,7 +15,7 @@ export interface MeetingTurnInput {
 
 /** 開一場新會議，回傳 meeting id。 */
 export async function createMeeting(title?: string): Promise<string | null> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data, error } = await supabase
     .from("meetings")
     .insert({ title: title ?? null })
@@ -27,7 +27,7 @@ export async function createMeeting(title?: string): Promise<string | null> {
 
 /** 目前這場會議已有幾句（用來接續 turn_index）。 */
 async function nextTurnIndex(meetingId: string): Promise<number> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { count, error } = await supabase
     .from("meeting_turns")
     .select("id", { count: "exact", head: true })
@@ -39,7 +39,7 @@ async function nextTurnIndex(meetingId: string): Promise<number> {
 /** 依序把老闆指令、各 Agent 回覆、Team Lead 統整寫進 meeting_turns。 */
 export async function appendTurns(meetingId: string, turns: MeetingTurnInput[]): Promise<void> {
   if (turns.length === 0) return;
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const base = await nextTurnIndex(meetingId);
   const rows = turns.map((t, i) => ({
     meeting_id: meetingId,
@@ -55,7 +55,7 @@ export async function appendTurns(meetingId: string, turns: MeetingTurnInput[]):
 
 /** 取最近幾句當作下一輪的脈絡，讓 AI 回應有連貫性。 */
 export async function getRecentHistory(meetingId: string, limit = 6): Promise<string> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data, error } = await supabase
     .from("meeting_turns")
     .select("role,speaker,content")
@@ -80,7 +80,7 @@ export async function uploadRecording(
   ext: string,
   contentType: string
 ): Promise<string | null> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const path = `${meetingId}/recording.${ext}`;
   const { error } = await supabase.storage
     .from(RECORDING_BUCKET)
@@ -94,7 +94,7 @@ export async function finishMeeting(
   meetingId: string,
   fields: { transcript?: string; durationSeconds?: number; recordingPath?: string | null }
 ): Promise<void> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
 
   // summary 取這場會議最後一次 Team Lead 統整
   const { data: lastLead, error: summaryError } = await supabase
@@ -122,7 +122,7 @@ export async function finishMeeting(
 
 /** 簽發錄音檔的臨時可存取連結（預設 1 小時）。 */
 export async function getSignedRecordingUrl(meetingId: string): Promise<string | null> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data: meeting, error: meetingError } = await supabase
     .from("meetings")
     .select("recording_path")

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSupabase } = vi.hoisted(() => ({ getSupabase: vi.fn() }));
+const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import {
   appendTurns,
@@ -22,7 +22,7 @@ describe("Meeting store persistence boundaries", () => {
     };
     countQuery.select.mockReturnValue(countQuery);
     const insert = vi.fn().mockResolvedValue({ error: null });
-    getSupabase.mockReturnValue({
+    getMainSupabase.mockReturnValue({
       from: vi.fn().mockReturnValueOnce(countQuery).mockReturnValueOnce({ insert }),
     });
 
@@ -32,7 +32,7 @@ describe("Meeting store persistence boundaries", () => {
     ]);
 
     countQuery.eq.mockResolvedValueOnce({ count: null, error: { message: "count failed" } });
-    getSupabase.mockReturnValue({ from: () => countQuery });
+    getMainSupabase.mockReturnValue({ from: () => countQuery });
     await expect(appendTurns("meeting-1", [{ role: "boss", content: "hello" }])).rejects.toThrow("count failed");
 
     countQuery.eq.mockResolvedValueOnce({ count: 0, error: null });
@@ -40,7 +40,7 @@ describe("Meeting store persistence boundaries", () => {
     const failingInsertClient = {
       from: vi.fn().mockReturnValueOnce(countQuery).mockReturnValueOnce({ insert }),
     };
-    getSupabase.mockReturnValue(failingInsertClient);
+    getMainSupabase.mockReturnValue(failingInsertClient);
     await expect(appendTurns("meeting-1", [{ role: "boss", content: "hello" }])).rejects.toThrow("insert failed");
   });
 
@@ -54,7 +54,7 @@ describe("Meeting store persistence boundaries", () => {
     query.select.mockReturnValue(query);
     query.eq.mockReturnValue(query);
     query.order.mockReturnValue(query);
-    getSupabase.mockReturnValue({ from: () => query });
+    getMainSupabase.mockReturnValue({ from: () => query });
 
     await expect(getRecentHistory("meeting-1")).rejects.toThrow("history failed");
   });
@@ -76,14 +76,14 @@ describe("Meeting store persistence boundaries", () => {
       eq: vi.fn().mockResolvedValue({ error: { message: "update failed" } }),
     };
     update.update.mockReturnValue(update);
-    getSupabase.mockReturnValue({
+    getMainSupabase.mockReturnValue({
       from: vi.fn().mockReturnValueOnce(summary).mockReturnValueOnce(update),
     });
 
     await expect(finishMeeting("meeting-1", { transcript: "notes" })).rejects.toThrow("update failed");
 
     summary.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: "summary failed" } });
-    getSupabase.mockReturnValueOnce({ from: () => summary });
+    getMainSupabase.mockReturnValueOnce({ from: () => summary });
     await expect(finishMeeting("meeting-1", {})).rejects.toThrow("summary failed");
   });
 
@@ -96,7 +96,7 @@ describe("Meeting store persistence boundaries", () => {
     meeting.select.mockReturnValue(meeting);
     meeting.eq.mockReturnValue(meeting);
     const createSignedUrl = vi.fn();
-    getSupabase.mockReturnValue({
+    getMainSupabase.mockReturnValue({
       from: () => meeting,
       storage: { from: () => ({ createSignedUrl }) },
     });
