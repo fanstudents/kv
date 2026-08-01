@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-02 configuration preflight（`7e13e96`）｜進行中：WP-03、WP-02｜CodeGraph 於各批驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-10 local failure contracts（`ce7c788`）｜進行中：WP-03、WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已核准並分批執行
 
@@ -305,8 +305,10 @@ Preparation 已可執行；Real Acceptance 阻塞：安全的 `OPENAI_API_KEY` �
 
 - [x] shared official SDK／adapter ownership／fail-closed harness。
 - [x] 已有 opt-in synthetic acceptance harness，覆蓋 Agent chat、Structured JSON、Embedding、TTS／STT、Realtime client secret 與 `ai_usage_logs` persistence；不在一般 verify 自動呼叫 provider。
-- [ ] Preparation：補齊 malformed response、provider error、usage／cleanup 與成本上限的 focused contract，不需要真實 key。
+- [~] Preparation：已鎖定 budget rejection 不得呼叫 SDK 或寫 usage、SDK failure 不得被記成成功 usage、malformed structured JSON 回空物件、knowledge provider failure 必須向上傳遞，以及 embedding operation delegation；尚需 cleanup／測試成本上限與其餘 OpenAI surface 的 focused contract。
 - [!] Real Acceptance：執行 `npm run acceptance:openai`，驗證真實文字、JSON、向量維度、媒體、短期 token、usage evidence 與 cleanup。
+
+本段 evidence：`ce7c788`；`openai-client`、`openai-knowledge-provider`、`knowledge-base-store` 共 3 test files／12 tests 與 typecheck 通過。全部為 mock／contract 層，未載入 key、未呼叫 OpenAI、未寫入真實 `ai_usage_logs`。
 
 出口：所有現用 OpenAI 能力有受控真實證據；不只是 mock。
 
@@ -492,6 +494,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
 - [~] WP-03 已核准並完成七段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock；尚餘 19 個 runtime caller files 與 3 個 type-only reference files，後續逐 domain 遷移且每段開始前確認。
 - [~] WP-02 已有 `.env.example` 能力分組／opt-in gate、integration status、純設定 preflight 與 OpenAI acceptance harness；仍需補跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
+- [~] WP-10 Preparation 已完成第一組 local failure contracts；Real Acceptance 仍明確等待安全 key、成本上限與 cleanup 設計。
 - [x] Provider 工作包採 Preparation／Real Acceptance 兩軌；缺 key 只阻塞 Real Acceptance，不阻塞 source ownership、contract、fixture 與安全 gate 整理。
 - [!] 確認 canonical GitHub repo 與部署目標。
 - [!] Real Acceptance 前逐一提供安全 credentials／sandbox／fixture／recipient；未提供時保留明確 pending evidence，不用假資料宣稱真實功能完成。
@@ -512,7 +515,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ## 9. 目前 readiness 判定
 
-- 最新完成：`WP-02` configuration preflight（`7e13e96`）；`WP-03` 已完成第七段，WP-03／WP-02 均仍在逐 domain／能力執行。
+- 最新完成：`WP-10` local failure contracts（`ce7c788`）；`WP-03` 已完成第七段，WP-03／WP-02／WP-10 Preparation 均仍在逐 domain／能力執行。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 19 個 runtime callers 與 3 個 type-only references。
 - 外部功能：Preparation 可在缺 key 時繼續；純設定 preflight 已可區分「未設定」與「尚未驗證」，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
