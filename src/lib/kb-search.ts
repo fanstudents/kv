@@ -1,6 +1,6 @@
 import "server-only";
 import { embedKnowledgeTexts } from "@/adapters/knowledge-base/openai-knowledge-provider";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { levelInfo, type KnowledgeLevel } from "@/lib/knowledge-base-data";
 
 // 知識庫檢索：把「已發布」的條目切段、向量化存進 kb_chunks，回答時只取跟問題最相關的幾段。
@@ -34,7 +34,7 @@ function splitContent(title: string, content: string, maxChars = 900): string[] 
 export async function indexDocs(docIds: string[]): Promise<number> {
   if (docIds.length === 0) return 0;
   try {
-    const supabase = getSupabase();
+    const supabase = getMainSupabase();
     const { data: docs } = await supabase
       .from("knowledge_base")
       .select("id,title,content,level,status,source_page")
@@ -102,7 +102,7 @@ export async function searchKnowledge(params: {
     const [embedding] = await embedKnowledgeTexts([params.question], "知識庫檢索");
     if (!embedding) return [];
 
-    const { data, error } = await getSupabase().rpc("match_kb_chunks", {
+    const { data, error } = await getMainSupabase().rpc("match_kb_chunks", {
       query_embedding: JSON.stringify(embedding),
       max_level: params.maxLevel,
       match_count: params.limit ?? 6,
@@ -143,7 +143,7 @@ export function formatHits(hits: KbHit[]): string {
 /** 目前索引狀態（後台顯示用） */
 export async function indexStats(): Promise<{ chunks: number; docs: number }> {
   try {
-    const supabase = getSupabase();
+    const supabase = getMainSupabase();
     const { count: chunks } = await supabase.from("kb_chunks").select("id", { count: "exact", head: true });
     const { data } = await supabase.from("kb_chunks").select("doc_id");
     const docs = new Set((data ?? []).map((r) => r.doc_id as string)).size;

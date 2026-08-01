@@ -1,5 +1,5 @@
 import "server-only";
-import { isDatabaseJson } from "./database-json";
+import { normalizeDatabaseJson } from "./database-json";
 import { getMainSupabase } from "./supabase";
 import type { AgentSlug } from "./types";
 
@@ -29,15 +29,6 @@ export type ArtifactKind =
   | "post"
   | "message"
   | "alert";
-
-function toDatabaseJson(value: Record<string, unknown> | undefined) {
-  const candidate = value ?? {};
-  if (isDatabaseJson(candidate)) return candidate;
-
-  const normalized: unknown = JSON.parse(JSON.stringify(candidate));
-  if (!isDatabaseJson(normalized)) throw new Error("Agent runtime metadata must be JSON serializable");
-  return normalized;
-}
 
 /** 開一次執行。回傳 run id；已經跑過同一個 triggerRef 就回傳原本那次（冪等） */
 export async function startRun(params: {
@@ -70,7 +61,7 @@ export async function startRun(params: {
         trigger_ref: params.triggerRef ?? null,
         goal_id: params.goalId ?? null,
         summary: params.summary ?? null,
-        meta: toDatabaseJson(params.meta),
+        meta: normalizeDatabaseJson(params.meta),
       })
       .select("id")
       .single();
@@ -176,7 +167,7 @@ export async function saveArtifact(params: {
         uri: params.uri ?? null,
         approved_by: params.approvedBy ?? null,
         approved_at: params.approvedBy ? new Date().toISOString() : null,
-        meta: toDatabaseJson(params.meta),
+        meta: normalizeDatabaseJson(params.meta),
       })
       .select("id")
       .single();
@@ -203,7 +194,7 @@ export async function delegate(params: {
         from_agent: params.fromAgent ?? null,
         to_agent: params.toAgent,
         title: params.title,
-        payload: toDatabaseJson(params.payload),
+        payload: normalizeDatabaseJson(params.payload),
         source_run_id: params.sourceRunId ?? null,
         due_at: params.dueAt ?? null,
       })

@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { extractText, getDocumentProxy } from "unpdf";
 import { requestKnowledgeJson } from "@/adapters/knowledge-base/openai-knowledge-provider";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { addKnowledgeDocs } from "@/lib/knowledge-base";
 import type { KnowledgeKind, KnowledgeLevel } from "@/lib/knowledge-base-data";
 
@@ -168,7 +168,7 @@ export async function ingestPages(params: {
   /** 顯示用的來源名稱（檔名或網址），會存進條目的 meta 方便追溯 */
   label: string;
 }): Promise<{ chunkCount: number; processedChunks: number; candidateCount: number; truncated: boolean }> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const allChunks = chunkPages(params.pages);
   const chunks = allChunks.slice(0, MAX_CHUNKS);
 
@@ -229,7 +229,7 @@ export async function importPdf(params: {
   mimeType?: string;
   uploadedBy?: string;
 }): Promise<ImportResult> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const checksum = checksumOf(params.buf);
 
   const { data: existing } = await supabase
@@ -308,7 +308,7 @@ export interface KbSourceRow {
 }
 
 export async function listKbSources(limit = 20): Promise<KbSourceRow[]> {
-  const { data } = await getSupabase()
+  const { data } = await getMainSupabase()
     .from("kb_sources")
     .select("id,filename,page_count,status,created_at")
     .order("created_at", { ascending: false })

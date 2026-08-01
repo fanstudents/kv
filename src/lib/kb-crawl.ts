@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { ingestPages } from "@/lib/kb-import";
 
 // 網站 → 知識庫：用 Firecrawl 把網頁抓成乾淨的 markdown，接上跟 PDF 完全相同的下游
@@ -188,7 +188,7 @@ export async function importUrl(params: {
   mode: "single" | "site";
   limit?: number;
 }): Promise<UrlImportResult> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const url = normalizeUrl(params.url);
   // 來源身分＝網址本身（不是內容），這樣重爬時可以更新同一筆而不是長出新的
   const checksum = hash(`${params.mode}:${url}`);
@@ -294,7 +294,7 @@ export interface RecheckResult {
  * 由人決定要不要重新匯入。網站改了、知識庫自己知道，這是原本缺的新鮮度機制。
  */
 export async function recheckUrlSources(limit = 10): Promise<RecheckResult> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data: sources } = await supabase
     .from("kb_sources")
     .select("id,url,source_type,content_hash")

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDatabaseJson } from "@/lib/database-json";
+import { isDatabaseJson, normalizeDatabaseJson } from "@/lib/database-json";
 
 describe("database JSON boundary", () => {
   it("accepts JSON values used by database-backed adapters", () => {
@@ -10,5 +10,12 @@ describe("database JSON boundary", () => {
     expect(isDatabaseJson(new Date())).toBe(false);
     expect(isDatabaseJson({ callback: () => undefined })).toBe(false);
     expect(isDatabaseJson(undefined)).toBe(false);
+  });
+
+  it("normalizes values the HTTP JSON transport would serialize", () => {
+    expect(
+      normalizeDatabaseJson({ observedAt: new Date("2026-08-02T05:00:00.000Z"), omitted: undefined }),
+    ).toEqual({ observedAt: "2026-08-02T05:00:00.000Z" });
+    expect(normalizeDatabaseJson(undefined)).toEqual({});
   });
 });

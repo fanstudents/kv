@@ -1,5 +1,7 @@
 import "server-only";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
+import { normalizeDatabaseJson } from "@/lib/database-json";
+import type { Database } from "@/lib/database.types";
 import { AGENTS } from "@/lib/agent-data";
 import {
   levelInfo,
@@ -18,8 +20,28 @@ import type { AgentSlug } from "@/lib/types";
 //
 // 三個狀態：draft（AI 轉出來待人審，不進 prompt）→ published（生效）→ archived（退場但留著可追溯）。
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function toDoc(row: any): KnowledgeDoc {
+type KnowledgeBaseRow = Database["public"]["Tables"]["knowledge_base"]["Row"];
+type KnowledgeBaseInsert = Database["public"]["Tables"]["knowledge_base"]["Insert"];
+type KnowledgeBaseUpdate = Database["public"]["Tables"]["knowledge_base"]["Update"];
+type KnowledgeBaseDocRecord = Pick<KnowledgeBaseRow, "id" | "title" | "category" | "level"> &
+  Partial<
+    Pick<
+      KnowledgeBaseRow,
+      | "content"
+      | "builtin"
+      | "status"
+      | "kind"
+      | "updated_at"
+      | "version"
+      | "owner"
+      | "review_at"
+      | "source_doc_id"
+      | "source_page"
+      | "meta"
+    >
+  >;
+
+function toDoc(row: KnowledgeBaseDocRecord): KnowledgeDoc {
   return {
     id: row.id,
     title: row.title,
@@ -35,7 +57,10 @@ function toDoc(row: any): KnowledgeDoc {
     reviewAt: row.review_at ?? null,
     sourceDocId: row.source_doc_id ?? null,
     sourcePage: row.source_page ?? null,
-    meta: row.meta ?? {},
+    meta:
+      row.meta && typeof row.meta === "object" && !Array.isArray(row.meta)
+        ? (row.meta as Record<string, unknown>)
+        : {},
   };
 }
 
@@ -46,7 +71,7 @@ export async function listKnowledgeDocs(filter?: {
   status?: KnowledgeStatus;
   sourceDocId?: string;
 }): Promise<KnowledgeDoc[]> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   let query = supabase.from("knowledge_base").select(DOC_COLUMNS);
   if (filter?.status) query = query.eq("status", filter.status);
   if (filter?.sourceDocId) query = query.eq("source_doc_id", filter.sourceDocId);
@@ -69,8 +94,8 @@ export async function addKnowledgeDoc(doc: {
   reviewAt?: string | null;
   meta?: Record<string, unknown>;
 }): Promise<KnowledgeDoc> {
-  const supabase = getSupabase();
-  const row = {
+  const supabase = getMainSupabase();
+  const row: KnowledgeBaseInsert = {
     id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     builtin: false,
     title: doc.title,
@@ -82,7 +107,7 @@ export async function addKnowledgeDoc(doc: {
     source_doc_id: doc.sourceDocId ?? null,
     source_page: doc.sourcePage ?? null,
     review_at: doc.reviewAt ?? null,
-    meta: doc.meta ?? {},
+    meta: normalizeDatabaseJson(doc.meta),
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabase.from("knowledge_base").insert(row);
@@ -95,9 +120,9 @@ export async function addKnowledgeDocs(
   docs: Parameters<typeof addKnowledgeDoc>[0][]
 ): Promise<KnowledgeDoc[]> {
   if (docs.length === 0) return [];
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const now = new Date().toISOString();
-  const rows = docs.map((doc, i) => ({
+  const rows: KnowledgeBaseInsert[] = docs.map((doc, i) => ({
     id: `custom-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
     builtin: false,
     title: doc.title,
@@ -109,7 +134,7 @@ export async function addKnowledgeDocs(
     source_doc_id: doc.sourceDocId ?? null,
     source_page: doc.sourcePage ?? null,
     review_at: doc.reviewAt ?? null,
-    meta: doc.meta ?? {},
+    meta: normalizeDatabaseJson(doc.meta),
     updated_at: now,
   }));
   const { error } = await supabase.from("knowledge_base").insert(rows);
@@ -131,7 +156,7 @@ export async function updateKnowledgeDoc(
     reviewAt?: string | null;
   }
 ): Promise<KnowledgeDoc | null> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data: prev, error: previousError } = await supabase
     .from("knowledge_base")
     .select("version")
@@ -139,7 +164,7 @@ export async function updateKnowledgeDoc(
     .maybeSingle();
   if (previousError) throw new Error(previousError.message);
 
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const update: KnowledgeBaseUpdate = { updated_at: new Date().toISOString() };
   if (patch.title !== undefined) update.title = patch.title;
   if (patch.category !== undefined) update.category = patch.category;
   if (patch.level !== undefined) update.level = patch.level;
@@ -169,7 +194,7 @@ export async function updateKnowledgeDoc(
 /** 批次發布（人審通過的草稿一次上線） */
 export async function publishKnowledgeDocs(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
-  const { data, error } = await getSupabase()
+  const { data, error } = await getMainSupabase()
     .from("knowledge_base")
     .update({ status: "published", updated_at: new Date().toISOString() })
     .in("id", ids)
@@ -187,7 +212,7 @@ export type RemoveResult = "deleted" | "not-found" | "builtin-protected";
  * 而不是像之前一樣：刪不掉但畫面假裝刪掉了，重整又跑回來）。
  */
 export async function removeKnowledgeDoc(id: string): Promise<RemoveResult> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data: doc, error: lookupError } = await supabase
     .from("knowledge_base")
     .select("id,builtin")
@@ -202,7 +227,7 @@ export async function removeKnowledgeDoc(id: string): Promise<RemoveResult> {
 }
 
 export async function listAgentAccess(): Promise<Record<AgentSlug, KnowledgeLevel>> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data, error } = await supabase.from("knowledge_access").select("agent_slug,max_level");
   if (error) throw new Error(error.message);
   const access = {} as Record<AgentSlug, KnowledgeLevel>;
@@ -216,7 +241,7 @@ export async function listAgentAccess(): Promise<Record<AgentSlug, KnowledgeLeve
 }
 
 export async function setAgentAccess(slug: AgentSlug, level: KnowledgeLevel): Promise<void> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { error } = await supabase
     .from("knowledge_access")
     .upsert({ agent_slug: slug, max_level: level, updated_at: new Date().toISOString() });
@@ -224,7 +249,7 @@ export async function setAgentAccess(slug: AgentSlug, level: KnowledgeLevel): Pr
 }
 
 async function getAgentMaxLevel(slug: string): Promise<KnowledgeLevel> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const { data, error } = await supabase
     .from("knowledge_access")
     .select("max_level")
@@ -287,7 +312,7 @@ export async function citeKnowledge(params: {
   runId?: string | null;
 }): Promise<void> {
   try {
-    await getSupabase().from("kb_citations").insert({
+    await getMainSupabase().from("kb_citations").insert({
       doc_id: params.docId,
       agent_slug: params.agentSlug ?? null,
       question: params.question ?? null,

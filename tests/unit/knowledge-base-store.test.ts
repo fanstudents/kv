@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSupabase, indexDocs } = vi.hoisted(() => ({
-  getSupabase: vi.fn(),
+const { getMainSupabase, indexDocs } = vi.hoisted(() => ({
+  getMainSupabase: vi.fn(),
   indexDocs: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/kb-search", () => ({
   formatHits: vi.fn(),
   indexDocs,
@@ -31,7 +31,7 @@ describe("Knowledge Base store error boundaries", () => {
     };
     query.eq.mockReturnValue(query);
     query.order.mockReturnValueOnce(query).mockImplementationOnce(terminal);
-    getSupabase.mockReturnValue({ from: () => ({ select: () => query }) });
+    getMainSupabase.mockReturnValue({ from: () => ({ select: () => query }) });
 
     await expect(listKnowledgeDocs()).rejects.toThrow("read failed");
   });
@@ -53,13 +53,13 @@ describe("Knowledge Base store error boundaries", () => {
     update.update.mockReturnValue(update);
     update.eq.mockReturnValue(update);
     update.select.mockReturnValue(update);
-    getSupabase.mockReturnValue({ from: vi.fn().mockReturnValueOnce(previous).mockReturnValueOnce(update) });
+    getMainSupabase.mockReturnValue({ from: vi.fn().mockReturnValueOnce(previous).mockReturnValueOnce(update) });
 
     await expect(updateKnowledgeDoc("missing", { title: "Guide" })).resolves.toBeNull();
     expect(indexDocs).not.toHaveBeenCalled();
 
     previous.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: "version failed" } });
-    getSupabase.mockReturnValueOnce({ from: () => previous });
+    getMainSupabase.mockReturnValueOnce({ from: () => previous });
     await expect(updateKnowledgeDoc("doc-1", { title: "Guide" })).rejects.toThrow("version failed");
   });
 
@@ -71,7 +71,7 @@ describe("Knowledge Base store error boundaries", () => {
     };
     lookup.select.mockReturnValue(lookup);
     lookup.eq.mockReturnValue(lookup);
-    getSupabase.mockReturnValue({ from: () => lookup });
+    getMainSupabase.mockReturnValue({ from: () => lookup });
 
     await expect(removeKnowledgeDoc("missing")).resolves.toBe("not-found");
 
@@ -80,7 +80,7 @@ describe("Knowledge Base store error boundaries", () => {
   });
 
   it("propagates access-list failures", async () => {
-    getSupabase.mockReturnValue({
+    getMainSupabase.mockReturnValue({
       from: () => ({ select: vi.fn().mockResolvedValue({ data: null, error: { message: "access failed" } }) }),
     });
 
