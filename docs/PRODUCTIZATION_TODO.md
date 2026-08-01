@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-03 Main Supabase typed-client cutover（`1281017`、`543dcd3`）｜進行中：WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-02 OpenAI acceptance cleanup preparation（`a392cd0`）｜進行中：WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已完成
 
@@ -186,15 +186,23 @@ Provider 工作包固定拆成兩軌：
 
 - [x] `.env.example` 已依能力分組，標出 required／optional／read-only／write-capable，並加入本地 `OPENAI_ACCEPTANCE=0` opt-in gate。
 - [x] `getIntegrationPreflight()` 已提供不呼叫 provider 的純設定檢查，只回報缺少的變數名稱與「尚未驗證連線」；它與既有 live `getIntegrationStatus()`／UI `connected` semantics 分離，且不輸出 secret。
-- [ ] 定義 staging／sandbox／fixture 規則與 cleanup 規則。
-- [ ] 為 webhook／cron 定義安全觸發方式、簽章 fixture、重複事件與回復方式。
-- [~] 已有獨立 `acceptance:openai`、acceptance Vitest config 與 opt-in gate；其餘 provider 仍需各自 command／test tag，且不得塞進每次 unit verify。
-- [ ] 統一驗收證據欄位：環境、journey、輸入、輸出、side effect、cleanup、時間、限制。
+- [x] 已定義 staging／sandbox／fixture 與 cleanup 規則（見本工作包的 Preparation contract）；規則是執行 gate，不是假裝已完成真實驗收。
+- [x] 已定義 webhook／cron 的安全觸發方式、簽章 fixture、重複事件與回復證據要求；尚未在 shared endpoint 觸發任何 cron／webhook。
+- [~] 已有獨立 `acceptance:openai`、acceptance Vitest config 與 opt-in gate；`a392cd0` 會於真正 OpenAI acceptance 結束後清除本次合成 `ai_usage_logs`。其餘 provider 仍需各自 command／test tag，且不得塞進每次 unit verify。
+- [x] 已統一驗收證據欄位（見本工作包的 evidence record）；不建立跨 provider runtime。
 - [x] 已決定每個 provider 保有自己的 adapter／錯誤語意；WP-02 只提供驗收格式與 gate，不發明跨 provider framework。
+
+WP-02 Preparation contract（唯一規格放在此處，不建立 provider framework）：
+
+- 每次 Real Acceptance 都必須先寫明 target（local／staging／sandbox）、可識別的 `codex-<provider>-acceptance` fixture／event ID、無個資輸入、允許的 side effect、成本／收件者限制與可驗證 cleanup。條件不齊時只能跑 Preparation。
+- Webhook／cron 先以 local fixture 驗證簽章與授權；shared endpoint 的真實觸發必須使用合成 payload、可重播 event ID、allowlisted recipient 或 delivery-disabled target，並證明 duplicate replay 不造成額外效果及失敗後的回復狀態。
+- 每筆 acceptance evidence 必含：環境與時間、journey／entrypoint、fixture 或 event ID、輸入／預期輸出、實際 side effect、cleanup query／結果、限制（成本／recipient／timeout）、commit 與未覆蓋風險。這些欄位寫入相關工作包的完成證據，不另建重複報告。
+- Provider command／gate：Supabase 使用 `npm run schema:rehearse` 與 `npm run schema:types:check`；OpenAI 使用明確 `OPENAI_ACCEPTANCE=1` 的 `npm run acceptance:openai`；LINE、Google、Firecrawl、Teachify 各自在擁有 sandbox／allowlist／合成 fixture 前維持 Preparation，不能以 UI 狀態或 unit mock 冒充實證。
+- OpenAI cleanup 範圍：只刪除本次開始時間後、operation 為 `codex-oai-acceptance:*` 的 rows，以及 agent slug 為 `codex-acceptance` 且 operation 為「網站聊天回應」的 row；不以一般 operation 名稱或時間窗清除 production usage。
 
 出口：後續各 integration 可用同一驗收格式，但沒有新的無需求抽象。
 
-完成證據（2026-08-02）：`7e13e96` 的 preflight unit tests 證明空白／完整 env matrix 不呼叫 Google OAuth／Calendar，且輸出不包含 fixture secret；既有 integrations status route contract 保持不變。
+完成證據（2026-08-02）：`7e13e96` 的 preflight unit tests 證明空白／完整 env matrix 不呼叫 Google OAuth／Calendar，且輸出不包含 fixture secret；`a392cd0` 為 OpenAI acceptance 加入受限 `ai_usage_logs` cleanup，強制 `OPENAI_ACCEPTANCE=0` 時 suite 在 provider／DB call 前拒絕；全量 unit 109 files／535 tests 與 typecheck 通過。沒有執行真實 OpenAI acceptance。
 
 ### WP-03 — Main Supabase 型別契約 `[x]`
 
@@ -521,7 +529,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
 - [x] WP-03 已完成十九段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting、Support、Teachify stats、Agent runtime、Knowledge Base；`getSupabase`／`LegacyDatabase` 的 `src`／tests reference 已歸零，local replay、full verify 與受影響 Chrome cutover 已完成。
-- [~] WP-02 已有 `.env.example` 能力分組／opt-in gate、integration status、純設定 preflight 與 OpenAI acceptance harness；仍需補跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
+- [~] WP-02 已有 `.env.example` 能力分組／opt-in gate、integration status、純設定 preflight、共通 fixture／cleanup／evidence contract 與 OpenAI acceptance cleanup；仍需補其餘 provider 的專屬 command、sandbox／allowlist 與真實 evidence。
 - [~] WP-10 Preparation 已完成第一組 local failure contracts；Real Acceptance 仍明確等待安全 key、成本上限與 cleanup 設計。
 - [x] Provider 工作包採 Preparation／Real Acceptance 兩軌；缺 key 只阻塞 Real Acceptance，不阻塞 source ownership、contract、fixture 與安全 gate 整理。
 - [!] 確認 canonical GitHub repo 與部署目標。
@@ -543,7 +551,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ## 9. 目前 readiness 判定
 
-- 最新完成：`WP-03` Main Supabase typed-client cutover（`1281017`、`543dcd3`）；source migration、local replay、full verify 與登入後 Chrome cutover 已完成。WP-02／WP-10 Preparation 仍在逐能力執行。
+- 最新完成：`WP-02` OpenAI acceptance cleanup preparation（`a392cd0`）；WP-03 的 source migration、local replay、full verify 與登入後 Chrome cutover 已完成。WP-02／WP-10 Preparation 仍在逐能力執行。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與 typed-client migration 已完成，Knowledge Base 是最後遷移 domain，legacy `getSupabase`／`LegacyDatabase` reference 已歸零；canonical migration local replay、generated-type drift check 與後台 read smoke 均已有證據。
 - 外部功能：Preparation 可在缺 key 時繼續；純設定 preflight 已可區分「未設定」與「尚未驗證」，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
