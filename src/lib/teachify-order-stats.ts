@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabase } from "./supabase";
+import { getMainSupabase } from "./supabase";
 
 export interface OrderRevenueSummary {
   totalOrders: number;
@@ -11,14 +11,14 @@ export interface OrderRevenueSummary {
 
 /** 數據助理（Ivy）用：近 N 天 Teachify 訂單營收總覽（teachify_orders 裡 webhook 即時與回填資料都在同一張表）。 */
 export async function getOrderRevenueSummary(days = 7): Promise<OrderRevenueSummary> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const cutoff = new Date(Date.now() - days * 86400000).toISOString();
   const { data } = await supabase
     .from("teachify_orders")
     .select("amount,is_refund,item_names,paid_at")
     .gte("paid_at", cutoff);
 
-  const rows = (data ?? []) as { amount: number; is_refund: boolean; item_names: string[] }[];
+  const rows = data ?? [];
   const paid = rows.filter((r) => !r.is_refund);
   const refunded = rows.filter((r) => r.is_refund);
 
