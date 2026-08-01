@@ -1,12 +1,12 @@
 import "server-only";
 
-import type { getSupabase } from "@/lib/supabase";
+import type { getMainSupabase } from "@/lib/supabase";
 import type {
   SupportConversation,
   SupportReportRepository,
 } from "@/modules/support/report";
 
-type SupabaseSupportReportClient = ReturnType<typeof getSupabase>;
+type SupabaseSupportReportClient = ReturnType<typeof getMainSupabase>;
 
 export function createSupabaseSupportReportRepository(
   supabase: SupabaseSupportReportClient

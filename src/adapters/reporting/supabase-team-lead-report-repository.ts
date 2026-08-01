@@ -1,12 +1,12 @@
 import "server-only";
 
-import type { getSupabase } from "@/lib/supabase";
+import type { getMainSupabase } from "@/lib/supabase";
 import type {
   TeamLeadReportActivity,
   TeamLeadReportRepository,
 } from "@/modules/reporting/team-lead";
 
-type SupabaseTeamLeadReportClient = ReturnType<typeof getSupabase>;
+type SupabaseTeamLeadReportClient = ReturnType<typeof getMainSupabase>;
 
 export function createSupabaseTeamLeadReportRepository(
   supabase: SupabaseTeamLeadReportClient

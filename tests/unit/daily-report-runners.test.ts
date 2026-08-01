@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => {
     supportSummary,
     teamLeadSummary,
     delivery,
-    getSupabase: vi.fn(),
+    getMainSupabase: vi.fn(),
     createSupabaseSupportReportRepository: vi.fn(),
     createSupabaseTeamLeadReportRepository: vi.fn(),
     createOpenAiDailyReportSummaryProvider: vi.fn(),
@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase: mocks.getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase: mocks.getMainSupabase }));
 vi.mock("@/lib/agent-data", () => ({
   AGENTS: [{ slug: "visit", personZh: "可可", name: "Coco" }],
 }));
@@ -58,7 +58,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.getSupabase.mockReturnValue(mocks.supabase);
+  mocks.getMainSupabase.mockReturnValue(mocks.supabase);
   mocks.createSupabaseSupportReportRepository.mockReturnValue(mocks.supportRepository);
   mocks.createSupabaseTeamLeadReportRepository.mockReturnValue(mocks.teamLeadRepository);
   mocks.createOpenAiDailyReportSummaryProvider.mockImplementation((config) =>

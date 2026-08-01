@@ -5,7 +5,7 @@ import { createOpenAiDailyReportSummaryProvider } from "@/adapters/reporting/ope
 import { createSupabaseTeamLeadReportRepository } from "@/adapters/reporting/supabase-team-lead-report-repository";
 import { createSupabaseSupportReportRepository } from "@/adapters/support/supabase-support-report-repository";
 import { AGENTS } from "@/lib/agent-data";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import {
   runDailyTeamLeadReport,
   TEAM_LEAD_REPORT_SUMMARY_CONFIG,
@@ -22,7 +22,7 @@ function createReportClock() {
 export async function runSupportDailyReport(): Promise<{ ok: boolean; message: string }> {
   return runSupportReport({
     dependencies: {
-      repository: createSupabaseSupportReportRepository(getSupabase()),
+      repository: createSupabaseSupportReportRepository(getMainSupabase()),
       summary: createOpenAiDailyReportSummaryProvider(SUPPORT_REPORT_SUMMARY_CONFIG),
       delivery: createLineDailyReportDelivery(),
     },
@@ -33,7 +33,7 @@ export async function runSupportDailyReport(): Promise<{ ok: boolean; message: s
 export async function runTeamLeadReport(): Promise<{ ok: boolean; message: string }> {
   return runDailyTeamLeadReport({
     dependencies: {
-      repository: createSupabaseTeamLeadReportRepository(getSupabase()),
+      repository: createSupabaseTeamLeadReportRepository(getMainSupabase()),
       summary: createOpenAiDailyReportSummaryProvider(TEAM_LEAD_REPORT_SUMMARY_CONFIG),
       delivery: createLineDailyReportDelivery(),
       displayName(slug) {
