@@ -4,18 +4,18 @@ import { NextRequest } from "next/server";
 const {
   createLineOrdersDelivery,
   createSupabaseOrdersRepository,
-  getSupabase,
+  getMainSupabase,
   verifyTeachifyWebhook,
 } = vi.hoisted(() => ({
   createLineOrdersDelivery: vi.fn(),
   createSupabaseOrdersRepository: vi.fn(),
-  getSupabase: vi.fn(),
+  getMainSupabase: vi.fn(),
   verifyTeachifyWebhook: vi.fn(),
 }));
 
 vi.mock("@/adapters/orders/line-orders-delivery", () => ({ createLineOrdersDelivery }));
 vi.mock("@/adapters/orders/supabase-orders-repository", () => ({ createSupabaseOrdersRepository }));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/teachify-webhook-server", () => ({ verifyTeachifyWebhook }));
 
 import { POST as postTestNotification } from "@/app/api/agents/orders/test-notify/route";
@@ -23,7 +23,7 @@ import { POST as postTeachifyOrder } from "@/app/api/webhooks/teachify-order/rou
 
 beforeEach(() => {
   vi.clearAllMocks();
-  getSupabase.mockReturnValue({});
+  getMainSupabase.mockReturnValue({});
   createLineOrdersDelivery.mockReturnValue({ deliver: vi.fn(async () => undefined) });
   createSupabaseOrdersRepository.mockReturnValue({
     upsertOrder: vi.fn(async () => undefined),

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { createLineOrdersDelivery } from "@/adapters/orders/line-orders-delivery";
 import { createSupabaseOrdersRepository } from "@/adapters/orders/supabase-orders-repository";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { runOrderTestNotification } from "@/modules/orders/orders";
 
 export async function POST() {
   const result = await runOrderTestNotification({
-    repository: createSupabaseOrdersRepository(getSupabase()),
+    repository: createSupabaseOrdersRepository(getMainSupabase()),
     delivery: createLineOrdersDelivery(),
   });
   if (result.kind === "missing-recipient") return NextResponse.json({ error: result.message }, { status: 400 });

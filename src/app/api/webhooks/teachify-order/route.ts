@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createLineOrdersDelivery } from "@/adapters/orders/line-orders-delivery";
 import { createSupabaseOrdersRepository } from "@/adapters/orders/supabase-orders-repository";
 import { verifyTeachifyWebhook } from "@/lib/teachify-webhook-server";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { processOrderPayload } from "@/modules/orders/orders";
 
 // Teachify 訂單 webhook 接收端點。請在 Teachify 後台把訂單 webhook 網址
@@ -12,7 +12,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const repository = createSupabaseOrdersRepository(getSupabase());
+  const repository = createSupabaseOrdersRepository(getMainSupabase());
   const delivery = createLineOrdersDelivery();
   const rawBody = await req.text();
 

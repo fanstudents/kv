@@ -1,9 +1,9 @@
 import "server-only";
 
-import type { getSupabase } from "@/lib/supabase";
+import type { getMainSupabase } from "@/lib/supabase";
 import type { NormalizedOrder, OrdersRepository } from "@/modules/orders/orders";
 
-type SupabaseOrdersClient = ReturnType<typeof getSupabase>;
+type SupabaseOrdersClient = ReturnType<typeof getMainSupabase>;
 
 export function createSupabaseOrdersRepository(supabase: SupabaseOrdersClient): OrdersRepository {
   return {
