@@ -2,9 +2,9 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-03 Agent runtime typed boundary（`e2b7087`）｜進行中：WP-03、WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-03 Main Supabase typed-client cutover（`1281017`、`543dcd3`）｜進行中：WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
 >
-> 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已核准並分批執行
+> 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已完成
 
 ## 0. 怎麼使用這份清單
 
@@ -159,7 +159,7 @@ Provider 工作包固定拆成兩軌：
 - **Real Acceptance**：需要安全 credentials、sandbox／測試資產與明確 side-effect cleanup；只有這一軌可因外部條件標成 `[!]`，Preparation 不得跟著整包阻塞。
 - 真實驗收依風險分批執行：read-only → 有成本但無外部收件者的 AI → inbound webhook fixture → allowlisted write／delivery → composite journey；不做一次同時觸發全部 provider 的巨型驗收。
 
-目前後續順序：完成 WP-03 → 補齊 WP-02 → 逐 domain 執行 WP-10～18 Preparation；WP-05～07 經範圍確認後可並行。Credentials／sandbox 到齊才執行各自 Real Acceptance，接著以真實故障證據決定 WP-20，再完成 WP-21 與 WP-22。
+目前後續順序：補齊 WP-02 → 逐 domain 執行 WP-10～18 Preparation；WP-05～07 經範圍確認後可並行。Credentials／sandbox 到齊才執行各自 Real Acceptance，接著以真實故障證據決定 WP-20，再完成 WP-21 與 WP-22。
 
 ## 6. 工作包清單
 
@@ -196,25 +196,29 @@ Provider 工作包固定拆成兩軌：
 
 完成證據（2026-08-02）：`7e13e96` 的 preflight unit tests 證明空白／完整 env matrix 不呼叫 Google OAuth／Calendar，且輸出不包含 fixture secret；既有 integrations status route contract 保持不變。
 
-### WP-03 — Main Supabase 型別契約 `[~]`
+### WP-03 — Main Supabase 型別契約 `[x]`
 
 目的：以已擁有的 migration 產生 Database types，消除 `src/lib/supabase.ts` 的 `createClient<any>` 擴散風險。
 
 - [x] 已決定以 repo canonical migration 重建 local DB 後產生型別；本地 drift command 先落地，PR CI 接入留給 WP-21。
 - [x] 從 `20260801000000_live_baseline.sql` 重建 local Main DB，產生 `src/lib/database.types.ts`。
-- [~] `createClient<Database>` 與 `getMainSupabase` 已建立；舊 consumer 暫由同 singleton 的 `getSupabase` 相容入口維持，Teaching client 保持獨立。
-- [~] 逐 domain 修復不相容 query／mapping；Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting、Support、Teachify stats、Agent runtime 已完成；只剩 Knowledge Base 待分批處理，不改資料格式。
+- [x] `createClient<Database>` 與唯一的 `getMainSupabase` 已建立；舊 `getSupabase`／`LegacyDatabase` 相容入口已於所有 Main consumer 完成遷移後移除，Teaching client 保持獨立。
+- [x] 逐 domain 修復不相容 query／mapping；Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting、Support、Teachify stats、Agent runtime、Knowledge Base 已完成 typed-client source migration，不改資料格式；集中 cutover 已完成。
 - [x] 加入 `schema:types`／`schema:types:check`；生成結果必須能由 migration 重現且 Git diff 為零。
-- [~] 每個完成的 domain 均需通過 focused contract tests 與 typecheck；完整 verify、Main DB contract tests 與受影響頁面 Chrome smoke 於 WP-03 domain cutover 集中執行，未遷移 domain 仍待處理。
+- [x] `schema:*` command 改以 package-pinned CLI 的 `npx --no-install` 執行（`543dcd3`），消除 shell PATH 對 generated type 驗證的影響。
+- [x] 每個完成的 domain 均通過 focused contract tests 與 typecheck；完整 verify、Main DB contract 與受影響頁面 Chrome smoke 已於 WP-03 domain cutover 集中完成。
 
 WP-03 分段契約與證據（2026-08-02）：
 
 - 範圍只有 generated type、更新／drift 指令與 typed-client migration seam；不改 query、資料、API、UI 或外部 side effect。
-- `getMainSupabase` 與既有 `getSupabase` 必須共用一個 client、保留 service-role 優先／anon fallback／缺設定失敗契約；由 `tests/unit/supabase-client.test.ts` 固定。
+- `getMainSupabase` 保留 service-role 優先／anon fallback／缺設定失敗與 singleton 契約；由 `tests/unit/supabase-client.test.ts` 固定。
 - Main migration 與程式使用表名已比對；差集中的 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` 均由 Teaching adapter 使用，不併入 Main type。
-- 相容入口刪除條件：既有 Main imports 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production reference 歸零；Agent runtime 批次後尚餘 4 個 runtime reference files，全部屬 Knowledge Base，type-only reference 已歸零。
-- 每段獨立修正型別、測試與受影響頁面，不一次打開整包 blast radius。
-- `schema:types:check` 通過；最新 `npm run verify` 全通過：102 test files／514 tests、lint、typecheck、93-page production build。
+- 相容入口刪除條件已達成：既有 Main imports 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` 在 `src` 與 tests 的 reference 已歸零。
+- 每段獨立修正型別與 focused contract tests，不一次打開整包 blast radius；所有受影響頁面在 cutover 集中驗收，避免把低訊號 Chrome 檢查重複做在每個 API-only 微批次。
+- 2026-08-02 cutover：canonical migration 的乾淨 local Main DB replay 產生 32 個 public tables；`npm run schema:types:check` 通過且 generated type Git diff 為零。`schema:*` 以 package-pinned CLI 重跑，避免環境 PATH 造成假失敗。
+- `npm run verify` 的 lint、typecheck、Vitest、production build 全數通過：109 test files／535 tests、93-page production build；完整背景 command 走至 build 最終 route output 且 stderr 為空，四個 constituent command 亦各自 zero exit。
+- CodeGraph 已同步且 up to date（421 files／3,582 nodes／7,600 edges）；`getSupabase`／`LegacyDatabase` 在 `src` 與 tests 的 reference 為零。
+- 已登入 Chrome cutover smoke：`/goals`、`/todos`、`/agents/visit`、`/agents/orders`、`/agents/operations`、`/agents/support`、`/subscribers`、`/knowledge-base`、`/meeting`、`/ai-usage`、`/tv`、`/agents/teamlead` 均在原 URL 載入、沒有 login redirect 或可見 application error；Goals 顯示 16 個進行中目標，Knowledge Base 完成資料載入。未觸發 LINE、OpenAI、Firecrawl、webhook 或任何營運寫入。
 - Chrome 變更前後皆驗證登入後 `/agents/visit`；頁面完成載入、`行前功課` empty state 與 disabled 狀態不變，變更後實際點擊 `重新整理` 通過既有 Main client runtime path。
 - 第一段 `2264b04`：generated types、reproduction／drift commands、typed client 與共用 singleton 相容入口。
 - 第二段 `5c5ae74`：7 個 Visit／Visit-history adapters 已改用 `getMainSupabase`，舊入口在本 domain 歸零；nullable foreign keys、dynamic contact patch、research JSON projection 與 failed invite insert 都有明確 mapping／failure contract。
@@ -250,8 +254,12 @@ WP-03 分段契約與證據（2026-08-02）：
 - 第十六段 focused evidence：新增 `teachify-order-stats` characterization，連同 `meeting-context` 共 2 test files／3 tests 與 typecheck 全過。mock DB 固定 7-day cutoff 與 paid／refund aggregation；未讀取真實 Teachify orders，report journey 留待 WP-03 集中驗證。
 - 第十七段 `e2b7087`：Agent memory／runs persistence 改用 `getMainSupabase`；run idempotency、step status／usage accumulation、artifact／delegation、memory／metric read-write、fallback contract 不變。generated Json column 會先採與 HTTP JSON transport 相同的 normalize（Date 轉 ISO、undefined omitted）；循環或不可序列化 input 仍由既有 best-effort fallback 回傳 null／空結果，不嘗試寫 DB。
 - 第十七段 focused evidence：新增 `agent-runtime-storage` characterization，連同 live-task state suite 共 4 test files／24 tests 與 typecheck 全過。mock DB 覆蓋 memory default／recall、run idempotency、metadata JSON normalization、terminal step timestamp 與 usage accumulation；未讀寫真實 runtime tables，Agent／TV Chrome journey 留待 WP-03 集中驗證。
+- 第十八段 `41efe43`：Knowledge Base 的 store／search／import／crawl 改用 `getMainSupabase`；document projection、chunk／embedding 查詢、import／crawl queue、metadata、API 與 provider invocation contract 不變。generated JSON metadata 透過既有共用 normalizer 寫入；非 object 的歷史讀值仍安全回退為空 metadata。
+- 第十八段 focused evidence：Knowledge Base、database JSON、Agent runtime 相關共 13 test files／72 tests 與 typecheck 全過。OpenAI、Firecrawl 與真實 DB 均未觸發，provider acceptance 仍屬 WP-10／WP-11 gate。
+- 第十九段 `1281017`：移除已無 caller 的 `getSupabase`／`LegacyDatabase` 相容 seam；`src` 與 tests 搜尋結果為零，`getMainSupabase` 的 singleton 與缺設定契約由 unit test 固定。
+- 第十九段 focused evidence：`supabase-client`、`database-json`、`agent-runtime-storage` 共 3 test files／10 tests 與 typecheck 全過；上述 local replay、full verify 與 Chrome cutover 已完成，因此此 source migration 可正式結案。
 
-出口：Main query 具編譯期 schema 契約；無跨 DB type 混用。
+出口已達成：Main query 具編譯期 schema 契約、無跨 DB type 混用，且 migration replay／全量驗證／登入後讀取 smoke 均有可追溯證據。
 
 ### WP-04 — Contact Research workflow ownership `[x]`
 
@@ -512,7 +520,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
-- [~] WP-03 已核准並完成十七段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting、Support、Teachify stats、Agent runtime；尚餘 4 個 runtime caller files，全部屬 Knowledge Base。
+- [x] WP-03 已完成十九段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers、AI usage、Live task、Meeting store／context、Daily reporting、Support、Teachify stats、Agent runtime、Knowledge Base；`getSupabase`／`LegacyDatabase` 的 `src`／tests reference 已歸零，local replay、full verify 與受影響 Chrome cutover 已完成。
 - [~] WP-02 已有 `.env.example` 能力分組／opt-in gate、integration status、純設定 preflight 與 OpenAI acceptance harness；仍需補跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
 - [~] WP-10 Preparation 已完成第一組 local failure contracts；Real Acceptance 仍明確等待安全 key、成本上限與 cleanup 設計。
 - [x] Provider 工作包採 Preparation／Real Acceptance 兩軌；缺 key 只阻塞 Real Acceptance，不阻塞 source ownership、contract、fixture 與安全 gate 整理。
@@ -535,9 +543,9 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ## 9. 目前 readiness 判定
 
-- 最新完成：`WP-03` Agent runtime typed boundary（`e2b7087`）；`WP-03` 已完成第十七段，WP-03／WP-02／WP-10 Preparation 均仍在逐 domain／能力執行。
+- 最新完成：`WP-03` Main Supabase typed-client cutover（`1281017`、`543dcd3`）；source migration、local replay、full verify 與登入後 Chrome cutover 已完成。WP-02／WP-10 Preparation 仍在逐能力執行。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
-- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 4 個 runtime callers，全部在 Knowledge Base，type-only legacy reference 已歸零。
+- 資料庫：Main／Teaching 基線可用；Main generated types 與 typed-client migration 已完成，Knowledge Base 是最後遷移 domain，legacy `getSupabase`／`LegacyDatabase` reference 已歸零；canonical migration local replay、generated-type drift check 與後台 read smoke 均已有證據。
 - 外部功能：Preparation 可在缺 key 時繼續；純設定 preflight 已可區分「未設定」與「尚未驗證」，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
