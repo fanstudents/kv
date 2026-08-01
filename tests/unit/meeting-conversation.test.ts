@@ -1,12 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { replyAsAgent, runMeetingRound } = vi.hoisted(() => ({
-  replyAsAgent: vi.fn(),
-  runMeetingRound: vi.fn(),
-}));
+const { createChatCompletion } = vi.hoisted(() => ({ createChatCompletion: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/openai", () => ({ replyAsAgent, runMeetingRound }));
+vi.mock("@/adapters/openai/client", () => ({ createChatCompletion }));
 
 import { createOpenAiMeetingConversationProvider } from "@/adapters/meeting/openai-meeting-conversation-provider";
 import {
@@ -165,16 +162,29 @@ describe("OpenAI Meeting conversation provider", () => {
     const provider = createOpenAiMeetingConversationProvider();
     const agent = toMeetingAgentInput(report);
     const round = { replies: [{ slug: "report", text: "reply" }], teamlead: "summary" };
-    replyAsAgent.mockResolvedValue("reply");
-    runMeetingRound.mockResolvedValue(round);
+    createChatCompletion
+      .mockResolvedValueOnce({ choices: [{ message: { content: "reply" } }] })
+      .mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify(round) } }] });
 
     await expect(
       provider.oneToOne({ agent, command: "go", history: "history", isTeamLead: false })
     ).resolves.toBe("reply");
     await expect(
       provider.round({ command: "go", teamLead: agent, agents: [agent], history: "history" })
-    ).resolves.toBe(round);
-    expect(replyAsAgent).toHaveBeenCalledWith({ agent, command: "go", history: "history", isTeamLead: false });
-    expect(runMeetingRound).toHaveBeenCalledWith({ command: "go", teamLead: agent, agents: [agent], history: "history" });
+    ).resolves.toEqual(round);
+    expect(createChatCompletion).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ model: "gpt-4o-mini", temperature: 0.7, max_tokens: 150 }),
+      { operation: "會議一對一回應", agentSlug: "report" }
+    );
+    expect(createChatCompletion).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        model: "gpt-4o-mini",
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      }),
+      { operation: "會議室回應", agentSlug: "teamlead" }
+    );
   });
 });

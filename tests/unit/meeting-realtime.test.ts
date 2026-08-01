@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { getAgentDemoContext, getAgentLiveContext, logRealtimeUsage, mintRealtimeSession } = vi.hoisted(() => ({
+const { createRealtimeClientSecret, getAgentDemoContext, getAgentLiveContext, logRealtimeUsage } = vi.hoisted(() => ({
+  createRealtimeClientSecret: vi.fn(),
   getAgentDemoContext: vi.fn(),
   getAgentLiveContext: vi.fn(),
   logRealtimeUsage: vi.fn(),
-  mintRealtimeSession: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/meeting-demo-context", () => ({ getAgentDemoContext }));
 vi.mock("@/lib/meeting-context", () => ({ getAgentLiveContext }));
 vi.mock("@/lib/ai-usage", () => ({ logRealtimeUsage }));
-vi.mock("@/lib/openai", () => ({ mintRealtimeSession }));
+vi.mock("@/adapters/openai/client", () => ({ createRealtimeClientSecret }));
 
 import { createMeetingRealtimeContextProvider } from "@/adapters/meeting/meeting-realtime-context-provider";
 import { createMeetingRealtimeUsageRepository } from "@/adapters/meeting/meeting-realtime-usage-repository";
@@ -265,7 +265,7 @@ describe("Meeting realtime external boundaries", () => {
 
   it("forwards the realtime token config through the OpenAI provider", async () => {
     const session = { token: "secret", expiresAt: 1, model: "gpt-realtime-2.1" };
-    mintRealtimeSession.mockResolvedValue(session);
+    createRealtimeClientSecret.mockResolvedValue({ value: "secret", expiresAt: 1 });
     const provider = createOpenAiMeetingRealtimeProvider();
     const input = {
       agentName: "Ivy 艾薇",
@@ -277,8 +277,21 @@ describe("Meeting realtime external boundaries", () => {
       liveContext: "live",
     };
 
-    await expect(provider.mint(input)).resolves.toBe(session);
-    expect(mintRealtimeSession).toHaveBeenCalledWith(input);
+    await expect(provider.mint(input)).resolves.toEqual(session);
+    expect(createRealtimeClientSecret).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "realtime",
+        model: "gpt-realtime-2.1",
+        audio: expect.objectContaining({
+          input: expect.objectContaining({
+            transcription: { model: "whisper-1" },
+            turn_detection: { type: "semantic_vad", eagerness: "high" },
+          }),
+          output: { voice: "coral" },
+        }),
+        tool_choice: "auto",
+      })
+    );
   });
 
   it("forwards the current usage payload to the usage repository", async () => {
@@ -322,7 +335,7 @@ describe("Meeting realtime route contracts", () => {
 
   it("keeps the realtime provider failure and successful usage response shapes", async () => {
     getAgentDemoContext.mockReturnValue("demo");
-    mintRealtimeSession.mockRejectedValueOnce(new Error("provider down"));
+    createRealtimeClientSecret.mockRejectedValueOnce(new Error("provider down"));
     const failedSession = await mintSession(
       new NextRequest("http://localhost/api/meeting/realtime-session", {
         method: "POST",

@@ -1,8 +1,11 @@
 import "server-only";
+import {
+  extractAgentActionPlan,
+  type OpenAiAgentProfile,
+} from "@/adapters/agent-chat/openai-agent-chat-provider";
 import { getTrafficOverview } from "./ga4";
 import { getSearchOverview } from "./gsc";
 import { listWeekOverview } from "./google";
-import { extractActionPlan, type MeetingAgentInput } from "./openai";
 
 // 指揮台的「畫布」:老闆問 Ivy／Leo 要圖表、問 Milo／Coco 要行程、或問任何人要下一步
 // 行動方案時,與其等 LLM 用文字硬描述,不如直接撈真實資料或整理成結構化內容,回傳
@@ -60,7 +63,7 @@ export async function buildCanvasForReply(params: {
   agentSlug: string;
   message: string;
   replyText: string;
-  agent: MeetingAgentInput;
+  agent: OpenAiAgentProfile;
 }): Promise<CanvasPayload | null> {
   const { agentSlug, message, replyText, agent } = params;
 
@@ -115,7 +118,7 @@ export async function buildCanvasForReply(params: {
 
   if (ACTION_PLAN_KEYWORDS.test(message)) {
     try {
-      const plan = await extractActionPlan({ agent, message, replyText });
+      const plan = await extractAgentActionPlan({ agent, message, replyText });
       if (!plan) return null;
       return { kind: "action-plan", title: plan.title, items: plan.items };
     } catch {

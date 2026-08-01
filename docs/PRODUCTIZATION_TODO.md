@@ -11,9 +11,9 @@
 | Release intent | Demand-driven production slices；不做 big-bang rewrite |
 | Owner | CabLate 工程團隊 |
 | Repository | `F:/ownproject/kv` |
-| Branch／planning base | `codex/kv-wp0-toolchain`／`dba3082` |
+| Branch／planning base | `codex/kv-wp0-toolchain`／`81814d4` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-08-01；CodeGraph 405 files／3,442 nodes／7,311 edges；KV cloud staging 已 clean replay；Main DB-only journeys與Teaching四表live read／Operations authenticated Chrome均已通過 |
+| Last verified | 2026-08-01；CodeGraph 410 files／3,488 nodes／7,349 edges；100 test files／498 tests、typecheck、lint、production build全過；KV staging、Teaching live read與OpenAI ownership repair的authenticated Chrome均已通過 |
 | Requirements source | 本對話：保留 UI／UX 與現有資料格式，漸進產品化；同一實作批先完成可安全修改的程式碼，再集中執行heavy驗收 |
 | Readiness | **Implementation Ready**：主庫 clean-room replay、Main authenticated journeys與Teaching live read已完成；其餘provider真實驗收依各自sandbox／fixture推進 |
 
@@ -92,7 +92,7 @@ Frozen UI／pages
   → API routes（auth、parse、HTTP、composition）
     → src/modules/<domain>（rules、capability、workflow）
       → src/adapters/<domain>（Supabase／provider／legacy translation）
-        → src/lib（仍在使用的具體 legacy helper）
+        → shared provider client或仍在使用的具體legacy helper
           → Supabase／LINE／OpenAI／Google／Teachify／Firecrawl
 ```
 
@@ -108,7 +108,7 @@ Frozen UI／pages
 | F-06 | 無 production caller 的 generic `RuntimeKernel`／in-memory scaffold 與 Visit draft runtime 已刪除 | CodeGraph 查無 `RuntimeKernel`；commits `d524d5a`、`8216f33` | 禁止在第一個真實 consumer 前重建平台 |
 | F-07 | canonical Agent identity compatibility foundation 已存在；`AGENTS` 仍維持 legacy-compatible projection | `src/lib/agent-data.ts`、`src/modules/agents/identity.ts` | 全面 consumer cutover 改為需求觸發，不作固定前置工作 |
 | F-08 | `.env.local` 已配置 auth 與 CabLate `kv-staging` publishable access；尚無 Main service role、Teaching 與其他 provider keys | key-name-only inventory＋staging Data API probe | 可開始 Main RLS／一般使用者 journey；privileged routes與外部 provider仍有各自 gate |
-| F-09 | 最新完整自動驗證為 97 test files／481 tests、typecheck、lint、build | 本工作批release gate＋既有Playwright smoke 132／132 | 自動gate之外，本批另有Main staging catalog／Data API／affected Chrome evidence |
+| F-09 | 最新完整自動驗證為 100 test files／498 tests、typecheck、lint、production build | WP-OAI release gate＋既有Playwright smoke 132／132 | 自動gate之外，另有Main staging／Teaching live／affected authenticated Chrome evidence |
 | F-10 | Teaching live project 有 47 public tables；KV source 只讀 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` | live schema introspection＋`src/adapters/operations/teaching-pipeline-source.ts` | Teaching 是共享外部產品，不納入 KV baseline ownership |
 | F-11 | `getPipelineOverview` 同時供 Operations API 與 `operationsContext` 使用；四個query已逐一檢查error，任一失敗會使整份snapshot unavailable | CodeGraph callers／impact＋`tests/unit/{operations-pipeline,meeting-context,agent-overview-routes}.test.ts` | silent-zero failure已關閉；live read-only acceptance仍需Teaching env |
 
@@ -154,6 +154,7 @@ Frozen UI／pages
 | Visit／dead scaffold cleanup | `cc0780c`、`fc97689`、`c610836`、`8216f33`、`d524d5a`、`5fc13ec` | 保留 live workflow，刪除無 consumer runtime與薄包裝 |
 | Schema／cross-batch evidence | `4bbec8e`、`a979489` | 記錄 provenance 缺口與 test-env smoke，不冒充 real data |
 | Teaching external boundary | `9a96303` | 單一Operations domain＋typed read-only adapter；關閉silent-zero並刪除legacy helper |
+| OpenAI provider ownership | 本批commit | 官方SDK成為單一server protocol owner；prompt／mapping回各domain，刪除872行跨domain聚合helper；production＋manifest淨減34行，新增contract tests使總diff淨增409行 |
 
 ## 4. Architecture and evolution decisions
 
@@ -263,7 +264,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Replay complete | `kv-staging`＋Main runtime env | baseline replay／catalog diff／Data API evidence；handoff給WP-MAIN |
 | WP-MAIN | 不依賴外部provider的Main資料功能在staging可讀寫、可辨識錯誤並可清理測試資料 | Complete | WP-DB；既有UI/API/data contract | Main DB-only functional baseline與key-class evidence |
 | WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Complete | live四表schema＋既有API contract | adapter contract／fixtures／兩consumer cutover／legacy deletion／live read acceptance |
-| WP-OAI | OpenAI協定由官方SDK與一個shared transport擁有；prompt／mapping回到既有domain adapter | Ready／active | Node 22、既有provider contracts | 移除`src/lib/openai.ts`聚合owner與薄轉傳；focused contract後集中驗收 |
+| WP-OAI | OpenAI協定由官方SDK與一個shared transport擁有；prompt／mapping回到既有domain adapter | Complete | Node 22、既有provider contracts | provider真實journey仍依WP-B sandbox gate；一般維護不再受舊聚合owner阻礙 |
 | WP-B | 核心 journey 有real-data/provider-safe baseline | Main＋Teaching baseline complete；其他external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
 | WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
@@ -378,6 +379,8 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 
 **Done when／rollback:** 所有既有consumer通過contract，`src/lib/openai.ts`與薄轉傳歸零，shared transport只有真實多domain consumer，UI/API/data／side-effect契約不變，dependency與Node runtime可重建。任一高風險consumer parity或build失敗即回退整個WP-OAI commit；不保留兩套transport、feature flag或compatibility shim。
 
+**Current completion:** Complete。官方`openai@7.3.0`與`zod@4.4.3`為exact direct dependencies，Node manifest固定`>=22`；server-side API-key呼叫只由`src/adapters/openai/client.ts`擁有，Knowledge Base、Contact Research、Visit、Meeting、Agent Chat與Reporting保留各自prompt／mapping／fallback。瀏覽器Realtime SDP以短效token直連`/realtime/calls`，刻意維持client-only WebRTC邊界，不把server SDK打進前端bundle。CodeGraph與source search確認`src/lib/openai.ts`、舊import與第二個server transport皆為0；production＋manifest為898 additions／932 deletions（淨減34），新增contract tests後全批為1,418 additions／1,009 deletions。100 test files／498 tests、typecheck、lint、93-page production build與`git diff --check`全過。Authenticated Chrome實際巡Meeting、Visit、Knowledge Base、Team Lead、Support、Goals，並開啟Agent chat、輸入／清除草稿後關閉；所有頁面無visible error或console error，未觸發OpenAI、LINE或Email side effect。
+
 ### WP-B — Core functional baseline
 
 依dependency分成現在可完成與外部gate，不再把兩者混成一條模糊清單：
@@ -463,9 +466,9 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 
 ### Verdict: Main＋Teaching baseline complete；其他external acceptance按需進行
 
-**整體 blocker:** Main baseline已clean replay且WP-MAIN完成，Teaching live read也已關閉。LINE／OpenAI／Google／Teachify／Firecrawl等provider-backed journeys仍受各自sandbox／fixture限制；它們不阻塞一般需求與局部重構，只阻塞對應domain的production-like宣告。
+**整體 blocker:** Main baseline、WP-MAIN、Teaching live read與WP-OAI ownership repair均已完成。LINE／OpenAI／Google／Teachify／Firecrawl等provider-backed journeys仍受各自sandbox／fixture限制；它們不阻塞一般需求與局部重構，只阻塞對應domain的production-like宣告。
 
-**現在可執行:** WP-OAI已由現存多domain聚合owner與薄轉傳證明，可先完成dependency adoption／ownership repair；WP-F仍可立即承接產品需求，之後遇到可證明的ownership／可靠性問題時才開WP-D。取得對應sandbox後，再逐domain補provider-backed WP-B evidence。
+**現在可執行:** WP-F可立即承接產品需求；只有遇到可證明的ownership／可靠性問題時才開WP-D。取得對應sandbox後，再逐domain補provider-backed WP-B evidence，不另開無需求支撐的全域重構階段。
 
 **被阻塞:** LINE／OpenAI／Google／Teachify／Firecrawl production-like journey需相應sandbox／fixture。Main secret key只有實際route證明需要時才成為blocker。Teaching local snapshot與完整data migration不是blocker。
 

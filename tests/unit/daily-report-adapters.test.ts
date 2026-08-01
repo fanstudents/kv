@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { buildPushMessages, logAiUsage, pushLineRawMessages } = vi.hoisted(() => ({
+const { buildPushMessages, createChatCompletion, pushLineRawMessages } = vi.hoisted(() => ({
   buildPushMessages: vi.fn(),
-  logAiUsage: vi.fn(),
+  createChatCompletion: vi.fn(),
   pushLineRawMessages: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/ai-usage", () => ({ logAiUsage }));
+vi.mock("@/adapters/openai/client", () => ({ createChatCompletion }));
 vi.mock("@/lib/line", () => ({ pushLineRawMessages }));
 vi.mock("@/lib/line-message-styles", () => ({ buildPushMessages }));
 
@@ -143,11 +143,9 @@ describe("Daily report external boundaries", () => {
 
   it("shares the same OpenAI summary protocol while retaining each domain's prompt and usage identity", async () => {
     process.env.OPENAI_API_KEY = "test-key";
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ usage: { total_tokens: 4 }, choices: [{ message: { content: "AI 摘要" } }] }),
+    createChatCompletion.mockResolvedValue({
+      choices: [{ message: { content: "AI 摘要" } }],
     });
-    vi.stubGlobal("fetch", fetchMock);
 
     const teamLeadProvider = createOpenAiDailyReportSummaryProvider(TEAM_LEAD_REPORT_SUMMARY_CONFIG);
     const supportProvider = createOpenAiDailyReportSummaryProvider(SUPPORT_REPORT_SUMMARY_CONFIG);
@@ -155,31 +153,28 @@ describe("Daily report external boundaries", () => {
     await expect(teamLeadProvider.summarize("team brief")).resolves.toBe("AI 摘要");
     await expect(supportProvider.summarize("support brief")).resolves.toBe("AI 摘要");
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
+    expect(createChatCompletion).toHaveBeenNthCalledWith(
       1,
-      "https://api.openai.com/v1/chat/completions",
-      expect.objectContaining({ method: "POST" })
+      {
+        model: "gpt-4o-mini",
+        temperature: 0.4,
+        messages: [
+          { role: "system", content: TEAM_LEAD_REPORT_SUMMARY_CONFIG.systemPrompt },
+          { role: "user", content: "team brief" },
+        ],
+      },
+      { operation: TEAM_LEAD_REPORT_SUMMARY_CONFIG.operation, agentSlug: "teamlead" }
     );
-    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body);
-    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(firstBody).toMatchObject({
-      model: "gpt-4o-mini",
-      temperature: 0.4,
-      messages: [{ role: "system", content: TEAM_LEAD_REPORT_SUMMARY_CONFIG.systemPrompt }, { role: "user", content: "team brief" }],
-    });
-    expect(secondBody.messages[0].content).toBe(SUPPORT_REPORT_SUMMARY_CONFIG.systemPrompt);
-    expect(logAiUsage).toHaveBeenNthCalledWith(1, {
-      operation: "每日晨報摘要",
-      model: "gpt-4o-mini",
-      usage: { total_tokens: 4 },
-      agentSlug: "teamlead",
-    });
-    expect(logAiUsage).toHaveBeenNthCalledWith(2, {
-      operation: "客服每日彙報摘要",
-      model: "gpt-4o-mini",
-      usage: { total_tokens: 4 },
-      agentSlug: "support",
-    });
+    expect(createChatCompletion).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        messages: [
+          { role: "system", content: SUPPORT_REPORT_SUMMARY_CONFIG.systemPrompt },
+          { role: "user", content: "support brief" },
+        ],
+      }),
+      { operation: SUPPORT_REPORT_SUMMARY_CONFIG.operation, agentSlug: "support" }
+    );
   });
 
   it("uses one LINE delivery adapter without changing the renderer payload", async () => {

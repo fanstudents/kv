@@ -1,8 +1,8 @@
 import "server-only";
+import { replyToAgentChat } from "@/adapters/agent-chat/openai-agent-chat-provider";
 import { AGENTS } from "@/lib/agent-data";
 import { buildCanvasForReply } from "@/lib/chat-canvas";
 import { getAgentLiveContext } from "@/lib/meeting-context";
-import { replyToChat } from "@/lib/openai";
 import type { AgentChatPorts } from "@/modules/agent-chat/chat";
 
 const TEAM_LEAD_SLUG = "teamlead";
@@ -29,7 +29,7 @@ export function createAgentChatComposition(): AgentChatPorts {
     },
     replies: {
       generate(input) {
-        return replyToChat({
+        return replyToAgentChat({
           agent: {
             slug: input.agent.slug,
             name: input.agent.name,

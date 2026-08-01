@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { synthesizeSpeech, transcribeAudio } = vi.hoisted(() => ({
-  synthesizeSpeech: vi.fn(),
-  transcribeAudio: vi.fn(),
+const { createSpeech, createTranscription } = vi.hoisted(() => ({
+  createSpeech: vi.fn(),
+  createTranscription: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/openai", () => ({ synthesizeSpeech, transcribeAudio }));
+vi.mock("@/adapters/openai/client", () => ({ createSpeech, createTranscription }));
 
 import { createOpenAiMeetingAudioProvider } from "@/adapters/meeting/openai-audio-provider";
 import {
@@ -120,12 +120,45 @@ describe("OpenAI Meeting audio provider", () => {
     const audio = new ArrayBuffer(3);
     const source = { arrayBuffer: async () => new ArrayBuffer(2) };
     const speakInput = { text: "hello", voice: "coral", instructions: "brief", speed: 1.2 };
-    synthesizeSpeech.mockResolvedValue(audio);
-    transcribeAudio.mockResolvedValue("transcript");
+    createSpeech.mockResolvedValue(audio);
+    createTranscription.mockResolvedValue("transcript");
 
     await expect(provider.synthesize(speakInput)).resolves.toBe(audio);
     await expect(provider.transcribe({ audio: source, promptHint: "Ivy" })).resolves.toBe("transcript");
-    expect(synthesizeSpeech).toHaveBeenCalledWith(speakInput);
-    expect(transcribeAudio).toHaveBeenCalledWith({ file: source, promptHint: "Ivy" });
+    expect(createSpeech).toHaveBeenCalledWith({
+      model: "gpt-4o-mini-tts",
+      voice: "coral",
+      input: "hello",
+      instructions: "brief",
+    });
+    expect(createTranscription).toHaveBeenCalledWith({
+      file: source,
+      model: "gpt-4o-transcribe",
+      promptHint: "Ivy",
+    });
+  });
+
+  it("keeps the established transcription and speech model fallbacks", async () => {
+    const provider = createOpenAiMeetingAudioProvider();
+    const source = { arrayBuffer: async () => new ArrayBuffer(2) };
+    const audio = new ArrayBuffer(3);
+    createTranscription.mockRejectedValueOnce(new Error("primary down")).mockResolvedValueOnce("fallback");
+    createSpeech.mockRejectedValueOnce(new Error("primary down")).mockResolvedValueOnce(audio);
+
+    await expect(provider.transcribe({ audio: source, promptHint: "Ivy" })).resolves.toBe("fallback");
+    await expect(
+      provider.synthesize({ text: "hello", voice: "coral", instructions: "brief", speed: 1.2 })
+    ).resolves.toBe(audio);
+    expect(createTranscription).toHaveBeenLastCalledWith({
+      file: source,
+      model: "whisper-1",
+      promptHint: "Ivy",
+    });
+    expect(createSpeech).toHaveBeenLastCalledWith({
+      model: "tts-1",
+      voice: "nova",
+      input: "hello",
+      speed: 1.2,
+    });
   });
 });

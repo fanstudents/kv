@@ -1,5 +1,8 @@
 "use client";
 
+// Browser-only WebRTC transport. The short-lived client token and SDP exchange
+// intentionally stay outside the server-only OpenAI SDK adapter.
+
 // 極簡的 OpenAI Realtime WebRTC 封裝：語音直接進、語音直接出，全程雙向串流，
 // 不需要自己做「錄音→辨識→組句→合成」三段式等待——這正是 ChatGPT 語音模式、
 // Gemini Live 之所以流暢自然的架構本身，不是換個更快的模型就能模仿出來的。

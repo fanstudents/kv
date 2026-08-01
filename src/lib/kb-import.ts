@@ -1,8 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { extractText, getDocumentProxy } from "unpdf";
+import { requestKnowledgeJson } from "@/adapters/knowledge-base/openai-knowledge-provider";
 import { getSupabase } from "@/lib/supabase";
-import { chatJson } from "@/lib/openai";
 import { addKnowledgeDocs } from "@/lib/knowledge-base";
 import type { KnowledgeKind, KnowledgeLevel } from "@/lib/knowledge-base-data";
 
@@ -122,7 +122,7 @@ const SYSTEM_PROMPT = `你是企業知識庫的內容整理員。使用者會給
 
 /** 把一塊原文轉成候選條目（AI 轉換 + 規則式敏感度預判，兩者取較嚴格的等級） */
 async function convertChunk(chunk: Chunk): Promise<KbCandidate[]> {
-  const data = await chatJson({
+  const data = await requestKnowledgeJson({
     model: "gpt-4o-mini",
     operation: "kb-import-convert",
     messages: [

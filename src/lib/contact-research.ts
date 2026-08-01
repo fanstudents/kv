@@ -1,6 +1,6 @@
 import "server-only";
+import { requestWebSearchJson } from "@/adapters/openai/client";
 import { getSupabase } from "@/lib/supabase";
-import { webSearchJson } from "@/lib/openai";
 import { finishRun, logStep, startRun } from "@/lib/agent-runs";
 
 // 約拜訪成交後的「行前功課」：對方一確認時段，Coco 就去網路上查這個人與這家公司——
@@ -95,12 +95,14 @@ export async function researchContact(params: {
 
   try {
     await logStep(runId, "research-search", { status: "running", input: query.slice(0, 200), seq: 0 });
-    const raw = await webSearchJson({
-      instructions: SYSTEM_PROMPT,
-      input: query,
-      operation: "拜訪前背景調查",
-      agentSlug: "visit",
-    });
+    const raw = await requestWebSearchJson(
+      {
+        instructions: SYSTEM_PROMPT,
+        input: query,
+        model: "gpt-4o",
+      },
+      { operation: "拜訪前背景調查", agentSlug: "visit" }
+    );
 
     const profile: ContactProfile = {
       companySummary: String(raw?.companySummary ?? "").trim(),

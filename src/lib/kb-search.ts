@@ -1,6 +1,6 @@
 import "server-only";
+import { embedKnowledgeTexts } from "@/adapters/knowledge-base/openai-knowledge-provider";
 import { getSupabase } from "@/lib/supabase";
-import { embedTexts } from "@/lib/openai";
 import { levelInfo, type KnowledgeLevel } from "@/lib/knowledge-base-data";
 
 // 知識庫檢索：把「已發布」的條目切段、向量化存進 kb_chunks，回答時只取跟問題最相關的幾段。
@@ -70,7 +70,7 @@ export async function indexDocs(docIds: string[]): Promise<number> {
     await supabase.from("kb_chunks").delete().in("doc_id", docIds);
     if (rows.length === 0) return 0;
 
-    const vectors = await embedTexts(rows.map((r) => r.content));
+    const vectors = await embedKnowledgeTexts(rows.map((r) => r.content));
     const withEmbedding = rows.map((r, i) => ({ ...r, embedding: JSON.stringify(vectors[i] ?? []) }));
 
     const { error } = await supabase.from("kb_chunks").insert(withEmbedding);
@@ -99,7 +99,7 @@ export async function searchKnowledge(params: {
   minSimilarity?: number;
 }): Promise<KbHit[]> {
   try {
-    const [embedding] = await embedTexts([params.question], "知識庫檢索");
+    const [embedding] = await embedKnowledgeTexts([params.question], "知識庫檢索");
     if (!embedding) return [];
 
     const { data, error } = await getSupabase().rpc("match_kb_chunks", {
