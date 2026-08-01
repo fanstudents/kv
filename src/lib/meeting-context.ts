@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import { listWeekOverview } from "@/lib/google";
 import { getSearchOverview } from "@/lib/gsc";
 import { getTrafficOverview } from "@/lib/ga4";
@@ -20,7 +20,7 @@ function nameOf(slug: string): string {
 }
 
 async function visitContext(): Promise<string> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const parts: string[] = [];
 
   const { data: contacts } = await supabase
@@ -45,12 +45,12 @@ async function visitContext(): Promise<string> {
         .order("created_at", { ascending: false }),
     ]);
     const offerBy = new Map<string, string>();
-    (offers ?? []).forEach((o: { contact_id: string; status: string }) => {
-      if (!offerBy.has(o.contact_id)) offerBy.set(o.contact_id, o.status);
+    (offers ?? []).forEach((o) => {
+      if (o.contact_id && !offerBy.has(o.contact_id)) offerBy.set(o.contact_id, o.status);
     });
     const inviteBy = new Map<string, string>();
-    (invites ?? []).forEach((i: { contact_id: string; status: string }) => {
-      if (!inviteBy.has(i.contact_id)) inviteBy.set(i.contact_id, i.status);
+    (invites ?? []).forEach((i) => {
+      if (i.contact_id && !inviteBy.has(i.contact_id)) inviteBy.set(i.contact_id, i.status);
     });
     const lines = contacts.map((c: { id: string; name: string; company: string | null }) => {
       const inv = inviteBy.get(c.id);
@@ -195,7 +195,7 @@ async function operationsContext(): Promise<string> {
 }
 
 async function teamleadContext(): Promise<string> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: rows } = await supabase
     .from("line_agent_activity")
@@ -226,7 +226,7 @@ async function teamleadContext(): Promise<string> {
 
 /** 這位 Agent 自己過去 7 天的真實動態紀錄（不論哪個 slug 都試著撈，是所有人都能用的基本盤）。 */
 async function ownRecentActivity(slug: string): Promise<string> {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: rows } = await supabase
     .from("line_agent_activity")

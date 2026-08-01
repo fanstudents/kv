@@ -5,7 +5,7 @@ const { getPipelineOverview } = vi.hoisted(() => ({ getPipelineOverview: vi.fn()
 vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/operations/teaching-pipeline-source", () => ({ getPipelineOverview }));
 vi.mock("@/lib/supabase", () => ({
-  getSupabase: () => {
+  getMainSupabase: () => {
     throw new Error("primary database unavailable");
   },
 }));
