@@ -1,11 +1,11 @@
 import "server-only";
 import { pushLineRawMessages } from "@/lib/line";
 import { buildPushMessages } from "@/lib/line-message-styles";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import type { AgentTestPushPort } from "@/modules/agents/test-push";
 
 export function createLineAgentTestPushAdapter(): AgentTestPushPort {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
   return {
     async send(delivery) {
       await pushLineRawMessages(

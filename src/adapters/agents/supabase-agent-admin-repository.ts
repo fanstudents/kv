@@ -1,10 +1,28 @@
 import "server-only";
-import { getSupabase } from "@/lib/supabase";
+import type { Json, TablesUpdate } from "@/lib/database.types";
+import { getMainSupabase } from "@/lib/supabase";
 import type { AgentAdminRepository } from "@/modules/agents/admin";
 
+function isJson(value: unknown): value is Json {
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return true;
+  }
+  if (Array.isArray(value)) return value.every(isJson);
+  if (typeof value !== "object") return false;
+  return Object.values(value).every(isJson);
+}
+
+function toLineAgentUpdate(update: Record<string, unknown>): TablesUpdate<"line_agents"> {
+  const row: TablesUpdate<"line_agents"> = {};
+  if (typeof update.enabled === "boolean") row.enabled = update.enabled;
+  if (typeof update.updated_at === "string") row.updated_at = update.updated_at;
+  if (isJson(update.settings)) row.settings = update.settings;
+  return row;
+}
+
 export function createSupabaseAgentAdminRepository(): AgentAdminRepository {
-  let supabase: ReturnType<typeof getSupabase> | undefined;
-  const client = () => (supabase ??= getSupabase());
+  let supabase: ReturnType<typeof getMainSupabase> | undefined;
+  const client = () => (supabase ??= getMainSupabase());
 
   return {
     async getBySlug(slug) {
@@ -14,7 +32,7 @@ export function createSupabaseAgentAdminRepository(): AgentAdminRepository {
     async updateBySlug(slug, update) {
       const { data, error } = await client()
         .from("line_agents")
-        .update(update)
+        .update(toLineAgentUpdate(update))
         .eq("slug", slug)
         .select()
         .single();

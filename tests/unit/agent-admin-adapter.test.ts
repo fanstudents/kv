@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSupabase } = vi.hoisted(() => ({ getSupabase: vi.fn() }));
+const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createSupabaseAgentAdminRepository } from "@/adapters/agents/supabase-agent-admin-repository";
 
@@ -16,7 +16,7 @@ describe("Supabase agent admin repository", () => {
     query.select.mockReturnValue(query);
     query.eq.mockReturnValue(query);
     const from = vi.fn(() => query);
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
 
     await expect(createSupabaseAgentAdminRepository().getBySlug("operations")).resolves.toEqual({
       data: { slug: "operations", enabled: true },
@@ -46,17 +46,25 @@ describe("Supabase agent admin repository", () => {
       if (from.mock.calls.length === 2) return statusQuery;
       return updateQuery;
     });
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
     const repository = createSupabaseAgentAdminRepository();
 
-    await expect(repository.updateBySlug("operations", { updated_at: "now", enabled: false })).resolves.toEqual({
+    await expect(repository.updateBySlug("operations", {
+      updated_at: "now",
+      enabled: false,
+      settings: { tone: "brief" },
+    })).resolves.toEqual({
       data: { slug: "operations", enabled: false },
       errorMessage: null,
     });
     await expect(repository.listStatuses()).resolves.toEqual({ data: [{ slug: "operations", enabled: true }], error: null });
     await repository.recordActivity({ agent_slug: "operations", summary: "Agent 已停用", status: "success" });
 
-    expect(updateQuery.update).toHaveBeenCalledWith({ updated_at: "now", enabled: false });
+    expect(updateQuery.update).toHaveBeenCalledWith({
+      updated_at: "now",
+      enabled: false,
+      settings: { tone: "brief" },
+    });
     expect(updateQuery.eq).toHaveBeenCalledWith("slug", "operations");
     expect(updateQuery.select).toHaveBeenCalledWith();
     expect(statusQuery.select).toHaveBeenCalledWith("slug,enabled");

@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { buildPushMessages, pushLineRawMessages, getSupabase } = vi.hoisted(() => ({
+const { buildPushMessages, pushLineRawMessages, getMainSupabase } = vi.hoisted(() => ({
   buildPushMessages: vi.fn(),
   pushLineRawMessages: vi.fn(),
-  getSupabase: vi.fn(),
+  getMainSupabase: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineRawMessages }));
 vi.mock("@/lib/line-message-styles", () => ({ buildPushMessages }));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createLineAgentTestPushAdapter } from "@/adapters/agents/line-agent-test-push-adapter";
 
@@ -28,7 +28,7 @@ describe("LINE agent test-push adapter", () => {
     successQuery.insert.mockReturnValue(successQuery);
     successQuery.select.mockReturnValue(successQuery);
     const from = vi.fn((table: string) => (table === "line_agent_activity" && from.mock.calls.length === 1 ? failureQuery : successQuery));
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
     const adapter = createLineAgentTestPushAdapter();
 
     await adapter.send({ to: "U1", text: "hello", style: "buttons", title: "Title", accentColor: "#06C755", channel: "support" });
