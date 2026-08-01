@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { buildPushMessages, pushLineRawMessages, getSupabase } = vi.hoisted(() => ({
+const { buildPushMessages, pushLineRawMessages, getMainSupabase } = vi.hoisted(() => ({
   buildPushMessages: vi.fn(),
   pushLineRawMessages: vi.fn(),
-  getSupabase: vi.fn(),
+  getMainSupabase: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineRawMessages }));
 vi.mock("@/lib/line-message-styles", () => ({ buildPushMessages }));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createLineSubscribersBroadcastAdapter } from "@/adapters/subscribers/line-broadcast-adapter";
 
@@ -35,7 +35,7 @@ describe("LINE Subscribers broadcast adapter", () => {
     const logsQuery = chain({ data: [{ id: "log-1" }], error: null });
     const recipientsQuery = chain({ data: [{ id: "s1", line_user_id: "U1", channel: "support" }], error: null });
     const from = vi.fn((table: string) => (table === "broadcast_logs" ? logsQuery : recipientsQuery));
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
     const adapter = createLineSubscribersBroadcastAdapter();
 
     await expect(adapter.listLogs()).resolves.toEqual({ data: [{ id: "log-1" }], error: null });
@@ -57,7 +57,7 @@ describe("LINE Subscribers broadcast adapter", () => {
 
   it("keeps LINE message construction and log writes", async () => {
     const query = { insert: vi.fn().mockResolvedValue({ error: null }) };
-    getSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
     buildPushMessages.mockReturnValue([{ type: "text", text: "公告" }]);
     pushLineRawMessages.mockResolvedValue(undefined);
     const adapter = createLineSubscribersBroadcastAdapter();

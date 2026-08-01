@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSupabase, getLineProfile } = vi.hoisted(() => ({
-  getSupabase: vi.fn(),
+const { getMainSupabase, getLineProfile } = vi.hoisted(() => ({
+  getMainSupabase: vi.fn(),
   getLineProfile: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/line", () => ({ getLineProfile }));
 
 import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
@@ -20,7 +20,7 @@ describe("Supabase Subscribers repository", () => {
     query.select.mockReturnValue(query);
     query.order.mockReturnValue(query);
     const from = vi.fn(() => query);
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
 
     await expect(supabaseSubscribersRepository.list()).resolves.toEqual({
       data: [{ id: "s1", tags: ["vip"] }],
@@ -44,7 +44,7 @@ describe("Supabase Subscribers repository", () => {
     query.eq.mockReturnValue(query);
     query.select.mockReturnValue(query);
     query.single.mockReturnValue(query);
-    getSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
 
     await expect(supabaseSubscribersRepository.update("s1", { tags: ["vip"] })).resolves.toEqual({
       data: { id: "s1" },
@@ -67,7 +67,7 @@ describe("Supabase Subscribers repository", () => {
     const from = vi.fn()
       .mockReturnValueOnce(existingQuery)
       .mockReturnValueOnce(updateQuery);
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
 
     await supabaseSubscribersRepository.touch("U1", "primary");
     expect(updateQuery.update).toHaveBeenCalledWith({ last_seen_at: expect.any(String) });
@@ -87,7 +87,7 @@ describe("Supabase Subscribers repository", () => {
     const from = vi.fn()
       .mockReturnValueOnce(existingQuery)
       .mockReturnValueOnce({ insert });
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
     getLineProfile.mockResolvedValue({ displayName: "Alice", pictureUrl: "https://example.com/a.png" });
 
     await supabaseSubscribersRepository.touch("U1", "support");

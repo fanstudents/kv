@@ -1,11 +1,11 @@
 import "server-only";
 import { getLineProfile } from "@/lib/line";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import type { SubscribersRepository } from "@/modules/subscribers/service";
 
 export const supabaseSubscribersRepository: SubscribersRepository = {
   async list() {
-    const { data, error } = await getSupabase()
+    const { data, error } = await getMainSupabase()
       .from("line_subscribers")
       .select("*")
       .order("last_seen_at", { ascending: false });
@@ -13,7 +13,7 @@ export const supabaseSubscribersRepository: SubscribersRepository = {
   },
 
   async update(id, fields) {
-    const { data, error } = await getSupabase()
+    const { data, error } = await getMainSupabase()
       .from("line_subscribers")
       .update(fields)
       .eq("id", id)
@@ -23,7 +23,7 @@ export const supabaseSubscribersRepository: SubscribersRepository = {
   },
 
   async touch(lineUserId, channel) {
-    const supabase = getSupabase();
+    const supabase = getMainSupabase();
     const { data: existing } = await supabase
       .from("line_subscribers")
       .select("id, display_name")

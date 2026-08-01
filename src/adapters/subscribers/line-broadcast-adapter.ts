@@ -1,11 +1,16 @@
 import "server-only";
 import { pushLineRawMessages, type LineChannel } from "@/lib/line";
 import { buildPushMessages } from "@/lib/line-message-styles";
-import { getSupabase } from "@/lib/supabase";
-import type { SubscribersBroadcastPort } from "@/modules/subscribers/broadcast";
+import { getMainSupabase } from "@/lib/supabase";
+import type { BroadcastRecipient, SubscribersBroadcastPort } from "@/modules/subscribers/broadcast";
+
+function toBroadcastRecipient(row: { id: string; line_user_id: string; channel: string }): BroadcastRecipient {
+  // The Main DB migration constrains channel to primary/support; generated PostgREST types retain text.
+  return { ...row, channel: row.channel as BroadcastRecipient["channel"] };
+}
 
 export function createLineSubscribersBroadcastAdapter(): SubscribersBroadcastPort {
-  const supabase = getSupabase();
+  const supabase = getMainSupabase();
 
   return {
     async listLogs() {
@@ -21,7 +26,7 @@ export function createLineSubscribersBroadcastAdapter(): SubscribersBroadcastPor
       if (request.tags.length > 0) query = query.overlaps("tags", request.tags);
       if (request.channel !== "all") query = query.eq("channel", request.channel);
       const { data, error } = await query;
-      return { data, error };
+      return { data: data?.map(toBroadcastRecipient) ?? null, error };
     },
     async send(recipient, request) {
       await pushLineRawMessages(
