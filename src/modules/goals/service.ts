@@ -15,10 +15,21 @@ export interface GoalsRepository {
   loadHistory(metricId: string, days: number): Promise<GoalHistoryPoint[]>;
 }
 
+function storageError(error: unknown) {
+  return {
+    kind: "error" as const,
+    message: error instanceof Error ? error.message : "儲存失敗",
+  };
+}
+
 export function createGoalsService(repository: GoalsRepository) {
   return {
     async read() {
-      return { kind: "ok" as const, data: await repository.list() };
+      try {
+        return { kind: "ok" as const, data: await repository.list() };
+      } catch (error) {
+        return storageError(error);
+      }
     },
 
     async update(parsed: GoalUpdateRequest) {
@@ -27,27 +38,36 @@ export function createGoalsService(repository: GoalsRepository) {
         const goal = await repository.upsert(parsed.goal);
         return { kind: "ok" as const, goal };
       } catch (error) {
-        return {
-          kind: "error" as const,
-          message: error instanceof Error ? error.message : "儲存失敗",
-        };
+        return storageError(error);
       }
     },
 
     async delete(parsed: GoalDeleteRequest) {
       if (parsed.kind === "invalid") return parsed;
-      await repository.remove(parsed.id);
-      return { kind: "ok" as const };
+      try {
+        await repository.remove(parsed.id);
+        return { kind: "ok" as const };
+      } catch (error) {
+        return storageError(error);
+      }
     },
 
     async reset() {
-      return { kind: "ok" as const, data: await repository.reset() };
+      try {
+        return { kind: "ok" as const, data: await repository.reset() };
+      } catch (error) {
+        return storageError(error);
+      }
     },
 
     async history(input: GoalsHistoryRequest) {
       if (!input.metricId) return { kind: "invalid" as const, message: "缺少 metricId" };
-      const points = await repository.loadHistory(input.metricId, input.days);
-      return { kind: "ok" as const, points };
+      try {
+        const points = await repository.loadHistory(input.metricId, input.days);
+        return { kind: "ok" as const, points };
+      } catch (error) {
+        return storageError(error);
+      }
     },
   };
 }

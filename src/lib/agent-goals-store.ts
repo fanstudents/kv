@@ -27,11 +27,17 @@ function setCache(next: AgentGoal[]) {
 async function load() {
   if (loading) return loading;
   loading = fetch("/api/goals")
-    .then((r) => (r.ok ? r.json() : { goals: DEFAULT_GOALS }))
-    .then((d) => setCache(Array.isArray(d.goals) ? d.goals : DEFAULT_GOALS))
-    .catch(() => {
-      // 讀不到就先用預設值撐著，畫面不會空白
-      setCache(DEFAULT_GOALS);
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`Goals request failed (${response.status})`);
+      return response.json();
+    })
+    .then((data) => {
+      if (!Array.isArray(data.goals)) throw new Error("Goals response is invalid");
+      setCache(data.goals);
+    })
+    .catch((error) => {
+      loaded = true;
+      console.error("[goals] load failed", error);
     })
     .finally(() => {
       loading = null;
@@ -57,7 +63,8 @@ function getServerSnapshot(): AgentGoal[] {
 
 /** 新增或更新一筆目標 */
 export async function saveGoal(goal: AgentGoal) {
-  // 先樂觀更新畫面，再送出；失敗就重新拉一次校正回來
+  // 先樂觀更新畫面，再送出；失敗則回復這次操作前的快取。
+  const previous = cache;
   const idx = cache.findIndex((g) => g.id === goal.id);
   setCache(idx >= 0 ? cache.map((g) => (g.id === goal.id ? goal : g)) : [...cache, goal]);
   const res = await fetch("/api/goals", {
@@ -66,25 +73,34 @@ export async function saveGoal(goal: AgentGoal) {
     body: JSON.stringify(goal),
   }).catch(() => null);
   if (!res?.ok) {
-    loaded = false;
-    await load();
+    setCache(previous);
+    console.error("[goals] save failed", res?.status ?? "network error");
   }
 }
 
 export async function removeGoal(id: string) {
+  const previous = cache;
   setCache(cache.filter((g) => g.id !== id));
   const res = await fetch(`/api/goals?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
   if (!res?.ok) {
-    loaded = false;
-    await load();
+    setCache(previous);
+    console.error("[goals] delete failed", res?.status ?? "network error");
   }
 }
 
 /** 回到示範用的預設目標（展示前重置很方便） */
 export async function resetGoals() {
   const res = await fetch("/api/goals", { method: "POST" }).catch(() => null);
-  const data = res?.ok ? await res.json().catch(() => null) : null;
-  setCache(Array.isArray(data?.goals) ? data.goals : DEFAULT_GOALS);
+  if (!res?.ok) {
+    console.error("[goals] reset failed", res?.status ?? "network error");
+    return;
+  }
+  const data = await res.json().catch(() => null);
+  if (!Array.isArray(data?.goals)) {
+    console.error("[goals] reset response is invalid");
+    return;
+  }
+  setCache(data.goals);
 }
 
 export function newGoalId(): string {

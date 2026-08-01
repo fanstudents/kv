@@ -212,7 +212,7 @@ Frozen UI／pages
 
 | Project | Current truth／remaining gap | Consequence |
 |---|---|---|
-| Main Supabase | `kv-staging` clean replay與catalog diff已通過；DB-only affected journeys尚未全部關閉 | 可以clean rebuild；現在直接完成Main functional baseline，forward migration rollback留到第一個真實delta |
+| Main Supabase | `kv-staging` clean replay、catalog diff與Main DB-only affected journeys已通過 | 可以clean rebuild並承接需求；forward migration rollback留到第一個真實delta |
 | Teaching Supabase | 四個 consumer table 的 live contract 已取得；它是 47-table 共享系統且有外部 FK／RLS dependency | 建立 adapter contract／fixture，不把整個 Teaching DB 納入 KV ownership |
 | Runtime env | `.env.local` 已有Main staging URL／publishable key；沒有secret/service-role、Teaching endpoint／key | 先用目前實際anon contract跑完整Main journey；只有route確實需要bypass RLS時才把secret key列為blocker，不為勾選項目先升權 |
 | Providers | LINE／OpenAI／Google／Teachify／Firecrawl key或安全 fixture尚未提供 | 不能把 mock/empty UI 升級成 production-like evidence |
@@ -229,9 +229,9 @@ Frozen UI／pages
 4. [x] 在CabLate空白`kv-staging`套用canonical baseline，修正bigint序列上限精度並比對catalog counts／definitions一致。
 5. [x] 將既有7份migration分類為已吸收歷史並自active chain移除，避免clean setup重複建立同一物件；後續只加forward-only delta。
 6. [x] 由 WP-T 為Teaching四表建立明確adapter contract、fixture、錯誤語意與ownership；不複製47-table shared schema。
-7. [ ] 本機已補Main publishable env，Data API、四個authenticated read pages與Goals create成功；由WP-MAIN關閉update／app-level delete、DB-only journeys與實際key-class需求。
+7. [x] Main publishable env、Data API與authenticated pages已通過；WP-MAIN另完成Goals create／update／API delete／reset、Checklist toggle、Subscribers tag update、KB CRUD／access、Meeting DB／Storage persistence、signed URL與Outputs read。應用runtime不需secret；只有管理者清理無delete policy的錄音測試物件時使用一次server secret，未寫入env／browser／Git。
 
-**Blocks now:** 主庫schema猜測與clean rebuild已解除；runtime real DB CRUD、KB ingestion/search、Teaching integration、provider-backed journey、rollback rehearsal與production cutover仍受後續gate限制。
+**Blocks now:** 主庫schema猜測、clean rebuild與Main DB-only runtime baseline已解除；KB provider ingestion/search、Teaching live integration、provider-backed journey、rollback rehearsal與production cutover仍受後續gate限制。
 
 **Safety rule:** canonical baseline migration只套用clean environment；不得直接push到來源production project。後續production變更一律以forward-only delta migration進行。
 
@@ -260,9 +260,9 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | WP-00 | 現況、版本、映射、依賴與完成維度重新可信 | Complete | none | 本文件與 current source map |
 | WP-F | 新需求在現有產品可持續交付，並局部改善被碰到區域 | Ready／ongoing | affected source preflight | feature evidence；可能觸發 WP-D |
 | WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Replay complete | `kv-staging`＋Main runtime env | baseline replay／catalog diff／Data API evidence；handoff給WP-MAIN |
-| WP-MAIN | 不依賴外部provider的Main資料功能在staging可讀寫、可辨識錯誤並可清理測試資料 | Ready／next | WP-DB；既有UI/API/data contract | Operations CRUD、KB DB-only、Meeting persistence與key-class evidence |
+| WP-MAIN | 不依賴外部provider的Main資料功能在staging可讀寫、可辨識錯誤並可清理測試資料 | Complete | WP-DB；既有UI/API/data contract | Main DB-only functional baseline與key-class evidence |
 | WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Implementation complete；live acceptance pending env | live四表schema＋既有API contract | 已產出adapter contract／fixtures／兩consumer cutover／legacy deletion |
-| WP-B | 核心 journey 有real-data/provider-safe baseline | Active through WP-MAIN；external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
+| WP-B | 核心 journey 有real-data/provider-safe baseline | Main baseline complete；external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
 | WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
 | WP-X | 新路徑穩定、舊路徑歸零、團隊可 release／rollback | Pending | affected WP-D／WP-R | production-like evidence＋cleanup |
@@ -298,6 +298,8 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 **集中驗收：** 程式碼wave完成後才一次執行focused＋full tests、typecheck、lint、build；再以同一批Chrome session點完affected頁面與互動，逐條核對staging row／storage side effect，最後刪除所有`codex-e2e-*`暫存資料。失敗回到實際owner修正後，只重跑affected gate與一次final full gate。
 
 **Done when:** Goals與Checklist具完整UI/API/DB create-or-update/delete evidence；Subscribers與read models有真實staging evidence；KB DB-only與Meeting persistence完成且provider缺失不冒充成功；測試資料清零；CodeGraph無新增低訊號boundary；本批以coherent outcome commit並更新本文件。
+
+**Current completion:** 完成。CodeGraph確認沿用既有owner，未新增route-level四層包裝；99 test files／491 tests、typecheck、lint、production build全過。Chrome以真實登入依序驗Goals、Todos、Subscribers、Knowledge Base、Meeting與Outputs，無console error；API補驗Goals delete／reset與Meeting multipart recording。Staging核對meeting turn／finish／recording path／signed URL與subscriber／KB／checklist／access side effect，最後確認16筆預設Goals且所有`codex-e2e-*` DB／Storage資料為0。錄音正式保留／刪除政策仍屬產品生命週期決策；本批未為方便測試而開放anon delete。
 
 ### WP-T — Teaching external data boundary
 
@@ -423,15 +425,15 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | G-05 | R-02、R-04 | WP-D、WP-R | 第二 consumer或真實可靠性需求 |
 | G-06 | R-03 | WP-X | production-like、rollback、legacy deletion |
 
-### Verdict: Implementation Ready；acceptance active
+### Verdict: Main baseline complete；external acceptance active
 
-**整體 blocker:** Main baseline已clean replay；WP-MAIN目前沒有外部blocker。Teaching live read與provider-backed journeys仍受獨立env／sandbox限制，因此不阻塞Main code與DB-only functional baseline，但會阻塞對應domain的production-like宣告。
+**整體 blocker:** Main baseline已clean replay且WP-MAIN完成。Teaching live read與provider-backed journeys仍受獨立env／sandbox限制，因此不阻塞Main code與DB-only functional baseline，但會阻塞對應domain的production-like宣告。
 
-**現在可執行:** 先完成WP-MAIN整個implementation wave，再集中跑tests／build／staging／Chrome；WP-T只差Teaching runtime env的live read。WP-F仍可隨時處理真實需求，不再做無需求支撐的全域抽象整理。
+**現在可執行:** WP-T只差Teaching runtime env的live read；其餘依真實需求走WP-F／WP-D，不再做無需求支撐的全域抽象整理。取得對應sandbox後，再逐domain補provider-backed WP-B evidence。
 
 **被阻塞:** Teaching live read需獨立endpoint／key；LINE／OpenAI／Google／Teachify／Firecrawl production-like journey需相應sandbox／fixture。Main secret key只有實際route證明需要時才成為blocker。Teaching local snapshot與完整data migration不是blocker。
 
-**升級條件:** WP-DB完成affected Main journey且WP-T補上live read後，至少完成當前高優先domain的WP-B baseline；其餘domain可保持待需求觸發，不要求先搬完整個系統。
+**升級條件:** WP-T補上live read後，Teaching consumer可升級為production-like baseline；其餘domain只在取得provider sandbox與真實需求後逐一升級，不要求先搬完整個系統。
 
 ## 9. Documentation policy
 

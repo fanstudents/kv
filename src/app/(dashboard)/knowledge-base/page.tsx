@@ -162,13 +162,18 @@ export default function KnowledgeBasePage() {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/knowledge-base")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Knowledge Base request failed (${res.status})`);
+        return res.json();
+      })
       .then((data: { docs: KnowledgeDoc[]; access: Record<AgentSlug, KnowledgeLevel> }) => {
         if (cancelled) return;
         setDocs(data.docs ?? []);
         setAccess(data.access ?? ({} as Record<AgentSlug, KnowledgeLevel>));
       })
-      .catch(() => {})
+      .catch((error) => {
+        if (!cancelled) setNotice(error instanceof Error ? error.message : "載入失敗");
+      })
       .finally(() => {
         if (!cancelled) setLoaded(true);
       });
@@ -178,12 +183,18 @@ export default function KnowledgeBasePage() {
   }, []);
 
   const setAgentAccess = (slug: AgentSlug, level: KnowledgeLevel) => {
+    const previousLevel = access[slug] ?? 1;
     setAccess((prev) => ({ ...prev, [slug]: level }));
     fetch("/api/knowledge-base/access", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentSlug: slug, level }),
-    }).catch(() => {});
+    }).then((response) => {
+      if (!response.ok) throw new Error(`Access update failed (${response.status})`);
+    }).catch((error) => {
+      setAccess((prev) => ({ ...prev, [slug]: previousLevel }));
+      setNotice(error instanceof Error ? error.message : "權限更新失敗");
+    });
   };
 
   // 刪除要看伺服器怎麼說：內建示範文件刪不掉，以前畫面會假裝刪掉、重整又跑回來

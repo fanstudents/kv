@@ -92,4 +92,25 @@ describe("Goals service", () => {
     });
     expect(repo.loadHistory).not.toHaveBeenCalled();
   });
+
+  it("maps every storage failure without returning fake success data", async () => {
+    const failure = () => { throw new Error("storage down"); };
+    const service = createGoalsService(repository({
+      list: vi.fn(failure),
+      remove: vi.fn(failure),
+      reset: vi.fn(failure),
+      loadHistory: vi.fn(failure),
+    }));
+
+    await expect(service.read()).resolves.toEqual({ kind: "error", message: "storage down" });
+    await expect(service.delete({ kind: "ok", id: "goal-1" })).resolves.toEqual({
+      kind: "error",
+      message: "storage down",
+    });
+    await expect(service.reset()).resolves.toEqual({ kind: "error", message: "storage down" });
+    await expect(service.history({ metricId: "gsc-clicks", days: 30 })).resolves.toEqual({
+      kind: "error",
+      message: "storage down",
+    });
+  });
 });

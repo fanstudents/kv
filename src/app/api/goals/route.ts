@@ -9,6 +9,9 @@ const goals = createGoalsService(supabaseGoalsRepository);
 
 export async function GET() {
   const result = await goals.read();
+  if (result.kind === "error") {
+    return NextResponse.json({ error: result.message }, { status: 500 });
+  }
   return NextResponse.json({ goals: result.data });
 }
 
@@ -30,11 +33,17 @@ export async function DELETE(req: NextRequest) {
   if (result.kind === "invalid") {
     return NextResponse.json({ error: result.message }, { status: 400 });
   }
+  if (result.kind === "error") {
+    return NextResponse.json({ error: result.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
 
 /** 還原示範目標 */
 export async function POST() {
   const result = await goals.reset();
+  if (result.kind === "error") {
+    return NextResponse.json({ error: result.message }, { status: 500 });
+  }
   return NextResponse.json({ goals: result.data });
 }

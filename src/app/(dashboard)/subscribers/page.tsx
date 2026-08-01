@@ -101,9 +101,12 @@ export default function SubscribersPage() {
 
   const loadAll = () => {
     fetch("/api/subscribers")
-      .then((res) => (res.ok ? res.json() : []))
+      .then((res) => {
+        if (!res.ok) throw new Error(`Subscribers request failed (${res.status})`);
+        return res.json();
+      })
       .then((data) => setSubscribers(Array.isArray(data) ? data : []))
-      .catch(() => {})
+      .catch((error) => console.error("[subscribers] load failed", error))
       .finally(() => setLoaded(true));
 
     fetch("/api/subscribers/broadcast")
@@ -149,12 +152,19 @@ export default function SubscribersPage() {
   };
 
   const updateTags = async (subscriber: Subscriber, tags: string[]) => {
+    const previousTags = subscriber.tags;
     setSubscribers((prev) => prev.map((s) => (s.id === subscriber.id ? { ...s, tags } : s)));
-    await fetch(`/api/subscribers/${subscriber.id}`, {
+    const response = await fetch(`/api/subscribers/${subscriber.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tags }),
-    }).catch(() => {});
+    }).catch(() => null);
+    if (!response?.ok) {
+      setSubscribers((prev) => prev.map((s) => (
+        s.id === subscriber.id ? { ...s, tags: previousTags } : s
+      )));
+      console.error("[subscribers] update failed", response?.status ?? "network error");
+    }
   };
 
   const handleBroadcast = async () => {

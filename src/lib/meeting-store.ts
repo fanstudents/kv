@@ -28,10 +28,11 @@ export async function createMeeting(title?: string): Promise<string | null> {
 /** 目前這場會議已有幾句（用來接續 turn_index）。 */
 async function nextTurnIndex(meetingId: string): Promise<number> {
   const supabase = getSupabase();
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from("meeting_turns")
     .select("id", { count: "exact", head: true })
     .eq("meeting_id", meetingId);
+  if (error) throw new Error(error.message);
   return count ?? 0;
 }
 
@@ -48,18 +49,20 @@ export async function appendTurns(meetingId: string, turns: MeetingTurnInput[]):
     speaker: t.speaker ?? null,
     content: t.content,
   }));
-  await supabase.from("meeting_turns").insert(rows);
+  const { error } = await supabase.from("meeting_turns").insert(rows);
+  if (error) throw new Error(error.message);
 }
 
 /** 取最近幾句當作下一輪的脈絡，讓 AI 回應有連貫性。 */
 export async function getRecentHistory(meetingId: string, limit = 6): Promise<string> {
   const supabase = getSupabase();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("meeting_turns")
     .select("role,speaker,content")
     .eq("meeting_id", meetingId)
     .order("turn_index", { ascending: false })
     .limit(limit);
+  if (error) throw new Error(error.message);
   if (!data || data.length === 0) return "";
   return data
     .reverse()
@@ -94,7 +97,7 @@ export async function finishMeeting(
   const supabase = getSupabase();
 
   // summary 取這場會議最後一次 Team Lead 統整
-  const { data: lastLead } = await supabase
+  const { data: lastLead, error: summaryError } = await supabase
     .from("meeting_turns")
     .select("content")
     .eq("meeting_id", meetingId)
@@ -102,8 +105,9 @@ export async function finishMeeting(
     .order("turn_index", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (summaryError) throw new Error(summaryError.message);
 
-  await supabase
+  const { error: updateError } = await supabase
     .from("meetings")
     .update({
       ended_at: new Date().toISOString(),
@@ -113,18 +117,21 @@ export async function finishMeeting(
       summary: lastLead?.content ?? null,
     })
     .eq("id", meetingId);
+  if (updateError) throw new Error(updateError.message);
 }
 
 /** 簽發錄音檔的臨時可存取連結（預設 1 小時）。 */
 export async function getSignedRecordingUrl(meetingId: string): Promise<string | null> {
   const supabase = getSupabase();
-  const { data: meeting } = await supabase
+  const { data: meeting, error: meetingError } = await supabase
     .from("meetings")
     .select("recording_path")
     .eq("id", meetingId)
     .maybeSingle();
+  if (meetingError) throw new Error(meetingError.message);
   const path = meeting?.recording_path as string | undefined;
   if (!path) return null;
-  const { data } = await supabase.storage.from(RECORDING_BUCKET).createSignedUrl(path, 3600);
+  const { data, error } = await supabase.storage.from(RECORDING_BUCKET).createSignedUrl(path, 3600);
+  if (error) throw new Error(error.message);
   return data?.signedUrl ?? null;
 }

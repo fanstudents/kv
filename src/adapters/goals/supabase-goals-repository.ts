@@ -38,10 +38,17 @@ function toRow(goal: AgentGoal) {
 export const supabaseGoalsRepository: GoalsRepository = {
   async list() {
     const supabase = getSupabase();
-    const { data } = await supabase.from("agent_goals").select("*").order("created_at", { ascending: true });
+    const { data, error } = await supabase
+      .from("agent_goals")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
     if (data && data.length > 0) return data.map(toGoal);
 
-    await supabase.from("agent_goals").insert(DEFAULT_GOALS.map(toRow));
+    const { error: seedError } = await supabase
+      .from("agent_goals")
+      .upsert(DEFAULT_GOALS.map(toRow), { onConflict: "id", ignoreDuplicates: true });
+    if (seedError) throw new Error(seedError.message);
     return DEFAULT_GOALS;
   },
 
@@ -58,9 +65,18 @@ export const supabaseGoalsRepository: GoalsRepository = {
 
   async reset() {
     const supabase = getSupabase();
-    await supabase.from("agent_goals").delete().neq("id", "");
-    const { error } = await supabase.from("agent_goals").insert(DEFAULT_GOALS.map(toRow));
-    if (error) throw new Error(error.message);
+    const { data: stored, error: readError } = await supabase.from("agent_goals").select("id");
+    if (readError) throw new Error(readError.message);
+
+    const { error: upsertError } = await supabase.from("agent_goals").upsert(DEFAULT_GOALS.map(toRow));
+    if (upsertError) throw new Error(upsertError.message);
+
+    const defaultIds = new Set(DEFAULT_GOALS.map((goal) => goal.id));
+    const customIds = (stored ?? []).map((row) => row.id as string).filter((id) => !defaultIds.has(id));
+    if (customIds.length > 0) {
+      const { error: deleteError } = await supabase.from("agent_goals").delete().in("id", customIds);
+      if (deleteError) throw new Error(deleteError.message);
+    }
     return DEFAULT_GOALS;
   },
 

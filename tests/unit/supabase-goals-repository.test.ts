@@ -50,14 +50,18 @@ describe("Supabase Goals repository", () => {
   });
 
   it("seeds defaults when storage is empty", async () => {
-    const order = vi.fn().mockResolvedValue({ data: [] });
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    const from = vi.fn(() => ({ select: () => ({ order }), insert }));
+    const order = vi.fn().mockResolvedValue({ data: [], error: null });
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const from = vi.fn(() => ({ select: () => ({ order }), upsert }));
     getSupabase.mockReturnValue({ from });
 
     await expect(supabaseGoalsRepository.list()).resolves.toEqual(DEFAULT_GOALS);
-    expect(insert).toHaveBeenCalledOnce();
-    expect(insert.mock.calls[0][0]).toHaveLength(DEFAULT_GOALS.length);
+    expect(upsert).toHaveBeenCalledOnce();
+    expect(upsert.mock.calls[0][0]).toHaveLength(DEFAULT_GOALS.length);
+    expect(upsert).toHaveBeenCalledWith(expect.any(Array), {
+      onConflict: "id",
+      ignoreDuplicates: true,
+    });
   });
 
   it("upserts the existing storage shape and propagates provider errors", async () => {
@@ -78,20 +82,20 @@ describe("Supabase Goals repository", () => {
 
   it("removes and resets with the existing query semantics", async () => {
     const eq = vi.fn().mockResolvedValue({ error: null });
-    const neq = vi.fn().mockResolvedValue({ error: null });
-    const insert = vi.fn().mockResolvedValue({ error: null });
-    const deleteQuery = vi.fn()
-      .mockReturnValueOnce({ eq })
-      .mockReturnValueOnce({ neq });
-    const from = vi.fn(() => ({ delete: deleteQuery, insert }));
+    const inQuery = vi.fn().mockResolvedValue({ error: null });
+    const select = vi.fn().mockResolvedValue({ data: [{ id: "custom-goal" }], error: null });
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const deleteQuery = vi.fn().mockReturnValueOnce({ eq }).mockReturnValueOnce({ in: inQuery });
+    const from = vi.fn(() => ({ delete: deleteQuery, select, upsert }));
     getSupabase.mockReturnValue({ from });
 
     await expect(supabaseGoalsRepository.remove("goal-1")).resolves.toBeUndefined();
     expect(eq).toHaveBeenCalledWith("id", "goal-1");
 
     await expect(supabaseGoalsRepository.reset()).resolves.toEqual(DEFAULT_GOALS);
-    expect(neq).toHaveBeenCalledWith("id", "");
-    expect(insert).toHaveBeenCalledOnce();
+    expect(select).toHaveBeenCalledWith("id");
+    expect(upsert).toHaveBeenCalledWith(expect.any(Array));
+    expect(inQuery).toHaveBeenCalledWith("id", ["custom-goal"]);
   });
 
   it("uses the shared metric history owner", async () => {
@@ -100,5 +104,26 @@ describe("Supabase Goals repository", () => {
 
     await expect(supabaseGoalsRepository.loadHistory("gsc-clicks", 30)).resolves.toEqual(points);
     expect(metricHistory).toHaveBeenCalledWith("gsc-clicks", 30);
+  });
+
+  it("does not hide read, seed, or reset failures", async () => {
+    const readOrder = vi.fn().mockResolvedValue({ data: null, error: { message: "read failed" } });
+    getSupabase.mockReturnValueOnce({ from: () => ({ select: () => ({ order: readOrder }) }) });
+    await expect(supabaseGoalsRepository.list()).rejects.toThrow("read failed");
+
+    const seedOrder = vi.fn().mockResolvedValue({ data: [], error: null });
+    const seed = vi.fn().mockResolvedValue({ error: { message: "seed failed" } });
+    getSupabase.mockReturnValueOnce({
+      from: () => ({ select: () => ({ order: seedOrder }), upsert: seed }),
+    });
+    await expect(supabaseGoalsRepository.list()).rejects.toThrow("seed failed");
+
+    const resetSelect = vi.fn().mockResolvedValue({ data: null, error: { message: "reset read failed" } });
+    const upsert = vi.fn();
+    getSupabase.mockReturnValueOnce({
+      from: () => ({ select: resetSelect, upsert }),
+    });
+    await expect(supabaseGoalsRepository.reset()).rejects.toThrow("reset read failed");
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

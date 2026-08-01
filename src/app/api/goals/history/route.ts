@@ -14,5 +14,6 @@ export async function GET(req: NextRequest) {
     ),
   );
   if (result.kind === "invalid") return NextResponse.json({ error: result.message }, { status: 400 });
+  if (result.kind === "error") return NextResponse.json({ error: result.message }, { status: 500 });
   return NextResponse.json({ points: result.points });
 }

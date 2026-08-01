@@ -50,7 +50,10 @@ export async function listKnowledgeDocs(filter?: {
   let query = supabase.from("knowledge_base").select(DOC_COLUMNS);
   if (filter?.status) query = query.eq("status", filter.status);
   if (filter?.sourceDocId) query = query.eq("source_doc_id", filter.sourceDocId);
-  const { data } = await query.order("level", { ascending: true }).order("created_at", { ascending: true });
+  const { data, error } = await query
+    .order("level", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
   return (data ?? []).map(toDoc);
 }
 
@@ -129,7 +132,12 @@ export async function updateKnowledgeDoc(
   }
 ): Promise<KnowledgeDoc | null> {
   const supabase = getSupabase();
-  const { data: prev } = await supabase.from("knowledge_base").select("version").eq("id", id).maybeSingle();
+  const { data: prev, error: previousError } = await supabase
+    .from("knowledge_base")
+    .select("version")
+    .eq("id", id)
+    .maybeSingle();
+  if (previousError) throw new Error(previousError.message);
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (patch.title !== undefined) update.title = patch.title;
@@ -152,9 +160,10 @@ export async function updateKnowledgeDoc(
     .select(DOC_COLUMNS)
     .maybeSingle();
   if (error) throw new Error(error.message);
+  if (!data) return null;
   // 內容或等級變了就重建索引（封存／草稿化會讓這份文件的段落被清掉）
   await indexDocs([id]);
-  return data ? toDoc(data) : null;
+  return toDoc(data);
 }
 
 /** 批次發布（人審通過的草稿一次上線） */
@@ -179,7 +188,12 @@ export type RemoveResult = "deleted" | "not-found" | "builtin-protected";
  */
 export async function removeKnowledgeDoc(id: string): Promise<RemoveResult> {
   const supabase = getSupabase();
-  const { data: doc } = await supabase.from("knowledge_base").select("id,builtin").eq("id", id).maybeSingle();
+  const { data: doc, error: lookupError } = await supabase
+    .from("knowledge_base")
+    .select("id,builtin")
+    .eq("id", id)
+    .maybeSingle();
+  if (lookupError) throw new Error(lookupError.message);
   if (!doc) return "not-found";
   if (doc.builtin) return "builtin-protected";
   const { error } = await supabase.from("knowledge_base").delete().eq("id", id);
@@ -189,7 +203,8 @@ export async function removeKnowledgeDoc(id: string): Promise<RemoveResult> {
 
 export async function listAgentAccess(): Promise<Record<AgentSlug, KnowledgeLevel>> {
   const supabase = getSupabase();
-  const { data } = await supabase.from("knowledge_access").select("agent_slug,max_level");
+  const { data, error } = await supabase.from("knowledge_access").select("agent_slug,max_level");
+  if (error) throw new Error(error.message);
   const access = {} as Record<AgentSlug, KnowledgeLevel>;
   for (const row of data ?? []) {
     access[row.agent_slug as AgentSlug] = row.max_level as KnowledgeLevel;
@@ -210,11 +225,12 @@ export async function setAgentAccess(slug: AgentSlug, level: KnowledgeLevel): Pr
 
 async function getAgentMaxLevel(slug: string): Promise<KnowledgeLevel> {
   const supabase = getSupabase();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("knowledge_access")
     .select("max_level")
     .eq("agent_slug", slug)
     .maybeSingle();
+  if (error) throw new Error(error.message);
   return (data?.max_level as KnowledgeLevel) ?? 1;
 }
 

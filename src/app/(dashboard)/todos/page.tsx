@@ -25,7 +25,10 @@ export default function TodosPage() {
 
   useEffect(() => {
     fetch("/api/checklist")
-      .then((res) => (res.ok ? res.json() : []))
+      .then((res) => {
+        if (!res.ok) throw new Error(`Checklist request failed (${res.status})`);
+        return res.json();
+      })
       .then((rows: { item_id: string; done: boolean }[]) => {
         const map: Record<string, boolean> = {};
         rows.forEach((r) => {
@@ -33,18 +36,23 @@ export default function TodosPage() {
         });
         setDone(map);
       })
-      .catch(() => {})
+      .catch((error) => console.error("[checklist] load failed", error))
       .finally(() => setLoaded(true));
   }, []);
 
   const toggle = async (id: string) => {
+    const previous = Boolean(done[id]);
     const next = !done[id];
     setDone((prev) => ({ ...prev, [id]: next }));
-    await fetch(`/api/checklist/${id}`, {
+    const response = await fetch(`/api/checklist/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ done: next }),
-    }).catch(() => {});
+    }).catch(() => null);
+    if (!response?.ok) {
+      setDone((current) => ({ ...current, [id]: previous }));
+      console.error("[checklist] update failed", response?.status ?? "network error");
+    }
   };
 
   const categories = useMemo(() => {
