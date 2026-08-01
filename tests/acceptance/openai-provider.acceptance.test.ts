@@ -9,7 +9,7 @@ import {
 } from "@/adapters/knowledge-base/openai-knowledge-provider";
 import { createOpenAiMeetingAudioProvider } from "@/adapters/meeting/openai-audio-provider";
 import { createOpenAiMeetingRealtimeProvider } from "@/adapters/meeting/openai-meeting-realtime-provider";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 
 const ACCEPTANCE_PREFIX = "codex-oai-acceptance";
 const knowledgeOperation = `${ACCEPTANCE_PREFIX}:knowledge-json`;
@@ -96,7 +96,7 @@ describe.sequential("controlled OpenAI provider acceptance", () => {
     expect(realtime.model).toBe("gpt-realtime-2.1");
 
     const expectedOperations = [knowledgeOperation, embeddingOperation, "網站聊天回應"];
-    const { data, error } = await getSupabase()
+    const { data, error } = await getMainSupabase()
       .from("ai_usage_logs")
       .select("operation,model,total_tokens,agent_slug,created_at")
       .gte("created_at", startedAt)

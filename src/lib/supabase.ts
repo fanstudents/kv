@@ -2,18 +2,12 @@ import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 
-// WP-03 compatibility seam: delete this alias and getSupabase after all existing
-// consumers have moved to getMainSupabase.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LegacyDatabase = any;
-
 let client: SupabaseClient<Database> | null = null;
 
 /**
  * Main Supabase 的強型別入口。
  *
- * 新增或正在整理的 domain 應使用這個入口；既有 consumer 會在 WP-03
- * 依 domain 搬移完成，最後刪除下方的相容入口與 LegacyDatabase。
+ * 所有 Main DB consumer 都使用這個 generated-schema boundary。
  */
 export function getMainSupabase(): SupabaseClient<Database> {
   if (client) return client;
@@ -36,14 +30,4 @@ export function getMainSupabase(): SupabaseClient<Database> {
     auth: { persistSession: false },
   });
   return client;
-}
-
-/**
- * WP-03 漸進遷移相容入口。
- *
- * 保持既有 consumer 的執行行為與寬鬆型別，避免一次修改整包。每個 domain
- * 搬到 getMainSupabase 後，對應的 any 就會從 production path 消失。
- */
-export function getSupabase(): SupabaseClient<LegacyDatabase> {
-  return getMainSupabase() as SupabaseClient<LegacyDatabase>;
 }

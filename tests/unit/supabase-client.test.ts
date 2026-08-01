@@ -31,17 +31,17 @@ describe("Main Supabase client boundary", () => {
     vi.restoreAllMocks();
   });
 
-  it("keeps existing consumers and the typed entrypoint on one client instance", async () => {
+  it("keeps the typed entrypoint on one client instance", async () => {
     const client = { from: vi.fn() };
     createClient.mockReturnValue(client);
     process.env.SUPABASE_URL = "https://main.example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role";
     process.env.SUPABASE_ANON_KEY = "anon";
 
-    const { getMainSupabase, getSupabase } = await import("@/lib/supabase");
+    const { getMainSupabase } = await import("@/lib/supabase");
 
     expect(getMainSupabase()).toBe(client);
-    expect(getSupabase()).toBe(client);
+    expect(getMainSupabase()).toBe(client);
     expect(createClient).toHaveBeenCalledOnce();
     expect(createClient).toHaveBeenCalledWith(
       "https://main.example.supabase.co",
