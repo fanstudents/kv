@@ -153,6 +153,14 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 建議順序不是「先把全部 architecture 做完」；是先收掉已開始的安全改動，再建立共同驗收基礎，接著按照拿得到的 credentials／真實需求逐條完成 provider journey。
 
+Provider 工作包固定拆成兩軌：
+
+- **Preparation**：不需要真實憑證即可完成 source／caller mapping、ownership、payload／schema／error contract、synthetic fixture、dry-run／allowlist／cleanup gate 與自動化測試；不得送出真實外部 side effect。
+- **Real Acceptance**：需要安全 credentials、sandbox／測試資產與明確 side-effect cleanup；只有這一軌可因外部條件標成 `[!]`，Preparation 不得跟著整包阻塞。
+- 真實驗收依風險分批執行：read-only → 有成本但無外部收件者的 AI → inbound webhook fixture → allowlisted write／delivery → composite journey；不做一次同時觸發全部 provider 的巨型驗收。
+
+目前後續順序：完成 WP-03 → 補齊 WP-02 → 逐 domain 執行 WP-10～18 Preparation；WP-05～07 經範圍確認後可並行。Credentials／sandbox 到齊才執行各自 Real Acceptance，接著以真實故障證據決定 WP-20，再完成 WP-21 與 WP-22。
+
 ## 6. 工作包清單
 
 ### WP-01 — Visit conversation lock／settings 邊界收尾 `[x]`
@@ -172,17 +180,17 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 出口：行為不變、無舊入口殘留、UI smoke 通過、commit 可獨立回退。
 
-### WP-02 — 真實整合驗收基礎 `[ ]`
+### WP-02 — 真實整合驗收基礎 `[~]`
 
 目的：讓後續 provider 工作包共用安全、可重複、可診斷的驗收方式；不建立巨大通用 runtime。
 
-- [ ] 將 `.env.example` 整理成能力分組，標出 required／optional／read-only／write-capable。
-- [ ] 建立 credential preflight，只回報 key 是否存在與設定錯誤，不輸出 secret。
+- [~] `.env.example` 已依能力分組；仍需標出 required／optional／read-only／write-capable，並補上 `OPENAI_ACCEPTANCE` 等 opt-in gate。
+- [~] `integration-status` 與 OpenAI acceptance 已有部分 credential gate，且不輸出 secret；仍需拆出不呼叫 provider 的純設定 preflight，避免把「有設定」與「真實可用」混成同一狀態。
 - [ ] 定義 staging／sandbox／fixture 規則與 cleanup 規則。
 - [ ] 為 webhook／cron 定義安全觸發方式、簽章 fixture、重複事件與回復方式。
-- [ ] 建立 provider acceptance command／test tag；可單獨執行，不塞進每次 unit verify。
+- [~] 已有獨立 `acceptance:openai`、acceptance Vitest config 與 opt-in gate；其餘 provider 仍需各自 command／test tag，且不得塞進每次 unit verify。
 - [ ] 統一驗收證據欄位：環境、journey、輸入、輸出、side effect、cleanup、時間、限制。
-- [ ] 每個 provider 仍保有自己的 adapter／錯誤語意；不在此包發明跨 provider framework。
+- [x] 已決定每個 provider 保有自己的 adapter／錯誤語意；WP-02 只提供驗收格式與 gate，不發明跨 provider framework。
 
 出口：後續各 integration 可用同一驗收格式，但沒有新的無需求抽象。
 
@@ -283,23 +291,20 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：測試失敗能指出被破壞的產品契約；測試數量不再被當成重構進度。
 
-### WP-10 — OpenAI 真實 provider 驗收 `[!]`
+### WP-10 — OpenAI provider preparation／acceptance `[~]`
 
-阻塞：安全的 `OPENAI_API_KEY` 與可接受的測試成本。
+Preparation 已可執行；Real Acceptance 阻塞：安全的 `OPENAI_API_KEY` 與可接受的測試成本。
 
 - [x] shared official SDK／adapter ownership／fail-closed harness。
-- [ ] Agent chat：文字回應、錯誤與 usage。
-- [ ] Structured JSON：schema validation 與 malformed response。
-- [ ] Embedding：向量維度、usage 與失敗。
-- [ ] TTS／STT：有效媒體、content type、錯誤。
-- [ ] Realtime client secret：短期 token、session config、不洩漏 server key。
-- [ ] 驗證 `ai_usage_logs`／run evidence 與 cleanup。
+- [x] 已有 opt-in synthetic acceptance harness，覆蓋 Agent chat、Structured JSON、Embedding、TTS／STT、Realtime client secret 與 `ai_usage_logs` persistence；不在一般 verify 自動呼叫 provider。
+- [ ] Preparation：補齊 malformed response、provider error、usage／cleanup 與成本上限的 focused contract，不需要真實 key。
+- [!] Real Acceptance：執行 `npm run acceptance:openai`，驗證真實文字、JSON、向量維度、媒體、短期 token、usage evidence 與 cleanup。
 
 出口：所有現用 OpenAI 能力有受控真實證據；不只是 mock。
 
-### WP-11 — Knowledge Base crawl／index／search `[!]`
+### WP-11 — Knowledge Base crawl／index／search `[ ]`
 
-依賴：WP-02、WP-10；阻塞：Firecrawl key。
+Preparation 依賴 WP-02 基線，可先執行；Real Acceptance 依賴 WP-10 真實 AI 證據，並阻塞於 Firecrawl／OpenAI keys 與安全測試 URL。
 
 - [ ] Firecrawl URL fetch → import draft 的真實契約。
 - [ ] draft／publish／access policy 行為。
@@ -311,9 +316,9 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：從來源擷取到可搜尋結果的完整 journey 可重複。
 
-### WP-12 — Visit AI journey `[!]`
+### WP-12 — Visit AI journey `[ ]`
 
-依賴：WP-02、WP-10、必要時 WP-04；阻塞：OpenAI key。
+Preparation 依賴 WP-02、既有 WP-04 owner，可先執行；Real Acceptance 依賴 WP-10，並阻塞於 OpenAI key。
 
 - [ ] 名片 parse 的 image／structured output／錯誤處理。
 - [ ] 邀請 email draft／revise 的輸入、輸出與 usage。
@@ -323,9 +328,9 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：Visit 的 AI 能力可獨立證明，不與 delivery 成敗混在一起。
 
-### WP-13 — Visit delivery workflow `[!]`
+### WP-13 — Visit delivery workflow `[ ]`
 
-依賴：WP-02；阻塞：LINE primary、Gmail、Calendar credentials／sandbox recipient。
+Preparation 依賴 WP-02，可先執行 signature fixture、狀態轉移、lock／timeout 與 recovery contract；Real Acceptance 阻塞於 LINE primary、Gmail、Calendar credentials／sandbox recipient。
 
 - [ ] LINE webhook signature、text／image／postback routing。
 - [ ] pending invite／approval／offer／respond 狀態轉移。
@@ -337,9 +342,9 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：一條受控 Visit 從 inbound 到 delivery／recovery 可重複驗證。
 
-### WP-14 — Google read capabilities `[!]`
+### WP-14 — Google read capabilities `[ ]`
 
-依賴：WP-02；阻塞：Google credentials 與可讀測試資產。
+Preparation 依賴 WP-02，可先整理 query boundary、empty／error mapping 與 demo fallback 分界；Real Acceptance 阻塞於 Google credentials 與可讀測試資產。
 
 - [ ] Schedule／TV 的 Calendar read。
 - [ ] Reporting 的 GA4 read 與期間邊界。
@@ -349,9 +354,9 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：三種 read capability 有各自契約、錯誤與 UI 證據。
 
-### WP-15 — LINE delivery／broadcast journeys `[!]`
+### WP-15 — LINE delivery／broadcast journeys `[ ]`
 
-依賴：WP-02；阻塞：primary／support LINE credentials 與安全 recipient。
+Preparation 依賴 WP-02，可先整理 channel identity、payload／error mapping、partial failure 與 recipient allowlist；Real Acceptance 阻塞於 primary／support LINE credentials 與安全 recipient。
 
 - [ ] Agent test push。
 - [ ] Subscriber broadcast：目標集合、部分失敗、結果摘要。
@@ -362,9 +367,9 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：LINE channel identity 與各 journey 明確，不共用錯誤 token。
 
-### WP-16 — Teachify Orders `[!]`
+### WP-16 — Teachify Orders `[ ]`
 
-依賴：WP-02、必要時 WP-15；阻塞：secret 與去識別 fixture／sandbox event。
+Preparation 依賴 WP-02，可用 synthetic secret／去識別 fixture 驗證簽章、mapping、duplicate／out-of-order 與 persistence；Real Acceptance／notification 依賴 sandbox event，必要時依賴 WP-15，並阻塞於真實 secret／安全 recipient。
 
 - [ ] signature validation、payload mapping、invalid event。
 - [ ] 訂單 persistence 與既有資料 shape。
@@ -374,9 +379,9 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：同一事件重送不造成不可接受的重複 side effect，且可診斷。
 
-### WP-17 — Reporting／Team Lead `[!]`
+### WP-17 — Reporting／Team Lead `[ ]`
 
-依賴：WP-02、WP-10、WP-14、必要時 WP-15。
+Preparation 依賴 WP-02，可先收斂 manual／cron owner、期間、missing data、failure 與重跑契約；Real Acceptance 依賴 WP-10、WP-14，delivery 必要時依賴 WP-15。
 
 - [ ] manual 與 cron 共用同一 application owner。
 - [ ] 報表期間、資料來源、OpenAI summary 與 delivery 契約。
@@ -386,9 +391,9 @@ WP-03 分段契約與證據（2026-08-02）：
 
 出口：manual／scheduled report 結果一致且可安全重跑。
 
-### WP-18 — Support workflow `[!]`
+### WP-18 — Support workflow `[ ]`
 
-依賴：WP-02、必要時 WP-10／WP-15；阻塞：support LINE、relay target／safe fixture。
+Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation mapping、relay／callback owner 與 channel isolation；Real Acceptance 必要時依賴 WP-10／WP-15，並阻塞於 support LINE、relay target／safe fixture。
 
 - [ ] support webhook inbound／signature／conversation mapping。
 - [ ] log reply、relay、callback 的責任與錯誤語意。
@@ -477,9 +482,12 @@ WP-03 分段契約與證據（2026-08-02）：
 
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
-- [~] WP-03 已核准；第一段建立 generated types／typed-client seam，後續逐 domain 遷移且每段開始前確認。
+- [~] WP-03 已核准並完成四段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist；尚餘 24 個 runtime caller files 與 4 個 type-only reference files，後續逐 domain 遷移且每段開始前確認。
+- [~] WP-02 已有 `.env.example` 能力分組、integration status 與 OpenAI acceptance harness；仍需補純設定 preflight、跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
+- [x] Provider 工作包採 Preparation／Real Acceptance 兩軌；缺 key 只阻塞 Real Acceptance，不阻塞 source ownership、contract、fixture 與安全 gate 整理。
 - [!] 確認 canonical GitHub repo 與部署目標。
-- [!] 逐一提供安全 credentials／sandbox／fixture；不能提供的工作包維持阻塞，不用假資料宣稱完成。
+- [!] Real Acceptance 前逐一提供安全 credentials／sandbox／fixture／recipient；未提供時保留明確 pending evidence，不用假資料宣稱真實功能完成。
+- [?] WP-05～07 的執行順序與第一個 UI／source／test domain 仍需在開始前確認；不得趁 provider key 缺失時擴張成全站重寫。
 
 ### 目標追蹤
 
@@ -496,10 +504,10 @@ WP-03 分段契約與證據（2026-08-02）：
 
 ## 9. 目前 readiness 判定
 
-- 已完成最新工作包：`WP-04`；`WP-03` 第一段正在驗證，尚未宣稱整包完成。
-- 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research 已收斂為單一 workflow owner，其他 Visit legacy boundaries 與 `src/lib` ownership 仍待需求／風險驅動收斂。
-- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，production consumers 尚待逐 domain 搬移。
-- 外部功能：多數仍是 credential-gated，不能只靠 unit tests 宣稱正常。
+- 最新完成：`WP-03` 第四段（Checklist typed repository，`a4aac28`）；`WP-04` 已完成，WP-03 整包仍在逐 domain 執行。
+- 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
+- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 24 個 runtime callers 與 4 個 type-only references。
+- 外部功能：Preparation 可在缺 key 時繼續；Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
 
