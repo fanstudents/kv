@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getSupabase } = vi.hoisted(() => ({ getSupabase: vi.fn() }));
+const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { supabaseChecklistRepository } from "@/adapters/checklist/supabase-checklist-repository";
 
@@ -15,7 +15,7 @@ describe("Supabase Checklist repository", () => {
     const query = { select: vi.fn(), then: response.then.bind(response) };
     query.select.mockReturnValue(query);
     const from = vi.fn(() => query);
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
 
     await expect(supabaseChecklistRepository.list()).resolves.toEqual({
       data: [{ item_id: "a", done: true }],
@@ -37,7 +37,7 @@ describe("Supabase Checklist repository", () => {
     query.select.mockReturnValue(query);
     query.single.mockReturnValue(query);
     const from = vi.fn(() => query);
-    getSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from });
 
     await expect(supabaseChecklistRepository.upsert({
       itemId: "item-1",
