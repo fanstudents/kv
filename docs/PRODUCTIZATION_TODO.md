@@ -217,7 +217,7 @@ Frozen UI／pages
 | Main Supabase | `kv-staging` clean replay、catalog diff與Main DB-only affected journeys已通過 | 可以clean rebuild並承接需求；forward migration rollback留到第一個真實delta |
 | Teaching Supabase | 四個 consumer table 的 live contract 已取得；它是 47-table 共享系統且有外部 FK／RLS dependency | 建立 adapter contract／fixture，不把整個 Teaching DB 納入 KV ownership |
 | Runtime env | `.env.local` 已有Main staging URL／publishable key；沒有secret/service-role、Teaching endpoint／key | 先用目前實際anon contract跑完整Main journey；只有route確實需要bypass RLS時才把secret key列為blocker，不為勾選項目先升權 |
-| Providers | LINE／OpenAI／Google／Teachify／Firecrawl key或安全 fixture尚未提供 | 不能把 mock/empty UI 升級成 production-like evidence |
+| Providers | Main／Teaching設定可用；`OPENAI_API_KEY`、LINE／Google／Teachify／Firecrawl key或安全 fixture尚未提供 | WP-B-OAI可先完成caller map、failure contract與fail-closed harness；沒有key不得把mock／render升級成production-like evidence |
 
 ### Resolution package DB-01
 
@@ -265,7 +265,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | WP-MAIN | 不依賴外部provider的Main資料功能在staging可讀寫、可辨識錯誤並可清理測試資料 | Complete | WP-DB；既有UI/API/data contract | Main DB-only functional baseline與key-class evidence |
 | WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Complete | live四表schema＋既有API contract | adapter contract／fixtures／兩consumer cutover／legacy deletion／live read acceptance |
 | WP-OAI | OpenAI協定由官方SDK與一個shared transport擁有；prompt／mapping回到既有domain adapter | Complete | Node 22、既有provider contracts | provider真實journey仍依WP-B sandbox gate；一般維護不再受舊聚合owner阻礙 |
-| WP-B | 核心 journey 有real-data/provider-safe baseline | Main＋Teaching baseline complete；其他external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
+| WP-B | 核心 journey 有real-data/provider-safe baseline | Main＋Teaching baseline complete；WP-B-OAI active／credential pending；其他external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
 | WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
 | WP-X | 新路徑穩定、舊路徑歸零、團隊可 release／rollback | Pending | affected WP-D／WP-R | production-like evidence＋cleanup |
@@ -385,12 +385,37 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 
 依dependency分成現在可完成與外部gate，不再把兩者混成一條模糊清單：
 
-- Auth：login→protected page→logout。
-- **現在執行（WP-MAIN）：** Operations代表性read/write、Knowledge Base DB-only CRUD/access/empty RPC、Meeting persistence/storage、相鄰Main read models。
+- **已完成：** Auth login→protected page→logout；WP-MAIN的Operations read/write、Knowledge Base DB-only CRUD/access/empty RPC、Meeting persistence/storage與相鄰Main read models。
 - **已完成（WP-T）：** Operations API／頁面與Meeting context的success、true empty、unavailable contracts，以及Operations頁面的live real-data驗收。
-- **取得sandbox／安全fixture才執行：** KB import/crawl/embedding/search、Meeting voice/AI、Visit LINE、Teachify webhook與LINE delivery；未取得前只驗contract與明確failure。
+- **現在執行（WP-B-OAI）：** 固定KB embedding/search、Meeting conversation/audio/realtime與Agent Chat的controlled acceptance；目前credential pending，先完成fail-closed harness，不冒充真實provider成功。
+- **取得其餘sandbox／安全fixture才執行：** KB crawl的Firecrawl、Visit LINE／Google、Teachify webhook與LINE delivery；未取得前只驗contract與明確failure。
 
 每條 journey 保存 input、data source、side effect、result、error/recovery與browser/API/DB evidence。沒有執行到的路徑保持 Pending，不用整頁 smoke 取代。
+
+#### WP-B-OAI — Controlled OpenAI provider acceptance
+
+**State／boundary:** Active；`OPENAI_API_KEY` pending。沿用`behavior-contract/v1`的`shared.openai-provider-ownership`，本批只提升真實provider evidence，不改UI／UX、prompt、model、API payload、資料格式或side-effect ordering，也不藉驗收切Responses API、升級model或加入retry／queue framework。
+
+**Entrypoints／consumers:** `src/adapters/openai/client.ts`；Knowledge Base import/search；Meeting conversation/transcription/speech/realtime-session；Agent Chat reply。Visit email／Contact Research可先做不寄信、不建Calendar、不LINE推播的provider-only acceptance；Reporting與其他外部delivery留在各自sandbox批次。
+
+**Acceptance contract:**
+
+- 缺`OPENAI_API_KEY`時harness必須fail closed並明示credential gate，不得skip後仍回報成功。
+- Controlled fixture只使用合成文字／音訊；不得送production row、聯絡人、會議錄音或其他個資到provider。
+- 每個call核對model、request shape、domain output與error boundary；structured output必須經既有Zod驗證，malformed／refusal／incomplete不得成為可信success。
+- KB embedding須核對向量維度、chunk對應與`ai_usage` operation；Meeting audio核對非空transcript／audio bytes，Realtime只建立短效client secret，不自動取得麥克風或開啟長連線。
+- DB evidence只讀取／清理本批帶有`codex-oai-acceptance` correlation的staging紀錄；不得改schema、RLS或production資料。
+- 最後以authenticated Chrome檢查KB、Meeting與Agent Chat affected states；不點寄信、LINE、Calendar或cron delivery。
+
+**Execution wave:**
+
+1. CodeGraph重驗上述entrypoint、caller、API route、DB write與tests；以官方OpenAI docs核對目前SDK／Realtime client-secret contract。
+2. 建立explicit opt-in acceptance harness；沒有`OPENAI_ACCEPTANCE=1`或key時非零退出，不加入一般unit test的假綠結果。
+3. 先完成合成fixture、request／response檢查、usage correlation與cleanup query；此步不需要真實key即可review，但不能標為provider verified。
+4. 取得server-only OpenAI key後集中跑Chat、Embedding、Transcription、Speech與Realtime client secret；核對staging usage後清理fixture。
+5. 完成affected Chrome、full automated gates、CodeGraph sync與coherent commit；任一parity失敗只回到該domain owner修正。
+
+**Done／rollback:** 五類API皆有真實成功與明確failure evidence，usage／DB side effect可reconcile且測試資料歸零，Chrome行為照舊，standard key從未進browser／Git。若SDK或domain parity失敗，回退affected provider change；不得保留第二套transport或用mock替代done gate。
 
 ### WP-D — Demand/risk-driven domain slice
 
