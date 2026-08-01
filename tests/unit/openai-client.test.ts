@@ -92,6 +92,37 @@ describe("OpenAI shared SDK client", () => {
     });
   });
 
+  it("stops before SDK and usage logging when the budget guard rejects", async () => {
+    mocks.assertBudget.mockRejectedValueOnce(new Error("budget exceeded"));
+
+    await expect(
+      createChatCompletion(
+        { model: "gpt-4o-mini", messages: [{ role: "user", content: "hello" }] },
+        { operation: "chat", agentSlug: "report" }
+      )
+    ).rejects.toThrow("budget exceeded");
+
+    expect(mocks.chatCreate).not.toHaveBeenCalled();
+    expect(mocks.logAiUsage).not.toHaveBeenCalled();
+  });
+
+  it("translates failed SDK requests without recording successful usage", async () => {
+    mocks.chatCreate.mockRejectedValueOnce(new mocks.FakeApiError(429, { message: "rate limited" }));
+    mocks.embeddingsCreate.mockRejectedValueOnce(new mocks.FakeApiError(503, "embeddings unavailable"));
+
+    await expect(
+      createChatCompletion(
+        { model: "gpt-4o-mini", messages: [{ role: "user", content: "hello" }] },
+        { operation: "chat" }
+      )
+    ).rejects.toThrow('OpenAI request failed (429): {"message":"rate limited"}');
+    await expect(createEmbeddings(["text"], "embed")).rejects.toThrow(
+      "OpenAI embeddings failed (503): embeddings unavailable"
+    );
+
+    expect(mocks.logAiUsage).not.toHaveBeenCalled();
+  });
+
   it("preserves the web-search tool fallback and safe malformed JSON result", async () => {
     mocks.post
       .mockRejectedValueOnce(new mocks.FakeApiError(400, { message: "unsupported tool" }))
