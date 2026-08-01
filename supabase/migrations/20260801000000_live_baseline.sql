@@ -1,4 +1,4 @@
--- KV / time_alert authoritative schema baseline
+-- KV / time_alert authoritative schema baseline and first clean-environment migration.
 -- Captured read-only from Supabase project ytrolpaeuckdwgvifdhl at 2026-08-01T03:32:31.759628+00:00.
 -- Schema only: no production business rows, auth users, secrets, or migration statement bodies.
 -- Apply only to a clean Supabase environment. Do not run against the source production project.
@@ -894,5 +894,4 @@ grant usage, select on sequence "public"."metric_snapshots_id_seq" to "service_r
 
 -- Storage configuration (metadata only)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('meeting-recordings', 'meeting-recordings', false, NULL, NULL) on conflict (id) do update set name = excluded.name, public = excluded.public, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
-
 

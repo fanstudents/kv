@@ -11,11 +11,11 @@
 | Release intent | Demand-driven production slices；不做 big-bang rewrite |
 | Owner | CabLate 工程團隊 |
 | Repository | `F:/ownproject/kv` |
-| Branch／planning base | `codex/kv-wp0-toolchain`／`766e814` |
+| Branch／planning base | `codex/kv-wp0-toolchain`／`9a96303` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-08-01；CodeGraph 402 files／3,408 nodes／7,331 edges；兩個 Supabase project 已 read-only introspect |
+| Last verified | 2026-08-01；CodeGraph 405 files／3,442 nodes／7,390 edges；兩個 Supabase project 已 read-only introspect |
 | Requirements source | 本對話：保留 UI／UX 與現有資料格式，在持續承接需求時漸進產品化 |
-| Readiness | **Needs Revision**：主庫 schema truth 已取得；clean-room replay、Teaching 外部契約、真實資料與 provider 驗收尚未關閉 |
+| Readiness | **Implementation Ready**：主庫 schema truth與canonical migration已取得；clean-room replay、Teaching live read與其他provider真實驗收尚未關閉 |
 
 ## 1. Outcome and boundaries
 
@@ -153,6 +153,7 @@ Frozen UI／pages
 | Agent／UI read boundaries | `f866340`、`035c192`、`ff51633`、`eeecb1e` | identity compatibility、live-task、AI usage、TV read model 收斂 |
 | Visit／dead scaffold cleanup | `cc0780c`、`fc97689`、`c610836`、`8216f33`、`d524d5a`、`5fc13ec` | 保留 live workflow，刪除無 consumer runtime與薄包裝 |
 | Schema／cross-batch evidence | `4bbec8e`、`a979489` | 記錄 provenance 缺口與 test-env smoke，不冒充 real data |
+| Teaching external boundary | `9a96303` | 單一Operations domain＋typed read-only adapter；關閉silent-zero並刪除legacy helper |
 
 ## 4. Architecture and evolution decisions
 
@@ -189,8 +190,8 @@ Frozen UI／pages
 
 - Chrome 直接進入 tbr 組織的 Supabase Dashboard；OAuth connector 因協作者無組織授權權限失敗，但不影響 project-level read access。
 - Main project `time_alert`（ref `ytrolpaeuckdwgvifdhl`）已 read-only introspect：32 public tables、310 columns、66 constraints、66 indexes、6 public functions、94 public／storage policies、1 custom auth trigger、1 private Storage bucket，以及 33 筆 migration history metadata。
-- `supabase/baseline.sql` 已由 live catalog 產生；包含原 repo 缺少的 base DDL、`match_kb_chunks`、KB 實際欄位、RLS／ACL 與 `meeting-recordings` bucket metadata；不含 production rows、auth users、secret 或 migration statement bodies。
-- Local 7 份 migration 與 `fanstudents` 的增量 migration 只能當歷史 delta；`baseline.sql` 才是目前主庫的 clean-environment candidate，尚未經空白環境重播，所以不能宣稱 rebuild verified。
+- `supabase/migrations/20260801000000_live_baseline.sql` 已由 live catalog 產生並成為唯一active baseline migration；包含原 repo 缺少的 base DDL、`match_kb_chunks`、KB 實際欄位、RLS／ACL 與 `meeting-recordings` bucket metadata；不含 production rows、auth users、secret 或 migration statement bodies。
+- 原Local 7 份增量 migration均早於8/1 live snapshot且已被baseline吸收，已自active migration chain移除，由Git history保存；目前尚未經空白環境重播，所以不能宣稱rebuild verified。
 - CodeGraph／source 對第二個 `教學系統` project（ref `wsaknnhjgiqmkendeyrj`）只引用 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations`；live project 實際有 47 public tables，屬共享產品資料庫，不應整包複製進 KV。
 - Teaching 的四表契約已取得，但它們依賴共享的 `organizations`、`user_profiles`、`is_super_admin()` 與 `auth.users`；KV 應把它視為 external data contract，而不是假裝擁有其 migration。
 
@@ -220,14 +221,14 @@ Frozen UI／pages
 1. [x] 取得 Main 與 Teaching 的 tables、columns、PK/FK、indexes、extensions、RLS/policies、functions/triggers 與 Storage metadata。
 2. [x] 只記 project class／reference；不把 key、production rows 或 auth users提交 Git。
 3. [x] 以 CodeGraph／source 確認 Main 28 tables＋1 RPC，以及 Teaching 4-table consumer contract；主庫 live baseline 已補齊 repo migration 缺口。
-4. [ ] 在乾淨 Supabase local／staging 套用 `supabase/baseline.sql`，比對 catalog counts／definitions，修正 replay dependency。
-5. [ ] 將既有 7 份 migration 分類為已吸收歷史或 post-baseline delta，避免 clean setup 重複建立同一物件。
-6. [ ] 由 WP-T 為 Teaching 四表建立明確 adapter contract、fixture、錯誤語意與 ownership；不複製 47-table shared schema。
+4. [ ] 在乾淨 Supabase local／staging套用canonical baseline migration，比對catalog counts／definitions，修正replay dependency。本機Docker服務目前需系統權限啟動；可改用核准的空白cloud staging。
+5. [x] 將既有7份migration分類為已吸收歷史並自active chain移除，避免clean setup重複建立同一物件；後續只加forward-only delta。
+6. [x] 由 WP-T 為Teaching四表建立明確adapter contract、fixture、錯誤語意與ownership；不複製47-table shared schema。
 7. [ ] 補入本機 Supabase env 後，驗證 Main Data API／grant／RLS 與 affected authenticated journeys。
 
 **Blocks now:** 主庫 schema 猜測已解除；clean rebuild 宣告、runtime real DB CRUD、KB ingestion/search、Teaching integration、provider-backed journey與 production cutover仍受後續 gate 限制。
 
-**Safety rule:** `baseline.sql` 只套用 clean environment；不得直接推回來源 production project。後續 production 變更一律以 forward-only delta migration進行。
+**Safety rule:** canonical baseline migration只套用clean environment；不得直接push到來源production project。後續production變更一律以forward-only delta migration進行。
 
 ## 6. Execution tracks and active TODO
 
@@ -247,13 +248,13 @@ WP-T Teaching external boundary┘
               → WP-X Cutover／cleanup
 ```
 
-WP-F、WP-DB與WP-T可依衝突面並行；`supabase/baseline.sql`、env與Operations public contract各有單一serial owner。WP-DB只負責KV主庫，WP-T只負責Teaching外部讀取，兩者不得混成同一repository或migration。
+WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與Operations public contract各有單一serial owner。WP-DB只負責KV主庫，WP-T只負責Teaching外部讀取，兩者不得混成同一repository或migration。
 
 | WP | Outcome | State | Depends on | Produces／next gate |
 |---|---|---|---|---|
 | WP-00 | 現況、版本、映射、依賴與完成維度重新可信 | Complete | none | 本文件與 current source map |
 | WP-F | 新需求在現有產品可持續交付，並局部改善被碰到區域 | Ready／ongoing | affected source preflight | feature evidence；可能觸發 WP-D |
-| WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Active：acquisition complete，rehearsal pending | CabLate核准空白staging project＋runtime env | baseline replay／catalog diff／migration classification |
+| WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Active：canonical migration ready，rehearsal pending | 可啟動的local Docker或CabLate核准空白staging＋runtime env | baseline replay／catalog diff／Data API acceptance |
 | WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Implementation complete；live acceptance pending env | live四表schema＋既有API contract | 已產出adapter contract／fixtures／兩consumer cutover／legacy deletion |
 | WP-B | 核心 journey 有real-data/provider-safe baseline | Pending by affected domain | 主庫journey依WP-DB；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |

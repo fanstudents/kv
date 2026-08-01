@@ -12,13 +12,12 @@ function sourceFiles(directory: string): string[] {
 }
 
 function schemaSql(): string {
-  const baseline = readFileSync(join(process.cwd(), "supabase", "baseline.sql"), "utf8");
-  const migrations = readdirSync(join(process.cwd(), "supabase", "migrations"))
+  return readdirSync(join(process.cwd(), "supabase", "migrations"))
     .filter((name) => name.endsWith(".sql"))
     .sort()
     .map((name) => readFileSync(join(process.cwd(), "supabase", "migrations", name), "utf8"))
-    .join("\n");
-  return `${baseline}\n${migrations}`.replaceAll('"', "");
+    .join("\n")
+    .replaceAll('"', "");
 }
 
 describe("database surface inventory", () => {
@@ -68,5 +67,23 @@ describe("database surface inventory", () => {
     expect(DATABASE_NON_TABLE_SURFACES).toContainEqual(
       expect.objectContaining({ kind: "rpc", name: "match_kb_chunks", coverage: "defined" })
     );
+  });
+
+  it("keeps one canonical clean-environment migration before forward-only deltas", () => {
+    const migrations = readdirSync(join(process.cwd(), "supabase", "migrations"))
+      .filter((name) => name.endsWith(".sql"))
+      .sort();
+
+    expect(migrations).toEqual(["20260801000000_live_baseline.sql"]);
+
+    const baseline = readFileSync(
+      join(process.cwd(), "supabase", "migrations", migrations[0]),
+      "utf8"
+    );
+    expect(baseline.match(/^create table "public"\./gim)).toHaveLength(32);
+    expect(baseline.match(/^alter table "public"\..* add constraint /gim)).toHaveLength(66);
+    expect(baseline.match(/^create (?:or replace )?function /gim)).toHaveLength(6);
+    expect(baseline.match(/^create policy /gim)).toHaveLength(94);
+    expect(baseline.match(/^create trigger /gim)).toHaveLength(1);
   });
 });
