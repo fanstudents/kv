@@ -18,7 +18,7 @@ create extension if not exists "vector" with schema "extensions";
 create type "public"."user_role" as enum ('admin', 'user');
 
 -- Sequences
-create sequence "public"."metric_snapshots_id_seq" as bigint increment by 1 minvalue 1 maxvalue 9223372036854776000 start with 1 cache 1 no cycle;
+create sequence "public"."metric_snapshots_id_seq" as bigint increment by 1 minvalue 1 maxvalue 9223372036854775807 start with 1 cache 1 no cycle;
 
 -- Tables
 create table "public"."agent_artifacts" (
@@ -894,4 +894,3 @@ grant usage, select on sequence "public"."metric_snapshots_id_seq" to "service_r
 
 -- Storage configuration (metadata only)
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('meeting-recordings', 'meeting-recordings', false, NULL, NULL) on conflict (id) do update set name = excluded.name, public = excluded.public, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
-

@@ -85,5 +85,7 @@ describe("database surface inventory", () => {
     expect(baseline.match(/^create (?:or replace )?function /gim)).toHaveLength(6);
     expect(baseline.match(/^create policy /gim)).toHaveLength(94);
     expect(baseline.match(/^create trigger /gim)).toHaveLength(1);
+    expect(baseline).toContain("maxvalue 9223372036854775807");
+    expect(baseline).not.toContain("9223372036854776000");
   });
 });

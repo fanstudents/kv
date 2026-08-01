@@ -13,9 +13,9 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／planning base | `codex/kv-wp0-toolchain`／`9a96303` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-08-01；CodeGraph 405 files／3,442 nodes／7,390 edges；兩個 Supabase project 已 read-only introspect |
+| Last verified | 2026-08-01；CodeGraph 405 files／3,442 nodes／7,311 edges；KV cloud staging 已 clean replay 並通過 catalog／Data API／affected Chrome 核對 |
 | Requirements source | 本對話：保留 UI／UX 與現有資料格式，在持續承接需求時漸進產品化 |
-| Readiness | **Implementation Ready**：主庫 schema truth與canonical migration已取得；clean-room replay、Teaching live read與其他provider真實驗收尚未關閉 |
+| Readiness | **Implementation Ready**：主庫 clean-room replay已完成；Main authenticated journeys、Teaching live read與其他provider真實驗收尚未關閉 |
 
 ## 1. Outcome and boundaries
 
@@ -107,8 +107,8 @@ Frozen UI／pages
 | F-05 | Visit LINE ingress、Meeting realtime、Orders notification 等 capability 各有自己的 domain owner | `src/modules/visit/line-inbound.ts`、`meeting/realtime.ts`、`orders/orders.ts` | event 類型維持 domain workflow，不強迫成 Agent type 或共用 runtime |
 | F-06 | 無 production caller 的 generic `RuntimeKernel`／in-memory scaffold 與 Visit draft runtime 已刪除 | CodeGraph 查無 `RuntimeKernel`；commits `d524d5a`、`8216f33` | 禁止在第一個真實 consumer 前重建平台 |
 | F-07 | canonical Agent identity compatibility foundation 已存在；`AGENTS` 仍維持 legacy-compatible projection | `src/lib/agent-data.ts`、`src/modules/agents/identity.ts` | 全面 consumer cutover 改為需求觸發，不作固定前置工作 |
-| F-08 | `.env.local` 只有 `AUTH_SECRET`、`ADMIN_PASSWORD`、`APP_BASE_URL` | key-name-only inventory | 可驗 auth；不能驗 Supabase 或 provider journey |
-| F-09 | 最新完整自動驗證為 97 test files／480 tests、typecheck、lint、build | 本工作批release gate＋既有Playwright smoke 132／132 | 只證明 contract／test-env render continuity，不是 real-data acceptance |
+| F-08 | `.env.local` 已配置 auth 與 CabLate `kv-staging` publishable access；尚無 Main service role、Teaching 與其他 provider keys | key-name-only inventory＋staging Data API probe | 可開始 Main RLS／一般使用者 journey；privileged routes與外部 provider仍有各自 gate |
+| F-09 | 最新完整自動驗證為 97 test files／481 tests、typecheck、lint、build | 本工作批release gate＋既有Playwright smoke 132／132 | 自動gate之外，本批另有Main staging catalog／Data API／affected Chrome evidence |
 | F-10 | Teaching live project 有 47 public tables；KV source 只讀 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` | live schema introspection＋`src/adapters/operations/teaching-pipeline-source.ts` | Teaching 是共享外部產品，不納入 KV baseline ownership |
 | F-11 | `getPipelineOverview` 同時供 Operations API 與 `operationsContext` 使用；四個query已逐一檢查error，任一失敗會使整份snapshot unavailable | CodeGraph callers／impact＋`tests/unit/{operations-pipeline,meeting-context,agent-overview-routes}.test.ts` | silent-zero failure已關閉；live read-only acceptance仍需Teaching env |
 
@@ -132,7 +132,7 @@ Frozen UI／pages
 | Area | Ownership／structure | Contract | Render／auth | Real data／provider | Next trigger |
 |---|---|---|---|---|---|
 | Auth | Done | Done | Functionally verified | N/A | auth 行為改變時重驗 |
-| Operations | Done | Done | Render smoke | Blocked | 取得主 Supabase 後跑 CRUD journeys |
+| Operations | Done | Done | Authenticated Chrome read/create passed | Main read＋create verified；update/delete active | 補完staging update/delete與privileged routes |
 | Teaching pipeline | Done；單一domain＋adapter | Success／empty／partial failure／timeout與兩consumer已測 | Operations＋TV affected Chrome passed | Live schema acquired；real-data read pending env | 提供Teaching runtime env後跑read-only acceptance |
 | Knowledge Base | Done | Done | Render smoke | Blocked | 先關 schema/RPC drift，再跑 ingestion/search |
 | Meeting | Done | Done | Render smoke | Blocked | 有 staging／OpenAI 後跑完整 session |
@@ -191,7 +191,12 @@ Frozen UI／pages
 - Chrome 直接進入 tbr 組織的 Supabase Dashboard；OAuth connector 因協作者無組織授權權限失敗，但不影響 project-level read access。
 - Main project `time_alert`（ref `ytrolpaeuckdwgvifdhl`）已 read-only introspect：32 public tables、310 columns、66 constraints、66 indexes、6 public functions、94 public／storage policies、1 custom auth trigger、1 private Storage bucket，以及 33 筆 migration history metadata。
 - `supabase/migrations/20260801000000_live_baseline.sql` 已由 live catalog 產生並成為唯一active baseline migration；包含原 repo 缺少的 base DDL、`match_kb_chunks`、KB 實際欄位、RLS／ACL 與 `meeting-recordings` bucket metadata；不含 production rows、auth users、secret 或 migration statement bodies。
-- 原Local 7 份增量 migration均早於8/1 live snapshot且已被baseline吸收，已自active migration chain移除，由Git history保存；目前尚未經空白環境重播，所以不能宣稱rebuild verified。
+- CabLate `kv-staging`（ref `gizswqvyavkfrtndfzsb`，Seoul）已由空白 project 套用canonical baseline；修正catalog經JS傳遞造成的bigint sequence max rounding後，重播成功。
+- Staging 與來源catalog精確核對：32 public tables、310 columns、66 constraints、66 indexes、6 public functions、94 public／storage policies、32個RLS-enabled tables、1 custom auth trigger、1 private Storage bucket；`metric_snapshots_id_seq` max為`9223372036854775807`。
+- Publishable key經PostgREST讀取`agent_goals`回HTTP 200／空集合，證明Data API exposure與anon read path可用；service-role與authenticated UI／CRUD仍須分開驗收。
+- 本機以既有登入狀態在Chrome驗收`/goals`、`/subscribers`、`/outputs`、`/knowledge-base`：四頁均載入staging且無console error；Goals第一次讀取依既有行為初始化16筆demo goals，UI建立暫存目標後雲端count變17，精確清理後頁面恢復16。Main read／create已證明；update、app-level delete與service-role路徑仍未關閉。
+- DDL後advisor顯示來源baseline既有債務：63項security WARN，以及73項performance建議（37 WARN／36 INFO）；這些不是replay drift，也不在本批擴成全面安全整改，後續依實際journey與風險排入hardening slice。
+- 原Local 7 份增量 migration均早於8/1 live snapshot且已被baseline吸收，已自active migration chain移除，由Git history保存；後續只新增forward-only delta。
 - CodeGraph／source 對第二個 `教學系統` project（ref `wsaknnhjgiqmkendeyrj`）只引用 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations`；live project 實際有 47 public tables，屬共享產品資料庫，不應整包複製進 KV。
 - Teaching 的四表契約已取得，但它們依賴共享的 `organizations`、`user_profiles`、`is_super_admin()` 與 `auth.users`；KV 應把它視為 external data contract，而不是假裝擁有其 migration。
 
@@ -207,26 +212,26 @@ Frozen UI／pages
 
 | Project | Current truth／remaining gap | Consequence |
 |---|---|---|
-| Main Supabase | Live schema truth 與 baseline candidate 已取得；尚未在空白 Supabase 重播、diff、rollback rehearsal | 可以停止猜 schema，但 schema change／release 前仍要完成 replay gate |
+| Main Supabase | `kv-staging` clean replay與catalog diff已通過；rollback rehearsal與affected real journey尚未關閉 | 可以clean rebuild；production cutover前仍須驗證forward migration／rollback與真實使用路徑 |
 | Teaching Supabase | 四個 consumer table 的 live contract 已取得；它是 47-table 共享系統且有外部 FK／RLS dependency | 建立 adapter contract／fixture，不把整個 Teaching DB 納入 KV ownership |
-| Runtime env | `.env.local` 目前只有 auth keys，沒有兩個 Supabase endpoint／key | 尚不能從本機執行 authenticated real-data journey |
+| Runtime env | `.env.local` 已有Main staging URL／publishable key；沒有service role、Teaching endpoint／key | 可驗一般RLS／Data API journey；privileged Main與Teaching live read仍不可宣稱完成 |
 | Providers | LINE／OpenAI／Google／Teachify／Firecrawl key或安全 fixture尚未提供 | 不能把 mock/empty UI 升級成 production-like evidence |
 
 ### Resolution package DB-01
 
-**State:** Acquisition complete；rehearsal and contract closure active。Schema 透過 Dashboard read-only 取得；原始 catalog snapshot 僅留在本機稽核目錄，不提交大型 dump。
+**State:** Clean replay complete；runtime acceptance active。Schema 透過 Dashboard read-only 取得；原始 catalog snapshot 僅留在本機稽核目錄，不提交大型 dump。
 
 **Required evidence:**
 
 1. [x] 取得 Main 與 Teaching 的 tables、columns、PK/FK、indexes、extensions、RLS/policies、functions/triggers 與 Storage metadata。
 2. [x] 只記 project class／reference；不把 key、production rows 或 auth users提交 Git。
-3. [x] 以 CodeGraph／source 確認 Main 28 tables＋1 RPC，以及 Teaching 4-table consumer contract；主庫 live baseline 已補齊 repo migration 缺口。
-4. [ ] 在乾淨 Supabase local／staging套用canonical baseline migration，比對catalog counts／definitions，修正replay dependency。本機Docker服務目前需系統權限啟動；可改用核准的空白cloud staging。
+3. [x] 以 CodeGraph／source確認Main consumers與Teaching 4-table contract；以live catalog補齊Main 32 tables、6 functions及repo migration缺口。
+4. [x] 在CabLate空白`kv-staging`套用canonical baseline，修正bigint序列上限精度並比對catalog counts／definitions一致。
 5. [x] 將既有7份migration分類為已吸收歷史並自active chain移除，避免clean setup重複建立同一物件；後續只加forward-only delta。
 6. [x] 由 WP-T 為Teaching四表建立明確adapter contract、fixture、錯誤語意與ownership；不複製47-table shared schema。
-7. [ ] 補入本機 Supabase env 後，驗證 Main Data API／grant／RLS 與 affected authenticated journeys。
+7. [ ] 本機已補Main publishable env，Data API、四個authenticated read pages與Goals create成功；繼續驗證update／app-level delete及需要service role的server routes。
 
-**Blocks now:** 主庫 schema 猜測已解除；clean rebuild 宣告、runtime real DB CRUD、KB ingestion/search、Teaching integration、provider-backed journey與 production cutover仍受後續 gate 限制。
+**Blocks now:** 主庫schema猜測與clean rebuild已解除；runtime real DB CRUD、KB ingestion/search、Teaching integration、provider-backed journey、rollback rehearsal與production cutover仍受後續gate限制。
 
 **Safety rule:** canonical baseline migration只套用clean environment；不得直接push到來源production project。後續production變更一律以forward-only delta migration進行。
 
@@ -254,7 +259,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 |---|---|---|---|---|
 | WP-00 | 現況、版本、映射、依賴與完成維度重新可信 | Complete | none | 本文件與 current source map |
 | WP-F | 新需求在現有產品可持續交付，並局部改善被碰到區域 | Ready／ongoing | affected source preflight | feature evidence；可能觸發 WP-D |
-| WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Active：canonical migration ready，rehearsal pending | 可啟動的local Docker或CabLate核准空白staging＋runtime env | baseline replay／catalog diff／Data API acceptance |
+| WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Replay complete；runtime acceptance active | `kv-staging`＋Main runtime env | 已產出baseline replay／catalog diff／Data API evidence；下一步是RLS／CRUD／rollback |
 | WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Implementation complete；live acceptance pending env | live四表schema＋既有API contract | 已產出adapter contract／fixtures／兩consumer cutover／legacy deletion |
 | WP-B | 核心 journey 有real-data/provider-safe baseline | Pending by affected domain | 主庫journey依WP-DB；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
@@ -399,15 +404,15 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | G-05 | R-02、R-04 | WP-D、WP-R | 第二 consumer或真實可靠性需求 |
 | G-06 | R-03 | WP-X | production-like、rollback、legacy deletion |
 
-### Verdict: Needs Revision
+### Verdict: Implementation Ready；acceptance active
 
-**整體 blocker:** 兩個live schema已取得，方向不再受schema猜測阻塞；但Main baseline尚未在CabLate空白Supabase重播，runtime env尚未建立，Teaching failure-aware contract與provider-backed journeys尚未驗收，因此不能宣稱可clean rebuild或production-like完成。
+**整體 blocker:** Main baseline已在CabLate空白staging clean replay，catalog與publishable Data API一致；目前剩下affected authenticated CRUD／RLS、service-role路徑、Teaching live read與provider-backed journeys，因此可宣稱clean rebuild，但仍不能宣稱production-like完成。
 
-**現在可執行:** WP-T可直接開始，因live四表schema、既有payload與兩個consumer已確認；WP-DB在CabLate核准建立空白staging project後可開始replay。WP-F仍可隨時處理真實需求。一律先重驗affected source，不再做無需求支撐的全域抽象整理。
+**現在可執行:** WP-DB直接進入Main real journey驗收；WP-T只差Teaching runtime env的live read。WP-F仍可隨時處理真實需求。一律先重驗affected source，不再做無需求支撐的全域抽象整理。
 
-**被阻塞:** Main clean-rebuild verdict、real DB/provider journeys、schema/runtime cutover與production-like Done。Teaching local snapshot與完整data migration不是blocker，因目前沒有需求觸發。
+**被阻塞:** Main privileged journey需service role；Teaching live read需獨立endpoint／key；其他provider journey需相應sandbox／fixture。Teaching local snapshot與完整data migration不是blocker，因目前沒有需求觸發。
 
-**升級條件:** WP-DB完成clean replay且WP-T通過兩個consumer的failure-aware contract後，至少完成當前高優先domain的WP-B baseline；其餘domain可保持待需求觸發，不要求先搬完整個系統。
+**升級條件:** WP-DB完成affected Main journey且WP-T補上live read後，至少完成當前高優先domain的WP-B baseline；其餘domain可保持待需求觸發，不要求先搬完整個系統。
 
 ## 9. Documentation policy
 

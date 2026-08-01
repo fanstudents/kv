@@ -27,8 +27,8 @@ export function getSupabase() {
   }
   if (!serviceKey) {
     console.warn(
-      "[supabase] 目前使用 anon key。建議設定 SUPABASE_SERVICE_ROLE_KEY 後，" +
-        "再套用 20260725_lockdown_rls.sql 把 anon 的資料庫權限收掉。"
+      "[supabase] 目前使用 publishable/anon key，只適合 staging 驗證；" +
+        "需要 server-only privileged routes 時請設定 SUPABASE_SERVICE_ROLE_KEY。"
     );
   }
 
