@@ -1,5 +1,6 @@
 import "server-only";
-import { getSupabase } from "./supabase";
+import { isDatabaseJson } from "./database-json";
+import { getMainSupabase } from "./supabase";
 import type { AgentSlug } from "./types";
 
 // 「一次執行」的寫入層（agent_runs / agent_run_steps / agent_artifacts / agent_tasks）。
@@ -29,6 +30,15 @@ export type ArtifactKind =
   | "message"
   | "alert";
 
+function toDatabaseJson(value: Record<string, unknown> | undefined) {
+  const candidate = value ?? {};
+  if (isDatabaseJson(candidate)) return candidate;
+
+  const normalized: unknown = JSON.parse(JSON.stringify(candidate));
+  if (!isDatabaseJson(normalized)) throw new Error("Agent runtime metadata must be JSON serializable");
+  return normalized;
+}
+
 /** 開一次執行。回傳 run id；已經跑過同一個 triggerRef 就回傳原本那次（冪等） */
 export async function startRun(params: {
   agentSlug: AgentSlug;
@@ -40,7 +50,7 @@ export async function startRun(params: {
   meta?: Record<string, unknown>;
 }): Promise<string | null> {
   try {
-    const supabase = getSupabase();
+    const supabase = getMainSupabase();
 
     if (params.triggerRef) {
       const { data: existing } = await supabase
@@ -60,7 +70,7 @@ export async function startRun(params: {
         trigger_ref: params.triggerRef ?? null,
         goal_id: params.goalId ?? null,
         summary: params.summary ?? null,
-        meta: params.meta ?? {},
+        meta: toDatabaseJson(params.meta),
       })
       .select("id")
       .single();
@@ -87,7 +97,7 @@ export async function logStep(
 ): Promise<void> {
   if (!runId) return;
   try {
-    const supabase = getSupabase();
+    const supabase = getMainSupabase();
     const done = patch.status && patch.status !== "running" && patch.status !== "waiting";
     await supabase.from("agent_run_steps").insert({
       run_id: runId,
@@ -128,7 +138,7 @@ export async function finishRun(
 ): Promise<void> {
   if (!runId) return;
   try {
-    await getSupabase()
+    await getMainSupabase()
       .from("agent_runs")
       .update({
         status: params.status,
@@ -155,7 +165,7 @@ export async function saveArtifact(params: {
   meta?: Record<string, unknown>;
 }): Promise<string | null> {
   try {
-    const { data, error } = await getSupabase()
+    const { data, error } = await getMainSupabase()
       .from("agent_artifacts")
       .insert({
         run_id: params.runId ?? null,
@@ -166,7 +176,7 @@ export async function saveArtifact(params: {
         uri: params.uri ?? null,
         approved_by: params.approvedBy ?? null,
         approved_at: params.approvedBy ? new Date().toISOString() : null,
-        meta: params.meta ?? {},
+        meta: toDatabaseJson(params.meta),
       })
       .select("id")
       .single();
@@ -187,13 +197,13 @@ export async function delegate(params: {
   dueAt?: string;
 }): Promise<string | null> {
   try {
-    const { data, error } = await getSupabase()
+    const { data, error } = await getMainSupabase()
       .from("agent_tasks")
       .insert({
         from_agent: params.fromAgent ?? null,
         to_agent: params.toAgent,
         title: params.title,
-        payload: params.payload ?? {},
+        payload: toDatabaseJson(params.payload),
         source_run_id: params.sourceRunId ?? null,
         due_at: params.dueAt ?? null,
       })
@@ -209,7 +219,7 @@ export async function delegate(params: {
 /** 取出某位 Agent 待處理的委派 */
 export async function claimTasks(agentSlug: AgentSlug, limit = 5) {
   try {
-    const { data } = await getSupabase()
+    const { data } = await getMainSupabase()
       .from("agent_tasks")
       .select("id,from_agent,title,payload,created_at,due_at")
       .eq("to_agent", agentSlug)
@@ -232,7 +242,7 @@ export async function findActiveRun(params: {
 }): Promise<string | null> {
   try {
     const since = new Date(Date.now() - (params.withinMinutes ?? 60) * 60000).toISOString();
-    let query = getSupabase()
+    let query = getMainSupabase()
       .from("agent_runs")
       .select("id")
       .eq("agent_slug", params.agentSlug)
@@ -267,7 +277,7 @@ export async function currentStep(agentSlug: AgentSlug, withinMinutes = 30): Pro
   try {
     const runId = await findActiveRun({ agentSlug, withinMinutes });
     if (!runId) return null;
-    const { data } = await getSupabase()
+    const { data } = await getMainSupabase()
       .from("agent_run_steps")
       .select("run_id,node_id,status,output_summary,started_at")
       .eq("run_id", runId)
@@ -303,7 +313,7 @@ export interface RunRow {
 /** 某位 Agent 最近幾次執行（後台／劇院模式讀取用） */
 export async function listRuns(agentSlug: AgentSlug, limit = 10): Promise<RunRow[]> {
   try {
-    const { data } = await getSupabase()
+    const { data } = await getMainSupabase()
       .from("agent_runs")
       .select("id,agent_slug,trigger,status,started_at,ended_at,cost_usd,total_tokens,summary,error_kind")
       .eq("agent_slug", agentSlug)

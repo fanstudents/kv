@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabase } from "./supabase";
+import { getMainSupabase } from "./supabase";
 import { levelInfo, type KnowledgeLevel } from "./knowledge-base-data";
 import type { AgentSlug } from "./types";
 
@@ -44,7 +44,7 @@ export async function remember(params: {
       params.ttlDays === undefined
         ? null
         : new Date(Date.now() + params.ttlDays * 86400000).toISOString();
-    await getSupabase()
+    await getMainSupabase()
       .from("agent_memory")
       .insert({
         scope: params.scope ?? "agent",
@@ -72,7 +72,7 @@ export async function recall(params: {
   kinds?: MemoryKind[];
 }): Promise<MemoryRow[]> {
   try {
-    let query = getSupabase()
+    let query = getMainSupabase()
       .from("agent_memory")
       .select("id,scope,agent_slug,kind,content,level,confidence,created_at,expires_at")
       .lte("level", params.maxLevel)
@@ -107,7 +107,7 @@ export function memoryContext(rows: MemoryRow[]): string {
 /** 清掉過期記憶（可掛在每日 cron） */
 export async function forgetExpired(): Promise<number> {
   try {
-    const { data } = await getSupabase()
+    const { data } = await getMainSupabase()
       .from("agent_memory")
       .delete()
       .lt("expires_at", new Date().toISOString())
@@ -131,7 +131,7 @@ export async function snapshotMetric(params: {
 }): Promise<void> {
   try {
     const captured = (params.capturedAt ?? new Date()).toISOString();
-    await getSupabase().from("metric_snapshots").upsert(
+    await getMainSupabase().from("metric_snapshots").upsert(
       {
         metric_id: params.metricId,
         value: params.value,
@@ -157,7 +157,7 @@ export interface SnapshotRow {
 export async function metricHistory(metricId: string, days = 30): Promise<SnapshotRow[]> {
   try {
     const since = new Date(Date.now() - days * 86400000).toISOString();
-    const { data } = await getSupabase()
+    const { data } = await getMainSupabase()
       .from("metric_snapshots")
       .select("metric_id,value,captured_at")
       .eq("metric_id", metricId)
