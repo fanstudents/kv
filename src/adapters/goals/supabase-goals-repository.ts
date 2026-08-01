@@ -1,12 +1,15 @@
 import "server-only";
 import { DEFAULT_GOALS, type AgentGoal, type GoalCadence } from "@/lib/agent-goals";
 import { metricHistory } from "@/lib/agent-memory";
-import { getSupabase } from "@/lib/supabase";
+import type { Tables, TablesInsert } from "@/lib/database.types";
+import { getMainSupabase } from "@/lib/supabase";
 import type { AgentSlug } from "@/lib/types";
 import type { GoalsRepository } from "@/modules/goals/service";
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function toGoal(row: any): AgentGoal {
+type GoalRow = Tables<"agent_goals">;
+type GoalInsert = TablesInsert<"agent_goals">;
+
+function toGoal(row: GoalRow): AgentGoal {
   return {
     id: row.id,
     agentSlug: row.agent_slug as AgentSlug,
@@ -20,7 +23,7 @@ function toGoal(row: any): AgentGoal {
   };
 }
 
-function toRow(goal: AgentGoal) {
+function toRow(goal: AgentGoal): GoalInsert {
   return {
     id: goal.id,
     agent_slug: goal.agentSlug,
@@ -37,7 +40,7 @@ function toRow(goal: AgentGoal) {
 
 export const supabaseGoalsRepository: GoalsRepository = {
   async list() {
-    const supabase = getSupabase();
+    const supabase = getMainSupabase();
     const { data, error } = await supabase
       .from("agent_goals")
       .select("*")
@@ -53,18 +56,18 @@ export const supabaseGoalsRepository: GoalsRepository = {
   },
 
   async upsert(goal) {
-    const { error } = await getSupabase().from("agent_goals").upsert(toRow(goal));
+    const { error } = await getMainSupabase().from("agent_goals").upsert(toRow(goal));
     if (error) throw new Error(error.message);
     return goal;
   },
 
   async remove(id) {
-    const { error } = await getSupabase().from("agent_goals").delete().eq("id", id);
+    const { error } = await getMainSupabase().from("agent_goals").delete().eq("id", id);
     if (error) throw new Error(error.message);
   },
 
   async reset() {
-    const supabase = getSupabase();
+    const supabase = getMainSupabase();
     const { data: stored, error: readError } = await supabase.from("agent_goals").select("id");
     if (readError) throw new Error(readError.message);
 
@@ -72,7 +75,7 @@ export const supabaseGoalsRepository: GoalsRepository = {
     if (upsertError) throw new Error(upsertError.message);
 
     const defaultIds = new Set(DEFAULT_GOALS.map((goal) => goal.id));
-    const customIds = (stored ?? []).map((row) => row.id as string).filter((id) => !defaultIds.has(id));
+    const customIds = (stored ?? []).map((row) => row.id).filter((id) => !defaultIds.has(id));
     if (customIds.length > 0) {
       const { error: deleteError } = await supabase.from("agent_goals").delete().in("id", customIds);
       if (deleteError) throw new Error(deleteError.message);
