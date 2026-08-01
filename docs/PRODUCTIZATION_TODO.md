@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-03 Operations／TV typed boundary（`7406b2f`）｜進行中：WP-03、WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-03 Subscribers typed boundary（`00ab5a9`）｜進行中：WP-03、WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已核准並分批執行
 
@@ -203,7 +203,7 @@ Provider 工作包固定拆成兩軌：
 - [x] 已決定以 repo canonical migration 重建 local DB 後產生型別；本地 drift command 先落地，PR CI 接入留給 WP-21。
 - [x] 從 `20260801000000_live_baseline.sql` 重建 local Main DB，產生 `src/lib/database.types.ts`。
 - [~] `createClient<Database>` 與 `getMainSupabase` 已建立；舊 consumer 暫由同 singleton 的 `getSupabase` 相容入口維持，Teaching client 保持獨立。
-- [~] 逐 domain 修復不相容 query／mapping；Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV 已完成，其餘 consumer 待分批處理，不改資料格式。
+- [~] 逐 domain 修復不相容 query／mapping；Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers 已完成，其餘 consumer 待分批處理，不改資料格式。
 - [x] 加入 `schema:types`／`schema:types:check`；生成結果必須能由 migration 重現且 Git diff 為零。
 - [~] 每個完成的 domain 均需通過 focused contract tests 與 typecheck；完整 verify、Main DB contract tests 與受影響頁面 Chrome smoke 於 WP-03 domain cutover 集中執行，未遷移 domain 仍待處理。
 
@@ -212,7 +212,7 @@ WP-03 分段契約與證據（2026-08-02）：
 - 範圍只有 generated type、更新／drift 指令與 typed-client migration seam；不改 query、資料、API、UI 或外部 side effect。
 - `getMainSupabase` 與既有 `getSupabase` 必須共用一個 client、保留 service-role 優先／anon fallback／缺設定失敗契約；由 `tests/unit/supabase-client.test.ts` 固定。
 - Main migration 與程式使用表名已比對；差集中的 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` 均由 Teaching adapter 使用，不併入 Main type。
-- 相容入口刪除條件：既有 Main imports 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production reference 歸零；Operations／TV 批次後尚餘 20 個 reference files，其中 17 個會在 runtime 呼叫、3 個只取用舊 client 的 type。
+- 相容入口刪除條件：既有 Main imports 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production reference 歸零；Subscribers 批次後尚餘 18 個 reference files，其中 15 個會在 runtime 呼叫、3 個只取用舊 client 的 type。
 - 每段獨立修正型別、測試與受影響頁面，不一次打開整包 blast radius。
 - `schema:types:check` 通過；最新 `npm run verify` 全通過：102 test files／514 tests、lint、typecheck、93-page production build。
 - Chrome 變更前後皆驗證登入後 `/agents/visit`；頁面完成載入、`行前功課` empty state 與 disabled 狀態不變，變更後實際點擊 `重新整理` 通過既有 Main client runtime path。
@@ -232,6 +232,8 @@ WP-03 分段契約與證據（2026-08-02）：
 - 第七段 focused evidence：`database-json`、`agent-admin`、`agent-admin-adapter`、`supabase-conversation-lock` 共 4 test files／15 tests 與 typecheck 全過；非 JSON settings／context 現在在 DB call 前明確拒絕，正常 JSON input 的資料與 side effect 不變。Visit／LINE real journey 留待 WP-03 集中驗證。
 - 第八段 `7406b2f`：Operations repository 與 TV idle data source 改用 `getMainSupabase`；Contacts nested projection、Activity filter／order／limit、shared tag read／write、TV activity query 與 API response contract 不變。
 - 第八段 focused evidence：`supabase-operations-repository`、`tv-idle-data-sources`、`tv-idle`、`tv-idle-route` 共 4 test files／14 tests 與 typecheck 全過。Google calendar／真實 DB 未於此批觸發；TV／Operations Chrome journey 留待 WP-03 集中驗證。
+- 第九段 `00ab5a9`：Subscribers repository 與 LINE broadcast adapter 改用 `getMainSupabase`；subscriber list／update／touch、broadcast log、recipient tag／channel filters、message construction 與 log write contract 不變。DB `line_subscribers.channel` 的 check constraint 在 adapter 內明確投影為 domain 的 primary／support channel。
+- 第九段 focused evidence：`supabase-subscribers-repository`、`line-subscribers-broadcast-adapter`、`subscribers-service`、`subscribers-broadcast` 共 4 test files／14 tests 與 typecheck 全過。LINE profile／push 全為 mock，未讀寫真實 subscriber／broadcast log，也未送訊息；Subscribers Chrome journey 留待 WP-03 集中驗證。
 
 出口：Main query 具編譯期 schema 契約；無跨 DB type 混用。
 
@@ -494,7 +496,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
-- [~] WP-03 已核准並完成八段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV；尚餘 17 個 runtime caller files 與 3 個 type-only reference files，後續逐 domain 遷移且每段開始前確認。
+- [~] WP-03 已核准並完成九段：generated types／typed-client seam、Visit／Visit history、Goals、Checklist、Orders、Agent administration、Conversation lock、Operations／TV、Subscribers；尚餘 15 個 runtime caller files 與 3 個 type-only reference files，後續逐 domain 遷移且每段開始前確認。
 - [~] WP-02 已有 `.env.example` 能力分組／opt-in gate、integration status、純設定 preflight 與 OpenAI acceptance harness；仍需補跨 provider 驗收欄位、fixture／cleanup 與其餘 provider commands。
 - [~] WP-10 Preparation 已完成第一組 local failure contracts；Real Acceptance 仍明確等待安全 key、成本上限與 cleanup 設計。
 - [x] Provider 工作包採 Preparation／Real Acceptance 兩軌；缺 key 只阻塞 Real Acceptance，不阻塞 source ownership、contract、fixture 與安全 gate 整理。
@@ -517,9 +519,9 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ## 9. 目前 readiness 判定
 
-- 最新完成：`WP-03` Operations／TV typed boundary（`7406b2f`）；`WP-03` 已完成第八段，WP-03／WP-02／WP-10 Preparation 均仍在逐 domain／能力執行。
+- 最新完成：`WP-03` Subscribers typed boundary（`00ab5a9`）；`WP-03` 已完成第九段，WP-03／WP-02／WP-10 Preparation 均仍在逐 domain／能力執行。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
-- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 17 個 runtime callers 與 3 個 type-only references。
+- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，尚餘 15 個 runtime callers 與 3 個 type-only references。
 - 外部功能：Preparation 可在缺 key 時繼續；純設定 preflight 已可區分「未設定」與「尚未驗證」，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
