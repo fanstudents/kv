@@ -1,14 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 const {
-  researchContact,
   pushLineMessage,
   getSupabase,
   getVisitSettings,
   createCalendarEvent,
   sendEmail,
 } = vi.hoisted(() => ({
-  researchContact: vi.fn(),
   pushLineMessage: vi.fn(),
   getSupabase: vi.fn(),
   getVisitSettings: vi.fn(),
@@ -17,7 +15,6 @@ const {
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/contact-research", () => ({ researchContact }));
 vi.mock("@/lib/line", () => ({ pushLineMessage }));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
 vi.mock("@/adapters/visit/supabase-visit-settings", () => ({
@@ -45,7 +42,6 @@ describe("legacy Visit respond fulfilment source", () => {
     createCalendarEvent.mockResolvedValue("event-1");
     sendEmail.mockResolvedValue(undefined);
     pushLineMessage.mockResolvedValue(undefined);
-    researchContact.mockResolvedValue("profile-1");
     const adapter = createLegacyVisitRespondFulfilmentSource();
 
     await expect(adapter.getSettings()).resolves.toEqual({ senderName: "Dennis" });
@@ -60,20 +56,10 @@ describe("legacy Visit respond fulfilment source", () => {
     await adapter.pushLineMessage("U1", "done");
     await adapter.recordActivity({ agent_slug: "visit", summary: "done", status: "success" });
     await adapter.markInviteFailed("i1");
-    await expect(adapter.researchContact({
-      contactId: "c1",
-      inviteId: "i1",
-      name: "Dennis",
-      company: "TBR",
-      title: "CEO",
-      email: "d@example.test",
-    })).resolves.toBe("profile-1");
-
     expect(query.update).toHaveBeenCalledWith({ calendar_event_id: "event-1", location: "Taipei" });
     expect(query.update).toHaveBeenCalledWith({ status: "failed" });
     expect(query.insert).toHaveBeenCalledWith({ agent_slug: "visit", summary: "done", status: "success" });
     expect(pushLineMessage).toHaveBeenCalledWith("U1", "done");
     expect(sendEmail).toHaveBeenCalledWith({ to: "d@example.test", subject: "done", body: "html", html: true });
-    expect(researchContact).toHaveBeenCalledWith(expect.objectContaining({ inviteId: "i1" }));
   });
 });

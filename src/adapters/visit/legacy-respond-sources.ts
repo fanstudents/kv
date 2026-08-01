@@ -1,5 +1,4 @@
 import "server-only";
-import { researchContact } from "@/lib/contact-research";
 import { pushLineMessage as pushLegacyLineMessage } from "@/lib/line";
 import { getSupabase } from "@/lib/supabase";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
@@ -15,7 +14,6 @@ import type {
   VisitRespondFulfilmentRow,
   VisitRespondFulfilmentSource,
   VisitRespondReadSource,
-  VisitRespondResearchInput,
 } from "@/modules/visit/respond-contracts";
 import type { VisitInviteChoice } from "@/modules/visit/public-response";
 
@@ -55,7 +53,6 @@ export function createLegacyVisitRespondFulfilmentSource(): VisitRespondFulfilme
         .update(toLegacyPendingInviteStatusPatch("failed"))
         .eq("id", inviteId);
     },
-    researchContact: (input: VisitRespondResearchInput) => researchContact(input),
   };
 }
 

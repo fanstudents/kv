@@ -2,9 +2,9 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜WP-01 基準 commit：`ad4be46`｜CodeGraph 於本批 commit 前同步
+> 最後校準：2026-08-02｜最新完成：WP-04（commit 待本批建立）｜CodeGraph 已於驗證後同步
 >
-> 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-01 可執行
+> 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；下一工作包尚未核准
 
 ## 0. 怎麼使用這份清單
 
@@ -199,18 +199,26 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 出口：Main query 具編譯期 schema 契約；無跨 DB type 混用。
 
-### WP-04 — Contact Research workflow ownership `[?]`
+### WP-04 — Contact Research workflow ownership `[x]`
 
 目的：修正目前 `src/lib/contact-research.ts` 同時擁有 30-day dedupe、OpenAI search、run tracking、DB 儲存、activity 與 failure compensation 的混合責任。
 
-- [ ] 執行前畫出 research GET／POST／Visit respond 共同資料流與 side effects。
-- [ ] 以現有行為建立 characterization／failure contract。
-- [ ] 將 workflow sequencing 移到 `modules/visit/research`。
-- [ ] 只為已存在的 DB repository、research provider、run/activity tracking 建立必要 ports。
-- [ ] adapters 保留 Supabase／OpenAI translation；route 只做 HTTP／composition。
-- [ ] 移除或改名 `legacy-research-source`、`legacy-respond-sources` 中已失去用途的 forwarding。
-- [ ] 保持 30-day dedupe、結果 shape、run 狀態、活動紀錄與失敗補償不變。
-- [ ] mock contract + 完整 verify；有 OpenAI key 後再補真實 acceptance。
+- [x] 執行前以 CodeGraph／source 追出 research GET／POST 與 Visit respond 的兩條 production flow、共同依賴與 side effects。
+- [x] 以既有 parser、30-day dedupe、success／empty／failure sequencing 建立 characterization／failure contract。
+- [x] 將 workflow sequencing 移到 `modules/visit/research`，由單一 use case 擁有。
+- [x] 只為既有 DB repository、research provider、run tracking 建立必要 ports；未建立一條 route 一套 layers。
+- [x] Supabase／OpenAI translation 留在各自 adapter；兩個 production consumer 共用一個 composition，route 只負責 HTTP 與觸發時機。
+- [x] 刪除 `src/lib/contact-research.ts`、`legacy-research-source` 與 respond fulfilment 中已失去用途的 research forwarding。
+- [x] 保持 request／result shape、30-day dedupe、run 狀態、活動紀錄與失敗補償；舊 parser test 曾抓到多出的 `inviteId`，已修回相容契約。
+- [x] mock／adapter contracts + 完整 verify；真實 OpenAI acceptance 因缺 key，仍由 WP-10／WP-12 管理，不冒充完成。
+
+完成證據（2026-08-02）：
+
+- `npm run verify` 全通過：101 test files／510 tests、lint、typecheck、93-page production build。
+- CodeGraph 同步後為 411 files／3,509 nodes／7,383 edges；`runVisitContactResearch` 只由 manual research flow 與 Visit respond background flow 使用。
+- `rg` 確認舊 `contact-research`、`legacy-research`、`VisitResearchSource`、`researchContact` 名稱在 `src`／`tests` 已歸零。
+- Chrome 前後皆驗證真實登入頁 `/agents/visit`；`行前功課` empty state 與未填姓名時 disabled 狀態不變，並實際點擊 `重新整理` 通過 UI → GET API → module → Supabase adapter，無 app-origin console error。
+- 未觸發 manual POST／OpenAI 與 Visit respond 外部 side effects；其真實 acceptance 需安全的 OpenAI key／fixture，證據等級停在 mock contract + local DB read journey。
 
 出口：use case 有單一 owner；不是把一個大函式機械拆成更多小檔。
 
@@ -450,9 +458,9 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 ## 8. 開始下一批前要決定的事
 
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
+- [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
 - [ ] 先討論下一包；建議優先 WP-02，或從 WP-03～07 選一個不需外部 credentials 的 bounded domain batch。
 - [ ] 決定 WP-03 Main DB types 的執行時點。
-- [ ] 決定 WP-04 Contact Research 是否在 OpenAI 真實驗收前先做 ownership repair。
 - [!] 確認 canonical GitHub repo 與部署目標。
 - [!] 逐一提供安全 credentials／sandbox／fixture；不能提供的工作包維持阻塞，不用假資料宣稱完成。
 
@@ -471,8 +479,8 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 ## 9. 目前 readiness 判定
 
-- 已完成最新工作包：`WP-01`；下一個工作包尚未核准。
-- 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、部分 Visit legacy boundaries 與 `src/lib` ownership 仍待需求／風險驅動收斂。
+- 已完成最新工作包：`WP-04`；下一個工作包尚未核准。
+- 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research 已收斂為單一 workflow owner，其他 Visit legacy boundaries 與 `src/lib` ownership 仍待需求／風險驅動收斂。
 - 資料庫：Main／Teaching 基線可用；Main generated types 尚未完成。
 - 外部功能：多數仍是 credential-gated，不能只靠 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。

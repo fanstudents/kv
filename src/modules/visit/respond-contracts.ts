@@ -1,3 +1,5 @@
+import type { VisitResearchInput } from "@/modules/visit/research";
+
 export interface VisitRespondAgentSettings {
   rangeStartDays: number;
   rangeEndDays: number;
@@ -25,14 +27,7 @@ export interface VisitRespondEmailParams {
   html?: boolean;
 }
 
-export interface VisitRespondResearchInput {
-  contactId: string | null;
-  inviteId: string;
-  name: string;
-  company: string | null;
-  title: string | null;
-  email: string | null;
-}
+export type VisitRespondResearchInput = VisitResearchInput & { inviteId: string };
 
 export interface VisitRespondFulfilmentSource {
   getSettings(): Promise<VisitRespondAgentSettings>;
@@ -42,7 +37,6 @@ export interface VisitRespondFulfilmentSource {
   pushLineMessage(to: string, text: string): Promise<void>;
   recordActivity(activity: { agent_slug?: string; summary: string; status: "success" | "failed" }): Promise<void>;
   markInviteFailed(inviteId: string): Promise<void>;
-  researchContact(input: VisitRespondResearchInput): Promise<string | null>;
 }
 import type { LegacyPendingInviteRow } from "@/modules/visit/legacy-schema";
 import type { VisitInviteChoice } from "@/modules/visit/public-response";

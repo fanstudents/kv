@@ -85,7 +85,6 @@ function createFulfilmentSource(options?: { calendarError?: unknown }) {
     markInviteFailed: vi.fn(async () => {
       calls.push("failed");
     }),
-    researchContact: vi.fn(),
   };
   return { calls, source };
 }

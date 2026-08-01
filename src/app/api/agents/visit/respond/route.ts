@@ -4,11 +4,15 @@ import {
   createLegacyVisitRespondFulfilmentSource,
   createLegacyVisitRespondReadSource,
 } from "@/adapters/visit/legacy-respond-sources";
+import { createVisitResearchDependencies } from "@/adapters/visit/visit-research-dependencies";
 import {
   fulfilVisitPublicInvite,
   resolveVisitPublicInviteGet,
   type VisitPublicInvitePage,
 } from "@/modules/visit/respond";
+import { runVisitContactResearch } from "@/modules/visit/research";
+
+const research = createVisitResearchDependencies();
 
 function page(title: string, message: string, tone: "success" | "error" = "success") {
   const accent = tone === "success" ? "#06C755" : "#EF4444";
@@ -98,7 +102,7 @@ export async function POST(req: NextRequest) {
     renderThankYouEmail: buildThankYouEmailHtml,
     scheduleBackgroundResearch: ({ input, lineUserId, notificationText }) => {
       after(async () => {
-        const profileId = await fulfilmentPort.researchContact(input);
+        const profileId = await runVisitContactResearch(input, research);
         if (profileId) {
           await fulfilmentPort.pushLineMessage(lineUserId, notificationText).catch(() => {});
         }

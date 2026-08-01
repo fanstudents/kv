@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, RefreshCw, Search, Sparkles } from "lucide-react";
 import Card from "@/components/ui/Card";
-import type { ContactProfileRow } from "@/lib/contact-research";
+import type { ContactProfileRow } from "@/modules/visit/research";
 
 // 約成之後自動產生的「行前功課」：對方是誰、公司在做什麼、最近有什麼動靜、
 // 見面可以聊什麼。每一則都附來源連結，查得到才寫得出來。
