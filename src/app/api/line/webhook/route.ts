@@ -23,20 +23,20 @@ import {
   createLegacyVisitLineImageAdapter,
 } from "@/adapters/visit/legacy-line-adapters";
 import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
-import { createLegacyConversationLockAdapter } from "@/adapters/conversation/legacy-lock-adapter";
+import { createSupabaseConversationLock } from "@/adapters/conversation/supabase-conversation-lock";
 import { supabaseOperationsRepository } from "@/adapters/operations/supabase-operations-repository";
 import { createLegacyVisitLineWorkflowAdapter } from "@/adapters/visit/legacy-line-workflow-adapter";
-import { createLegacyVisitSettingsAdapter } from "@/adapters/visit/legacy-settings-adapter";
+import { createSupabaseVisitSettings } from "@/adapters/visit/supabase-visit-settings";
 
 const lineImagePort = createLegacyVisitLineImageAdapter();
 const lineDeliveryPort = createLegacyVisitLineDeliveryAdapter();
 const subscriberTouchPort = supabaseSubscribersRepository;
 const lineCardPersistencePort = createLegacyVisitLineCardAdapter();
 const lineActivityPort = createLegacyVisitLineActivityAdapter();
-const conversationLockPort = createLegacyConversationLockAdapter();
+const conversationLockPort = createSupabaseConversationLock();
 const contactTagPort = supabaseOperationsRepository;
 const lineWorkflowPersistencePort = createLegacyVisitLineWorkflowAdapter();
-const visitSettingsPort = createLegacyVisitSettingsAdapter();
+const visitSettingsPort = createSupabaseVisitSettings();
 const handleInviteApprovalReply = createVisitLineInviteApprovalHandler({
   workflow: lineWorkflowPersistencePort,
   delivery: lineDeliveryPort,

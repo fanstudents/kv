@@ -4,14 +4,14 @@ const {
   researchContact,
   pushLineMessage,
   getSupabase,
-  getVisitAgentSettings,
+  getVisitSettings,
   createCalendarEvent,
   sendEmail,
 } = vi.hoisted(() => ({
   researchContact: vi.fn(),
   pushLineMessage: vi.fn(),
   getSupabase: vi.fn(),
-  getVisitAgentSettings: vi.fn(),
+  getVisitSettings: vi.fn(),
   createCalendarEvent: vi.fn(),
   sendEmail: vi.fn(),
 }));
@@ -20,7 +20,9 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/contact-research", () => ({ researchContact }));
 vi.mock("@/lib/line", () => ({ pushLineMessage }));
 vi.mock("@/lib/supabase", () => ({ getSupabase }));
-vi.mock("@/lib/visit-settings", () => ({ getVisitAgentSettings }));
+vi.mock("@/adapters/visit/supabase-visit-settings", () => ({
+  createSupabaseVisitSettings: () => ({ get: getVisitSettings }),
+}));
 vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({
   legacyVisitProviders: { createCalendarEvent, sendEmail },
 }));
@@ -39,7 +41,7 @@ describe("legacy Visit respond fulfilment source", () => {
     query.insert.mockReturnValue(query);
     const client = { from: vi.fn(() => query) };
     getSupabase.mockReturnValue(client);
-    getVisitAgentSettings.mockResolvedValue({ senderName: "Dennis" });
+    getVisitSettings.mockResolvedValue({ senderName: "Dennis" });
     createCalendarEvent.mockResolvedValue("event-1");
     sendEmail.mockResolvedValue(undefined);
     pushLineMessage.mockResolvedValue(undefined);

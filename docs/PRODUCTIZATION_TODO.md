@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜基準 commit：`6d0199f`｜CodeGraph：409 files／3,484 nodes／7,325 edges
+> 最後校準：2026-08-02｜WP-01 基準 commit：`ad4be46`｜CodeGraph 於本批 commit 前同步
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-01 可執行
 
@@ -120,7 +120,7 @@ Secrets 只放本機 `.env.local` 或正式 secret store，不寫入 Git／TODO�
 - [x] Teaching Supabase typed read-only adapter 與 live read acceptance。
 - [x] OpenAI official SDK shared transport 與主要 OpenAI adapters ownership 收斂。
 - [x] OpenAI fail-closed acceptance harness；缺 key 時明確失敗，不偽裝成功。
-- [x] 目前未提交的 Visit lock／settings 改動已通過 `npm run verify`：100 test files／503 tests／93-page build；尚缺 Chrome、清理證據與 commit。
+- [x] Visit conversation lock／settings ownership 已收斂為直接 Supabase adapters；100 test files／503 tests／93-page build與真實 Visit 後台 Chrome 驗證通過。
 
 代表性歷史 commits：`410083a`、`996a4e0`、`b39bd33`、`99856c3`、`c163f1b`、`005c478`、`f866340`、`cc0780c`、`4bbec8e`、`9a96303`、`d11c38e`、`18c9097`、`6d0199f`。完整歷史以 Git 為準，不在本文件複製流水帳。
 
@@ -155,7 +155,7 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 ## 6. 工作包清單
 
-### WP-01 — Visit conversation lock／settings 邊界收尾 `[~]`
+### WP-01 — Visit conversation lock／settings 邊界收尾 `[x]`
 
 目的：完成已核准、已實作但尚未提交的 ownership cleanup，不擴大到其他 Visit workflow。
 
@@ -165,9 +165,10 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 - [x] route／respond composition 改接直接 adapter。
 - [x] direct contract tests 覆蓋 lock owner／expiry／TTL／release 與 settings default／mapping。
 - [x] 集中跑完整 `npm run verify`。
-- [ ] 用 Chrome 驗證受影響的真實後台 Visit 頁面與可安全操作流程；不拿 `/agents-catalog` 代替。
-- [ ] `rg` 與 CodeGraph 確認舊 import／死碼已清乾淨。
-- [ ] 更新本工作包證據並獨立 commit。
+- [x] Chrome 登入真實 `/agents/visit`：頁面與資料完成載入、行前功課 empty state 正常、Agent 設定可展開且既有設定值不變，無 app console error；未觸發 LINE／Email／Calendar side effect。
+- [x] `rg` 確認舊 helper／adapter 名稱與 import 歸零；CodeGraph impact 僅剩 LINE webhook、Visit timeout cron與 respond fulfilment 三個 production consumers。
+- [x] 最終 `npm run verify`：lint、typecheck、100 test files／503 tests、93-page production build全過。
+- [x] 本工作包與本段 evidence 由同一 coherent commit 保存，可整包回退。
 
 出口：行為不變、無舊入口殘留、UI smoke 通過、commit 可獨立回退。
 
@@ -448,8 +449,8 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 ## 8. 開始下一批前要決定的事
 
-- [x] 先完成 WP-01；這是目前已核准且正在工作樹中的改動。
-- [ ] WP-01 commit 後，先討論下一包；建議優先 WP-02，或從 WP-03～07 選一個不需外部 credentials 的 bounded domain batch。
+- [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
+- [ ] 先討論下一包；建議優先 WP-02，或從 WP-03～07 選一個不需外部 credentials 的 bounded domain batch。
 - [ ] 決定 WP-03 Main DB types 的執行時點。
 - [ ] 決定 WP-04 Contact Research 是否在 OpenAI 真實驗收前先做 ownership repair。
 - [!] 確認 canonical GitHub repo 與部署目標。
@@ -470,7 +471,7 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 ## 9. 目前 readiness 判定
 
-- 第一個可執行工作包：`WP-01`，剩 Chrome／清理證據／commit。
+- 已完成最新工作包：`WP-01`；下一個工作包尚未核准。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、部分 Visit legacy boundaries 與 `src/lib` ownership 仍待需求／風險驅動收斂。
 - 資料庫：Main／Teaching 基線可用；Main generated types 尚未完成。
 - 外部功能：多數仍是 credential-gated，不能只靠 unit tests 宣稱正常。

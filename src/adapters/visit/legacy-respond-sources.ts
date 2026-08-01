@@ -2,8 +2,8 @@ import "server-only";
 import { researchContact } from "@/lib/contact-research";
 import { pushLineMessage as pushLegacyLineMessage } from "@/lib/line";
 import { getSupabase } from "@/lib/supabase";
-import { getVisitAgentSettings } from "@/lib/visit-settings";
 import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
+import { createSupabaseVisitSettings } from "@/adapters/visit/supabase-visit-settings";
 import {
   toLegacyPendingInviteConfirmationPatch,
   toLegacyPendingInviteFulfilmentPatch,
@@ -21,13 +21,14 @@ import type { VisitInviteChoice } from "@/modules/visit/public-response";
 
 export function createLegacyVisitRespondFulfilmentSource(): VisitRespondFulfilmentSource {
   let supabase: ReturnType<typeof getSupabase> | null = null;
+  const settings = createSupabaseVisitSettings();
   const getClient = () => {
     if (!supabase) supabase = getSupabase();
     return supabase;
   };
 
   return {
-    getSettings: () => getVisitAgentSettings(getClient()),
+    getSettings: settings.get,
     createCalendarEvent: legacyVisitProviders.createCalendarEvent,
     async updateInviteFulfilled(inviteId, calendarEventId, location) {
       await getClient()
