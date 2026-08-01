@@ -11,11 +11,11 @@
 | Release intent | Demand-driven production slices；不做 big-bang rewrite |
 | Owner | CabLate 工程團隊 |
 | Repository | `F:/ownproject/kv` |
-| Branch／planning base | `codex/kv-wp0-toolchain`／`46944e8` |
+| Branch／planning base | `codex/kv-wp0-toolchain`／`419b37d` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-08-01；CodeGraph 405 files／3,442 nodes／7,311 edges；KV cloud staging 已 clean replay 並通過 catalog／Data API／affected Chrome 核對 |
+| Last verified | 2026-08-01；CodeGraph 405 files／3,442 nodes／7,311 edges；KV cloud staging 已 clean replay；Main DB-only journeys與Teaching四表live read／Operations authenticated Chrome均已通過 |
 | Requirements source | 本對話：保留 UI／UX 與現有資料格式，漸進產品化；同一實作批先完成可安全修改的程式碼，再集中執行heavy驗收 |
-| Readiness | **Implementation Ready**：主庫 clean-room replay已完成；Main authenticated journeys、Teaching live read與其他provider真實驗收尚未關閉 |
+| Readiness | **Implementation Ready**：主庫 clean-room replay、Main authenticated journeys與Teaching live read已完成；其餘provider真實驗收依各自sandbox／fixture推進 |
 
 ## 1. Outcome and boundaries
 
@@ -125,17 +125,17 @@ Frozen UI／pages
 | Visit／Coco | LINE webhook、timeout、research、AI、public respond APIs；Visit／TV／Outputs | `modules/visit/*` | `adapters/visit/*`；主 Supabase／LINE／Google／OpenAI | ownership substantially consolidated；real event/data/recovery blocked |
 | Orders／Reporting／Support | Teachify webhook、cron/manual reports、Support relay/callback | `modules/{orders,reporting,support}` | `adapters/{orders,reporting,support}`；主 Supabase與外部 providers | structure/contract/render done；delivery/retry evidence blocked |
 | Agent identity／chat／TV | dashboard、Agent pages、TV、agent-chat API | `modules/{agents,agent-chat,live-task,tv}`＋`src/lib/agent-data.ts` | Agent／chat／live-task adapters；static roster＋主 Supabase | compatibility foundation done；全面 cutover deferred |
-| Teaching pipeline | Operations pipeline API、Operations page、Meeting/chat live context | `src/modules/operations/pipeline.ts`＋`src/adapters/operations/teaching-pipeline-source.ts` | **獨立 Teaching Supabase，唯讀四表** | typed boundary／failure semantics／consumer cutover完成；live real-data驗收待env |
+| Teaching pipeline | Operations pipeline API、Operations page、Meeting/chat live context | `src/modules/operations/pipeline.ts`＋`src/adapters/operations/teaching-pipeline-source.ts` | **獨立 Teaching Supabase，唯讀四表** | typed boundary／failure semantics／consumer cutover與live real-data驗收完成 |
 
 ### Progress by evidence dimension
 
 | Area | Ownership／structure | Contract | Render／auth | Real data／provider | Next trigger |
 |---|---|---|---|---|---|
 | Auth | Done | Done | Functionally verified | N/A | auth 行為改變時重驗 |
-| Operations | Done | Done | Authenticated Chrome read/create passed | Main read＋create verified；update/delete active | 補完staging update/delete與privileged routes |
-| Teaching pipeline | Done；單一domain＋adapter | Success／empty／partial failure／timeout與兩consumer已測 | Operations＋TV affected Chrome passed | Live schema acquired；real-data read pending env | 提供Teaching runtime env後跑read-only acceptance |
-| Knowledge Base | Done | Done | Staging empty render passed | DB-only journey ready；provider pending | 先完成CRUD/access/empty RPC，再等OpenAI／Firecrawl驗ingestion/search |
-| Meeting | Done | Done | Render smoke | DB/storage journey ready；voice provider pending | 先驗session/turn/finish/recording，再等OpenAI驗voice |
+| Operations | Done | Done | Authenticated Chrome CRUD/reset passed | Main DB-only journey verified | 真實Operations需求或資料契約變更 |
+| Teaching pipeline | Done；單一domain＋adapter | Success／empty／partial failure／timeout與兩consumer已測 | Operations authenticated Chrome passed | Live四表count／shape與real-data頁面已驗 | Teaching schema／RLS／consumer契約變更時重驗 |
+| Knowledge Base | Done | Done | Authenticated Chrome CRUD/access passed | DB-only journey complete；provider pending | 取得OpenAI／Firecrawl sandbox後驗ingestion/search |
+| Meeting | Done | Done | Authenticated Chrome persistence/storage passed | DB/storage journey complete；voice provider pending | 取得OpenAI sandbox後驗voice |
 | Visit | Substantially done | Done for current paths | Render smoke | Blocked | 真實需求或可靠性風險決定下一個 slice |
 | Orders／Reporting／Support | Done for current owners | Done | Render smoke | Blocked | 真實 webhook／cron/delivery fixture |
 | Agent model | Compatibility foundation done | Done | Render smoke | Partially blocked | 第一個新增 Agent／workflow／provider 需求 |
@@ -231,7 +231,7 @@ Frozen UI／pages
 6. [x] 由 WP-T 為Teaching四表建立明確adapter contract、fixture、錯誤語意與ownership；不複製47-table shared schema。
 7. [x] Main publishable env、Data API與authenticated pages已通過；WP-MAIN另完成Goals create／update／API delete／reset、Checklist toggle、Subscribers tag update、KB CRUD／access、Meeting DB／Storage persistence、signed URL與Outputs read。應用runtime不需secret；只有管理者清理無delete policy的錄音測試物件時使用一次server secret，未寫入env／browser／Git。
 
-**Blocks now:** 主庫schema猜測、clean rebuild與Main DB-only runtime baseline已解除；KB provider ingestion/search、Teaching live integration、provider-backed journey、rollback rehearsal與production cutover仍受後續gate限制。
+**Blocks now:** 主庫schema猜測、clean rebuild、Main DB-only runtime baseline與Teaching live integration均已解除；KB provider ingestion/search、其他provider-backed journey、rollback rehearsal與production cutover仍受各自後續gate限制。
 
 **Safety rule:** canonical baseline migration只套用clean environment；不得直接push到來源production project。後續production變更一律以forward-only delta migration進行。
 
@@ -261,8 +261,8 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | WP-F | 新需求在現有產品可持續交付，並局部改善被碰到區域 | Ready／ongoing | affected source preflight | feature evidence；可能觸發 WP-D |
 | WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Replay complete | `kv-staging`＋Main runtime env | baseline replay／catalog diff／Data API evidence；handoff給WP-MAIN |
 | WP-MAIN | 不依賴外部provider的Main資料功能在staging可讀寫、可辨識錯誤並可清理測試資料 | Complete | WP-DB；既有UI/API/data contract | Main DB-only functional baseline與key-class evidence |
-| WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Implementation complete；live acceptance pending env | live四表schema＋既有API contract | 已產出adapter contract／fixtures／兩consumer cutover／legacy deletion |
-| WP-B | 核心 journey 有real-data/provider-safe baseline | Main baseline complete；external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
+| WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Complete | live四表schema＋既有API contract | adapter contract／fixtures／兩consumer cutover／legacy deletion／live read acceptance |
+| WP-B | 核心 journey 有real-data/provider-safe baseline | Main＋Teaching baseline complete；其他external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
 | WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
 | WP-X | 新路徑穩定、舊路徑歸零、團隊可 release／rollback | Pending | affected WP-D／WP-R | production-like evidence＋cleanup |
@@ -322,7 +322,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 - [x] adapter加入精確row types、四個query的error檢查與一致failure translation；保持anon/read-only且未新增寫入。
 - [x] route與Meeting context切到同一Operations use case；外部成功payload與UI維持不變。
 - [x] 用fixture驗證正常、真正empty、permission／部分query失敗與timeout。
-- [ ] 提供`TEACHING_SUPABASE_URL`／`TEACHING_SUPABASE_ANON_KEY`後，對live Teaching執行四表read-only acceptance並核對count／sample shape。
+- [x] 以Teaching project URL＋publishable client key執行四表read-only acceptance：`projects` 60、`project_sessions` 45、`enterprise_inquiries` 0、`quotations` 25；四表精確select均成功，三張非空表的sample shape符合adapter contract，且未讀取／記錄production row內容。
 - [x] CodeGraph sync後確認legacy符號消失，並刪除`src/lib/teaching-system.ts`與過期mock。
 
 **Failure contract:**
@@ -336,7 +336,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 
 **Failure／rollback:** 任一consumer parity失敗時回退整個WP-T commit，不保留半套新舊路徑；不得以catch後回傳全零作rollback。外部不可用時由既有API 502／Meeting failure boundary處理，或另行設計最後成功snapshot，但後者必須有獨立需求與freshness contract。
 
-**Current completion:** code／contract／affected Chrome gate已完成；唯一未關閉項是live Teaching read-only acceptance，原因是runtime env尚未放入KV。這不阻塞後續主庫WP-DB，但在宣稱Teaching real-data production-like前必須補驗。
+**Current completion:** Complete。code／contract／live Teaching四表read-only acceptance與Operations authenticated Chrome real-data頁面均已完成；本機只保存publishable client設定，未使用service role，未寫入Teaching。
 
 **Done when:** 兩個consumer通過contract與affected browser驗證；Teaching error不再冒充empty；CodeGraph無direct Teaching query散落；legacy helper刪除；未新增local table、dual-write或generic data-source framework；live read-only count／shape已核對。
 
@@ -348,7 +348,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 
 - Auth：login→protected page→logout。
 - **現在執行（WP-MAIN）：** Operations代表性read/write、Knowledge Base DB-only CRUD/access/empty RPC、Meeting persistence/storage、相鄰Main read models。
-- **取得Teaching env即執行（WP-T）：** Operations API／頁面與Meeting context的success、true empty、unavailable。
+- **已完成（WP-T）：** Operations API／頁面與Meeting context的success、true empty、unavailable contracts，以及Operations頁面的live real-data驗收。
 - **取得sandbox／安全fixture才執行：** KB import/crawl/embedding/search、Meeting voice/AI、Visit LINE、Teachify webhook與LINE delivery；未取得前只驗contract與明確failure。
 
 每條 journey 保存 input、data source、side effect、result、error/recovery與browser/API/DB evidence。沒有執行到的路徑保持 Pending，不用整頁 smoke 取代。
@@ -425,15 +425,15 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | G-05 | R-02、R-04 | WP-D、WP-R | 第二 consumer或真實可靠性需求 |
 | G-06 | R-03 | WP-X | production-like、rollback、legacy deletion |
 
-### Verdict: Main baseline complete；external acceptance active
+### Verdict: Main＋Teaching baseline complete；其他external acceptance按需進行
 
-**整體 blocker:** Main baseline已clean replay且WP-MAIN完成。Teaching live read與provider-backed journeys仍受獨立env／sandbox限制，因此不阻塞Main code與DB-only functional baseline，但會阻塞對應domain的production-like宣告。
+**整體 blocker:** Main baseline已clean replay且WP-MAIN完成，Teaching live read也已關閉。LINE／OpenAI／Google／Teachify／Firecrawl等provider-backed journeys仍受各自sandbox／fixture限制；它們不阻塞一般需求與局部重構，只阻塞對應domain的production-like宣告。
 
-**現在可執行:** WP-T只差Teaching runtime env的live read；其餘依真實需求走WP-F／WP-D，不再做無需求支撐的全域抽象整理。取得對應sandbox後，再逐domain補provider-backed WP-B evidence。
+**現在可執行:** WP-F可立即承接產品需求，遇到可證明的ownership／可靠性問題時才開WP-D；不再做無需求支撐的全域抽象整理。取得對應sandbox後，再逐domain補provider-backed WP-B evidence。
 
-**被阻塞:** Teaching live read需獨立endpoint／key；LINE／OpenAI／Google／Teachify／Firecrawl production-like journey需相應sandbox／fixture。Main secret key只有實際route證明需要時才成為blocker。Teaching local snapshot與完整data migration不是blocker。
+**被阻塞:** LINE／OpenAI／Google／Teachify／Firecrawl production-like journey需相應sandbox／fixture。Main secret key只有實際route證明需要時才成為blocker。Teaching local snapshot與完整data migration不是blocker。
 
-**升級條件:** WP-T補上live read後，Teaching consumer可升級為production-like baseline；其餘domain只在取得provider sandbox與真實需求後逐一升級，不要求先搬完整個系統。
+**升級條件:** Teaching consumer已具production-like read baseline；其餘domain只在取得provider sandbox與真實需求後逐一升級，不要求先搬完整個系統。
 
 ## 9. Documentation policy
 
