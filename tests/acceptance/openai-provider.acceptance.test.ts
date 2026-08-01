@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -12,8 +12,11 @@ import { createOpenAiMeetingRealtimeProvider } from "@/adapters/meeting/openai-m
 import { getMainSupabase } from "@/lib/supabase";
 
 const ACCEPTANCE_PREFIX = "codex-oai-acceptance";
+const ACCEPTANCE_AGENT_SLUG = "codex-acceptance";
 const knowledgeOperation = `${ACCEPTANCE_PREFIX}:knowledge-json`;
 const embeddingOperation = `${ACCEPTANCE_PREFIX}:embedding`;
+const chatOperation = "網站聊天回應";
+let acceptanceStartedAt: string | null = null;
 
 beforeAll(() => {
   if (process.env.OPENAI_ACCEPTANCE !== "1") {
@@ -28,9 +31,34 @@ beforeAll(() => {
   }
 });
 
+afterAll(async () => {
+  if (!acceptanceStartedAt) return;
+
+  const client = getMainSupabase();
+  const [prefixedOperations, chatOperationRows] = await Promise.all([
+    client
+      .from("ai_usage_logs")
+      .delete()
+      .gte("created_at", acceptanceStartedAt)
+      .in("operation", [knowledgeOperation, embeddingOperation]),
+    client
+      .from("ai_usage_logs")
+      .delete()
+      .gte("created_at", acceptanceStartedAt)
+      .eq("agent_slug", ACCEPTANCE_AGENT_SLUG)
+      .eq("operation", chatOperation),
+  ]);
+
+  const cleanupError = prefixedOperations.error ?? chatOperationRows.error;
+  if (cleanupError) {
+    throw new Error(`OpenAI acceptance cleanup failed: ${cleanupError.message}`);
+  }
+});
+
 describe.sequential("controlled OpenAI provider acceptance", () => {
   it("exercises chat, structured JSON, embeddings, audio round-trip, realtime minting, and usage persistence", async () => {
     const startedAt = new Date().toISOString();
+    acceptanceStartedAt = startedAt;
 
     const knowledge = await requestKnowledgeJson({
       model: "gpt-4o-mini",
@@ -44,7 +72,7 @@ describe.sequential("controlled OpenAI provider acceptance", () => {
         { role: "user", content: "Run the controlled synthetic acceptance fixture." },
       ],
       temperature: 0,
-      agentSlug: "codex-acceptance",
+      agentSlug: ACCEPTANCE_AGENT_SLUG,
     });
     expect(knowledge).toMatchObject({ status: "ok", fixture: "synthetic" });
 
@@ -57,7 +85,7 @@ describe.sequential("controlled OpenAI provider acceptance", () => {
 
     const reply = await replyToAgentChat({
       agent: {
-        slug: "codex-acceptance",
+        slug: ACCEPTANCE_AGENT_SLUG,
         name: "Acceptance Agent",
         role: "測試代理",
         description: "只回覆合成驗收資料，不接觸正式業務資料。",
@@ -95,7 +123,7 @@ describe.sequential("controlled OpenAI provider acceptance", () => {
     expect(realtime.expiresAt ?? 0).toBeGreaterThan(0);
     expect(realtime.model).toBe("gpt-realtime-2.1");
 
-    const expectedOperations = [knowledgeOperation, embeddingOperation, "網站聊天回應"];
+    const expectedOperations = [knowledgeOperation, embeddingOperation, chatOperation];
     const { data, error } = await getMainSupabase()
       .from("ai_usage_logs")
       .select("operation,model,total_tokens,agent_slug,created_at")
