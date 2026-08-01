@@ -136,7 +136,7 @@ describe("OpenAI shared SDK client", () => {
     const audio = new ArrayBuffer(3);
     mocks.speechCreate.mockResolvedValue({ arrayBuffer: vi.fn(async () => audio) });
     mocks.clientSecretCreate.mockResolvedValue({ value: "token", expires_at: 123 });
-    const blob = new Blob(["audio"]);
+    const blob = new Blob(["audio"], { type: "audio/mpeg" });
 
     await expect(createEmbeddings(["text"], "embed")).resolves.toEqual([[0.1, 0.2]]);
     await expect(
@@ -156,6 +156,7 @@ describe("OpenAI shared SDK client", () => {
     expect(mocks.transcriptionCreate).toHaveBeenCalledWith(
       expect.objectContaining({ file: blob, model: "whisper-1", language: "zh", prompt: "Ivy" })
     );
+    expect(mocks.toFile).toHaveBeenCalledWith(blob, "utterance.mp3");
     expect(mocks.clientSecretCreate).toHaveBeenCalledWith({ session: { type: "realtime" } });
   });
 });

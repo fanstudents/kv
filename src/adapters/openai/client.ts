@@ -172,9 +172,19 @@ export async function createTranscription(params: {
   model: string;
   promptHint?: string;
 }): Promise<string> {
+  const extensionByMime: Record<string, string> = {
+    "audio/mp4": "m4a",
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/webm": "webm",
+  };
+  const mime = params.file.type.split(";", 1)[0].toLowerCase();
+  const fileName = `utterance.${extensionByMime[mime] ?? "webm"}`;
+
   try {
     const data = await getOpenAiClient().audio.transcriptions.create({
-      file: await toFile(params.file, "utterance.webm"),
+      file: await toFile(params.file, fileName),
       model: params.model,
       language: "zh",
       ...(params.promptHint ? { prompt: params.promptHint } : {}),

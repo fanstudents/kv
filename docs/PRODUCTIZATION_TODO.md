@@ -13,7 +13,7 @@
 | Repository | `F:/ownproject/kv` |
 | Branch／planning base | `codex/kv-wp0-toolchain`／`81814d4` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
-| Last verified | 2026-08-01；CodeGraph 410 files／3,488 nodes／7,349 edges；100 test files／498 tests、typecheck、lint、production build全過；KV staging、Teaching live read與OpenAI ownership repair的authenticated Chrome均已通過 |
+| Last verified | 2026-08-02；CodeGraph 411 files／3,498 nodes／7,347 edges；100 test files／498 tests、typecheck、lint、93-page production build全過；KV staging、Teaching live read、OpenAI ownership repair與WP-B-OAI affected Chrome均已通過；真實OpenAI provider acceptance仍等待server-only key |
 | Requirements source | 本對話：保留 UI／UX 與現有資料格式，漸進產品化；同一實作批先完成可安全修改的程式碼，再集中執行heavy驗收 |
 | Readiness | **Implementation Ready**：主庫 clean-room replay、Main authenticated journeys與Teaching live read已完成；其餘provider真實驗收依各自sandbox／fixture推進 |
 
@@ -404,7 +404,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 - Controlled fixture只使用合成文字／音訊；不得送production row、聯絡人、會議錄音或其他個資到provider。
 - 每個call核對model、request shape、domain output與error boundary；structured output必須經既有Zod驗證，malformed／refusal／incomplete不得成為可信success。
 - KB embedding須核對向量維度、chunk對應與`ai_usage` operation；Meeting audio核對非空transcript／audio bytes，Realtime只建立短效client secret，不自動取得麥克風或開啟長連線。
-- DB evidence只讀取／清理本批帶有`codex-oai-acceptance` correlation的staging紀錄；不得改schema、RLS或production資料。
+- DB evidence以本批`startedAt`＋operation／`agent_slug` correlation只讀核對；保留`ai_usage_logs`作成本audit，不建立domain fixture row，也不得改schema、RLS或production資料。
 - 最後以authenticated Chrome檢查KB、Meeting與Agent Chat affected states；不點寄信、LINE、Calendar或cron delivery。
 
 **Execution wave:**
@@ -415,7 +415,9 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 4. 取得server-only OpenAI key後集中跑Chat、Embedding、Transcription、Speech與Realtime client secret；核對staging usage後清理fixture。
 5. 完成affected Chrome、full automated gates、CodeGraph sync與coherent commit；任一parity失敗只回到該domain owner修正。
 
-**Done／rollback:** 五類API皆有真實成功與明確failure evidence，usage／DB side effect可reconcile且測試資料歸零，Chrome行為照舊，standard key從未進browser／Git。若SDK或domain parity失敗，回退affected provider change；不得保留第二套transport或用mock替代done gate。
+**Current completion:** fail-closed acceptance harness、合成fixture、production adapter串接、usage correlation query與MP4／MP3／OGG／WAV／WebM transcription檔名處理已完成；缺key時已證明非零失敗且沒有provider call。100 test files／498 tests、typecheck、lint、93-page production build、`git diff --check`與CodeGraph sync全過。Authenticated Chrome以production build實際巡Meeting、Knowledge Base、Goals並開啟／關閉Agent Chat；頁面無app console error、未送出訊息，也未觸發OpenAI或其他external side effect。真實Chat／JSON／Embedding／TTS／STT／Realtime client-secret與usage row尚未執行，因此本work package維持Active／credential pending。
+
+**Done／rollback:** 所有contracted provider surfaces皆有真實成功與明確failure evidence，usage／DB side effect可reconcile、未新增domain fixture row，Chrome行為照舊，standard key從未進browser／Git。若SDK或domain parity失敗，回退affected provider change；不得保留第二套transport或用mock替代done gate。
 
 ### WP-D — Demand/risk-driven domain slice
 
