@@ -11,7 +11,7 @@
 | Release intent | Demand-driven production slices；不做 big-bang rewrite |
 | Owner | CabLate 工程團隊 |
 | Repository | `F:/ownproject/kv` |
-| Branch／planning base | `codex/kv-wp0-toolchain`／`419b37d` |
+| Branch／planning base | `codex/kv-wp0-toolchain`／`dba3082` |
 | Merge base | `359d4c98035267df2711a376a439fdbc5720cc76` |
 | Last verified | 2026-08-01；CodeGraph 405 files／3,442 nodes／7,311 edges；KV cloud staging 已 clean replay；Main DB-only journeys與Teaching四表live read／Operations authenticated Chrome均已通過 |
 | Requirements source | 本對話：保留 UI／UX 與現有資料格式，漸進產品化；同一實作批先完成可安全修改的程式碼，再集中執行heavy驗收 |
@@ -169,6 +169,7 @@ Frozen UI／pages
 | D-08 | cheap gates 每批跑，heavy browser/provider/schema 驗證依 affected domain 集中跑 | 不用 docs-only 或 API-only micro-cut 反覆測無關 catalog；cutover 前不得延後高風險 evidence |
 | D-09 | 本文件維持 live current state；歷史 evidence 由 Git 承擔 | 不再新增 route-level Markdown、micro-checkpoint 或每日流水帳 |
 | D-10 | KV 主庫與 Teaching 保持兩個明確 owner | Main 在 CabLate 自有 Supabase 重建；Teaching 暫作 external read-only provider。現在不複製四表、不dual-write；只有可靠性 evidence 才規劃本地 snapshot，只有產品 ownership 轉移才另開完整 data migration |
+| D-11 | npm 套件採 touch-and-adopt，不另開全站換套件階段 | 套件必須實際接管外部 protocol、schema validation、parser 或已證明的 reliability primitive；domain policy、prompt、side-effect ordering與未證明的 abstraction仍由KV擁有。直接使用的套件必須列為direct dependency，並有runtime／bundle／rollback gate |
 
 ### Boundary keep／collapse gate
 
@@ -262,6 +263,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 | WP-DB | KV主庫在CabLate自有Supabase可clean rebuild | Replay complete | `kv-staging`＋Main runtime env | baseline replay／catalog diff／Data API evidence；handoff給WP-MAIN |
 | WP-MAIN | 不依賴外部provider的Main資料功能在staging可讀寫、可辨識錯誤並可清理測試資料 | Complete | WP-DB；既有UI/API/data contract | Main DB-only functional baseline與key-class evidence |
 | WP-T | Teaching成為Operations擁有的typed、read-only、failure-aware外部契約 | Complete | live四表schema＋既有API contract | adapter contract／fixtures／兩consumer cutover／legacy deletion／live read acceptance |
+| WP-OAI | OpenAI協定由官方SDK與一個shared transport擁有；prompt／mapping回到既有domain adapter | Ready／active | Node 22、既有provider contracts | 移除`src/lib/openai.ts`聚合owner與薄轉傳；focused contract後集中驗收 |
 | WP-B | 核心 journey 有real-data/provider-safe baseline | Main＋Teaching baseline complete；其他external gates分離 | 主庫journey依WP-MAIN；Teaching pipeline依WP-T；其餘依provider fixture | 可比較的before behavior與failure map |
 | WP-D | 一個高價值 domain 問題以最小 production slice改善 | Conditional | 真實需求／風險；資料型工作另需 WP-B | 單一新 owner或可靠性能力＋rollback seam |
 | WP-R | 兩個不同 consumer 共用已被證明的 primitive | Deferred／conditional | 至少兩個 WP-D consumer | shared idempotency／outbox等；不是通用 workflow平台 |
@@ -341,6 +343,40 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 **Done when:** 兩個consumer通過contract與affected browser驗證；Teaching error不再冒充empty；CodeGraph無direct Teaching query散落；legacy helper刪除；未新增local table、dual-write或generic data-source framework；live read-only count／shape已核對。
 
 **Deferred decision:** 只有觀測到Teaching availability／latency影響SLO時，才規劃KV-owned read snapshot與同步／reconciliation；只有Teaching產品ownership移交時，才規劃完整schema與data migration。兩者都不是WP-T完成條件。
+
+### WP-OAI — OpenAI dependency adoption and ownership repair
+
+**Outcome／contribution:** 支援G-01、G-02、G-04與R-01、R-02、R-04。移除同時擁有Knowledge Base、Visit、Meeting、Agent Chat與Contact Research的872行`src/lib/openai.ts`；官方`openai` SDK只擁有OpenAI protocol，`zod`只擁有外部structured payload validation，KV domain仍擁有prompt、model選擇、usage identity、fallback與side-effect ordering。
+
+**Scope／non-goals:** entrypoints為`src/lib/{kb-import,kb-search,contact-research,chat-canvas}.ts`與既有`src/adapters/{agent-chat,visit,meeting}/*`。不改UI／UX、API payload、資料格式、prompt文案、model、temperature、token limits、usage logging、provider fallback或真正外部side effect；本批不切Responses API、不新增retry／queue／workflow framework，也不為每個OpenAI function建立port／service／adapter四件組。
+
+**Dependency adoption gate:**
+
+| Candidate | Decision in this package | Owns | Must not own／rollback |
+|---|---|---|---|
+| official `openai` SDK | Adopt as exact direct dependency；Node runtime固定`>=22` | auth header、request serialization、Chat／Responses／Embeddings／Audio client protocol與SDK error shape | 不搬prompt／domain parsing；若contract或build不相容，整批回退到原fetch path，不保留雙transport |
+| `zod` | Adopt as exact direct dependency | 既有structured JSON與provider response的runtime shape validation | 不用schema推導business model；驗證行為必須維持既有error boundary |
+| retry／queue／frontend fetch framework | Reject for this package | none | 未證明idempotency與第二consumer前不導入；UI data fetching不在本批 |
+
+**Behavior contract (`behavior-contract/v1`, `shared.openai-provider-ownership`):**
+
+- Consumers／state：保留上述所有既有caller、`OPENAI_API_KEY` env、既有models與真實業務context；server-only邊界不變。
+- Outputs／side effects：成功回傳shape、OpenAI request options、AI usage記錄時機／operation identity、Meeting audio binary、Realtime client secret與Visit／KB／chat failure propagation均不變；不新增DB、LINE、Email、Storage或browser side effect。
+- UI states：Meeting、Visit、Knowledge Base與Agent chat的first-paint／loading／ready／empty／error畫面與互動完全照舊。
+- Invariants：一個shared SDK client／protocol owner；domain prompts只存在於domain-owned provider；不得留下`@/lib/openai`caller、純轉傳adapter或新generic AI framework；Zod failure不得被轉成可信empty/success。
+- Acceptance examples：相同mock response必須產生相同domain output；missing key／non-2xx／malformed JSON維持既有failure；Meeting audio／Realtime、Visit邀約、KB embedding／extraction與Agent chat的request semantics由focused tests固定。
+- Evidence mapping：CodeGraph caller／impact、既有Meeting／Visit／KB／Agent Chat suites與新增shared-client contract；整批完成後跑typecheck／lint／full tests／build，再用authenticated Chrome逐一檢查四個affected UI且不觸發真實provider side effect。
+- Intentional changes：只有dependency graph、internal ownership與provider error normalization可因SDK型別而改；任何外部可觀察差異都視為regression。Open question只有production Node 22宣告位置，實作前以manifest／build結果關閉。
+
+**Implementation wave（先改完，最後集中驗）:**
+
+1. 固定shared client與各domain provider的request／response／error contract，補上缺少的malformed response案例。
+2. 加入exact direct dependencies與Node 22 manifest gate；建立單一server-only OpenAI client／protocol helper。
+3. 將Meeting、Visit、Agent Chat、Knowledge Base／Research prompt與mapping移入既有domain owner，刪除純轉傳與`src/lib/openai.ts`。
+4. 以CodeGraph／source search確認舊import為0、沒有route-level四層或重複SDK client；檢查production file／LOC delta只作bloat警報，不當成功指標。
+5. 集中執行focused＋full automated gates與affected Chrome；失敗只回到真實owner修正，最後一次full gate後提交coherent outcome。
+
+**Done when／rollback:** 所有既有consumer通過contract，`src/lib/openai.ts`與薄轉傳歸零，shared transport只有真實多domain consumer，UI/API/data／side-effect契約不變，dependency與Node runtime可重建。任一高風險consumer parity或build失敗即回退整個WP-OAI commit；不保留兩套transport、feature flag或compatibility shim。
 
 ### WP-B — Core functional baseline
 
@@ -429,7 +465,7 @@ WP-F、WP-DB與WP-T可依衝突面並行；canonical baseline migration、env與
 
 **整體 blocker:** Main baseline已clean replay且WP-MAIN完成，Teaching live read也已關閉。LINE／OpenAI／Google／Teachify／Firecrawl等provider-backed journeys仍受各自sandbox／fixture限制；它們不阻塞一般需求與局部重構，只阻塞對應domain的production-like宣告。
 
-**現在可執行:** WP-F可立即承接產品需求，遇到可證明的ownership／可靠性問題時才開WP-D；不再做無需求支撐的全域抽象整理。取得對應sandbox後，再逐domain補provider-backed WP-B evidence。
+**現在可執行:** WP-OAI已由現存多domain聚合owner與薄轉傳證明，可先完成dependency adoption／ownership repair；WP-F仍可立即承接產品需求，之後遇到可證明的ownership／可靠性問題時才開WP-D。取得對應sandbox後，再逐domain補provider-backed WP-B evidence。
 
 **被阻塞:** LINE／OpenAI／Google／Teachify／Firecrawl production-like journey需相應sandbox／fixture。Main secret key只有實際route證明需要時才成為blocker。Teaching local snapshot與完整data migration不是blocker。
 
