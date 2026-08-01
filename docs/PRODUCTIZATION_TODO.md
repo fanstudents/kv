@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-02 OpenAI acceptance cleanup preparation（`a392cd0`）｜進行中：WP-02、WP-10 Preparation｜CodeGraph 於各批驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-16 Teachify signature fixture preparation（`1c431fb`）｜進行中：WP-02、WP-10、WP-16 Preparation｜CodeGraph 於各批驗證後同步
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已完成
 
@@ -202,7 +202,7 @@ WP-02 Preparation contract（唯一規格放在此處，不建立 provider frame
 
 出口：後續各 integration 可用同一驗收格式，但沒有新的無需求抽象。
 
-完成證據（2026-08-02）：`7e13e96` 的 preflight unit tests 證明空白／完整 env matrix 不呼叫 Google OAuth／Calendar，且輸出不包含 fixture secret；`a392cd0` 為 OpenAI acceptance 加入受限 `ai_usage_logs` cleanup，強制 `OPENAI_ACCEPTANCE=0` 時 suite 在 provider／DB call 前拒絕；全量 unit 109 files／535 tests 與 typecheck 通過。沒有執行真實 OpenAI acceptance。
+完成證據（2026-08-02）：`7e13e96` 的 preflight unit tests 證明空白／完整 env matrix 不呼叫 Google OAuth／Calendar，且輸出不包含 fixture secret；`a392cd0` 為 OpenAI acceptance 加入受限 `ai_usage_logs` cleanup，強制 `OPENAI_ACCEPTANCE=0` 時 suite 在 provider／DB call 前拒絕；`1c431fb` 為 Teachify HMAC-SHA256 合成 fixture 固定 valid／missing／mismatched contract。全量 unit 110 files／538 tests 與 typecheck 通過；沒有執行真實 OpenAI 或 Teachify acceptance。
 
 ### WP-03 — Main Supabase 型別契約 `[x]`
 
@@ -413,15 +413,15 @@ Preparation 依賴 WP-02，可先整理 channel identity、payload／error mappi
 
 出口：LINE channel identity 與各 journey 明確，不共用錯誤 token。
 
-### WP-16 — Teachify Orders `[ ]`
+### WP-16 — Teachify Orders `[~]`
 
 Preparation 依賴 WP-02，可用 synthetic secret／去識別 fixture 驗證簽章、mapping、duplicate／out-of-order 與 persistence；Real Acceptance／notification 依賴 sandbox event，必要時依賴 WP-15，並阻塞於真實 secret／安全 recipient。
 
-- [ ] signature validation、payload mapping、invalid event。
-- [ ] 訂單 persistence 與既有資料 shape。
-- [ ] duplicate／retry／out-of-order event 行為。
-- [ ] notification success／failure 不破壞訂單主狀態。
-- [ ] `/agents/orders` 與 test-notify Chrome journey。
+- [x] signature validation、去識別 HMAC-SHA256 fixture、invalid event 與既有 direct／envelope／enrollment payload mapping 已由 local contracts 固定（`1c431fb`、既有 orders suite）。
+- [ ] 訂單 persistence 與既有資料 shape 的 controlled local DB evidence。
+- [?] duplicate／retry／out-of-order event 行為：目前 repository 會以 order ID upsert，但 workflow 每次仍會進行 notification delivery；需先決定「同一 order 重送是否只寫 activity／是否可重送通知／如何辨識狀態更新」後才可安全改動。
+- [x] notification success／failure 不破壞訂單主狀態的 mock contract 已存在；真實 delivery 仍受 WP-15 sandbox recipient gate。
+- [~] `/agents/orders` read-only Chrome journey 已於 WP-03 cutover 載入；test-notify 的真實 delivery journey 仍待安全 recipient。
 
 出口：同一事件重送不造成不可接受的重複 side effect，且可診斷。
 
@@ -551,7 +551,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ## 9. 目前 readiness 判定
 
-- 最新完成：`WP-02` OpenAI acceptance cleanup preparation（`a392cd0`）；WP-03 的 source migration、local replay、full verify 與登入後 Chrome cutover 已完成。WP-02／WP-10 Preparation 仍在逐能力執行。
+- 最新完成：`WP-16` Teachify signature fixture preparation（`1c431fb`）；WP-03 的 source migration、local replay、full verify 與登入後 Chrome cutover 已完成。WP-02／WP-10／WP-16 Preparation 仍在逐能力執行。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings、Visit DB adapters、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary，其餘 `src/lib`、legacy boundary 與過細 layers 仍待需求／風險驅動收斂。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與 typed-client migration 已完成，Knowledge Base 是最後遷移 domain，legacy `getSupabase`／`LegacyDatabase` reference 已歸零；canonical migration local replay、generated-type drift check 與後台 read smoke 均已有證據。
 - 外部功能：Preparation 可在缺 key 時繼續；純設定 preflight 已可區分「未設定」與「尚未驗證」，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
