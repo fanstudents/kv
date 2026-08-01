@@ -23,6 +23,8 @@
     "acceptance:openai": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts",
     "schema:start": "supabase db start --yes",
     "schema:rehearse": "supabase db start --yes && supabase db reset --local --no-seed --yes",
+    "schema:types": "supabase gen types typescript --local --schema public > src/lib/database.types.ts",
+    "schema:types:check": "npm run schema:types && git diff --exit-code -- src/lib/database.types.ts",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "verify:full": "npm run verify && npm run test:e2e:run:smoke"
   },

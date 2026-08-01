@@ -2,9 +2,9 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新完成：WP-04（commit 待本批建立）｜CodeGraph 已於驗證後同步
+> 最後校準：2026-08-02｜最新完成：WP-04（`fa4396a`）｜進行中：WP-03｜CodeGraph 於各批驗證後同步
 >
-> 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；下一工作包尚未核准
+> 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已核准並分批執行
 
 ## 0. 怎麼使用這份清單
 
@@ -186,16 +186,27 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 出口：後續各 integration 可用同一驗收格式，但沒有新的無需求抽象。
 
-### WP-03 — Main Supabase 型別契約 `[?]`
+### WP-03 — Main Supabase 型別契約 `[~]`
 
 目的：以已擁有的 migration 產生 Database types，消除 `src/lib/supabase.ts` 的 `createClient<any>` 擴散風險。
 
-- [ ] 執行前先討論 generated types 的來源、更新命令與 CI drift gate。
-- [ ] 從 canonical Main migration／staging 產生 `Database` type。
-- [ ] 將 Main client 改為 `createClient<Database>`；Teaching client 保持獨立 type。
+- [x] 已決定以 repo canonical migration 重建 local DB 後產生型別；本地 drift command 先落地，PR CI 接入留給 WP-21。
+- [x] 從 `20260801000000_live_baseline.sql` 重建 local Main DB，產生 `src/lib/database.types.ts`。
+- [~] `createClient<Database>` 與 `getMainSupabase` 已建立；舊 consumer 暫由同 singleton 的 `getSupabase` 相容入口維持，Teaching client 保持獨立。
 - [ ] 逐 domain 修復不相容 query／mapping；不改資料格式。
-- [ ] 加入 schema type regeneration／drift 說明與檢查。
+- [x] 加入 `schema:types`／`schema:types:check`；生成結果必須能由 migration 重現且 Git diff 為零。
 - [ ] 完整 verify、Main DB contract tests、受影響頁面 Chrome smoke。
+
+WP-03 第一段契約與證據（2026-08-02，commit 待本批建立）：
+
+- 範圍只有 generated type、更新／drift 指令與 typed-client migration seam；不改 query、資料、API、UI 或外部 side effect。
+- `getMainSupabase` 與既有 `getSupabase` 必須共用一個 client、保留 service-role 優先／anon fallback／缺設定失敗契約；由 `tests/unit/supabase-client.test.ts` 固定。
+- Main migration 與程式使用表名已比對；差集中的 `projects`、`project_sessions`、`enterprise_inquiries`、`quotations` 均由 Teaching adapter 使用，不併入 Main type。
+- 相容入口刪除條件：32 個既有 Main import 依 domain 完成 typed migration，`getSupabase`／`LegacyDatabase` production caller 歸零。
+- 下一段從 Visit domain 開始；每段獨立修正型別、測試與受影響頁面，不一次打開 51-symbol blast radius。
+- `schema:types:check` 通過；`npm run verify` 全通過：102 test files／513 tests、lint、typecheck、93-page production build。
+- Chrome 變更前後皆驗證登入後 `/agents/visit`；頁面完成載入、`行前功課` empty state 與 disabled 狀態不變，變更後實際點擊 `重新整理` 通過既有 Main client runtime path。
+- CodeGraph 已同步；`getMainSupabase` 目前只有相容入口與 contract test，符合本段只建立 migration seam、不偷搬 domain 的範圍。
 
 出口：Main query 具編譯期 schema 契約；無跨 DB type 混用。
 
@@ -459,8 +470,7 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 - [x] WP-01 已完成；conversation lock／Visit settings 的相容層與低訊號 tests 已移除。
 - [x] WP-04 已完成；Contact Research workflow 已有單一 module owner，舊 lib／forwarding 已移除。
-- [ ] 先討論下一包；建議優先 WP-02，或從 WP-03～07 選一個不需外部 credentials 的 bounded domain batch。
-- [ ] 決定 WP-03 Main DB types 的執行時點。
+- [~] WP-03 已核准；第一段建立 generated types／typed-client seam，後續逐 domain 遷移且每段開始前確認。
 - [!] 確認 canonical GitHub repo 與部署目標。
 - [!] 逐一提供安全 credentials／sandbox／fixture；不能提供的工作包維持阻塞，不用假資料宣稱完成。
 
@@ -479,9 +489,9 @@ WP-F Feature lane 全程並行；需求碰到哪個 owner，就在那個 owner �
 
 ## 9. 目前 readiness 判定
 
-- 已完成最新工作包：`WP-04`；下一個工作包尚未核准。
+- 已完成最新工作包：`WP-04`；`WP-03` 第一段正在驗證，尚未宣稱整包完成。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research 已收斂為單一 workflow owner，其他 Visit legacy boundaries 與 `src/lib` ownership 仍待需求／風險驅動收斂。
-- 資料庫：Main／Teaching 基線可用；Main generated types 尚未完成。
+- 資料庫：Main／Teaching 基線可用；Main generated types 與漸進 typed-client seam 已建立，production consumers 尚待逐 domain 搬移。
 - 外部功能：多數仍是 credential-gated，不能只靠 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**

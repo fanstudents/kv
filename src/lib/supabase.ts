@@ -1,21 +1,21 @@
 import "server-only";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 
-// No generated Database types yet for this project's line_agents / line_agent_activity
-// tables, so we fall back to `any` here rather than fighting the inferred `never` schema.
+// WP-03 compatibility seam: delete this alias and getSupabase after all existing
+// consumers have moved to getMainSupabase.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let client: ReturnType<typeof createClient<any>> | null = null;
+type LegacyDatabase = any;
+
+let client: SupabaseClient<Database> | null = null;
 
 /**
- * 伺服器端的 Supabase 客戶端。
+ * Main Supabase 的強型別入口。
  *
- * 優先使用 service_role key：這支客戶端只在伺服器端執行（檔案頂端有 server-only），
- * 金鑰不會被打包進瀏覽器。用 service_role 的意義是——資料庫那邊就可以把 anon 的權限收掉，
- * 改成預設拒絕；否則只要 anon key 外流一次，L4 知識庫、客戶名單、背景調查全部可讀可寫。
- *
- * 還沒設定 service_role key 時會退回 anon key（維持現況可運作），但會在伺服器 log 提醒。
+ * 新增或正在整理的 domain 應使用這個入口；既有 consumer 會在 WP-03
+ * 依 domain 搬移完成，最後刪除下方的相容入口與 LegacyDatabase。
  */
-export function getSupabase() {
+export function getMainSupabase(): SupabaseClient<Database> {
   if (client) return client;
 
   const url = process.env.SUPABASE_URL;
@@ -32,9 +32,18 @@ export function getSupabase() {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client = createClient<any>(url, key, {
+  client = createClient<Database>(url, key, {
     auth: { persistSession: false },
   });
   return client;
+}
+
+/**
+ * WP-03 漸進遷移相容入口。
+ *
+ * 保持既有 consumer 的執行行為與寬鬆型別，避免一次修改整包。每個 domain
+ * 搬到 getMainSupabase 後，對應的 any 就會從 production path 消失。
+ */
+export function getSupabase(): SupabaseClient<LegacyDatabase> {
+  return getMainSupabase() as SupabaseClient<LegacyDatabase>;
 }
