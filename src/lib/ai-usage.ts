@@ -1,5 +1,5 @@
 import "server-only";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 
 // OpenAI 各模型定價（美元／每百萬 token），僅供成本估算，會依 OpenAI 官方調整。
 // input = prompt tokens，output = completion tokens。
@@ -57,7 +57,7 @@ async function spentSoFar(): Promise<{ daily: number; monthly: number }> {
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  const { data } = await getSupabase()
+  const { data } = await getMainSupabase()
     .from("ai_usage_logs")
     .select("cost_usd,created_at")
     .gte("created_at", monthStart);
@@ -136,7 +136,7 @@ export async function logAiUsage(params: {
   try {
     const usage = params.usage ?? {};
     const cost = estimateCost(params.model, usage);
-    await getSupabase()
+    await getMainSupabase()
       .from("ai_usage_logs")
       .insert({
         agent_slug: params.agentSlug ?? null,
@@ -215,7 +215,7 @@ export async function logRealtimeUsage(params: {
 }) {
   try {
     const cost = estimateRealtimeCost(params.model, params.usage);
-    await getSupabase()
+    await getMainSupabase()
       .from("ai_usage_logs")
       .insert({
         agent_slug: params.agentSlug ?? null,

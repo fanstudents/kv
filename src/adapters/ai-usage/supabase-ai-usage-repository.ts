@@ -1,12 +1,12 @@
 import "server-only";
 import { budgetStatus } from "@/lib/ai-usage";
-import { getSupabase } from "@/lib/supabase";
+import { getMainSupabase } from "@/lib/supabase";
 import type { AiUsageRepository, AiUsageRow } from "@/modules/ai-usage/usage";
 
 export function createSupabaseAiUsageRepository(): AiUsageRepository {
   return {
     async listRows(limit) {
-      const { data, error } = await getSupabase()
+      const { data, error } = await getMainSupabase()
         .from("ai_usage_logs")
         .select("*")
         .order("created_at", { ascending: false })
