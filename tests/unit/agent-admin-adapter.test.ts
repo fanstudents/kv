@@ -74,4 +74,17 @@ describe("Supabase agent admin repository", () => {
       status: "success",
     });
   });
+
+  it("rejects non-JSON settings before calling the database", async () => {
+    const from = vi.fn();
+    getMainSupabase.mockReturnValue({ from });
+
+    await expect(
+      createSupabaseAgentAdminRepository().updateBySlug("operations", {
+        updated_at: "now",
+        settings: new Date(),
+      })
+    ).rejects.toThrow("Agent settings must be JSON serializable");
+    expect(from).not.toHaveBeenCalled();
+  });
 });

@@ -1,6 +1,7 @@
 import "server-only";
 
-import { getSupabase } from "@/lib/supabase";
+import { isDatabaseJson } from "@/lib/database-json";
+import { getMainSupabase } from "@/lib/supabase";
 import type {
   ConversationLockOptions,
   ConversationLockPort,
@@ -9,10 +10,10 @@ import type {
 const DEFAULT_TTL_MINUTES = 15;
 
 export function createSupabaseConversationLock(): ConversationLockPort {
-  let supabase: ReturnType<typeof getSupabase> | null = null;
+  let supabase: ReturnType<typeof getMainSupabase> | null = null;
 
   const getClient = () => {
-    if (!supabase) supabase = getSupabase();
+    if (!supabase) supabase = getMainSupabase();
     return supabase;
   };
 
@@ -37,10 +38,13 @@ export function createSupabaseConversationLock(): ConversationLockPort {
         return { ok: false, heldBy: existing.owner_agent_slug };
       }
 
+      const context = options?.context ?? {};
+      if (!isDatabaseJson(context)) throw new Error("Conversation lock context must be JSON serializable");
+
       await client.from("line_conversation_locks").upsert({
         line_user_id: lineUserId,
         owner_agent_slug: agentSlug,
-        context: options?.context ?? {},
+        context,
         expires_at: expiresAt,
       });
 

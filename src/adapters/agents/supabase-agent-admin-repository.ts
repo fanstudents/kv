@@ -1,22 +1,17 @@
 import "server-only";
-import type { Json, TablesUpdate } from "@/lib/database.types";
+import type { TablesUpdate } from "@/lib/database.types";
+import { isDatabaseJson } from "@/lib/database-json";
 import { getMainSupabase } from "@/lib/supabase";
 import type { AgentAdminRepository } from "@/modules/agents/admin";
-
-function isJson(value: unknown): value is Json {
-  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return true;
-  }
-  if (Array.isArray(value)) return value.every(isJson);
-  if (typeof value !== "object") return false;
-  return Object.values(value).every(isJson);
-}
 
 function toLineAgentUpdate(update: Record<string, unknown>): TablesUpdate<"line_agents"> {
   const row: TablesUpdate<"line_agents"> = {};
   if (typeof update.enabled === "boolean") row.enabled = update.enabled;
   if (typeof update.updated_at === "string") row.updated_at = update.updated_at;
-  if (isJson(update.settings)) row.settings = update.settings;
+  if (update.settings !== undefined) {
+    if (!isDatabaseJson(update.settings)) throw new Error("Agent settings must be JSON serializable");
+    row.settings = update.settings;
+  }
   return row;
 }
 
@@ -30,9 +25,10 @@ export function createSupabaseAgentAdminRepository(): AgentAdminRepository {
       return { data: data ?? null, errorMessage: error?.message ?? null };
     },
     async updateBySlug(slug, update) {
+      const row = toLineAgentUpdate(update);
       const { data, error } = await client()
         .from("line_agents")
-        .update(toLineAgentUpdate(update))
+        .update(row)
         .eq("slug", slug)
         .select()
         .single();

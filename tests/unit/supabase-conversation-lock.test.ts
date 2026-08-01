@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const getSupabase = vi.hoisted(() => vi.fn());
+const getMainSupabase = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/supabase", () => ({ getSupabase }));
+vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createSupabaseConversationLock } from "@/adapters/conversation/supabase-conversation-lock";
 
@@ -45,7 +45,7 @@ describe("Supabase conversation lock", () => {
 
   it("creates a missing lock with the existing 15-minute default", async () => {
     const db = createClient(null);
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
     const lock = createSupabaseConversationLock();
 
     await expect(lock.acquire("line-1", "visit")).resolves.toEqual({ ok: true });
@@ -63,7 +63,7 @@ describe("Supabase conversation lock", () => {
       owner_agent_slug: "support",
       expires_at: "2026-08-02T00:01:00.000Z",
     });
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
 
     await expect(
       createSupabaseConversationLock().acquire("line-1", "visit")
@@ -76,7 +76,7 @@ describe("Supabase conversation lock", () => {
       owner_agent_slug: "support",
       expires_at: "2026-08-01T23:59:59.000Z",
     });
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
 
     await expect(
       createSupabaseConversationLock().acquire("line-1", "visit")
@@ -89,7 +89,7 @@ describe("Supabase conversation lock", () => {
       owner_agent_slug: "visit",
       expires_at: "2026-08-02T00:01:00.000Z",
     });
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
 
     await expect(
       createSupabaseConversationLock().acquire("line-1", "visit", {
@@ -107,16 +107,26 @@ describe("Supabase conversation lock", () => {
 
   it("releases only the requested owner's lock and reuses the lazy client", async () => {
     const db = createClient(null);
-    getSupabase.mockReturnValue(db.client);
+    getMainSupabase.mockReturnValue(db.client);
     const lock = createSupabaseConversationLock();
 
     await lock.release("line-1", "visit");
     await lock.release("line-2", "visit");
 
-    expect(getSupabase).toHaveBeenCalledOnce();
+    expect(getMainSupabase).toHaveBeenCalledOnce();
     expect(db.releaseUserEq).toHaveBeenNthCalledWith(1, "line_user_id", "line-1");
     expect(db.releaseUserEq).toHaveBeenNthCalledWith(2, "line_user_id", "line-2");
     expect(db.releaseOwnerEq).toHaveBeenNthCalledWith(1, "owner_agent_slug", "visit");
     expect(db.releaseOwnerEq).toHaveBeenNthCalledWith(2, "owner_agent_slug", "visit");
+  });
+
+  it("rejects non-JSON context before writing a lock", async () => {
+    const db = createClient(null);
+    getMainSupabase.mockReturnValue(db.client);
+
+    await expect(
+      createSupabaseConversationLock().acquire("line-1", "visit", { context: { startedAt: new Date() } })
+    ).rejects.toThrow("Conversation lock context must be JSON serializable");
+    expect(db.upsert).not.toHaveBeenCalled();
   });
 });
