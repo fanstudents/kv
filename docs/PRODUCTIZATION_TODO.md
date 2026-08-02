@@ -342,9 +342,9 @@ Preparation 依賴 WP-02，可先執行 signature fixture、狀態轉移、lock�
 - [x] LINE transport 的 primary／support channel isolation、webhook signature routing、Visit timeout cron auth／port wiring 與 public respond invalid-link path 已有 local contract／Chrome evidence。
 - [x] pending offer cancel／accept、approval cancel／send、public respond optimistic claim／duplicate POST／calendar failure與 timeout stale-window 已有 local application contracts。
 - [~] approval send／cancel、offer cancel 與排程／寄信 recovery 已保證：即使 status、runtime、activity 或 LINE failure response 本身失敗，仍會嘗試釋放 Visit conversation lock；成功路徑、文案、資料格式與 provider call 不變。2 files／8 focused tests、全量 127 files／615 tests／93-page build，以及登入後 `/agents/visit` 設定展開／app-origin console 均通過。email 已送但後續狀態或 reply 失敗的精確狀態、slot／draft failure 與人工 recovery 仍待處理。
-- [ ] 可先做：以 mocked `googleapis` 固定 Gmail MIME/send 與 Calendar create/update mapping；安全收件者與 cleanup 留給 Real Acceptance。
-- [~] lock acquisition 已改為 observed owner＋expiry 的 compare-and-swap；missing-row race 依 Postgres `23505` 重新讀取 winner，Supabase read／write／release error 全部 fail closed。Visit image flow 會檢查 acquisition result，conflict 時在 contact／offer persistence 前停止並收尾 run／回覆。13 個 focused contracts、`kv-staging` renewal／contention／expired takeover／owner-scoped release／concurrent winner 共 2 tests、cleanup 0 rows、Orders staging regression、全量 verify 與登入後 `/agents/visit` Chrome 均通過；timeout retry／replay 仍待處理。
-- [ ] delivery 部分成功時的狀態與人工復原方式。
+- [x] mocked `googleapis` 已固定 Gmail UTF-8 MIME/base64url/send envelope，以及 Visit 建立 primary Calendar event、`sendUpdates: all`、Asia/Taipei 時區與 attendee mapping；production 沒有 update-event 能力，因此未虛構 update contract。安全收件者與 cleanup 留給 Real Acceptance。
+- [~] lock acquisition 已改為 observed owner＋expiry 的 compare-and-swap；missing-row race 依 Postgres `23505` 重新讀取 winner，Supabase read／write／release error 全部 fail closed。Visit image flow 會檢查 acquisition result，conflict 時在 contact／offer persistence 前停止並收尾 run／回覆。timeout 在 offer 成功寫成 terminal 後，即使 tag／activity／live-task／LINE 後續失敗也會於 `finally` 嘗試釋放 lock；若 terminal write 本身失敗則保留 lock。既有 timeout 會先寫 `timed_out` 再執行其他 side effects，後續失敗不會被 stale query 自動重播，因此完整 retry／replay 仍是產品 recovery 決策。
+- [?] delivery 部分成功時的狀態與人工復原方式：目前 Calendar 成功後先寫 `calendar_event_id`，再寄 Gmail；若寄信或之後工作失敗會把 invite 標成 `failed`，重送又會被既有 event ID 擋下。需決定「人工補寄／重新開放 fulfilment／另記 delivery state」後才可改，不能把已建立的 Calendar event 當作未發生。
 - [ ] `/agents/visit` 與相關 webhook 的 end-to-end staging journey。
 
 出口：一條受控 Visit 從 inbound 到 delivery／recovery 可重複驗證。

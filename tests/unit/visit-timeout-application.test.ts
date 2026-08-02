@@ -91,6 +91,20 @@ describe("Visit timeout application", () => {
     expect(dependencies.liveTask.setState).toHaveBeenCalledOnce();
   });
 
+  it("releases the conversation lock after a terminal status even when later work fails", async () => {
+    const dependencies = createDependencies();
+    dependencies.workflow.findStaleOffers.mockResolvedValue([
+      { id: "offer-1", lineUserId: "line-1", contactId: "contact-1", contactName: "Alice" },
+    ]);
+    dependencies.activity.record.mockRejectedValue(new Error("activity unavailable"));
+
+    await expect(runVisitTimeoutApplication(dependencies)).rejects.toThrow("activity unavailable");
+
+    expect(dependencies.workflow.resolveOffer).toHaveBeenCalledOnce();
+    expect(dependencies.lock.release).toHaveBeenCalledWith("line-1", "visit");
+    expect(dependencies.delivery.pushText).not.toHaveBeenCalled();
+  });
+
   it("does not perform side effects when there are no stale offers", async () => {
     const dependencies = createDependencies();
     dependencies.workflow.findStaleOffers.mockResolvedValue([]);

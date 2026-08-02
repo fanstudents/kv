@@ -48,32 +48,36 @@ export async function runVisitTimeoutApplication(
     const name = offer.contactName ?? "這位客戶";
 
     await dependencies.workflow.resolveOffer(offer.id, "timed_out", clock.now().toISOString());
+    try {
+      if (offer.contactId) await dependencies.tags.add(offer.contactId, "待跟進");
 
-    if (offer.contactId) await dependencies.tags.add(offer.contactId, "待跟進");
+      await dependencies.activity.record({
+        agent_slug: "visit",
+        summary: `名片「${name}」逾時未回覆（3 分鐘），已自動略過並標記「待跟進」`,
+        status: "success",
+      });
 
-    await dependencies.activity.record({
-      agent_slug: "visit",
-      summary: `名片「${name}」逾時未回覆（3 分鐘），已自動略過並標記「待跟進」`,
-      status: "success",
-    });
+      await dependencies.liveTask.setState("visit", {
+        step: 2,
+        status: "done",
+        caption: `逾時未回覆，已標記待跟進（${name}）`,
+      });
 
-    await dependencies.liveTask.setState("visit", {
-      step: 2,
-      status: "done",
-      caption: `逾時未回覆，已標記待跟進（${name}）`,
-    });
+      if (offer.lineUserId) {
+        await dependencies.delivery
+          .pushText(
+            offer.lineUserId,
+            `名片「${name}」等了 3 分鐘沒收到你的指示，我先幫你標記「待跟進」存起來了 📌\n要安排拜訪的話再跟我說，或重新傳一次名片即可。`
+          )
+          .catch(() => {});
+      }
 
-    if (offer.lineUserId) {
-      await dependencies.delivery
-        .pushText(
-          offer.lineUserId,
-          `名片「${name}」等了 3 分鐘沒收到你的指示，我先幫你標記「待跟進」存起來了 📌\n要安排拜訪的話再跟我說，或重新傳一次名片即可。`
-        )
-        .catch(() => {});
-      await dependencies.lock.release(offer.lineUserId, "visit").catch(() => {});
+      handled++;
+    } finally {
+      if (offer.lineUserId) {
+        await dependencies.lock.release(offer.lineUserId, "visit").catch(() => {});
+      }
     }
-
-    handled++;
   }
 
   return handled;
