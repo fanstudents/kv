@@ -1,5 +1,5 @@
 import "server-only";
-import { DEFAULT_GOALS, type AgentGoal, type GoalCadence } from "@/lib/agent-goals";
+import { DEFAULT_GOALS, type AgentGoal, type GoalCadence } from "@/modules/goals/model";
 import { metricHistory } from "@/lib/agent-memory";
 import type { Tables, TablesInsert } from "@/lib/database.types";
 import { getMainSupabase } from "@/lib/supabase";

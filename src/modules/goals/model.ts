@@ -1,9 +1,9 @@
-import { buildSearchDemo } from "./gsc-demo";
-import { buildTrafficDemo } from "./ga4-demo";
-import { ADS_DEMO_STATS } from "./ads-demo";
-import { SOCIAL_DEMO_STATS } from "./social-demo";
-import { REPUTATION_DEMO_STATS } from "./reputation-demo";
-import type { AgentSlug } from "./types";
+import { ADS_DEMO_STATS } from "@/lib/ads-demo";
+import { buildTrafficDemo } from "@/lib/ga4-demo";
+import { buildSearchDemo } from "@/lib/gsc-demo";
+import { REPUTATION_DEMO_STATS } from "@/lib/reputation-demo";
+import { SOCIAL_DEMO_STATS } from "@/lib/social-demo";
+import type { AgentSlug } from "@/lib/types";
 
 // 「幫每位 Agent 設定目標」的型錄與計算。
 //
@@ -547,7 +547,7 @@ export function defaultDueDate(cadence: GoalCadence, from = new Date()): string 
 }
 
 // 示範用的預設目標：每位 Agent 都先有一到兩個目標，總覽一打開就看得到全隊的達成率分佈。
-// 使用者自己新增／修改後會存進 localStorage（見 agent-goals-store.ts），這份只當種子。
+// 使用者自己新增／修改後會由 goals client store 寫入 Main DB；這份只當種子。
 function seed(
   agentSlug: AgentSlug,
   metricId: string,

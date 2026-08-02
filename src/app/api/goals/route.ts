@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GOAL_METRICS } from "@/lib/agent-goals";
+import { GOAL_METRICS } from "@/modules/goals/model";
 import { AGENTS } from "@/lib/agent-data";
 import { supabaseGoalsRepository } from "@/adapters/goals/supabase-goals-repository";
 import { parseGoalDeleteRequest, parseGoalUpdateRequest } from "@/modules/goals/rules";

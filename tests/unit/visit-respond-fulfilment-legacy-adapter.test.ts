@@ -14,7 +14,6 @@ const {
   sendEmail: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineMessage }));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/adapters/visit/supabase-visit-settings", () => ({
@@ -24,7 +23,7 @@ vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({
   legacyVisitProviders: { createCalendarEvent, sendEmail },
 }));
 
-import { createLegacyVisitRespondFulfilmentSource } from "@/adapters/visit/legacy-respond-sources";
+import { createLegacyVisitRespondSources } from "@/adapters/visit/legacy-respond-sources";
 
 describe("legacy Visit respond fulfilment source", () => {
   it("keeps settings/provider calls and pending invite/activity writes behind the port", async () => {
@@ -42,7 +41,7 @@ describe("legacy Visit respond fulfilment source", () => {
     createCalendarEvent.mockResolvedValue("event-1");
     sendEmail.mockResolvedValue(undefined);
     pushLineMessage.mockResolvedValue(undefined);
-    const adapter = createLegacyVisitRespondFulfilmentSource();
+    const adapter = createLegacyVisitRespondSources().fulfilment;
 
     await expect(adapter.getSettings()).resolves.toEqual({ senderName: "Dennis" });
     await expect(adapter.createCalendarEvent({

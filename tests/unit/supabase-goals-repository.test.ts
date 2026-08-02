@@ -5,11 +5,10 @@ const { getMainSupabase, metricHistory } = vi.hoisted(() => ({
   metricHistory: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/agent-memory", () => ({ metricHistory }));
 
-import { DEFAULT_GOALS, type AgentGoal } from "@/lib/agent-goals";
+import { DEFAULT_GOALS, type AgentGoal } from "@/modules/goals/model";
 import { supabaseGoalsRepository } from "@/adapters/goals/supabase-goals-repository";
 
 const goal: AgentGoal = {

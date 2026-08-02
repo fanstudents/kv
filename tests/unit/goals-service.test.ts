@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AgentGoal } from "@/lib/agent-goals";
+import type { AgentGoal } from "@/modules/goals/model";
 import { createGoalsService, type GoalsRepository } from "@/modules/goals/service";
 
 const goal: AgentGoal = {

@@ -2,10 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
-import { createLegacyVisitRespondReadSource } from "@/adapters/visit/legacy-respond-sources";
+import { createLegacyVisitRespondSources } from "@/adapters/visit/legacy-respond-sources";
 
 describe("legacy Visit respond read source", () => {
   it("preserves pending_invites reads, optimistic confirmation, and refetch", async () => {
@@ -26,7 +25,7 @@ describe("legacy Visit respond read source", () => {
     query.single.mockResolvedValue({ data: { id: "i1", status: "confirmed", chosen_slot: "1" } });
     const client = { from: vi.fn(() => query) };
     getMainSupabase.mockReturnValue(client);
-    const adapter = createLegacyVisitRespondReadSource();
+    const adapter = createLegacyVisitRespondSources().read;
 
     await expect(adapter.findInvite("i1")).resolves.toEqual({ id: "i1", status: "pending" });
     await expect(adapter.confirmInvite("i1", "1", "2026-07-31T00:00:00.000Z")).resolves.toEqual({
@@ -45,5 +44,25 @@ describe("legacy Visit respond read source", () => {
     expect(query.update).toHaveBeenCalledWith({ status: "confirmed", chosen_slot: "1", resolved_at: "2026-07-31T00:00:00.000Z" });
     expect(query.eq).toHaveBeenCalledWith("status", "pending");
     expect(query.select).toHaveBeenCalledWith("*, contacts(name, title, email, company)");
+  });
+
+  it("shares one lazy client across the still-separate read and fulfilment ports", async () => {
+    const query = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { id: "i1", status: "pending" } }),
+      insert: vi.fn().mockResolvedValue({ error: null }),
+    };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    getMainSupabase.mockClear();
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    const sources = createLegacyVisitRespondSources();
+
+    await sources.read.findInvite("i1");
+    await sources.fulfilment.recordActivity({ summary: "done", status: "success" });
+
+    expect(getMainSupabase).toHaveBeenCalledOnce();
+    expect(query.insert).toHaveBeenCalledWith({ agent_slug: "visit", summary: "done", status: "success" });
   });
 });

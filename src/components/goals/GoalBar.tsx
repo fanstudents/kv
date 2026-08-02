@@ -9,7 +9,7 @@ import {
   formatGoalValue,
   goalProgress,
   type AgentGoal,
-} from "@/lib/agent-goals";
+} from "@/modules/goals/model";
 
 // 一筆目標的橫條呈現：目標類型、目前值 / 目標值、達成率長條，
 // 長條上還有一根「時間進度」刻度——過了多少時間就該走到哪裡，一眼看出超前或落後。

@@ -1,4 +1,4 @@
-import type { AgentGoal } from "@/lib/agent-goals";
+import type { AgentGoal } from "./model";
 import type { GoalDeleteRequest, GoalsHistoryRequest, GoalUpdateRequest } from "./rules";
 
 export interface GoalHistoryPoint {

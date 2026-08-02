@@ -20,8 +20,8 @@ import {
   LineButtonsMessage,
 } from "@/components/agents/LineMessages";
 import { AGENT_LIVE_TASKS } from "@/lib/agent-briefings";
-import { goalProgress, type AgentGoal } from "@/lib/agent-goals";
-import { removeGoal, useAgentGoals } from "@/lib/agent-goals-store";
+import { goalProgress, type AgentGoal } from "@/modules/goals/model";
+import { removeGoal, useAgentGoals } from "@/components/goals/use-agent-goals";
 import { useDemoMode } from "@/lib/demo-mode";
 import { refreshAgentStatus } from "@/lib/agent-status";
 import { PUSH_STYLES, type PushStyle } from "@/lib/line-message-styles";

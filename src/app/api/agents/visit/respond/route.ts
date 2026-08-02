@@ -1,9 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { buildThankYouEmailHtml, escapeHtml } from "@/lib/email-templates";
-import {
-  createLegacyVisitRespondFulfilmentSource,
-  createLegacyVisitRespondReadSource,
-} from "@/adapters/visit/legacy-respond-sources";
+import { createLegacyVisitRespondSources } from "@/adapters/visit/legacy-respond-sources";
 import { createVisitResearchDependencies } from "@/adapters/visit/visit-research-dependencies";
 import {
   fulfilVisitPublicInvite,
@@ -80,10 +77,11 @@ function renderPublicInvitePage(result: VisitPublicInvitePage) {
 }
 
 export async function GET(req: NextRequest) {
+  const { read } = createLegacyVisitRespondSources();
   const result = await resolveVisitPublicInviteGet({
     inviteId: req.nextUrl.searchParams.get("invite"),
     choiceValue: req.nextUrl.searchParams.get("choice"),
-    read: createLegacyVisitRespondReadSource(),
+    read,
     nowIso: () => new Date().toISOString(),
   });
   return renderPublicInvitePage(result);
@@ -91,8 +89,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const inviteId = req.nextUrl.searchParams.get("invite");
-  const readPort = createLegacyVisitRespondReadSource();
-  const fulfilmentPort = createLegacyVisitRespondFulfilmentSource();
+  const { read: readPort, fulfilment: fulfilmentPort } = createLegacyVisitRespondSources();
   const formData = inviteId ? await req.formData().catch(() => null) : null;
   const result = await fulfilVisitPublicInvite({
     inviteId,

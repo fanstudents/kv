@@ -1,4 +1,4 @@
-import type { AgentGoal, GoalCadence } from "@/lib/agent-goals";
+import type { AgentGoal, GoalCadence } from "./model";
 import type { AgentSlug } from "@/lib/types";
 
 export interface GoalCatalogEntry {

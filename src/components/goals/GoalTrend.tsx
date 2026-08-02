@@ -3,7 +3,7 @@
 import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { usePrefersDark } from "@/components/agents/charts/TrendChart";
 import { useMetricHistory } from "@/lib/goal-history";
-import { formatGoalValue, type GoalUnit } from "@/lib/agent-goals";
+import { formatGoalValue, type GoalUnit } from "@/modules/goals/model";
 
 // 目標卡片上的迷你趨勢線：從 metric_snapshots 的每日快照畫出來，
 // 讓達成率從「現在幾分」多一眼「怎麼走過來的」。

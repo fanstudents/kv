@@ -14,8 +14,8 @@ import {
   metricsForAgent,
   type AgentGoal,
   type GoalCadence,
-} from "@/lib/agent-goals";
-import { newGoalId, saveGoal } from "@/lib/agent-goals-store";
+} from "@/modules/goals/model";
+import { newGoalId, saveGoal } from "@/components/goals/use-agent-goals";
 import type { AgentSlug } from "@/lib/types";
 
 // 設定目標的介面：三步——先挑人、再挑「目標類型」（依資料來源分類，不用自己編欄位）、

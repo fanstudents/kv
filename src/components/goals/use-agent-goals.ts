@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { DEFAULT_GOALS, type AgentGoal } from "./agent-goals";
+import { DEFAULT_GOALS, type AgentGoal } from "@/modules/goals/model";
 
 // 目標的前端快取。資料本體存在 Supabase（agent_goals 表，見 supabase-goals-repository.ts）——
 // 以前存在 localStorage，換一台電腦或換瀏覽器，指揮官設的目標就不見了。

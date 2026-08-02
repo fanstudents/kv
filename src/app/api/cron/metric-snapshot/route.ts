@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GOAL_METRICS } from "@/lib/agent-goals";
+import { GOAL_METRICS } from "@/modules/goals/model";
 import { snapshotMetric } from "@/lib/agent-memory";
 import { parseCronAuth } from "@/modules/cron/auth-rules";
 
