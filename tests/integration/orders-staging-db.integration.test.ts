@@ -1,9 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createSupabaseOrdersRepository } from "@/adapters/orders/supabase-orders-repository";
 import type { Database } from "@/lib/database.types";
 import type { OrdersRepository } from "@/modules/orders/orders";
+import {
+  createStagingMainDatabaseClient,
+  requireStagingMainDatabaseEnvironment,
+} from "./staging-main-db";
 
 const FIXTURE_PREFIX = "codex-orders-staging-db:";
 const ORDERS_AGENT_SLUG = "orders";
@@ -16,14 +20,11 @@ let repository: OrdersRepository | null = null;
 let createdOrdersAgentFixture = false;
 
 beforeAll(async () => {
-  const { url, serviceRoleKey } = requireStagingAcceptanceEnvironment();
-  stagingClient = createClient<Database>(url, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-      persistSession: false,
-    },
-  });
+  const environment = requireStagingMainDatabaseEnvironment(
+    "ORDERS_STAGING_DB_ACCEPTANCE",
+    "npm run test:integration:orders:staging",
+  );
+  stagingClient = createStagingMainDatabaseClient(environment);
 
   const { data: existingAgent, error: existingAgentError } = await stagingClient
     .from("line_agents")
@@ -159,45 +160,3 @@ describe("Orders staging Main DB persistence", () => {
     expect(persistedActivity?.occurred_at).toEqual(expect.any(String));
   });
 });
-
-function requireStagingAcceptanceEnvironment(): { url: string; serviceRoleKey: string } {
-  if (process.env.ORDERS_STAGING_DB_ACCEPTANCE !== "1") {
-    throw new Error(
-      "Orders staging DB acceptance is opt-in. Set ORDERS_STAGING_DB_ACCEPTANCE=1 before running npm run test:integration:orders:staging."
-    );
-  }
-
-  const projectRef = process.env.KV_STAGING_PROJECT_REF;
-  const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!projectRef || !url || !serviceRoleKey) {
-    throw new Error(
-      "Orders staging DB acceptance requires KV_STAGING_PROJECT_REF, SUPABASE_URL, and SUPABASE_SERVICE_ROLE_KEY."
-    );
-  }
-  if (!/^[a-z0-9]{20}$/.test(projectRef)) {
-    throw new Error("KV_STAGING_PROJECT_REF must be an exact 20-character Supabase project ref.");
-  }
-
-  let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(url);
-  } catch {
-    throw new Error("SUPABASE_URL must be an absolute HTTPS URL for the allowlisted staging project.");
-  }
-
-  const expectedHost = `${projectRef}.supabase.co`;
-  if (
-    parsedUrl.protocol !== "https:" ||
-    parsedUrl.hostname !== expectedHost ||
-    parsedUrl.port !== "" ||
-    parsedUrl.username !== "" ||
-    parsedUrl.password !== ""
-  ) {
-    throw new Error(
-      `Refusing Orders staging DB acceptance against non-allowlisted SUPABASE_URL host: ${parsedUrl.hostname || "(missing host)"}`
-    );
-  }
-
-  return { url, serviceRoleKey };
-}

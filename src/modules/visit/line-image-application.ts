@@ -127,7 +127,29 @@ export function createVisitLineImageHandler(
     });
 
     // 多輪對話即將開始，先搶下這個使用者的鎖（同一 Agent 重入會自動延長，不會卡住自己）。
-    await dependencies.lock.acquire(userId, agentSlug, { context: { stage: "card_review" } });
+    const acquisition = await dependencies.lock.acquire(userId, agentSlug, { context: { stage: "card_review" } });
+    if (!acquisition.ok) {
+      const conflictEffects = await Promise.allSettled([
+        dependencies.activity.record({
+          agent_slug: agentSlug,
+          summary: `LINE 名片流程未啟動：使用者目前由 ${acquisition.heldBy} 處理中`,
+          status: "failed",
+        }),
+        dependencies.runtime.endVisitRun({
+          userId,
+          status: "cancelled",
+          summary: "已有另一個 Agent 對話流程進行中",
+        }),
+        dependencies.delivery.replyText(
+          replyToken,
+          "目前正在處理另一個對話流程，請稍後再傳一次名片。",
+        ),
+      ]);
+      for (const effect of conflictEffects) {
+        if (effect.status === "rejected") console.error("[visit] could not report conversation lock conflict", effect.reason);
+      }
+      return;
+    }
 
     const contactRow = await dependencies.workflow.createContact(contact, userId);
 

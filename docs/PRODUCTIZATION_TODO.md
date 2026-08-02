@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新審核：CodeGraph 442 files／3,727 nodes／7,672 edges且 up to date；最新 `npm run verify` 為 127 files／612 tests／93-page build｜當前可執行：WP-10 acceptance 成本上限、WP-13 failure/recovery contracts、WP-11 provider-disabled UI contract｜外部阻塞：provider credentials、canonical remote、deploy／rollback truth
+> 最後校準：2026-08-02｜最新審核：CodeGraph 444 files／3,760 nodes／7,742 edges且 up to date；最新 `npm run verify` 為 127 files／615 tests／93-page build｜當前可執行：WP-10 acceptance 成本上限、WP-13 failure/recovery contracts、WP-11 provider-disabled UI contract｜外部阻塞：provider credentials、canonical remote、deploy／rollback truth
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已完成
 
@@ -123,8 +123,8 @@ Secrets 只放本機 `.env.local` 或正式 secret store，不寫入 Git／TODO�
 - [x] Visit conversation lock／settings ownership 已收斂為直接 Supabase adapters；100 test files／503 tests／93-page build與真實 Visit 後台 Chrome 驗證通過。
 - [x] Goals model／client cache 移至各自 domain owner；Visit respond read／fulfilment 保持獨立 port、共用一個 lazy Main DB composition root；兩個 integration-status consumer 共用窄 fetch 實作。這是 ownership 收斂，不是跨元件 request dedupe：兩個 consumer 同時掛載時仍各自發 request。
 - [x] Visit dashboard 消除 server／browser local-clock hydration mismatch；重建後 Chrome 實測 `/agents/visit`、`/goals`、`/tv` 與 public invalid respond route，未見 app-origin console error。
-- [x] Unit 與 opt-in 線上 staging DB integration 已分離；`server-only` 有單一 test shim，612 個 unit/contract tests 不會預設碰 DB/provider。
-- [x] `npm run verify`：lint、typecheck、127 test files／612 tests、93-page production build 全過。
+- [x] Unit 與 opt-in 線上 staging DB integration 已分離；`server-only` 有單一 test shim，615 個 unit/contract tests 不會預設碰 DB/provider。
+- [x] `npm run verify`：lint、typecheck、127 test files／615 tests、93-page production build 全過。
 - [x] `npm run verify:full` 另通過 132 個本地 Playwright smoke：真實登入、anonymous API 拒絕、公開與受保護 surface render；E2E 明確使用空 provider／Supabase env，故不構成真實資料流或 provider acceptance。
 
 代表性歷史 commits：`410083a`、`996a4e0`、`b39bd33`、`99856c3`、`c163f1b`、`005c478`、`f866340`、`cc0780c`、`4bbec8e`、`9a96303`、`d11c38e`、`18c9097`、`6d0199f`。完整歷史以 Git 為準，不在本文件複製流水帳。
@@ -341,9 +341,9 @@ Preparation 依賴 WP-02，可先執行 signature fixture、狀態轉移、lock�
 
 - [x] LINE transport 的 primary／support channel isolation、webhook signature routing、Visit timeout cron auth／port wiring 與 public respond invalid-link path 已有 local contract／Chrome evidence。
 - [x] pending offer cancel／accept、approval cancel／send、public respond optimistic claim／duplicate POST／calendar failure與 timeout stale-window 已有 local application contracts。
-- [~] approval send／cancel、offer cancel 與排程／寄信 recovery 已保證：即使 status、runtime、activity 或 LINE failure response 本身失敗，仍會嘗試釋放 Visit conversation lock；成功路徑、文案、資料格式與 provider call 不變。2 files／8 focused tests、全量 127 files／612 tests／93-page build，以及登入後 `/agents/visit` 設定展開／app-origin console 均通過。email 已送但後續狀態或 reply 失敗的精確狀態、slot／draft failure 與人工 recovery 仍待處理。
+- [~] approval send／cancel、offer cancel 與排程／寄信 recovery 已保證：即使 status、runtime、activity 或 LINE failure response 本身失敗，仍會嘗試釋放 Visit conversation lock；成功路徑、文案、資料格式與 provider call 不變。2 files／8 focused tests、全量 127 files／615 tests／93-page build，以及登入後 `/agents/visit` 設定展開／app-origin console 均通過。email 已送但後續狀態或 reply 失敗的精確狀態、slot／draft failure 與人工 recovery 仍待處理。
 - [ ] 可先做：以 mocked `googleapis` 固定 Gmail MIME/send 與 Calendar create/update mapping；安全收件者與 cleanup 留給 Real Acceptance。
-- [ ] 可先做：lock 競爭、expired recovery 與 timeout retry／replay contract；目前只有 delivery／release failure 的 best-effort 行為。
+- [~] lock acquisition 已改為 observed owner＋expiry 的 compare-and-swap；missing-row race 依 Postgres `23505` 重新讀取 winner，Supabase read／write／release error 全部 fail closed。Visit image flow 會檢查 acquisition result，conflict 時在 contact／offer persistence 前停止並收尾 run／回覆。13 個 focused contracts、`kv-staging` renewal／contention／expired takeover／owner-scoped release／concurrent winner 共 2 tests、cleanup 0 rows、Orders staging regression、全量 verify 與登入後 `/agents/visit` Chrome 均通過；timeout retry／replay 仍待處理。
 - [ ] delivery 部分成功時的狀態與人工復原方式。
 - [ ] `/agents/visit` 與相關 webhook 的 end-to-end staging journey。
 
@@ -487,7 +487,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 ### 不需外部憑證，可直接安排
 
 1. **WP-10 acceptance cost gate**：為 `acceptance:openai` 加單次最大預估成本／拒絕條件與 contract；不呼叫 OpenAI。
-2. **WP-13 remaining recovery**：補 email 已送後的狀態／人工復原決策、slot／draft failure、lock competition／expired recovery；不發 Email／LINE、不寫共享環境。
+2. **WP-13 remaining recovery**：補 email 已送後的狀態／人工復原決策、slot／draft failure與 timeout retry／replay；不發 Email／LINE、不寫共享環境。
 3. **WP-11 provider-disabled UI contract**：只驗 `/knowledge-base/import` 的 validation／loading／error，不把頁面 render 當 Firecrawl／OpenAI acceptance。
 
 ### 需產品決策後才能改
@@ -526,8 +526,8 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - 最新完成：Goals／Visit ownership、integration-status fetch implementation consolidation、Visit hydration repair、integration test isolation、provider/route contracts 與本地 CI diagnostics（`0a525ed`～`df5e9fb`）；WP-03 migration、local replay、full verify 與 Chrome cutover 已完成。integration-status 尚未做跨元件 request dedupe。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings／respond、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary。其餘 `src/lib`、legacy boundary 與過細 layers 只在需求／風險證明時收斂，避免再製造模組膨脹。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與 typed-client migration 已完成，Knowledge Base 是最後遷移 domain，legacy `getSupabase`／`LegacyDatabase` reference 已歸零；canonical migration local replay、generated-type drift check 與後台 read smoke 均已有證據。
-- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／612 tests、132 local E2E smoke、OpenAI／online staging DB opt-in gates 與 provider-specific contract。`kv-staging` live schema transaction、Orders app-client persistence 與 data-failure fail-closed 已通過且無殘留；E2E 使用 provider-disabled fallback且會留下缺 Supabase server logs，其他 Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 smoke 或 unit tests 宣稱正常。
-- 程式碼膨脹判定：自 `b762258` 起淨增 `src` 79 行、tests 2,654 行、CI/config 46 行，docs 淨減 27 行；近期 production 增量直接修復 Orders data-failure 與 Visit lock-stuck 風險，未增加 layer、port 或新檔。測試量不作為進度，後續仍以 failure signal、change locality、維護成本與真實 journey 判斷保留。
+- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／615 tests、132 local E2E smoke、OpenAI／online staging DB opt-in gates 與 provider-specific contract。`kv-staging` live schema transaction、Orders app-client persistence／data-failure fail-closed、conversation lock contention／expiry path 均已通過且無殘留；E2E 使用 provider-disabled fallback且會留下缺 Supabase server logs，其他 Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 smoke 或 unit tests 宣稱正常。
+- 程式碼膨脹判定：自 `b762258` 起淨增 `src` 156 行、tests 2,858 行、CI/config 47 行，docs 淨減 27 行；近期 production 增量直接修復 Orders data-failure、Visit lock-stuck 與非原子的 lock contention。production 未增加 layer／port／新檔；測試端新增 1 個 lock staging journey 與 1 個共用 staging allowlist/client helper，並從 Orders harness 移除重複環境檢查。測試量不作為進度，後續仍以 failure signal、change locality、維護成本與真實 journey 判斷保留。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
 

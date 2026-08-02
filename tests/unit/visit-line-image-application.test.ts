@@ -84,6 +84,32 @@ describe("Visit LINE image application", () => {
     expect(dependencies.lock.release).not.toHaveBeenCalled();
   });
 
+  it("stops before persistence when another Agent owns the conversation lock", async () => {
+    const { dependencies } = makeDependencies();
+    vi.mocked(dependencies.lock.acquire).mockResolvedValue({ ok: false, heldBy: "support" });
+    const handler = createVisitLineImageHandler(dependencies);
+
+    await expect(handler({ replyToken: "reply-conflict", message: { id: "message-conflict" } }, "line-user-conflict"))
+      .resolves.toBeUndefined();
+
+    expect(dependencies.workflow.createContact).not.toHaveBeenCalled();
+    expect(dependencies.workflow.createOffer).not.toHaveBeenCalled();
+    expect(dependencies.activity.record).toHaveBeenCalledWith({
+      agent_slug: "visit",
+      summary: "LINE 名片流程未啟動：使用者目前由 support 處理中",
+      status: "failed",
+    });
+    expect(dependencies.runtime.endVisitRun).toHaveBeenCalledWith({
+      userId: "line-user-conflict",
+      status: "cancelled",
+      summary: "已有另一個 Agent 對話流程進行中",
+    });
+    expect(dependencies.delivery.replyText).toHaveBeenCalledWith(
+      "reply-conflict",
+      "目前正在處理另一個對話流程，請稍後再傳一次名片。",
+    );
+  });
+
   it("shows tags and releases the lock when a card has no email", async () => {
     const { dependencies } = makeDependencies();
     vi.mocked(dependencies.image.parseBusinessCard).mockResolvedValue({
