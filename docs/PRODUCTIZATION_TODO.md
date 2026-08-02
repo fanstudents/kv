@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新審核：CodeGraph 444 files／3,760 nodes／7,742 edges且 up to date；最新 `npm run verify` 為 127 files／615 tests／93-page build｜當前可執行：WP-10 acceptance 成本上限、WP-13 failure/recovery contracts、WP-11 provider-disabled UI contract｜外部阻塞：provider credentials、canonical remote、deploy／rollback truth
+> 最後校準：2026-08-02｜最新審核：CodeGraph 444 files／3,760 nodes／7,742 edges且 up to date；最新 `npm run verify` 為 127 files／615 tests／93-page build｜當前可執行：WP-13 failure/recovery contracts、WP-11 provider-disabled UI contract｜外部阻塞：provider credentials、canonical remote、deploy／rollback truth
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已完成
 
@@ -303,10 +303,10 @@ Preparation 已可執行；Real Acceptance 阻塞：安全的 `OPENAI_API_KEY` �
 - [x] shared official SDK／adapter ownership／fail-closed harness。
 - [x] 已有 opt-in synthetic acceptance harness，覆蓋 Agent chat、Structured JSON、Embedding、TTS／STT、Realtime client secret 與 `ai_usage_logs` persistence；不在一般 verify 自動呼叫 provider。
 - [x] Preparation：已鎖定 budget rejection 不得呼叫 SDK 或寫 usage、SDK failure 不得被記成成功 usage、malformed structured JSON 回空物件、knowledge provider failure 必須向上傳遞、embedding operation delegation，以及只清理本次 acceptance usage rows。Visit、Meeting、Reporting 的 domain prompt／mapping 另有 focused mock contracts。
-- [ ] 在真正執行前加入 acceptance 專用的明確成本上限／預估拒絕 gate；目前只有產品共用 budget，尚不能證明單次 acceptance 的最大花費。
+- [x] acceptance 現在要求獨立的 `OPENAI_ACCEPTANCE_MAX_USD` 明確批准：低於 US$0.05 保守估算、超過 US$0.10 驗收硬上限、缺值或格式錯誤時，全部在 provider／DB 呼叫前拒絕。這是每次驗收的執行 gate，與產品日／月 budget 分離；價格仍須在 Real Acceptance 前依官方模型頁重驗。
 - [!] Real Acceptance：執行 `npm run acceptance:openai`，驗證真實文字、JSON、向量維度、媒體、短期 token、usage evidence 與 cleanup。
 
-本段 evidence：`ce7c788`；`openai-client`、`openai-knowledge-provider`、`knowledge-base-store` 共 3 test files／12 tests 與 typecheck 通過。全部為 mock／contract 層，未載入 key、未呼叫 OpenAI、未寫入真實 `ai_usage_logs`。
+本段 evidence：`ce7c788` 與後續 acceptance cost-gate commit；cost gate 3 個純契約測試通過，且在缺少 per-run ceiling 時用真實 acceptance command 證明 suite 於 provider／DB 前拒絕。其他 evidence 仍為 mock／contract 層；尚未載入 key、呼叫 OpenAI 或寫入真實 `ai_usage_logs`。
 
 出口：所有現用 OpenAI 能力有受控真實證據；不只是 mock。
 

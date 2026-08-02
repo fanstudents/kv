@@ -9,6 +9,7 @@ import {
 import { createOpenAiMeetingAudioProvider } from "@/adapters/meeting/openai-audio-provider";
 import { createOpenAiMeetingRealtimeProvider } from "@/adapters/meeting/openai-meeting-realtime-provider";
 import { getMainSupabase } from "@/lib/supabase";
+import { assertOpenAiAcceptanceCostGate } from "./openai-cost-gate";
 
 const ACCEPTANCE_PREFIX = "codex-oai-acceptance";
 const ACCEPTANCE_AGENT_SLUG = "codex-acceptance";
@@ -18,11 +19,7 @@ const chatOperation = "網站聊天回應";
 let acceptanceStartedAt: string | null = null;
 
 beforeAll(() => {
-  if (process.env.OPENAI_ACCEPTANCE !== "1") {
-    throw new Error(
-      "OpenAI acceptance is opt-in. Set OPENAI_ACCEPTANCE=1 before running npm run acceptance:openai."
-    );
-  }
+  assertOpenAiAcceptanceCostGate();
   if (!process.env.OPENAI_API_KEY) {
     throw new Error(
       "OpenAI acceptance requires a server-only OPENAI_API_KEY; no provider calls were made."
