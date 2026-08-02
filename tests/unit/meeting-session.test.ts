@@ -9,7 +9,6 @@ const { appendTurns, createMeeting, finishMeeting, getRecentHistory, getSignedRe
   uploadRecording: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/meeting-store", () => ({
   appendTurns,
   createMeeting,

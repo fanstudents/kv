@@ -5,7 +5,6 @@ const { getLineMessageContentAsDataUrl, parseBusinessCard } = vi.hoisted(() => (
   parseBusinessCard: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ getLineMessageContentAsDataUrl }));
 vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({ legacyVisitProviders: { parseBusinessCard } }));
 

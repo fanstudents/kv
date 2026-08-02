@@ -5,7 +5,6 @@ const { createChatCompletion, createEmbeddings } = vi.hoisted(() => ({
   createEmbeddings: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/openai/client", () => ({ createChatCompletion, createEmbeddings }));
 
 import { embedKnowledgeTexts, requestKnowledgeJson } from "@/adapters/knowledge-base/openai-knowledge-provider";

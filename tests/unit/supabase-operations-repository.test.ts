@@ -6,7 +6,6 @@ const { getMainSupabase, getAvailableTags, addContactTag } = vi.hoisted(() => ({
   addContactTag: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/contact-tags", () => ({ getAvailableTags, addContactTag }));
 

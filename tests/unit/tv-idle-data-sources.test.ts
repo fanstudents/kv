@@ -6,7 +6,6 @@ const { listWeekOverview, getAvailableTags, getMainSupabase } = vi.hoisted(() =>
   getMainSupabase: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/google", () => ({ listWeekOverview }));
 vi.mock("@/lib/contact-tags", () => ({ getAvailableTags }));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));

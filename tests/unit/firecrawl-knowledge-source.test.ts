@@ -12,7 +12,6 @@ const helpers = vi.hoisted(() => {
   };
 });
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/kb-crawl", () => ({
   FirecrawlQuotaError: helpers.FakeQuotaError,
   getCreditUsage: helpers.getCreditUsage,

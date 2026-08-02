@@ -8,7 +8,6 @@ const { createRealtimeClientSecret, getAgentDemoContext, getAgentLiveContext, lo
   logRealtimeUsage: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/meeting-demo-context", () => ({ getAgentDemoContext }));
 vi.mock("@/lib/meeting-context", () => ({ getAgentLiveContext }));
 vi.mock("@/lib/ai-usage", () => ({ logRealtimeUsage }));

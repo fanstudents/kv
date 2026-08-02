@@ -1,7 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
-
-vi.mock("server-only", () => ({}));
 
 import { verifyTeachifyWebhook } from "@/lib/teachify-webhook-server";
 

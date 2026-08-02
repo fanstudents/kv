@@ -24,7 +24,6 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("server-only", () => ({}));
 vi.mock("openai", () => ({
   APIError: mocks.FakeApiError,
   toFile: mocks.toFile,

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getPipelineOverview } = vi.hoisted(() => ({ getPipelineOverview: vi.fn() }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/operations/teaching-pipeline-source", () => ({ getPipelineOverview }));
 vi.mock("@/lib/supabase", () => ({
   getMainSupabase: () => {

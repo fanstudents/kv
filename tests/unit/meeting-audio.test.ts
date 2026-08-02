@@ -5,7 +5,6 @@ const { createSpeech, createTranscription } = vi.hoisted(() => ({
   createTranscription: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/openai/client", () => ({ createSpeech, createTranscription }));
 
 import { createOpenAiMeetingAudioProvider } from "@/adapters/meeting/openai-audio-provider";

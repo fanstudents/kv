@@ -6,7 +6,6 @@ const { pushLineMessage, replyLineMessage, replyLineRawMessages } = vi.hoisted((
   replyLineRawMessages: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineMessage, replyLineMessage, replyLineRawMessages }));
 
 import { createLegacyVisitLineDeliveryAdapter } from "@/adapters/visit/legacy-line-adapters";

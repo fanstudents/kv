@@ -6,7 +6,6 @@ const helpers = vi.hoisted(() => ({
   listKnowledgeDocs: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/kb-search", () => ({ indexDocs: helpers.indexDocs, indexStats: helpers.indexStats }));
 vi.mock("@/lib/knowledge-base", () => ({ listKnowledgeDocs: helpers.listKnowledgeDocs }));
 

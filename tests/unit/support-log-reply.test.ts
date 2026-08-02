@@ -3,7 +3,6 @@ import { NextRequest } from "next/server";
 
 const { logConversationMessage } = vi.hoisted(() => ({ logConversationMessage: vi.fn() }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/support-conversations", () => ({ logConversationMessage }));
 
 import { GET, POST } from "@/app/api/agents/support/log-reply/route";

@@ -25,7 +25,6 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase: mocks.getMainSupabase }));
 vi.mock("@/lib/agent-data", () => ({
   AGENTS: [{ slug: "visit", personZh: "可可", name: "Coco" }],

@@ -7,7 +7,6 @@ const { getLiveTaskState, currentStep, setLiveTask, getLiveImage } = vi.hoisted(
   getLiveImage: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/live-task-store", () => ({ getLiveTaskState, setLiveTask, getLiveImage }));
 vi.mock("@/lib/agent-runs", () => ({ currentStep }));
 

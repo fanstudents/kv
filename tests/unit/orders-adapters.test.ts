@@ -5,7 +5,6 @@ const { buildPushMessages, pushLineRawMessages } = vi.hoisted(() => ({
   pushLineRawMessages: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineRawMessages }));
 vi.mock("@/lib/line-message-styles", () => ({ buildPushMessages }));
 

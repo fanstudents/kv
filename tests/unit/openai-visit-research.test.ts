@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("server-only", () => ({}));
 
 const requestWebSearchJson = vi.hoisted(() => vi.fn());
 vi.mock("@/adapters/openai/client", () => ({ requestWebSearchJson }));

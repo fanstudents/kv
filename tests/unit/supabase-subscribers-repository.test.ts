@@ -5,7 +5,6 @@ const { getMainSupabase, getLineProfile } = vi.hoisted(() => ({
   getLineProfile: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/line", () => ({ getLineProfile }));
 

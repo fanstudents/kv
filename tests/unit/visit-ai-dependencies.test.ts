@@ -6,7 +6,6 @@ const { draftInviteEmail, parseBusinessCard, getMainSupabase } = vi.hoisted(() =
   getMainSupabase: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/visit/legacy-provider-adapter", () => ({ legacyVisitProviders: { draftInviteEmail, parseBusinessCard } }));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 

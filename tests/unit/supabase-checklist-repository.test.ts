@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { supabaseChecklistRepository } from "@/adapters/checklist/supabase-checklist-repository";

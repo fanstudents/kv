@@ -5,7 +5,6 @@ const { getMainSupabase, indexDocs } = vi.hoisted(() => ({
   indexDocs: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/kb-search", () => ({
   formatHits: vi.fn(),

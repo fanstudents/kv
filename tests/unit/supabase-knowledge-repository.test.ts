@@ -9,7 +9,6 @@ const helpers = vi.hoisted(() => ({
   updateKnowledgeDoc: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/knowledge-base", () => helpers);
 
 import { createSupabaseKnowledgeRepository } from "@/adapters/knowledge-base/supabase-knowledge-repository";

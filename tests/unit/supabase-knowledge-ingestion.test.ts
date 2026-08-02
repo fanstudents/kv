@@ -8,7 +8,6 @@ const helpers = vi.hoisted(() => ({
   removeKnowledgeDoc: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/kb-import", () => ({ importPdf: helpers.importPdf, listKbSources: helpers.listKbSources }));
 vi.mock("@/lib/knowledge-base", () => ({
   listKnowledgeDocs: helpers.listKnowledgeDocs,

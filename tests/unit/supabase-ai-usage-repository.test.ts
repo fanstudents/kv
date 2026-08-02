@@ -5,7 +5,6 @@ const { budgetStatus, getMainSupabase } = vi.hoisted(() => ({
   getMainSupabase: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ai-usage", () => ({ budgetStatus }));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 

@@ -6,7 +6,6 @@ const { getAgentLiveContext, createChatCompletion, buildCanvasForReply } = vi.ho
   buildCanvasForReply: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/meeting-context", () => ({ getAgentLiveContext }));
 vi.mock("@/adapters/openai/client", () => ({ createChatCompletion }));
 vi.mock("@/lib/chat-canvas", () => ({ buildCanvasForReply }));

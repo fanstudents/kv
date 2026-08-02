@@ -5,7 +5,6 @@ const { calendar, getGoogleOAuthClient } = vi.hoisted(() => ({
   getGoogleOAuthClient: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("googleapis", () => ({ google: { calendar } }));
 vi.mock("@/lib/google-auth", () => ({ getGoogleOAuthClient }));
 

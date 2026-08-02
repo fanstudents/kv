@@ -6,7 +6,6 @@ const { buildPushMessages, createChatCompletion, pushLineRawMessages } = vi.hois
   pushLineRawMessages: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/openai/client", () => ({ createChatCompletion }));
 vi.mock("@/lib/line", () => ({ pushLineRawMessages }));
 vi.mock("@/lib/line-message-styles", () => ({ buildPushMessages }));
@@ -175,6 +174,18 @@ describe("Daily report external boundaries", () => {
       }),
       { operation: SUPPORT_REPORT_SUMMARY_CONFIG.operation, agentSlug: "support" }
     );
+  });
+
+  it("does not invoke OpenAI or fabricate a summary when configuration or the provider is unavailable", async () => {
+    delete process.env.OPENAI_API_KEY;
+    const provider = createOpenAiDailyReportSummaryProvider(TEAM_LEAD_REPORT_SUMMARY_CONFIG);
+
+    await expect(provider.summarize("team brief")).resolves.toBeNull();
+    expect(createChatCompletion).not.toHaveBeenCalled();
+
+    process.env.OPENAI_API_KEY = "test-key";
+    createChatCompletion.mockRejectedValueOnce(new Error("provider unavailable"));
+    await expect(provider.summarize("team brief")).resolves.toBeNull();
   });
 
   it("uses one LINE delivery adapter without changing the renderer payload", async () => {

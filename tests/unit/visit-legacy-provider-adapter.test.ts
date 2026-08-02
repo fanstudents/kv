@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { createChatCompletion } = vi.hoisted(() => ({ createChatCompletion: vi.fn() }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/adapters/openai/client", () => ({ createChatCompletion }));
 vi.mock("@/lib/google", () => ({
   createCalendarEvent: vi.fn(),

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createSupabaseAgentAdminRepository } from "@/adapters/agents/supabase-agent-admin-repository";

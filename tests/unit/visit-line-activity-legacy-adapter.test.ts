@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("server-only", () => ({}));
 
 const { insert, from, getMainSupabase } = vi.hoisted(() => {
   const insert = vi.fn();

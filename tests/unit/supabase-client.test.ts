@@ -3,7 +3,6 @@ import type { Database } from "@/lib/database.types";
 
 const createClient = vi.hoisted(() => vi.fn());
 
-vi.mock("server-only", () => ({}));
 vi.mock("@supabase/supabase-js", () => ({ createClient }));
 
 const originalEnv = {

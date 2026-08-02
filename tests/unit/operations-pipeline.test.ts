@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-vi.mock("server-only", () => ({}));
 
 import { createTeachingPipelineSource, type TeachingPipelineQueries } from "@/adapters/operations/teaching-pipeline-source";
 import {

@@ -6,7 +6,6 @@ const { buildPushMessages, pushLineRawMessages, getMainSupabase } = vi.hoisted((
   getMainSupabase: vi.fn(),
 }));
 
-vi.mock("server-only", () => ({}));
 vi.mock("@/lib/line", () => ({ pushLineRawMessages }));
 vi.mock("@/lib/line-message-styles", () => ({ buildPushMessages }));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));

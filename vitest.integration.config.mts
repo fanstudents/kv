@@ -1,5 +1,5 @@
-import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -10,12 +10,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/acceptance/openai-provider.acceptance.test.ts"],
+    include: ["tests/integration/**/*.integration.test.ts"],
     clearMocks: true,
     restoreMocks: true,
     fileParallelism: false,
     maxWorkers: 1,
     hookTimeout: 10_000,
-    testTimeout: 180_000,
+    testTimeout: 20_000,
   },
 });
