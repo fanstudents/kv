@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新審核：CodeGraph 442 files／3,722 nodes／7,663 edges且 up to date；127 files／606 tests 連續 5 次本機通過｜當前可執行：WP-10 acceptance 成本上限、WP-13 failure/recovery contracts、WP-11 provider-disabled UI contract｜外部阻塞：provider credentials、staging server-side DB key、canonical remote、deploy／rollback truth
+> 最後校準：2026-08-02｜最新審核：CodeGraph 442 files／3,722 nodes／7,663 edges且 up to date；127 files／606 tests 連續 5 次本機通過｜當前可執行：WP-10 acceptance 成本上限、WP-13 failure/recovery contracts、WP-11 provider-disabled UI contract｜外部阻塞：provider credentials、canonical remote、deploy／rollback truth
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已完成
 
@@ -97,7 +97,7 @@ Agent 是產品能力／執行者；webhook、cron、postback、button action �
 
 | 邊界 | 現況 | 決策 |
 |---|---|---|
-| Main Supabase | 線上 `kv-staging`（`gizswqvyavkfrtndfzsb`）健康且 32 張 public tables 可查；migration baseline、generated types 與 DB-only 基線完成；`.env.local` 未設 server-side secret／service-role key | 線上 staging 是整合驗收主環境；local 只做 migration clean replay／type drift；需經 app client 寫入及精確 cleanup 的 journey 才把 server-side key 視為 blocker |
+| Main Supabase | 線上 `kv-staging`（`gizswqvyavkfrtndfzsb`）健康且 32 張 public tables 可查；migration baseline、generated types、DB-only 基線與 Orders app-client staging persistence 均已通過；server-side key 只存在 Git ignored `.env.local` | 線上 staging 是整合驗收主環境；local 只做 migration clean replay／type drift；後續 Main DB journey 直接沿用 allowlisted staging gate 與精確 cleanup |
 | Teaching Supabase | 獨立專案、四張表、目前唯讀 | 保留獨立 adapter，不合併成 Main DB，不假裝擁有 migration |
 | OpenAI | shared official SDK ownership 已完成；本機缺 key | 先 fail-closed；有安全 key 後跑受控真實驗收 |
 | LINE primary／support | `.env.local` 缺 token／secret | 按 workflow 分開驗收，不混用身份 |
@@ -377,7 +377,7 @@ Preparation 依賴 WP-02，可用 synthetic secret／去識別 fixture 驗證簽
 - [x] 不變量／例子：同一 `order_id` 第二次寫入仍更新既有 row，`source=webhook`、TWD／refund／paid_at／item_names mapping 不變；fixture 不含真實個資、不送 LINE、不留 staging rows。UI states 不在本變更範圍，故不得拿頁面 render 取代 DB 證據。
 - [x] `test:integration:orders:staging` 已取代 loopback-only harness；會驗 repository 的 Supabase client path、精確 project host、row mapping 與 cleanup，缺 gate／allowlist／server-side key 時 fail closed。
 - [x] 2026-08-02 直接對線上 `kv-staging` 做受控 transaction rehearsal：order insert→upsert 後讀回 `STAGING-UPDATED`／1780／refund=true，activity row 讀回 success；transaction rollback 後 order／activity／fixture Agent 均為 0 rows。此證據只證明 live schema／SQL data boundary，不冒充 app-client 或 Teachify→LINE journey。
-- [!] `.env.local` 尚缺 server-side secret／service-role key，因此新的 app-client staging harness 尚未執行；取得後只需跑單一命令，不再啟動 local Supabase。Teachify 真實 webhook 與 LINE 通知仍各自等待 secret／sandbox event／安全 recipient。
+- [x] 2026-08-02 已從 `kv-staging` Dashboard 安全設定 server-side secret 至 Git ignored `.env.local`，並執行 `ORDERS_STAGING_DB_ACCEPTANCE=1 npm run test:integration:orders:staging`：1 file／1 test 通過；Supabase cleanup query 再確認 order／activity／fixture Agent 均為 0 rows。這證明實際 `supabase-js` → Orders repository → online staging path；Teachify 真實 webhook 與 LINE 通知仍各自等待 secret／sandbox event／安全 recipient。
 - [?] duplicate／retry／out-of-order event 行為：目前 repository 會以 order ID upsert，但 workflow 每次仍會進行 notification delivery；需先決定「同一 order 重送是否只寫 activity／是否可重送通知／如何辨識狀態更新」後才可安全改動。
 - [x] notification success／failure 不破壞訂單主狀態的 mock contract 已存在；真實 delivery 仍受 WP-15 sandbox recipient gate。
 - [~] `/agents/orders` read-only Chrome journey 已於 WP-03 cutover 載入；test-notify 的真實 delivery journey 仍待安全 recipient。
@@ -498,7 +498,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ### 外部阻塞
 
-- Provider Real Acceptance：OpenAI、Firecrawl、Google、LINE、Teachify／Support 需要各自安全 credentials、fixture／recipient 與 side-effect cleanup；Orders app-client staging harness 另需 server-side secret／service-role key，local DB 不再是前置條件。
+- Provider Real Acceptance：OpenAI、Firecrawl、Google、LINE、Teachify／Support 需要各自安全 credentials、fixture／recipient 與 side-effect cleanup；Orders app-client staging persistence 已完成，local DB 不再是前置條件。
 - Release：canonical GitHub remote／權限、Zeabur staging／production truth、promotion 與 rollback owner。
 
 ### 明確不先做
@@ -525,7 +525,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - 最新完成：Goals／Visit ownership、integration-status fetch implementation consolidation、Visit hydration repair、integration test isolation、provider/route contracts 與本地 CI diagnostics（`0a525ed`～`df5e9fb`）；WP-03 migration、local replay、full verify 與 Chrome cutover 已完成。integration-status 尚未做跨元件 request dedupe。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings／respond、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary。其餘 `src/lib`、legacy boundary 與過細 layers 只在需求／風險證明時收斂，避免再製造模組膨脹。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與 typed-client migration 已完成，Knowledge Base 是最後遷移 domain，legacy `getSupabase`／`LegacyDatabase` reference 已歸零；canonical migration local replay、generated-type drift check 與後台 read smoke 均已有證據。
-- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／606 tests、132 local E2E smoke、OpenAI／online staging DB opt-in gates 與 provider-specific contract。`kv-staging` live schema transaction 已通過且無殘留，但 Orders app-client harness 尚待 server-side key；E2E 使用 provider-disabled fallback且會留下缺 Supabase server logs，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 smoke 或 unit tests 宣稱正常。
+- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／606 tests、132 local E2E smoke、OpenAI／online staging DB opt-in gates 與 provider-specific contract。`kv-staging` live schema transaction 與 Orders app-client persistence 均已通過且無殘留；E2E 使用 provider-disabled fallback且會留下缺 Supabase server logs，其他 Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 smoke 或 unit tests 宣稱正常。
 - 程式碼膨脹判定：自 `b762258` 起淨增 `src` 30 行、tests 2,501 行、CI/config 46 行，docs 淨減 31 行；新增量主要是直接 route／provider contracts，不是 production layers。這不代表測試越多越好，後續以 failure signal、維護成本與真實 journey 覆蓋判斷是否保留。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
