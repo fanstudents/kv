@@ -84,6 +84,18 @@ describe("Visit LINE offer application", () => {
     expect(dependencies.providers.findFreeSlots).not.toHaveBeenCalled();
   });
 
+  it("releases the Visit lock when cancellation bookkeeping fails", async () => {
+    const { dependencies } = makeDependencies();
+    vi.mocked(dependencies.providers.interpretCardReply).mockResolvedValue({ type: "cancel" });
+    vi.mocked(dependencies.runtime.endVisitRun).mockRejectedValue(new Error("runtime unavailable"));
+    const handler = createVisitLineOfferReplyHandler(dependencies);
+
+    await expect(handler({ replyToken: "reply-cancel-failure" }, "line-user-cancel", "cancel", "https://kv.test"))
+      .rejects.toThrow("runtime unavailable");
+
+    expect(dependencies.lock.release).toHaveBeenCalledWith("line-user-cancel", "visit");
+  });
+
   it("creates an approval-gated invite from fresh calendar slots without sending it", async () => {
     const { dependencies } = makeDependencies();
     const handler = createVisitLineOfferReplyHandler(dependencies);
@@ -119,5 +131,19 @@ describe("Visit LINE offer application", () => {
     );
     expect(dependencies.providers.sendEmail).not.toHaveBeenCalled();
     expect(dependencies.lock.release).not.toHaveBeenCalled();
+  });
+
+  it("releases the Visit lock when workflow failure telemetry also fails", async () => {
+    const { dependencies } = makeDependencies({
+      classifyDecisionText: vi.fn().mockReturnValue({ type: "confirm" }),
+    });
+    vi.mocked(dependencies.providers.draftInviteEmail).mockRejectedValue(new Error("OpenAI unavailable"));
+    vi.mocked(dependencies.activity.record).mockRejectedValue(new Error("activity unavailable"));
+    const handler = createVisitLineOfferReplyHandler(dependencies);
+
+    await expect(handler({ replyToken: "reply-flow-failure" }, "line-user-flow", "confirm", "https://kv.test"))
+      .rejects.toThrow("activity unavailable");
+
+    expect(dependencies.lock.release).toHaveBeenCalledWith("line-user-flow", "visit");
   });
 });

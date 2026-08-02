@@ -57,6 +57,18 @@ describe("Visit LINE invite approval application", () => {
     expect(dependencies.providers.sendEmail).not.toHaveBeenCalled();
   });
 
+  it("releases the Visit lock when the cancellation reply fails", async () => {
+    const { dependencies } = makeDependencies();
+    dependencies.classifyApprovalText = vi.fn().mockReturnValue({ type: "cancel" });
+    vi.mocked(dependencies.delivery.replyText).mockRejectedValue(new Error("LINE unavailable"));
+    const handler = createVisitLineInviteApprovalHandler(dependencies);
+
+    await expect(handler({ replyToken: "reply-cancel-failure" }, "line-user-cancel", "cancel", "https://kv.test"))
+      .rejects.toThrow("LINE unavailable");
+
+    expect(dependencies.lock.release).toHaveBeenCalledWith("line-user-cancel", "visit");
+  });
+
   it("sends an approved invite through injected providers and records the outcome", async () => {
     const { dependencies } = makeDependencies();
     const handler = createVisitLineInviteApprovalHandler(dependencies);
@@ -86,5 +98,19 @@ describe("Visit LINE invite approval application", () => {
       expect.objectContaining({ agent_slug: "visit", status: "pending" }),
     );
     expect(dependencies.lock.release).toHaveBeenCalledWith("line-user-2", "visit");
+  });
+
+  it("releases the Visit lock even when approval failure cleanup also fails", async () => {
+    const { dependencies } = makeDependencies();
+    dependencies.classifyApprovalText = vi.fn().mockReturnValue({ type: "send" });
+    vi.mocked(dependencies.providers.sendEmail).mockRejectedValue(new Error("Gmail unavailable"));
+    vi.mocked(dependencies.workflow.updateInviteStatus).mockRejectedValue(new Error("status unavailable"));
+    const handler = createVisitLineInviteApprovalHandler(dependencies);
+
+    await expect(handler({ replyToken: "reply-failure" }, "line-user-failure", "send", "https://kv.test"))
+      .rejects.toThrow("status unavailable");
+
+    expect(dependencies.workflow.updateInviteStatus).toHaveBeenCalledWith("invite-1", "failed");
+    expect(dependencies.lock.release).toHaveBeenCalledWith("line-user-failure", "visit");
   });
 });

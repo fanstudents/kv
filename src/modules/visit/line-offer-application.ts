@@ -92,26 +92,29 @@ export function createVisitLineOfferReplyHandler(
     }
 
     if (intent.type === "cancel") {
-      await dependencies.workflow.resolveOffer(offer.id, "declined", new Date().toISOString());
-      await dependencies.runtime.reportVisitStep({
-        userId,
-        nodeId: "tag",
-        step: 2,
-        status: "done",
-        caption: `已依您的指示，這次不安排（${contact.name}）`,
-        detail: "改為標註客戶標籤，流程在此收尾",
-      });
-      await dependencies.runtime.endVisitRun({
-        userId,
-        status: "cancelled",
-        summary: `${contact.name} 這次不安排拜訪，已改標客戶標籤`,
-      });
-      const availableTags = await dependencies.tags.list();
-      await dependencies.delivery.replyMessages(event.replyToken, [
-        { type: "text", text: "好的，這次先不安排，需要的話再傳名片給我一次即可。" },
-        dependencies.renderTagQuickReply({ contactId: contact.id, tags: availableTags }),
-      ]);
-      await dependencies.lock.release(userId, "visit");
+      try {
+        await dependencies.workflow.resolveOffer(offer.id, "declined", new Date().toISOString());
+        await dependencies.runtime.reportVisitStep({
+          userId,
+          nodeId: "tag",
+          step: 2,
+          status: "done",
+          caption: `已依您的指示，這次不安排（${contact.name}）`,
+          detail: "改為標註客戶標籤，流程在此收尾",
+        });
+        await dependencies.runtime.endVisitRun({
+          userId,
+          status: "cancelled",
+          summary: `${contact.name} 這次不安排拜訪，已改標客戶標籤`,
+        });
+        const availableTags = await dependencies.tags.list();
+        await dependencies.delivery.replyMessages(event.replyToken, [
+          { type: "text", text: "好的，這次先不安排，需要的話再傳名片給我一次即可。" },
+          dependencies.renderTagQuickReply({ contactId: contact.id, tags: availableTags }),
+        ]);
+      } finally {
+        await dependencies.lock.release(userId, "visit");
+      }
       return true;
     }
 
@@ -267,15 +270,18 @@ export function createVisitLineOfferReplyHandler(
       await dependencies.lock.release(userId, "visit");
     } catch (err) {
       const message = err instanceof Error ? err.message : "排程或寄信失敗";
-      await dependencies.activity.record({
-        agent_slug: "visit",
-        summary: `自動排程或寄信失敗：${message}`,
-        status: "failed",
-      });
-      await dependencies.delivery
-        .replyText(event.replyToken, "抱歉，自動排程或寄信時遇到問題，請手動與對方聯繫安排時間。")
-        .catch(() => {});
-      await dependencies.lock.release(userId, "visit");
+      try {
+        await dependencies.activity.record({
+          agent_slug: "visit",
+          summary: `自動排程或寄信失敗：${message}`,
+          status: "failed",
+        });
+        await dependencies.delivery
+          .replyText(event.replyToken, "抱歉，自動排程或寄信時遇到問題，請手動與對方聯繫安排時間。")
+          .catch(() => {});
+      } finally {
+        await dependencies.lock.release(userId, "visit");
+      }
     }
 
     return true;

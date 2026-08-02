@@ -62,9 +62,12 @@ export function createVisitLineInviteApprovalHandler(
     const approvalIntent = classifyApproval(text);
 
     if (approvalIntent.type === "cancel") {
-      await dependencies.workflow.updateInviteStatus(invite.id, "cancelled");
-      await dependencies.delivery.replyText(event.replyToken, "好的，已取消，不會寄出這封信。");
-      await dependencies.lock.release(userId, "visit");
+      try {
+        await dependencies.workflow.updateInviteStatus(invite.id, "cancelled");
+        await dependencies.delivery.replyText(event.replyToken, "好的，已取消，不會寄出這封信。");
+      } finally {
+        await dependencies.lock.release(userId, "visit");
+      }
       return true;
     }
 
@@ -127,8 +130,9 @@ export function createVisitLineInviteApprovalHandler(
         await dependencies.delivery
           .replyText(event.replyToken, "抱歉，寄信時遇到問題，請手動與對方聯繫安排時間。")
           .catch(() => {});
+      } finally {
+        await dependencies.lock.release(userId, "visit");
       }
-      await dependencies.lock.release(userId, "visit");
       return true;
     }
 
