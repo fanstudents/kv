@@ -318,7 +318,7 @@ Preparation 依賴 WP-02 基線，可先執行；Real Acceptance 依賴 WP-10 �
 - [?] `indexDocs` 目前會先刪舊 chunk 再 embedding；embedding failure 時要保留舊 searchable chunks、標記 unavailable，或要求 reindex，屬產品 recovery 決策，不能自行「修正」。
 - [!] Firecrawl URL、OpenAI embedding、真實資料 cleanup 與 Chrome journey 仍待安全 fixture／key。
 - [x] `/knowledge-base` read surface 已在 Main DB cutover 後登入載入；這只證明 read/render，不證明 crawl／import／publish／search action。
-- [ ] 可先做：`/knowledge-base/import` provider-disabled UI／validation journey；真正 crawl／embedding／publish 仍放在 Real Acceptance。
+- [x] `/knowledge-base/import` provider-disabled journey 已用登入中的 Chrome 實測：缺 `FIRECRAWL_API_KEY` 時頁面仍正常載入，URL 空白時按鈕 disabled；輸入合成 URL 後 API 回既有「尚未設定 FIRECRAWL_API_KEY，無法從網址匯入」，紅色 error 區塊顯示、按鈕恢復可操作且 app console 無 error。未改 UI／UX，也未發出 Firecrawl、embedding 或 publish side effect。
 - [ ] Real Acceptance 清除驗收資料並記錄 Firecrawl／OpenAI 成本。
 
 出口：從來源擷取到可搜尋結果的完整 journey 可重複。
