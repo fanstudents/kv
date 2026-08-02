@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # PR 的新 commit 不必等舊版 smoke 跑完；push 到 main 保持獨立，避免取消準備合併的證據。
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -42,3 +47,14 @@ jobs:
 
       - name: Run browser smoke tests
         run: npm run test:e2e:run:smoke
+
+      - name: Upload browser smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-diagnostics-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
