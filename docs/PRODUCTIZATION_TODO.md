@@ -2,7 +2,7 @@
 
 > 這是唯一的產品化控制文件。舊版 TODO 已由本版取代，不另建歷史文件；需要追溯時看 Git。
 >
-> 最後校準：2026-08-02｜最新審核：CodeGraph 442 files／3,722 nodes／7,663 edges且 up to date；127 files／606 tests 連續 5 次本機通過｜當前可執行：WP-10 acceptance 成本上限、WP-13 failure/recovery contracts、WP-16 Local DB rehearsal｜外部阻塞：provider credentials、canonical remote、deploy／rollback truth
+> 最後校準：2026-08-02｜最新審核：CodeGraph 442 files／3,722 nodes／7,663 edges且 up to date；127 files／606 tests 連續 5 次本機通過｜當前可執行：WP-10 acceptance 成本上限、WP-13 failure/recovery contracts、WP-11 provider-disabled UI contract｜外部阻塞：provider credentials、staging server-side DB key、canonical remote、deploy／rollback truth
 >
 > 狀態：Active｜規模：Master／multi-domain｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜整體：Needs Revision until external/release unknowns resolve；WP-03 已完成
 
@@ -97,7 +97,7 @@ Agent 是產品能力／執行者；webhook、cron、postback、button action �
 
 | 邊界 | 現況 | 決策 |
 |---|---|---|
-| Main Supabase | migration baseline 已可在 `kv-staging` clean replay；DB-only 功能基線完成；本機未設 service-role key | 我方擁有 schema；維持既有資料格式，後續補 generated types；只有實際 privileged journey 需要時才把 service-role 視為 blocker |
+| Main Supabase | 線上 `kv-staging`（`gizswqvyavkfrtndfzsb`）健康且 32 張 public tables 可查；migration baseline、generated types 與 DB-only 基線完成；`.env.local` 未設 server-side secret／service-role key | 線上 staging 是整合驗收主環境；local 只做 migration clean replay／type drift；需經 app client 寫入及精確 cleanup 的 journey 才把 server-side key 視為 blocker |
 | Teaching Supabase | 獨立專案、四張表、目前唯讀 | 保留獨立 adapter，不合併成 Main DB，不假裝擁有 migration |
 | OpenAI | shared official SDK ownership 已完成；本機缺 key | 先 fail-closed；有安全 key 後跑受控真實驗收 |
 | LINE primary／support | `.env.local` 缺 token／secret | 按 workflow 分開驗收，不混用身份 |
@@ -123,7 +123,7 @@ Secrets 只放本機 `.env.local` 或正式 secret store，不寫入 Git／TODO�
 - [x] Visit conversation lock／settings ownership 已收斂為直接 Supabase adapters；100 test files／503 tests／93-page build與真實 Visit 後台 Chrome 驗證通過。
 - [x] Goals model／client cache 移至各自 domain owner；Visit respond read／fulfilment 保持獨立 port、共用一個 lazy Main DB composition root；兩個 integration-status consumer 共用窄 fetch 實作。這是 ownership 收斂，不是跨元件 request dedupe：兩個 consumer 同時掛載時仍各自發 request。
 - [x] Visit dashboard 消除 server／browser local-clock hydration mismatch；重建後 Chrome 實測 `/agents/visit`、`/goals`、`/tv` 與 public invalid respond route，未見 app-origin console error。
-- [x] Unit 與受控 Local DB integration 已分離；`server-only` 有單一 test shim，606 個 unit/contract tests 不會預設碰 DB/provider。
+- [x] Unit 與 opt-in 線上 staging DB integration 已分離；`server-only` 有單一 test shim，606 個 unit/contract tests 不會預設碰 DB/provider。
 - [x] `npm run verify`：lint、typecheck、127 test files／606 tests、93-page production build 全過。
 - [x] `npm run verify:full` 另通過 132 個本地 Playwright smoke：真實登入、anonymous API 拒絕、公開與受保護 surface render；E2E 明確使用空 provider／Supabase env，故不構成真實資料流或 provider acceptance。
 
@@ -202,7 +202,7 @@ WP-02 Preparation contract（唯一規格放在此處，不建立 provider frame
 - 每次 Real Acceptance 都必須先寫明 target（local／staging／sandbox）、可識別的 `codex-<provider>-acceptance` fixture／event ID、無個資輸入、允許的 side effect、成本／收件者限制與可驗證 cleanup。條件不齊時只能跑 Preparation。
 - Webhook／cron 先以 local fixture 驗證簽章與授權；shared endpoint 的真實觸發必須使用合成 payload、可重播 event ID、allowlisted recipient 或 delivery-disabled target，並證明 duplicate replay 不造成額外效果及失敗後的回復狀態。
 - 每筆 acceptance evidence 必含：環境與時間、journey／entrypoint、fixture 或 event ID、輸入／預期輸出、實際 side effect、cleanup query／結果、限制（成本／recipient／timeout）、commit 與未覆蓋風險。這些欄位寫入相關工作包的完成證據，不另建重複報告。
-- Provider command／gate：Supabase 使用 `npm run schema:rehearse` 與 `npm run schema:types:check`；OpenAI 使用明確 `OPENAI_ACCEPTANCE=1` 的 `npm run acceptance:openai`；LINE、Google、Firecrawl、Teachify 各自在擁有 sandbox／allowlist／合成 fixture 前維持 Preparation，不能以 UI 狀態或 unit mock 冒充實證。
+- Provider command／gate：Supabase local 只使用 `npm run schema:rehearse`／`npm run schema:types:check` 驗 migration 與 type drift；真實資料邊界使用明確 `ORDERS_STAGING_DB_ACCEPTANCE=1`、project-ref allowlist 與 server-side key 的 `npm run test:integration:orders:staging`；OpenAI 使用明確 `OPENAI_ACCEPTANCE=1` 的 `npm run acceptance:openai`。LINE、Google、Firecrawl、Teachify 各自在擁有 sandbox／allowlist／合成 fixture 前維持 Preparation，不能以 UI 狀態或 unit mock 冒充實證。
 - OpenAI cleanup 範圍：只刪除本次開始時間後、operation 為 `codex-oai-acceptance:*` 的 rows，以及 agent slug 為 `codex-acceptance` 且 operation 為「網站聊天回應」的 row；不以一般 operation 名稱或時間窗清除 production usage。
 
 出口：後續各 integration 可用同一驗收格式，但沒有新的無需求抽象。
@@ -288,7 +288,7 @@ WP-02 Preparation contract（唯一規格放在此處，不建立 provider frame
 
 - [x] `tests/unit` 與 opt-in `tests/integration` 已分開；`server-only` 以單一 shim 處理，移除 50 個重複 neutral mock，不建萬用 provider mock framework。
 - [x] 已補 KB、Google、LINE、Visit AI、Reporting、Orders、Goals／KB／Visit timeout route 的直接 contract；它們鎖定 mapping、error envelope、auth gate 與 port wiring。
-- [x] provider／DB test 不再被一般 `npm run verify` 自動執行；OpenAI／Local DB 都需顯式 gate。
+- [x] provider／DB test 不再被一般 `npm run verify` 自動執行；OpenAI／線上 staging DB 都需顯式 gate 與 allowlist。
 - [x] 既有最小 Playwright smoke 已在 provider-disabled E2E env 通過 132 tests；人工 Chrome 仍作為高風險 source change 的補充 gate。
 - [?] E2E data-less mode 會保留缺 Supabase 的 server log：需在「專用 read-only fixture DB」與「明確、無噪音的 fallback」間做測試環境決策，不能為了安靜而吞掉 production data error。
 - [x] 本機 unit／contract suite 連續 5 次通過 127 files／606 tests；Vitest 內部一次 5.36 秒，四次完整 wall time 6.11～6.40 秒。這只建立本機 duration／短期穩定基線，不等同遠端 CI flaky 證據。
@@ -372,8 +372,12 @@ Preparation 依賴 WP-02，可先整理 channel identity、payload／error mappi
 Preparation 依賴 WP-02，可用 synthetic secret／去識別 fixture 驗證簽章、mapping、duplicate／out-of-order 與 persistence；Real Acceptance／notification 依賴 sandbox event，必要時依賴 WP-15，並阻塞於真實 secret／安全 recipient。
 
 - [x] signature validation、去識別 HMAC-SHA256 fixture、invalid event 與既有 direct／envelope／enrollment payload mapping 已由 local contracts 固定（`1c431fb`、既有 orders suite）。
-- [x] 已建立 `test:integration:orders:local`：只允許顯式 `ORDERS_LOCAL_DB_ACCEPTANCE=1`、loopback URL 與專用 local service-role key，建立 UUID fixture 並精確 cleanup；一般 verify 不會執行。
-- [ ] 可先做且尚未執行：啟動 repo local Supabase，安全注入專用 loopback URL／service-role 後跑 persistence／upsert／cleanup。2026-08-02 查核時 `127.0.0.1:54322` 未啟動，`.env.local` 也沒有 `KV_LOCAL_SUPABASE_*`；這不是外部阻塞。
+- [x] 變更契約已收斂在本工作包：範圍是 Orders repository 對 `teachify_orders`／`line_agent_activity`／`line_agents` 的線上 staging persistence；consumer 是 Teachify webhook 與 Orders test-notify route；不改 UI、payload、資料格式、LINE delivery 或 production RLS。
+- [x] 輸入／狀態：只接受去識別 UUID fixture、明確 `ORDERS_STAGING_DB_ACCEPTANCE=1`、`KV_STAGING_PROJECT_REF` allowlist、`SUPABASE_URL` 與 server-side key；輸出／side effect 必須是同一 order 的 insert→upsert update、activity insert、讀回既有 row shape，最後精確 cleanup。一般 verify 不執行此 gate。
+- [x] 不變量／例子：同一 `order_id` 第二次寫入仍更新既有 row，`source=webhook`、TWD／refund／paid_at／item_names mapping 不變；fixture 不含真實個資、不送 LINE、不留 staging rows。UI states 不在本變更範圍，故不得拿頁面 render 取代 DB 證據。
+- [x] `test:integration:orders:staging` 已取代 loopback-only harness；會驗 repository 的 Supabase client path、精確 project host、row mapping 與 cleanup，缺 gate／allowlist／server-side key 時 fail closed。
+- [x] 2026-08-02 直接對線上 `kv-staging` 做受控 transaction rehearsal：order insert→upsert 後讀回 `STAGING-UPDATED`／1780／refund=true，activity row 讀回 success；transaction rollback 後 order／activity／fixture Agent 均為 0 rows。此證據只證明 live schema／SQL data boundary，不冒充 app-client 或 Teachify→LINE journey。
+- [!] `.env.local` 尚缺 server-side secret／service-role key，因此新的 app-client staging harness 尚未執行；取得後只需跑單一命令，不再啟動 local Supabase。Teachify 真實 webhook 與 LINE 通知仍各自等待 secret／sandbox event／安全 recipient。
 - [?] duplicate／retry／out-of-order event 行為：目前 repository 會以 order ID upsert，但 workflow 每次仍會進行 notification delivery；需先決定「同一 order 重送是否只寫 activity／是否可重送通知／如何辨識狀態更新」後才可安全改動。
 - [x] notification success／failure 不破壞訂單主狀態的 mock contract 已存在；真實 delivery 仍受 WP-15 sandbox recipient gate。
 - [~] `/agents/orders` read-only Chrome journey 已於 WP-03 cutover 載入；test-notify 的真實 delivery journey 仍待安全 recipient。
@@ -421,7 +425,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - [x] 本地靜態稽核三組 scheduled workflows：皆使用 `CRON_SECRET`、hard-code `https://kva.zeabur.app`、有 120／300 秒 curl timeout 與 `workflow_dispatch`；YAML／繁中註解為 UTF-8。遠端 secret 是否存在、Zeabur 是否 canonical、run 成敗仍未知。
 - [ ] 補 scheduled job 失敗通知／owner；實作前需先決定通知目的地，不能自行對外發訊息。
 - [x] 本地 Playwright 已涵蓋登入、anonymous API rejection、公開／受保護 surface；先維持淺而廣的 smoke，不再以增加 page count 當進度。
-- [x] OpenAI acceptance／Orders Local DB integration 已與一般 PR verify 分離；其他 provider 也只在具備安全 target 時建立獨立 gate。
+- [x] OpenAI acceptance／Orders staging DB integration 已與一般 PR verify 分離；其他 provider 也只在具備安全 target 時建立獨立 gate。
 - [ ] 明確 staging／production deploy command、migration ordering、health check。
 - [ ] 建立 rollback：app version、migration compatibility、secret rollback、failed webhook／cron recovery。
 - [ ] 記錄 release owner 與最低可觀測訊號。
@@ -469,7 +473,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 1. Static：只能證明結構／型別／build。
 2. Mock／contract：只能證明我方邏輯與預期協定。
-3. Local DB／controlled integration：證明真實資料邊界。
+3. Controlled DB integration：在 local migration DB 或 allowlisted online staging 證明真實資料邊界，並標明兩者證據差異。
 4. Staging journey：證明 UI／API／DB／provider／side effect 串起來。
 5. Production-like／release：證明部署、觀測、rollback 與操作流程。
 
@@ -483,8 +487,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 1. **WP-10 acceptance cost gate**：為 `acceptance:openai` 加單次最大預估成本／拒絕條件與 contract；不呼叫 OpenAI。
 2. **WP-13 failure／recovery contracts**：補 approval send failure、slot／draft failure、partial side effects、lock competition／expired recovery；不發 Email／LINE、不寫共享環境。
-3. **WP-16 Local DB rehearsal**：啟動 repo local Supabase，以專用 loopback env 跑 Orders persistence／upsert／cleanup；不得讀 `.env.local` 的共享 Main DB。
-4. **WP-11 provider-disabled UI contract**：只驗 `/knowledge-base/import` 的 validation／loading／error，不把頁面 render 當 Firecrawl／OpenAI acceptance。
+3. **WP-11 provider-disabled UI contract**：只驗 `/knowledge-base/import` 的 validation／loading／error，不把頁面 render 當 Firecrawl／OpenAI acceptance。
 
 ### 需產品決策後才能改
 
@@ -495,7 +498,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 ### 外部阻塞
 
-- Provider Real Acceptance：OpenAI、Firecrawl、Google、LINE、Teachify／Support 需要各自安全 credentials、fixture／recipient 與 side-effect cleanup。
+- Provider Real Acceptance：OpenAI、Firecrawl、Google、LINE、Teachify／Support 需要各自安全 credentials、fixture／recipient 與 side-effect cleanup；Orders app-client staging harness 另需 server-side secret／service-role key，local DB 不再是前置條件。
 - Release：canonical GitHub remote／權限、Zeabur staging／production truth、promotion 與 rollback owner。
 
 ### 明確不先做
@@ -522,7 +525,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - 最新完成：Goals／Visit ownership、integration-status fetch implementation consolidation、Visit hydration repair、integration test isolation、provider/route contracts 與本地 CI diagnostics（`0a525ed`～`df5e9fb`）；WP-03 migration、local replay、full verify 與 Chrome cutover 已完成。integration-status 尚未做跨元件 request dedupe。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings／respond、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary。其餘 `src/lib`、legacy boundary 與過細 layers 只在需求／風險證明時收斂，避免再製造模組膨脹。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與 typed-client migration 已完成，Knowledge Base 是最後遷移 domain，legacy `getSupabase`／`LegacyDatabase` reference 已歸零；canonical migration local replay、generated-type drift check 與後台 read smoke 均已有證據。
-- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／606 tests、132 local E2E smoke、OpenAI／Local DB opt-in gates 與 provider-specific contract。E2E 使用 provider-disabled fallback 且會留下缺 Supabase server logs，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 smoke 或 unit tests 宣稱正常。
+- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／606 tests、132 local E2E smoke、OpenAI／online staging DB opt-in gates 與 provider-specific contract。`kv-staging` live schema transaction 已通過且無殘留，但 Orders app-client harness 尚待 server-side key；E2E 使用 provider-disabled fallback且會留下缺 Supabase server logs，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 smoke 或 unit tests 宣稱正常。
 - 程式碼膨脹判定：自 `b762258` 起淨增 `src` 30 行、tests 2,501 行、CI/config 46 行，docs 淨減 31 行；新增量主要是直接 route／provider contracts，不是 production layers。這不代表測試越多越好，後續以 failure signal、維護成本與真實 journey 覆蓋判斷是否保留。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**

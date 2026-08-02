@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run --config vitest.integration.config.mts --passWithNoTests",
-    "test:integration:orders:local": "vitest run --config vitest.integration.config.mts tests/integration/orders-local-db.integration.test.ts",
+    "test:integration:orders:staging": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.integration.config.mts tests/integration/orders-staging-db.integration.test.ts",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:smoke": "npm run build && playwright test --grep-invert @visual",
     "test:e2e:run:smoke": "playwright test --grep-invert @visual",
