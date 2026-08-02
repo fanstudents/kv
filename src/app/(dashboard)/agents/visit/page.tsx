@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { Loader2, ScanLine, Sparkles, RotateCcw } from "lucide-react";
 import { getAgent, ACTIVITY_LOGS } from "@/lib/agent-data";
 import AgentPageShell from "@/components/agents/AgentPageShell";
@@ -23,9 +23,8 @@ function formatSlot(date: Date) {
   ).padStart(2, "0")}`;
 }
 
-function computeSampleSlots(startDays: number, endDays: number, workingStart: string) {
+function computeSampleSlots(startDays: number, endDays: number, workingStart: string, base: Date) {
   const [h, m] = workingStart.split(":").map((n) => Number(n) || 0);
-  const base = new Date();
   const d1 = new Date(base);
   d1.setDate(base.getDate() + startDays);
   d1.setHours(h, m, 0, 0);
@@ -33,6 +32,25 @@ function computeSampleSlots(startDays: number, endDays: number, workingStart: st
   d2.setDate(base.getDate() + Math.max(endDays, startDays + 1));
   d2.setHours(h, m, 0, 0);
   return [formatSlot(d1), formatSlot(d2)];
+}
+
+let hydratedBrowserTime: Date | null = null;
+
+function subscribeToHydration() {
+  return () => {};
+}
+
+function getBrowserHydrationTime(): Date {
+  if (!hydratedBrowserTime) hydratedBrowserTime = new Date();
+  return hydratedBrowserTime;
+}
+
+function getServerHydrationTime(): null {
+  return null;
+}
+
+function useBrowserHydrationTime() {
+  return useSyncExternalStore(subscribeToHydration, getBrowserHydrationTime, getServerHydrationTime);
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -63,6 +81,10 @@ export default function VisitAgentPage() {
   const [lineConfirmTemplate, setLineConfirmTemplate] = useState(
     "已為您寄出邀約信給 {{contactName}}，提議 {{slot1}} 或 {{slot2}} 見面，等候對方回覆。"
   );
+  // Sample slots intentionally start empty on both server and client. The local
+  // clock is only read after hydration, so a server UTC clock cannot disagree
+  // with a Taiwan browser before the real Visit settings finish loading.
+  const sampleNow = useBrowserHydrationTime();
 
   // --- OCR + AI draft test panel state (not gated by the enabled toggle) ---
   const [parsing, setParsing] = useState(false);
@@ -94,8 +116,10 @@ export default function VisitAgentPage() {
   };
 
   const [slot1, slot2] = useMemo(
-    () => computeSampleSlots(Number(rangeStartDays) || 3, Number(rangeEndDays) || 5, workingHoursStart),
-    [rangeStartDays, rangeEndDays, workingHoursStart]
+    () => sampleNow
+      ? computeSampleSlots(Number(rangeStartDays) || 3, Number(rangeEndDays) || 5, workingHoursStart, sampleNow)
+      : ["", ""],
+    [rangeStartDays, rangeEndDays, workingHoursStart, sampleNow]
   );
 
   const handleCardUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
