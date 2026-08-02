@@ -93,6 +93,8 @@ describe("Orders staging Main DB persistence", () => {
       throw new Error("Orders staging DB acceptance fixture did not initialize");
     }
 
+    await expect(stagingRepository.getAgentConfig()).resolves.toMatchObject({ enabled: false });
+
     await stagingRepository.upsertOrder({
       id: orderId,
       tradeNo: "STAGING-INITIAL",

@@ -17,7 +17,10 @@ describe("Orders external boundaries", () => {
     const configQuery = {
       select: vi.fn(),
       eq: vi.fn(),
-      single: vi.fn().mockResolvedValue({ data: { enabled: true, settings: { reportTo: "U123" } } }),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: { enabled: true, settings: { reportTo: "U123" } },
+        error: null,
+      }),
     };
     configQuery.select.mockReturnValue(configQuery);
     configQuery.eq.mockReturnValue(configQuery);
@@ -70,6 +73,51 @@ describe("Orders external boundaries", () => {
       summary: "sent",
       status: "success",
     });
+  });
+
+  it("fails closed on critical Supabase errors while keeping activity telemetry best effort", async () => {
+    const ordersQuery = { upsert: vi.fn().mockResolvedValue({ error: { message: "write unavailable" } }) };
+    const configQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: "read unavailable" } }),
+    };
+    configQuery.select.mockReturnValue(configQuery);
+    configQuery.eq.mockReturnValue(configQuery);
+    const activityQuery = { insert: vi.fn().mockResolvedValue({ error: { message: "telemetry unavailable" } }) };
+    const from = vi.fn((table: string) => {
+      if (table === "teachify_orders") return ordersQuery;
+      if (table === "line_agents") return configQuery;
+      return activityQuery;
+    });
+    const repository = createSupabaseOrdersRepository({ from } as never);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(
+      repository.upsertOrder({
+        id: "order-failure",
+        tradeNo: "T-FAIL",
+        amount: 1680,
+        currency: "TWD",
+        userName: "Fixture",
+        userEmail: "fixture@example.test",
+        itemNames: ["Failure fixture"],
+        couponCode: null,
+        isRefund: false,
+        paidAt: null,
+      })
+    ).rejects.toMatchObject({ name: "OrdersRepositoryError", message: expect.stringContaining("write unavailable") });
+    await expect(repository.getAgentConfig()).rejects.toMatchObject({
+      name: "OrdersRepositoryError",
+      message: expect.stringContaining("read unavailable"),
+    });
+    await expect(repository.recordActivity({ summary: "fixture", status: "failed" })).resolves.toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[orders] could not record activity",
+      expect.objectContaining({ message: "telemetry unavailable" })
+    );
+
+    consoleError.mockRestore();
   });
 
   it("renders and delivers both webhook and test messages through one LINE boundary", async () => {

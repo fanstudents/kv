@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLineOrdersDelivery } from "@/adapters/orders/line-orders-delivery";
-import { createSupabaseOrdersRepository } from "@/adapters/orders/supabase-orders-repository";
+import {
+  createSupabaseOrdersRepository,
+  OrdersRepositoryError,
+} from "@/adapters/orders/supabase-orders-repository";
 import { verifyTeachifyWebhook } from "@/lib/teachify-webhook-server";
 import { getMainSupabase } from "@/lib/supabase";
 import { processOrderPayload } from "@/modules/orders/orders";
@@ -32,11 +35,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
 
-  const result = await processOrderPayload({
-    payload,
-    rawBody,
-    dependencies: { repository, delivery },
-  });
+  let result: Awaited<ReturnType<typeof processOrderPayload>>;
+  try {
+    result = await processOrderPayload({
+      payload,
+      rawBody,
+      dependencies: { repository, delivery },
+    });
+  } catch (error) {
+    if (!(error instanceof OrdersRepositoryError)) throw error;
+    console.error("[orders] Teachify webhook data boundary failed", error);
+    return NextResponse.json({ error: "orders data unavailable" }, { status: 503 });
+  }
 
   switch (result.type) {
     case "unrecognized":

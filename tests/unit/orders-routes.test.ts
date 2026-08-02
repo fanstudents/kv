@@ -14,12 +14,16 @@ const {
 }));
 
 vi.mock("@/adapters/orders/line-orders-delivery", () => ({ createLineOrdersDelivery }));
-vi.mock("@/adapters/orders/supabase-orders-repository", () => ({ createSupabaseOrdersRepository }));
+vi.mock("@/adapters/orders/supabase-orders-repository", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/adapters/orders/supabase-orders-repository")>()),
+  createSupabaseOrdersRepository,
+}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 vi.mock("@/lib/teachify-webhook-server", () => ({ verifyTeachifyWebhook }));
 
 import { POST as postTestNotification } from "@/app/api/agents/orders/test-notify/route";
 import { POST as postTeachifyOrder } from "@/app/api/webhooks/teachify-order/route";
+import { OrdersRepositoryError } from "@/adapters/orders/supabase-orders-repository";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -80,5 +84,42 @@ describe("Orders route contracts", () => {
       summary: "已送出測試訂單通知",
       status: "success",
     });
+  });
+
+  it("returns 503 and stops delivery when the Orders data boundary fails", async () => {
+    const delivery = { deliver: vi.fn(async () => undefined) };
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    createLineOrdersDelivery.mockReturnValue(delivery);
+    verifyTeachifyWebhook.mockReturnValue("unverified");
+    createSupabaseOrdersRepository.mockReturnValueOnce({
+      upsertOrder: vi.fn(async () => {
+        throw new OrdersRepositoryError("upsert order", { message: "database unavailable" });
+      }),
+      getAgentConfig: vi.fn(),
+      recordActivity: vi.fn(async () => undefined),
+    });
+
+    const webhookResponse = await postTeachifyOrder(
+      new NextRequest("http://localhost/api/webhooks/teachify-order", {
+        method: "POST",
+        body: JSON.stringify({ id: "order-503", items: [] }),
+      })
+    );
+    expect(webhookResponse.status).toBe(503);
+    await expect(webhookResponse.json()).resolves.toEqual({ error: "orders data unavailable" });
+    expect(delivery.deliver).not.toHaveBeenCalled();
+
+    createSupabaseOrdersRepository.mockReturnValueOnce({
+      getAgentConfig: vi.fn(async () => {
+        throw new OrdersRepositoryError("read Agent config", { message: "database unavailable" });
+      }),
+    });
+    const testNotificationResponse = await postTestNotification();
+    expect(testNotificationResponse.status).toBe(503);
+    await expect(testNotificationResponse.json()).resolves.toEqual({ error: "orders data unavailable" });
+    expect(delivery.deliver).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledTimes(2);
+
+    consoleError.mockRestore();
   });
 });

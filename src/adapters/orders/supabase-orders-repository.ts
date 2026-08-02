@@ -4,28 +4,47 @@ import type { getMainSupabase } from "@/lib/supabase";
 import type { NormalizedOrder, OrdersRepository } from "@/modules/orders/orders";
 
 type SupabaseOrdersClient = ReturnType<typeof getMainSupabase>;
+type OrdersDatabaseError = {
+  code?: string;
+  details?: string | null;
+  hint?: string | null;
+  message: string;
+};
+
+export class OrdersRepositoryError extends Error {
+  constructor(
+    readonly operation: "upsert order" | "read Agent config",
+    databaseError: OrdersDatabaseError
+  ) {
+    super(`Orders repository could not ${operation}: ${databaseError.message}`, { cause: databaseError });
+    this.name = "OrdersRepositoryError";
+  }
+}
 
 export function createSupabaseOrdersRepository(supabase: SupabaseOrdersClient): OrdersRepository {
   return {
     async upsertOrder(order) {
-      await supabase
+      const { error } = await supabase
         .from("teachify_orders")
         .upsert(toTeachifyOrderUpsert(order), { onConflict: "order_id" });
+      if (error) throw new OrdersRepositoryError("upsert order", error);
     },
     async getAgentConfig() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("line_agents")
         .select("enabled, settings")
         .eq("slug", "orders")
-        .single();
+        .maybeSingle();
+      if (error) throw new OrdersRepositoryError("read Agent config", error);
       return data;
     },
     async recordActivity(activity) {
-      await supabase.from("line_agent_activity").insert({
+      const { error } = await supabase.from("line_agent_activity").insert({
         agent_slug: "orders",
         summary: activity.summary,
         status: activity.status,
       });
+      if (error) console.error("[orders] could not record activity", error);
     },
   };
 }
