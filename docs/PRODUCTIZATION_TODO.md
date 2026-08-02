@@ -78,6 +78,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | OpenAI acceptance cost gate | `e0a5f02` | 每次批准 US$0.05～0.10；provider／DB 前拒絕錯誤設定 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
+| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／612 tests、93-page build、132 browser tests；Orders 1 + lock 2 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；graph 442 files／3,754 nodes／7,730 edges |
 
 ## 5. Active TODO
 
