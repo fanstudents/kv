@@ -125,6 +125,7 @@ Secrets 只放本機 `.env.local` 或正式 secret store，不寫入 Git／TODO�
 - [x] Visit dashboard 消除 server／browser local-clock hydration mismatch；重建後 Chrome 實測 `/agents/visit`、`/goals`、`/tv` 與 public invalid respond route，未見 app-origin console error。
 - [x] Unit 與受控 Local DB integration 已分離；`server-only` 有單一 test shim，606 個 unit/contract tests 不會預設碰 DB/provider。
 - [x] `npm run verify`：lint、typecheck、127 test files／606 tests、93-page production build 全過。
+- [x] `npm run verify:full` 另通過 132 個本地 Playwright smoke：真實登入、anonymous API 拒絕、公開與受保護 surface render；E2E 明確使用空 provider／Supabase env，故不構成真實資料流或 provider acceptance。
 
 代表性歷史 commits：`410083a`、`996a4e0`、`b39bd33`、`99856c3`、`c163f1b`、`005c478`、`f866340`、`cc0780c`、`4bbec8e`、`9a96303`、`d11c38e`、`18c9097`、`6d0199f`。完整歷史以 Git 為準，不在本文件複製流水帳。
 
@@ -331,7 +332,8 @@ WP-03 分段契約與證據（2026-08-02）：
 - [x] `tests/unit` 與 opt-in `tests/integration` 已分開；`server-only` 以單一 shim 處理，移除 50 個重複 neutral mock，不建萬用 provider mock framework。
 - [x] 已補 KB、Google、LINE、Visit AI、Reporting、Orders、Goals／KB／Visit timeout route 的直接 contract；它們鎖定 mapping、error envelope、auth gate 與 port wiring。
 - [x] provider／DB test 不再被一般 `npm run verify` 自動執行；OpenAI／Local DB 都需顯式 gate。
-- [ ] 建立最小關鍵 journey browser suite，並保留人工 Chrome 驗證作為高風險改動 gate。
+- [x] 既有最小 Playwright smoke 已在 provider-disabled E2E env 通過 132 tests；人工 Chrome 仍作為高風險 source change 的補充 gate。
+- [?] E2E data-less mode 會保留缺 Supabase 的 server log：需在「專用 read-only fixture DB」與「明確、無噪音的 fallback」間做測試環境決策，不能為了安靜而吞掉 production data error。
 - [ ] 量測 flaky／duration／failure usefulness；不以武斷 coverage 百分比當品質 KPI。
 
 出口：測試失敗能指出被破壞的產品契約；測試數量不再被當成重構進度。
@@ -453,7 +455,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 
 - [ ] 確認／恢復我方 canonical GitHub repo、權限與 branch policy；目前 `origin` 回覆 repository not found。
 - [ ] 修正 remote；保護使用者既有歷史，不 force-push。
-- [x] 本地 CI 定義已加 PR-only concurrency、failure 時的 Playwright diagnostics artifact，並正確標示 `npm test` 為 unit boundary。
+- [x] 本地 CI 定義已加 PR-only concurrency、failure 時的 Playwright diagnostics artifact，並正確標示 `npm test` 為 unit boundary；`verify:full` 已於本機通過。
 - [!] 遠端仍未能驗證 locked install、lint、typecheck、tests、build、browser smoke 或 artifact；不可把本地 workflow diff 當作 CI 真實證據。
 - [ ] 稽核三組 scheduled workflows 的 secrets、目標 URL、UTF-8、timeout、失敗通知與手動觸發。
 - [ ] 補足最小 Playwright／browser smoke，只跑關鍵且穩定 journeys。
@@ -541,7 +543,7 @@ Preparation 依賴 WP-02，可先整理 inbound signature fixture、conversation
 - 最新完成：Goals／Visit ownership、frontend request dedupe、Visit hydration repair、integration test isolation、provider/route contracts 與本地 CI diagnostics（`0a525ed`～`df5e9fb`）；WP-03 migration、local replay、full verify 與 Chrome cutover 已完成。
 - 結構基線：已建立，但尚不能宣稱整包架構完成；Contact Research、Visit lock／settings／respond、Goals、Checklist、Orders、Agent administration、Conversation lock 已有清楚 owner／typed boundary。其餘 `src/lib`、legacy boundary 與過細 layers 只在需求／風險證明時收斂，避免再製造模組膨脹。
 - 資料庫：Main／Teaching 基線可用；Main generated types 與 typed-client migration 已完成，Knowledge Base 是最後遷移 domain，legacy `getSupabase`／`LegacyDatabase` reference 已歸零；canonical migration local replay、generated-type drift check 與後台 read smoke 均已有證據。
-- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／606 tests 的 local evidence、OpenAI／Local DB opt-in gates 與 provider-specific contract。Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 unit tests 宣稱正常。
+- 外部功能：Preparation 可在缺 key 時繼續；目前有 127 files／606 tests、132 local E2E smoke、OpenAI／Local DB opt-in gates 與 provider-specific contract。E2E 使用 provider-disabled fallback，Real Acceptance 多數仍受 credentials／sandbox／安全 recipient 阻塞，不能只靠 smoke 或 unit tests 宣稱正常。
 - 交付系統：本地已有 CI／scheduled workflow 定義，但 canonical remote 無法存取，遠端執行、部署 promotion 與 rollback 尚未證明，是完成產品化的硬缺口。
 - 總體判定：**可繼續漸進重構，但尚未達 release-ready；完成度不使用主觀百分比，以上述工作包與證據等級判定。**
 
