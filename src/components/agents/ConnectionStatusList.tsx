@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import BrandLogo from "@/components/integrations/BrandLogo";
+import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
 import { INTEGRATION_SEEDS } from "@/lib/integrations-data";
-import type { IntegrationStatusMap } from "@/lib/integration-status";
 import type { AgentSlug } from "@/lib/types";
 
 // 「Agent 設定」裡的串接狀態：這位 Agent 實際接了哪些外部服務、連的是哪個帳號／
@@ -13,18 +12,7 @@ import type { AgentSlug } from "@/lib/types";
 // 這裡永遠顯示，不受示範模式影響——可能有多個帳號時，這是唯一能一眼看到
 // 「目前接的是哪一組」的地方。
 export default function ConnectionStatusList({ slug }: { slug: AgentSlug }) {
-  const [live, setLive] = useState<IntegrationStatusMap | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/integrations/status")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && setLive(d))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const live = useIntegrationStatus();
 
   const services = INTEGRATION_SEEDS.filter((s) => s.uses.some((u) => u.agent === slug));
   if (services.length === 0) return null;

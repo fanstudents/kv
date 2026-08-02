@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { CircleDashed, Plug, Radio } from "lucide-react";
 import BrandLogo from "@/components/integrations/BrandLogo";
+import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
 import { INTEGRATION_SEEDS } from "@/lib/integrations-data";
 import { getAgent } from "@/lib/agent-data";
 import type { AgentSlug } from "@/lib/types";
-import type { IntegrationStatusMap } from "@/lib/integration-status";
 
 // 關掉示範模式時，用這一塊取代所有示範數字：如實呈現這位 Agent 現在的狀態——
 // 啟用了沒有、接上了哪些服務（哪些還沒接）、過去七天真的跑過幾次、最後一次是什麼時候。
@@ -42,18 +42,7 @@ export default function RealStatusPanel({
   // 統計在「資料回來的當下」算好（而不是每次 render 都讀一次時鐘），
   // render 才是純函式、也不會因為重繪而數字跳動。
   const [stats, setStats] = useState<{ total: number; week: number; latest: string | null } | null>(null);
-  const [liveStatus, setLiveStatus] = useState<IntegrationStatusMap | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/integrations/status")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && setLiveStatus(d))
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const liveStatus = useIntegrationStatus();
 
   useEffect(() => {
     let alive = true;
