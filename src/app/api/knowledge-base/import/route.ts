@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseKnowledgeIngestion } from "@/adapters/knowledge-base/supabase-knowledge-ingestion";
+import { createSupabaseKnowledgeIngestion } from "@/adapters/knowledge-base/supabase-knowledge-adapters";
 import {
   discardKnowledgeDrafts,
   parseKnowledgeIngestionDiscard,

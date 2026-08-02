@@ -44,17 +44,13 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/agent-data", () => ({ AGENTS: [{ slug: "visit" }] }));
-vi.mock("@/adapters/knowledge-base/supabase-knowledge-repository", () => ({
+vi.mock("@/adapters/knowledge-base/supabase-knowledge-adapters", () => ({
   createSupabaseKnowledgeRepository: mocks.createSupabaseKnowledgeRepository,
+  createSupabaseKnowledgeIngestion: mocks.createSupabaseKnowledgeIngestion,
+  createSupabaseKnowledgeIndex: mocks.createSupabaseKnowledgeIndex,
 }));
 vi.mock("@/adapters/knowledge-base/firecrawl-knowledge-source", () => ({
   createFirecrawlKnowledgeSource: mocks.createFirecrawlKnowledgeSource,
-}));
-vi.mock("@/adapters/knowledge-base/supabase-knowledge-ingestion", () => ({
-  createSupabaseKnowledgeIngestion: mocks.createSupabaseKnowledgeIngestion,
-}));
-vi.mock("@/adapters/knowledge-base/supabase-knowledge-index", () => ({
-  createSupabaseKnowledgeIndex: mocks.createSupabaseKnowledgeIndex,
 }));
 vi.mock("@/modules/knowledge-base/documents", () => ({
   parseKnowledgeDocumentQuery: mocks.parseKnowledgeDocumentQuery,

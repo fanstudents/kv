@@ -260,7 +260,7 @@ WP-02 Preparation contract（唯一規格放在此處，不建立 provider frame
 
 - [x] CodeGraph 已用於 Goals、Visit 與 integration-status 的 page → component／hook → API／owner 映射。
 - [x] Goals catalog／progress model 已移至 `modules/goals/model`，client cache 移至 `components/goals/use-agent-goals`；兩個 status surface 共用窄 fetch hook，保留各自 loading／fallback semantics。該 hook 沒有共用 cache，不能宣稱 request dedupe。
-- [~] 已補 Visit／Goals／TV 實機 Chrome regression；KB、Meeting、Agent chat 依實際 source change 補最小 affected-page contract，不把全站人工點測當完成條件。
+- [~] 已補 Visit／Goals／TV 與 KB import 實機 Chrome regression；Meeting、Agent chat 依實際 source change 補最小 affected-page contract，不把全站人工點測當完成條件。
 - [x] 目前沒有足以支持「全面拆 UI」的需求證據；`meeting/page.tsx`、`tv/page.tsx`、KB pages 等大型檔案是 warning signal，不是自動拆檔授權。
 
 後續執行護欄（不是待清空的機械 TODO）：只有兩個以上真實 consumer 或一致語意才抽 shared hook／component／view model；純 presentation 與 server／provider contract 分離；每次只 touch-and-migrate 一個有需求的 UI domain，維持 route、DOM 關鍵結構、CSS、文案、responsive 與 loading／empty／error／互動順序。
@@ -273,6 +273,7 @@ WP-02 Preparation contract（唯一規格放在此處，不建立 provider frame
 
 - [x] 以 consumer／side effect audit 確認 Goals 的舊 `lib` owner 可移除；Visit respond 的兩個 factory 只共用 client plumbing，已合併為一個 composition root、未合併 read／fulfilment 行為。
 - [x] 已盤點 `legacy-*`：Visit LINE／AI adapter、workflow、schema mapping 與 frozen-UI compatibility 仍有實質 translation 或 side effect，保留而不為了檔案數量硬拆／硬刪。
+- [x] 依 CodeGraph consumer audit 收斂實證 overdesign：Knowledge Base 三個只有 forwarding 的 per-capability Supabase adapter 檔合成單一 domain adapter boundary，三組 forwarding tests 合成一組 compatibility contracts；Meeting 單一 caller 的 defaults 轉送檔併回 owner；Visit provider 測試移除只讀 source 字串的 wiring assertions，保留 prompt／structured-output 行為契約。沒有刪除 provider、transaction、concurrency 或多 consumer 邊界。
 - [x] 2026-08-02 source／套件 audit：OpenAI、Google、Supabase、schema validation 與 PDF parsing 已沿用 `openai`、`googleapis`、`@supabase/supabase-js`、Zod、`unpdf`；簡單 HMAC、固定 UTC+8 換算與 UI timer 使用平台能力即可，沒有引入新套件的收益。
 - [~] `src/lib/kb-crawl.ts` 自行維護 Firecrawl HTTP、429 retry 與 crawl polling，是最明確的官方 SDK 比較候選；只有 WP-11 能取得真實 provider parity／error／quota 證據時才決定替換，現在直接換只會增加未知。
 - [~] `src/lib/line.ts` 自行維護雙 channel signature／profile／reply／push；在 WP-15 sandbox acceptance 時比較官方 LINE SDK。既有 primary／support identity、payload 與 error semantics 是保留契約。
@@ -287,6 +288,7 @@ WP-02 Preparation contract（唯一規格放在此處，不建立 provider frame
 目的：讓測試直接保護產品行為，減少 forwarding test、重複 mock 與「數量增加但信號不增加」。
 
 - [x] `tests/unit` 與 opt-in `tests/integration` 已分開；`server-only` 以單一 shim 處理，移除 50 個重複 neutral mock，不建萬用 provider mock framework。
+- [x] forwarding test consolidation 持續執行：Knowledge Base adapter tests 由三檔九個 helper-forwarding cases 收斂為一檔三個有映射意義的 domain compatibility contracts；Visit provider 移除兩個 source-string wiring tests。測試檔數或 case 數下降不影響 route／provider behavior coverage。
 - [x] 已補 KB、Google、LINE、Visit AI、Reporting、Orders、Goals／KB／Visit timeout route 的直接 contract；它們鎖定 mapping、error envelope、auth gate 與 port wiring。
 - [x] provider／DB test 不再被一般 `npm run verify` 自動執行；OpenAI／線上 staging DB 都需顯式 gate 與 allowlist。
 - [x] 既有最小 Playwright smoke 已在 provider-disabled E2E env 通過 132 tests；人工 Chrome 仍作為高風險 source change 的補充 gate。

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseKnowledgeRepository } from "@/adapters/knowledge-base/supabase-knowledge-repository";
+import { createSupabaseKnowledgeRepository } from "@/adapters/knowledge-base/supabase-knowledge-adapters";
 import {
   createKnowledgeDocument,
   deleteKnowledgeDocument,
