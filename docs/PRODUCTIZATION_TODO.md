@@ -8,6 +8,13 @@
 
 狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Needs external acceptance and release truth`
 
+### 換機接續 checkpoint（2026-08-06）
+
+- Git snapshot：`codex/kv-wp0-toolchain`／`725ef59` 起，收尾 commit 見 branch tip；checkpoint 前工作樹乾淨。CodeGraph 為 442 files／3,754 nodes／7,730 edges，無 pending drift。
+- Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
+- 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
+- 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
+
 完成產品化必須同時成立：
 
 - [ ] 目前仍在使用的核心旅程有可重複的 staging／sandbox 功能證據，不只 mock 或 render smoke。
@@ -82,6 +89,15 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 
 ## 5. Active TODO
 
+### WP-09 Upstream intake `[?]`
+
+作者新增內容已讀到 `fanstudents/kv@d958a0b`：78 個變更檔、13 個 commits；與本 branch 有 29 個重疊檔，整包 merge 模擬會有 23 個衝突檔／45 個衝突區塊，因此不做 merge 或整顆 cherry-pick。
+
+- [ ] 優先手工移植 `add_run_cost` 原子累加；現有 `logStep` 仍是 read-modify-write，而 Main migration 已有 RPC。
+- [ ] 將名片轉正、LINE 寄出／取消卡片、Firecrawl fallback、社群連結、劇院圖文／hold state 視為 Visit 功能需求，逐個移入現有 `modules/visit`／adapters並各自驗收；不復活舊 `src/lib/contact-research.ts` 或巨大 webhook。
+- [?] 品牌改名與 Super Agent 展示頁是產品／UI 變更，需產品確認後才做。
+- [x] 明確拒絕直接帶入：錯誤的 `gpt-realtime-2.1` 計價、尚未證明安全的 generic retry／Agent task runtime、414 行預設 Supabase config、後端硬等 4 秒與 DB base64 大圖做法。
+
 ### WP-10 OpenAI Real Acceptance `[!]`
 
 Preparation 已完成：Agent chat、Structured JSON、Embedding、TTS／STT、Realtime client secret、usage persistence／cleanup，以及 acceptance-specific cost gate。
@@ -146,7 +162,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 
 ### WP-21 CI／deploy／rollback `[!]`
 
-本地 CI、scheduled workflows、Playwright diagnostics 已存在；`origin` 目前無法確認 canonical remote，scheduled URLs 指向 `https://kva.zeabur.app` 但部署真相未知。
+本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。scheduled URLs 指向 `https://kva.zeabur.app`，部署真相仍未知。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
 - [ ] 驗 locked install、lint、typecheck、unit、build、browser smoke、artifact與 flaky 分類。
@@ -163,6 +179,8 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 ## 6. 你回來後要取得的 credentials／資產
 
 Secrets 只放 Git ignored `.env.local` 或正式 secret store；不要貼進 Git、TODO、測試 fixture或聊天回報。
+
+總量：需向外部服務取得 12 個 credential values；另有 5 個必要設定值與 1 個選配 Calendar IDs。Main Supabase credentials 已設定，不列入待取得數量。
 
 | 優先 | Service | 需要取得／設定 | 同時要準備的安全資產 | 解鎖 |
 |---|---|---|---|---|
@@ -194,7 +212,7 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 
 - Healthy enough：架構方向、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior都可繼續承接需求。
 - Actually blocked：外部 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
-- Safe work now：目前列出的無 key 改動已做完；再繼續機械搬檔會降低品質。新需求仍可沿現有 owner 並行開發。
+- Safe work now：可先做 WP-09 的原子成本累加；其餘 upstream 內容需按產品需求手工移植。再繼續機械搬檔或整包 merge 會降低品質，新需求仍可沿現有 owner 並行開發。
 - 下一步：照第 6 節取得 credentials／資產，依第 7 節逐個做真實 acceptance；不要一次開所有 side effects。
 
 ## 9. 文件政策
