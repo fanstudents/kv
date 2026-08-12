@@ -105,7 +105,8 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | OpenAI acceptance cost gate | `e0a5f02` | 每次批准 US$0.05～0.10；provider／DB 前拒絕錯誤設定 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
-| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／612 tests、93-page build、132 browser tests；Orders 1 + lock 2 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；2026-08-13 graph sync 445 files／3,763 nodes／7,428 edges、pending changes 0 |
+| Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
+| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／613 tests、93-page build、132 browser tests；Orders 1 + lock 2 + atomic cost 1 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；2026-08-13 graph sync 446 files／3,774 nodes／7,492 edges、pending changes 0 |
 
 ## 5. Active TODO
 
@@ -113,7 +114,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 
 作者新增內容已讀到 `fanstudents/kv@d958a0b`：78 個變更檔、13 個 commits；與本 branch 有 29 個重疊檔，整包 merge 模擬會有 23 個衝突檔／45 個衝突區塊，因此不做 merge 或整顆 cherry-pick。
 
-- [ ] 優先手工移植 `add_run_cost` 原子累加；現有 `logStep` 仍是 read-modify-write，而 Main migration 已有 RPC。
+- [x] `logStep` 已改用 Main migration 的 typed `add_run_cost` RPC；unit contract 與 online staging 並行累加／cleanup 已通過。
 - [ ] 將名片轉正、LINE 寄出／取消卡片、Firecrawl fallback、社群連結、劇院圖文／hold state 視為 Visit 功能需求，逐個移入現有 `modules/visit`／adapters並各自驗收；不復活舊 `src/lib/contact-research.ts` 或巨大 webhook。
 - [?] 品牌改名與 Super Agent 展示頁是產品／UI 變更，需產品確認後才做。
 - [x] 明確拒絕直接帶入：錯誤的 `gpt-realtime-2.1` 計價、尚未證明安全的 generic retry／Agent task runtime、414 行預設 Supabase config、後端硬等 4 秒與 DB base64 大圖做法。
@@ -233,7 +234,7 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 - Healthy enough：整體骨架、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior 都已就位；可直接承接已確認的 KV 功能需求，不需先完成全面重構。
 - Not uniformly clean：Firecrawl／KB 是目前最明顯的責任混合點；Visit 有受控 legacy seam；Teachify、GA4／GSC／Google／LINE 的完成度取決於真實 provider evidence，不能因 tests 綠燈宣稱完成。
 - Actually blocked：9 月底推廣版本的確切範圍、外部 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
-- Safe work now：可做 WP-09 原子成本累加、沿已確認的 KV 需求承接功能；其餘 upstream 內容按需求手工移植。避免再做全域搬檔、每 route 一套 layer 或預建通用 Agent／plugin／multi-tenant framework。
+- Safe work now：沿已確認的 KV 需求承接功能；其餘 upstream 內容按需求手工移植。避免再做全域搬檔、每 route 一套 layer 或預建通用 Agent／plugin／multi-tenant framework。
 - 下一步：確認 9 月底推廣範圍，並照第 6 節取得安全 credentials／資產，依第 7 節做真實 acceptance；不要一次開所有 side effects。
 
 ## 9. 文件政策

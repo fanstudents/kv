@@ -105,18 +105,11 @@ export async function logStep(
 
     // 節點的花費累加回這次執行，才能回答「這份產出花了多少錢」
     if (patch.tokens || patch.costUsd) {
-      const { data: run } = await supabase
-        .from("agent_runs")
-        .select("cost_usd,total_tokens")
-        .eq("id", runId)
-        .maybeSingle();
-      await supabase
-        .from("agent_runs")
-        .update({
-          cost_usd: Number(run?.cost_usd ?? 0) + (patch.costUsd ?? 0),
-          total_tokens: Number(run?.total_tokens ?? 0) + (patch.tokens ?? 0),
-        })
-        .eq("id", runId);
+      await supabase.rpc("add_run_cost", {
+        p_run_id: runId,
+        p_tokens: patch.tokens ?? 0,
+        p_cost: patch.costUsd ?? 0,
+      });
     }
   } catch {
     /* 記錄失敗不影響主流程 */

@@ -107,29 +107,16 @@ describe("Agent runtime persistence", () => {
     expect(runId).toBe("run-new");
   });
 
-  it("keeps terminal-step timestamps and accumulated run usage", async () => {
+  it("keeps terminal-step timestamps and atomically accumulates run usage", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-02T05:00:00.000Z"));
     const stepInsert = vi.fn().mockResolvedValue({ error: null });
-    const runRead = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: { cost_usd: 0.2, total_tokens: 7 } }),
-    };
-    runRead.select.mockReturnValue(runRead);
-    runRead.eq.mockReturnValue(runRead);
-    const runUpdate = { update: vi.fn(), eq: vi.fn().mockResolvedValue({ error: null }) };
-    runUpdate.update.mockReturnValue(runUpdate);
-    let agentRunsCalls = 0;
+    const rpc = vi.fn().mockResolvedValue({ error: null });
     const from = vi.fn((table: string) => {
       if (table === "agent_run_steps") return { insert: stepInsert };
-      if (table === "agent_runs") {
-        agentRunsCalls += 1;
-        return agentRunsCalls === 1 ? runRead : runUpdate;
-      }
       throw new Error(`Unexpected table: ${table}`);
     });
-    getMainSupabase.mockReturnValue({ from });
+    getMainSupabase.mockReturnValue({ from, rpc });
 
     await logStep("run-1", "scan", { status: "done", tokens: 5, costUsd: 0.1 });
 
@@ -143,8 +130,32 @@ describe("Agent runtime persistence", () => {
         ended_at: "2026-08-02T05:00:00.000Z",
       }),
     );
-    expect(runUpdate.update).toHaveBeenCalledWith(expect.objectContaining({ total_tokens: 12 }));
-    expect(runUpdate.update.mock.calls[0]?.[0]?.cost_usd).toBeCloseTo(0.3);
-    expect(runUpdate.eq).toHaveBeenCalledWith("id", "run-1");
+    expect(rpc).toHaveBeenCalledWith("add_run_cost", {
+      p_run_id: "run-1",
+      p_tokens: 5,
+      p_cost: 0.1,
+    });
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call the usage RPC when a step has no tokens or cost", async () => {
+    const stepInsert = vi.fn().mockResolvedValue({ error: null });
+    const rpc = vi.fn();
+    getMainSupabase.mockReturnValue({
+      from: vi.fn(() => ({ insert: stepInsert })),
+      rpc,
+    });
+
+    await logStep("run-1", "waiting", { status: "waiting" });
+
+    expect(stepInsert).toHaveBeenCalledWith(expect.objectContaining({
+      run_id: "run-1",
+      node_id: "waiting",
+      status: "waiting",
+      tokens: 0,
+      cost_usd: 0,
+      ended_at: null,
+    }));
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

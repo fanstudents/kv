@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { createSupabaseAiUsageRepository } = vi.hoisted(() => ({ createSupabaseAiUsageRepository: vi.fn() }));
 
@@ -34,6 +34,7 @@ function createRepository(): AiUsageRepository {
 }
 
 beforeEach(() => vi.clearAllMocks());
+afterEach(() => vi.useRealTimers());
 
 describe("AI usage reporting capability", () => {
   it("summarizes total and rolling time windows with existing coercion", () => {
@@ -140,6 +141,8 @@ describe("AI usage route contract", () => {
   });
 
   it("keeps the successful report and budget response shape", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-31T12:00:00.000Z"));
     const repository = createRepository();
     vi.mocked(repository.listRows).mockResolvedValue({ data: [row()], error: null });
     createSupabaseAiUsageRepository.mockReturnValueOnce(repository);
