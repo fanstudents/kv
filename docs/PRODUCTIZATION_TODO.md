@@ -6,7 +6,7 @@
 
 目標：在原 repository 內漸進整理 KV，使工程團隊能理解、驗證、修改、部署與擴充；既有 UI／UX、API、資料格式與外部 side effects 除非另有產品需求，全部保持不變。
 
-狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Needs external acceptance and release truth`
+狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Architecture ready for scoped delivery; needs product and external acceptance truth`
 
 ### 換機接續 checkpoint（2026-08-06）
 
@@ -14,6 +14,19 @@
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
+
+### 產品方向更新（2026-08-13）
+
+已確認事實：
+
+- Dennis 預計 9 月底開始推廣；近期交付型態是企業導入或企業內訓，不先以通用 self-service SaaS 為主要目標。
+- 合作方的角色是提供企業資源與銷售能力；KV 可能與互動簡報系統共同銷售，合作分潤仍待正式協議。
+- 首波場景偏向工廠、製造、半導體；資訊業則以辦公室資安為較明確切入點。
+- Dennis 認同外部能力應模組化；目前工程目標是把既有糾纏逐步收進明確 domain／adapter boundary，而不是一次建成通用外掛平台。
+
+尚未決定：首個可驗收產業方案、KV 與簡報系統是綁售或選配、簽約／收款／分潤、售前／導入／內訓／維運責任、資料／prompt／教材／程式碼權利，以及所需產業人士是引薦、售前顧問、領域顧問或講師。
+
+因此近期架構目標是「可依企業專案組裝的能力模組 + 可替換 provider adapter + 每案可驗收的 solution profile」，不是動態 Agent 市集、任意 workflow engine 或未知需求的多租戶 secrets 平台。
 
 完成產品化必須同時成立：
 
@@ -41,6 +54,10 @@
 ## 3. 現況架構與 source map
 
 ```text
+enterprise solution profile
+(manufacturing / semiconductor / office security / ...)
+                  |
+                  v
 page/component -> API route/composition -> modules/<domain> -> port
                                              |                 |
                                              v                 v
@@ -57,6 +74,27 @@ page/component -> API route/composition -> modules/<domain> -> port
 - `src/components/**`：既有 presentation；只有真實需求才局部整理。
 
 Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研究、邀約、報告、訂單才是 workflow。不要把三者混成通用 runtime。
+
+### 架構判定
+
+- **整體骨架已就位**：entrypoint、domain owner、port／adapter、Main／Teaching DB ownership 已足以讓新需求沿既有邊界開發；不需要再做一輪全 repo 搬檔。
+- **不是所有模組都同樣成熟**：OpenAI shared transport、Orders、Support 已有清楚 owner；Visit 已模組化但仍保留少量有界的 legacy translation；Firecrawl 尚把 provider transport、crawl policy、Supabase persistence 與 KB ingestion 混在 `src/lib/kb-crawl.ts`；Teachify 的真實簽章契約仍未由 sandbox event 證實；GA4／GSC／Google 已有 provider boundary，但部分 demo projection 與 Visit legacy delivery 仍待真實旅程觸碰時收斂。
+- **下一階段是垂直切片，不是水平重構**：先選企業情境與 journey，再只整理該 journey 經過的 capability module、provider adapter、recovery 與驗收證據。沒有第二個真實 consumer 或共同故障模式，不抽通用框架。
+
+```text
+solution profile (客戶／產業情境與驗收)
+  -> capability modules (KB / Visit / Orders / Reporting / Meeting / Support)
+    -> provider adapters (OpenAI / Firecrawl / Google / LINE / Teachify / Supabase)
+```
+
+| Boundary | 現況 | 後續原則 |
+|---|---|---|
+| OpenAI | shared client + domain adapters，邊界清楚 | 拿 key 後做成本受控 acceptance，不再抽象一層 |
+| Orders／Teachify | Orders workflow／repository／LINE delivery 已分離；真實 webhook 契約未證實 | sandbox event 驗簽章、重送、out-of-order，再決定 recovery |
+| Visit／LINE／Google | use cases、ports、lock 已建立；少量 `legacy-*` compatibility seam 仍在 | 只隨真實 delivery journey touch-and-migrate |
+| Knowledge Base／Firecrawl | domain owner 已有；`kb-crawl.ts` 仍混 transport、policy、persistence、ingestion | 真實 crawl 時拆成 Firecrawl adapter + KB application，不建 generic crawler platform |
+| Reporting／GA4／GSC | provider query boundary 已有；部分 demo／fallback 尚未被真實資料取代 | 先用授權的 read-only property/site 驗輸入、空資料與 quota |
+| Supabase | Main migration／typed client 可重建；Teaching 是獨立唯讀來源 | 固定使用我方 staging；不拿 Dennis production DB 當測試環境 |
 
 | Domain | UI／entrypoint | Current owner | Data／provider | 下一個 gate |
 |---|---|---|---|---|
@@ -85,9 +123,16 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | OpenAI acceptance cost gate | `e0a5f02` | 每次批准 US$0.05～0.10；provider／DB 前拒絕錯誤設定 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
-| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／612 tests、93-page build、132 browser tests；Orders 1 + lock 2 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；graph 442 files／3,754 nodes／7,730 edges |
+| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／612 tests、93-page build、132 browser tests；Orders 1 + lock 2 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；2026-08-13 graph sync 445 files／3,763 nodes／7,428 edges、pending changes 0 |
 
 ## 5. Active TODO
+
+### WP-08 Enterprise delivery definition `[?]`
+
+- [ ] 從製造／工廠／半導體／辦公室資安選定第一個 solution profile，寫出使用者、輸入資料、核心 journey、成功條件與明確不做項；它是功能驗收切片，不是另一套 framework。
+- [ ] 與 Dennis／合作方確認 KV 與互動簡報系統的 bundle 方式，以及簽約、收款、分潤、銷售、售前、導入、內訓、客服、維運的 owner。
+- [ ] 確認資料、prompt、教材、程式碼與客戶設定的權利／交接；確認需要的產業人士角色、數量、資歷、地區與合作方式。
+- [?] 判定部署模型：近期預設「每客戶／環境獨立 secrets 與設定」；只有確定單一 deployment 同時服務多企業，才規劃 tenant-aware credential store／isolation。
 
 ### WP-09 Upstream intake `[?]`
 
@@ -196,13 +241,15 @@ Secrets 只放 Git ignored `.env.local` 或正式 secret store；不要貼進 Gi
 
 Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock integration 已可重跑，不需再建立本地業務 DB。
 
+目前外部取得策略：Dennis 可提供 OpenAI、Firecrawl、Teachify，GA／Google 資源需確認授權範圍；上述全部仍視為「尚未收到／尚未驗證」。OpenAI／Firecrawl 可用合成資料與成本上限驗收；Teachify 先要 sandbox 或去識別事件，不直接改正式 webhook；GA4／GSC 優先唯讀。LINE 已承載正式業務，除非另建測試 channel／recipient allowlist，不使用 Dennis 的 production token 做重構驗收。
+
 ## 7. 執行順序
 
-1. 先拿 OpenAI key，跑最窄的付費 acceptance。
-2. Firecrawl + OpenAI 完成 KB 單頁 journey與 cleanup。
-3. Google read-only；再用 allowlisted email 做 Calendar／Gmail write。
-4. LINE primary、support 分開驗；再接 Visit、Orders、Reporting、Support composite journeys。
-5. Teachify sandbox event；先確認 replay產品決策。
+1. 先完成 WP-08 的第一個 solution profile 與合作責任邊界；這會決定哪些 journey 必須在 9 月底前達標。
+2. 拿 OpenAI key，跑最窄的付費 acceptance。
+3. Firecrawl + OpenAI 完成 KB 單頁 journey與 cleanup；同批收斂 `kb-crawl.ts` 的已證實邊界。
+4. Google read-only；再用 allowlisted email 做 Calendar／Gmail write。
+5. Teachify sandbox event；先確認 replay 產品決策。LINE primary／support 只在測試 channel／recipient allowlist 準備好後分開驗，再接 Visit、Orders、Reporting、Support composite journeys。
 6. 只依真實故障做 WP-20；接著恢復 remote、驗 CI／deploy／rollback。
 7. WP-22 final cleanup、矩陣驗收與交接。
 
@@ -210,10 +257,11 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 
 ## 8. Readiness verdict
 
-- Healthy enough：架構方向、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior都可繼續承接需求。
-- Actually blocked：外部 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
-- Safe work now：可先做 WP-09 的原子成本累加；其餘 upstream 內容需按產品需求手工移植。再繼續機械搬檔或整包 merge 會降低品質，新需求仍可沿現有 owner 並行開發。
-- 下一步：照第 6 節取得 credentials／資產，依第 7 節逐個做真實 acceptance；不要一次開所有 side effects。
+- Healthy enough：整體骨架、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior 都已就位；可直接承接第一個企業 solution profile，不需先完成全面重構。
+- Not uniformly clean：Firecrawl／KB 是目前最明顯的責任混合點；Visit 有受控 legacy seam；Teachify、GA4／GSC／Google／LINE 的完成度取決於真實 provider evidence，不能因 tests 綠燈宣稱完成。
+- Actually blocked：第一個企業驗收情境與合作責任尚未定案、外部 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
+- Safe work now：可做 WP-09 原子成本累加、沿已選 solution profile 承接需求；其餘 upstream 內容按需求手工移植。避免再做全域搬檔、每 route 一套 layer 或預建通用 Agent／plugin／multi-tenant framework。
+- 下一步：先收斂 WP-08，再照第 6 節取得安全 credentials／資產，依第 7 節做真實 acceptance；不要一次開所有 side effects。
 
 ## 9. 文件政策
 
