@@ -192,17 +192,25 @@ export async function runSupportReport(params: {
     await dependencies.delivery.deliver({ ...deliveryPlan, text: reportText });
   } catch (error) {
     const message = error instanceof Error ? error.message : "推播失敗";
-    await dependencies.repository.recordActivity({
-      summary: `每日客服彙報推播失敗：${message}`,
-      status: "failed",
-    });
+    try {
+      await dependencies.repository.recordActivity({
+        summary: `每日客服彙報推播失敗：${message}`,
+        status: "failed",
+      });
+    } catch {
+      return { ok: false, message: `${message}；執行紀錄也寫入失敗` };
+    }
     return { ok: false, message };
   }
 
-  await dependencies.repository.recordActivity({
-    summary: `已向老闆送出每日客服彙報（${prepared.customerCount} 位客戶、${prepared.messageCount} 則留言）`,
-    status: "success",
-  });
+  try {
+    await dependencies.repository.recordActivity({
+      summary: `已向老闆送出每日客服彙報（${prepared.customerCount} 位客戶、${prepared.messageCount} 則留言）`,
+      status: "success",
+    });
+  } catch {
+    return { ok: false, message: "客服彙報已送出，但執行紀錄寫入失敗，請勿重複發送" };
+  }
 
   return {
     ok: true,

@@ -15,6 +15,7 @@ function createPorts(options?: {
   names?: ReadonlyMap<string, string | null>;
   summary?: string | null;
   deliveryError?: unknown;
+  recordError?: unknown;
 }) {
   const calls: string[] = [];
   const activities: SupportReportActivity[] = [];
@@ -38,6 +39,7 @@ function createPorts(options?: {
       },
       async recordActivity(activity) {
         calls.push(`record:${activity.status}`);
+        if (options?.recordError !== undefined) throw options.recordError;
         activities.push(activity);
       },
     },
@@ -166,5 +168,33 @@ describe("Amber Support reporting application", () => {
     await expect(
       runSupportReport({ dependencies: fixture.dependencies, clock })
     ).resolves.toEqual({ ok: false, message: "推播失敗" });
+  });
+
+  it("reports delivered-but-unrecorded without inviting a duplicate report", async () => {
+    const fixture = createPorts({ recordError: new Error("database unavailable") });
+
+    await expect(
+      runSupportReport({ dependencies: fixture.dependencies, clock })
+    ).resolves.toEqual({
+      ok: false,
+      message: "客服彙報已送出，但執行紀錄寫入失敗，請勿重複發送",
+    });
+    expect(fixture.calls).toEqual([
+      "config",
+      "messages:2026-07-30T01:00:00.000Z",
+      "delivery",
+      "record:success",
+    ]);
+  });
+
+  it("retains both delivery and audit failures", async () => {
+    const fixture = createPorts({
+      deliveryError: new Error("LINE unavailable"),
+      recordError: new Error("database unavailable"),
+    });
+
+    await expect(
+      runSupportReport({ dependencies: fixture.dependencies, clock })
+    ).resolves.toEqual({ ok: false, message: "LINE unavailable；執行紀錄也寫入失敗" });
   });
 });

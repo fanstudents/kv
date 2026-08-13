@@ -182,6 +182,56 @@ describe("Daily report external boundaries", () => {
     });
   });
 
+  it("does not turn Support database failures into empty or successful results", async () => {
+    const configQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      single: vi.fn().mockResolvedValue({ data: null, error: { message: "config unavailable" } }),
+    };
+    configQuery.select.mockReturnValue(configQuery);
+    configQuery.eq.mockReturnValue(configQuery);
+    const messagesQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      gte: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn().mockResolvedValue({ data: null, error: { message: "messages unavailable" } }),
+    };
+    messagesQuery.select.mockReturnValue(messagesQuery);
+    messagesQuery.eq.mockReturnValue(messagesQuery);
+    messagesQuery.gte.mockReturnValue(messagesQuery);
+    messagesQuery.order.mockReturnValue(messagesQuery);
+    const subscribersQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      in: vi.fn().mockResolvedValue({ data: null, error: { message: "subscribers unavailable" } }),
+    };
+    subscribersQuery.select.mockReturnValue(subscribersQuery);
+    subscribersQuery.eq.mockReturnValue(subscribersQuery);
+    const activityWrite = {
+      insert: vi.fn().mockResolvedValue({ error: { message: "write unavailable" } }),
+    };
+    const from = vi.fn((table: string) => {
+      if (table === "line_agents") return configQuery;
+      if (table === "line_support_conversations") return messagesQuery;
+      if (table === "line_subscribers") return subscribersQuery;
+      if (table === "line_agent_activity") return activityWrite;
+      throw new Error(`unexpected table: ${table}`);
+    });
+    const repository = createSupabaseSupportReportRepository({ from } as never);
+
+    await expect(repository.getAgentConfig()).rejects.toThrow("Support config read failed: config unavailable");
+    await expect(repository.listCustomerMessages("2026-07-30T00:00:00.000Z")).rejects.toThrow(
+      "Support conversation read failed: messages unavailable"
+    );
+    await expect(repository.getDisplayNames(["U1"])).rejects.toThrow(
+      "Support subscriber read failed: subscribers unavailable"
+    );
+    await expect(repository.recordActivity({ summary: "sent", status: "success" })).rejects.toThrow(
+      "Support activity write failed: write unavailable"
+    );
+  });
+
   it("shares the same OpenAI summary protocol while retaining each domain's prompt and usage identity", async () => {
     process.env.OPENAI_API_KEY = "test-key";
     createChatCompletion.mockResolvedValue({
