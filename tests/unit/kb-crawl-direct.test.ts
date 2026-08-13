@@ -60,8 +60,13 @@ describe("kb crawl direct import state transitions", () => {
     query.eq.mockReturnValue(query);
     query.maybeSingle.mockResolvedValue({
       data: { id: "source-existing", content_hash: contentHash(page.title, page.url, page.markdown) },
+      error: null,
     });
     query.update.mockReturnValue(query);
+    query.eq.mockImplementation((...args: unknown[]) => {
+      if (args[0] === "id") return Promise.resolve({ data: null, error: null });
+      return query;
+    });
     const from = vi.fn(() => query);
     mocks.getMainSupabase.mockReturnValue({ from });
     const fetchMock = vi.fn().mockResolvedValue(scrapeResponse(page));
@@ -99,8 +104,12 @@ describe("kb crawl direct import state transitions", () => {
     };
     query.select.mockReturnValue(query);
     query.eq.mockReturnValue(query);
-    query.maybeSingle.mockResolvedValue({ data: { id: "source-existing", content_hash: "old-content" } });
+    query.maybeSingle.mockResolvedValue({ data: { id: "source-existing", content_hash: "old-content" }, error: null });
     query.update.mockReturnValue(query);
+    query.eq.mockImplementation((...args: unknown[]) => {
+      if (args[0] === "id") return Promise.resolve({ data: null, error: null });
+      return query;
+    });
     mocks.getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
     mocks.ingestPages.mockResolvedValue({
       chunkCount: 2,
@@ -151,10 +160,14 @@ describe("kb crawl direct import state transitions", () => {
     };
     query.select.mockReturnValue(query);
     query.eq.mockReturnValue(query);
-    query.maybeSingle.mockResolvedValue({ data: null });
+    query.maybeSingle.mockResolvedValue({ data: null, error: null });
     query.insert.mockReturnValue(query);
     query.single.mockResolvedValue({ data: { id: "source-new" }, error: null });
     query.update.mockReturnValue(query);
+    query.eq.mockImplementation((...args: unknown[]) => {
+      if (args[0] === "id") return Promise.resolve({ data: null, error: null });
+      return query;
+    });
     mocks.getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
     mocks.ingestPages.mockRejectedValue(new Error("conversion unavailable"));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(scrapeResponse(page)));
@@ -168,6 +181,33 @@ describe("kb crawl direct import state transitions", () => {
       expect.objectContaining({ status: "failed", error_detail: "conversion unavailable" }),
     );
     expect(query.eq).toHaveBeenLastCalledWith("id", "source-new");
+  });
+
+  it("does not claim an unchanged source was checked when the check-in write fails", async () => {
+    const page = {
+      url: "https://example.com/guide",
+      title: "Guide",
+      markdown: "This is enough source text to be a usable knowledge-base page. ".repeat(2),
+    };
+    const query = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), update: vi.fn() };
+    query.select.mockReturnValue(query);
+    query.eq.mockReturnValue(query);
+    query.maybeSingle.mockResolvedValue({
+      data: { id: "source-existing", content_hash: contentHash(page.title, page.url, page.markdown) },
+      error: null,
+    });
+    query.update.mockReturnValue(query);
+    query.eq.mockImplementation((...args: unknown[]) => {
+      if (args[0] === "id") return Promise.resolve({ data: null, error: { message: "database unavailable" } });
+      return query;
+    });
+    mocks.getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(scrapeResponse(page)));
+
+    await expect(importUrl({ url: page.url, mode: "single" })).rejects.toThrow(
+      "Knowledge source check-in failed: database unavailable",
+    );
+    expect(mocks.ingestPages).not.toHaveBeenCalled();
   });
 });
 
@@ -199,15 +239,17 @@ describe("kb crawl direct recheck state transitions", () => {
     sourceQuery.select.mockReturnValue(sourceQuery);
     sourceQuery.in.mockReturnValue(sourceQuery);
     sourceQuery.order.mockReturnValue(sourceQuery);
-    sourceQuery.limit.mockResolvedValue({ data: sources });
+    sourceQuery.limit.mockResolvedValue({ data: sources, error: null });
+    sourceEq.mockResolvedValue({ data: null, error: null });
     sourceQuery.update.mockReturnValue({ eq: sourceEq });
 
     const docsEq = vi.fn();
     const docsQuery = { select: vi.fn() };
     docsQuery.select.mockReturnValue({ eq: docsEq });
-    docsEq.mockReturnValueOnce({ eq: docsEq }).mockResolvedValueOnce({ data: [{ id: "doc-1" }, { id: "doc-2" }] });
-    const markDocsForReview = vi.fn(() => ({ in: vi.fn() }));
-    const activityInsert = vi.fn();
+    docsEq.mockReturnValueOnce({ eq: docsEq }).mockResolvedValueOnce({ data: [{ id: "doc-1" }, { id: "doc-2" }], error: null });
+    const markDocsForReviewIn = vi.fn().mockResolvedValue({ data: null, error: null });
+    const markDocsForReview = vi.fn(() => ({ in: markDocsForReviewIn }));
+    const activityInsert = vi.fn().mockResolvedValue({ data: null, error: null });
     const from = vi.fn((table: string) => {
       if (table === "kb_sources") return sourceQuery;
       if (table === "knowledge_base") {

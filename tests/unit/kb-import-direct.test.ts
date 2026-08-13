@@ -68,4 +68,16 @@ describe("kb import direct pipeline", () => {
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ status: "reviewing" }));
     expect(updateEq).toHaveBeenCalledWith("id", "source-1");
   });
+
+  it("does not report a completed import when the source cannot enter reviewing", async () => {
+    const updateEq = vi.fn().mockResolvedValue({ data: null, error: { message: "database unavailable" } });
+    const update = vi.fn(() => ({ eq: updateEq }));
+    mocks.getMainSupabase.mockReturnValue({ from: vi.fn(() => ({ update })) });
+    mocks.addKnowledgeDocs.mockResolvedValue(undefined);
+    mocks.requestKnowledgeJson.mockResolvedValue({ items: [] });
+
+    await expect(
+      ingestPages({ sourceId: "source-1", pages: ["足夠長的匯入內容。".repeat(20)], label: "fixture" }),
+    ).rejects.toThrow("Knowledge source reviewing status failed: database unavailable");
+  });
 });

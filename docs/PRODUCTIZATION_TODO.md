@@ -108,7 +108,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Knowledge Base real acceptance | `npm run acceptance:kb` + Firecrawl credit／Main staging query（2026-08-14） | 公開 KV README 單頁完成 scrape → draft → publish → vector index → semantic search；使用 1 credit，sources／docs／chunks cleanup 0，保留 3 筆 AI usage audit |
 | Visit AI real acceptance | authenticated production API + Chrome `/agents/visit` + Main staging query（2026-08-14） | 合成名片五欄正確、邀約草稿成功、虛構對象研究明確回 empty／10% 且未捏造來源；profile／run／steps cleanup 0，保留 3 筆 AI usage audit，未寄 Gmail／LINE |
 | Main Agent seed recovery | `20260813170350_seed_line_agents.sql` + online migration／insert-delete probe | clean schema 具備 12 個 canonical deployment rows；保留既有 settings／enabled，Visit activity 外鍵可寫入 |
-| KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + focused contracts | Firecrawl protocol／quota／retry 與 Main persistence／ingestion 分責；production code 淨少 7 行，未新增 route-specific layers |
+| KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + focused contracts | Firecrawl protocol／quota／retry 與 Main persistence／ingestion 分責；source state／recheck DB 失敗不再偽裝成功；未新增 route-specific layers |
 | KB atomic index replacement | `replace_kb_chunks` migration + focused unit／Main staging rollback acceptance + Chrome（2026-08-14） | OpenAI／RPC 失敗保留上一版可搜尋 index；成功時整批 transaction replace；service-role-only，fixture cleanup 0，UI/UX 未改 |
 | Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
 | Google read real acceptance | `npm run acceptance:google:read` + Chrome `/integrations`（2026-08-14） | 專用 `KV Staging` OAuth client、Calendar／GA4／GSC production providers 4 tests passed；GA4 `524303407`、GSC `sc-domain:cablate.com` 可讀，Gmail／Calendar／GA4／GSC live connected；未建立行程或寄信 |
@@ -148,6 +148,7 @@ Preparation 已完成：crawl／import／draft／publish／discard／search／re
 - [x] `npm run acceptance:kb` 以公開 KV README 跑 Firecrawl → draft → publish → vector index → semantic search；opt-in gate 固定 Main staging、允許來源與最多 1 credit。
 - [x] 依唯一 acceptance URL／source ID 精確清除 `kb_sources`、`knowledge_base`、`kb_chunks`；線上查詢三者殘留 0。Firecrawl 使用 1 credit，OpenAI 保留 3 筆 usage audit。
 - [x] 依真實 journey 收斂：`firecrawl-client.ts` 負責 HTTP／quota／retry，`kb-crawl.ts` 保留 Main source state／shared ingestion；API、資料格式與 UI 不變，沒有 generic crawler、route-specific layers 或轉送介面。
+- [x] source lookup／check-in／refresh／reviewing／recheck 的 Main DB error 全部被檢查；單一來源 recheck 失敗仍不阻塞其他來源，但不再被計入 checked／changed 成功，並留下 server diagnostic。
 
 ### WP-12 Visit AI journey `[x]`
 

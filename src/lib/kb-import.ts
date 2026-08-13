@@ -196,10 +196,11 @@ export async function ingestPages(params: {
     }))
   );
 
-  await supabase
+  const { error: reviewingError } = await supabase
     .from("kb_sources")
     .update({ status: "reviewing", updated_at: new Date().toISOString() })
     .eq("id", params.sourceId);
+  if (reviewingError) throw new Error(`Knowledge source reviewing status failed: ${reviewingError.message}`);
 
   return {
     chunkCount: allChunks.length,
@@ -232,16 +233,18 @@ export async function importPdf(params: {
   const supabase = getMainSupabase();
   const checksum = checksumOf(params.buf);
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("kb_sources")
     .select("id,filename,page_count,status")
     .eq("checksum", checksum)
     .maybeSingle();
+  if (existingError) throw new Error(`Knowledge PDF source lookup failed: ${existingError.message}`);
   if (existing?.id) {
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from("knowledge_base")
       .select("id", { count: "exact", head: true })
       .eq("source_doc_id", existing.id);
+    if (countError) throw new Error(`Knowledge PDF candidate count failed: ${countError.message}`);
     return {
       sourceId: existing.id as string,
       filename: existing.filename as string,
@@ -287,7 +290,7 @@ export async function importPdf(params: {
       ...ingested,
     };
   } catch (err) {
-    await supabase
+    const { error: failureStatusError } = await supabase
       .from("kb_sources")
       .update({
         status: "failed",
@@ -295,6 +298,9 @@ export async function importPdf(params: {
         updated_at: new Date().toISOString(),
       })
       .eq("id", sourceId);
+    if (failureStatusError) {
+      console.error("[knowledge-base] failed to persist PDF source failure status", failureStatusError.message);
+    }
     throw err;
   }
 }
@@ -308,10 +314,11 @@ export interface KbSourceRow {
 }
 
 export async function listKbSources(limit = 20): Promise<KbSourceRow[]> {
-  const { data } = await getMainSupabase()
+  const { data, error } = await getMainSupabase()
     .from("kb_sources")
     .select("id,filename,page_count,status,created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
+  if (error) throw new Error(`Knowledge source list failed: ${error.message}`);
   return (data ?? []) as KbSourceRow[];
 }

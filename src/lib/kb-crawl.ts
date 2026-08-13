@@ -63,14 +63,16 @@ export async function importUrl(params: {
   const contentHash = hash(fullText);
   const now = new Date().toISOString();
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("kb_sources")
     .select("id,content_hash")
     .eq("checksum", checksum)
     .maybeSingle();
+  if (existingError) throw new Error(`Knowledge source lookup failed: ${existingError.message}`);
 
   if (existing?.id && existing.content_hash === contentHash) {
-    await supabase.from("kb_sources").update({ last_checked_at: now }).eq("id", existing.id);
+    const { error } = await supabase.from("kb_sources").update({ last_checked_at: now }).eq("id", existing.id);
+    if (error) throw new Error(`Knowledge source check-in failed: ${error.message}`);
     return {
       sourceId: existing.id as string,
       url,
@@ -87,7 +89,7 @@ export async function importUrl(params: {
   let sourceId: string;
   if (existing?.id) {
     sourceId = existing.id as string;
-    await supabase
+    const { error } = await supabase
       .from("kb_sources")
       .update({
         page_count: usable.length,
@@ -99,6 +101,7 @@ export async function importUrl(params: {
         updated_at: now,
       })
       .eq("id", sourceId);
+    if (error) throw new Error(`Knowledge source refresh failed: ${error.message}`);
   } else {
     const { data, error } = await supabase
       .from("kb_sources")
@@ -130,7 +133,7 @@ export async function importUrl(params: {
     });
     return { sourceId, url, mode: params.mode, pageCount: usable.length, ...ingested };
   } catch (err) {
-    await supabase
+    const { error: failureStatusError } = await supabase
       .from("kb_sources")
       .update({
         status: "failed",
@@ -138,6 +141,9 @@ export async function importUrl(params: {
         updated_at: new Date().toISOString(),
       })
       .eq("id", sourceId);
+    if (failureStatusError) {
+      console.error("[knowledge-base] failed to persist source failure status", failureStatusError.message);
+    }
     throw err;
   }
 }
@@ -154,12 +160,13 @@ export interface RecheckResult {
  */
 export async function recheckUrlSources(limit = 10): Promise<RecheckResult> {
   const supabase = getMainSupabase();
-  const { data: sources } = await supabase
+  const { data: sources, error: sourcesError } = await supabase
     .from("kb_sources")
     .select("id,url,source_type,content_hash")
     .in("source_type", ["url", "site"])
     .order("last_checked_at", { ascending: true, nullsFirst: true })
     .limit(limit);
+  if (sourcesError) throw new Error(`Knowledge source recheck list failed: ${sourcesError.message}`);
 
   const result: RecheckResult = { checked: 0, changed: [] };
 
@@ -168,34 +175,47 @@ export async function recheckUrlSources(limit = 10): Promise<RecheckResult> {
     try {
       const page = await scrapeUrl(src.url as string);
       const now = new Date().toISOString();
-      result.checked += 1;
       // 單頁比對正文；整站來源這裡只比首頁，變了就值得整份重看
       const nextHash = hash(`# ${page.title}\n來源：${page.url}\n\n${page.markdown}`);
       const changed = Boolean(src.content_hash) && src.content_hash !== nextHash;
 
-      await supabase.from("kb_sources").update({ last_checked_at: now }).eq("id", src.id);
-      if (!changed) continue;
+      const { error: checkInError } = await supabase
+        .from("kb_sources")
+        .update({ last_checked_at: now })
+        .eq("id", src.id);
+      if (checkInError) throw new Error(`Knowledge source check-in failed: ${checkInError.message}`);
+      if (!changed) {
+        result.checked += 1;
+        continue;
+      }
 
-      const { data: docs } = await supabase
+      const { data: docs, error: docsError } = await supabase
         .from("knowledge_base")
         .select("id")
         .eq("source_doc_id", src.id)
         .eq("status", "published");
+      if (docsError) throw new Error(`Knowledge source document lookup failed: ${docsError.message}`);
       const ids = (docs ?? []).map((d) => d.id as string);
       if (ids.length > 0) {
-        await supabase
+        const { error: reviewError } = await supabase
           .from("knowledge_base")
           .update({ review_at: now.slice(0, 10), updated_at: now })
           .in("id", ids);
+        if (reviewError) throw new Error(`Knowledge source review mark failed: ${reviewError.message}`);
       }
-      await supabase.from("line_agent_activity").insert({
+      const { error: activityError } = await supabase.from("line_agent_activity").insert({
         agent_slug: "operations",
         summary: `知識來源已更新：${src.url}——${ids.length} 條相關知識已標記待複檢`,
         status: "pending",
       });
+      if (activityError) throw new Error(`Knowledge source activity write failed: ${activityError.message}`);
+      result.checked += 1;
       result.changed.push({ sourceId: src.id as string, url: src.url as string, staleDocs: ids.length });
-    } catch {
-      /* 單一來源抓不到就跳過，不影響其他 */
+    } catch (error) {
+      // 單一來源失敗不影響其他，但不能把失敗來源算成 checked／changed 成功。
+      console.warn(
+        `[knowledge-base] source recheck skipped (${src.id}): ${error instanceof Error ? error.message : "unknown error"}`,
+      );
     }
   }
   return result;
