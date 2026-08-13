@@ -9,23 +9,28 @@ import { Badge } from "@/components/ui/Badge";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import Avatar from "@/components/agents/Avatar";
 import BrandLogo from "@/components/integrations/BrandLogo";
+import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
 import { AGENTS, getAgent } from "@/lib/agent-data";
 import {
   INTEGRATION_CATEGORIES,
   INTEGRATION_SEEDS,
   INTEGRATIONS_STORAGE_KEY,
+  integrationConnectionState,
   type Integration,
+  type IntegrationConnectionState,
 } from "@/lib/integrations-data";
 import type { AgentSlug } from "@/lib/types";
 
 /* ── 單一服務卡片 ── */
 function IntegrationCard({
   item,
+  connectionState,
   highlightAgent,
   onChange,
   onRemove,
 }: {
   item: Integration;
+  connectionState: IntegrationConnectionState;
   highlightAgent: AgentSlug | null;
   onChange: (next: Integration) => void;
   onRemove: () => void;
@@ -61,8 +66,8 @@ function IntegrationCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">{item.name}</h2>
-            <Badge tone={item.status === "connected" ? "success" : "warning"}>
-              {item.status === "connected" ? "連線中" : "未連線"}
+            <Badge tone={connectionState === "connected" ? "success" : connectionState === "loading" ? "neutral" : "warning"}>
+              {connectionState === "loading" ? "查詢中" : connectionState === "connected" ? "連線中" : "未連線"}
             </Badge>
           </div>
           <p className="mt-0.5 text-xs text-neutral-400">
@@ -215,6 +220,7 @@ function IntegrationCard({
 /* ── 頁面 ── */
 export default function IntegrationsPage() {
   const [items, setItems] = useState<Integration[]>(INTEGRATION_SEEDS);
+  const liveStatus = useIntegrationStatus();
   const [loaded, setLoaded] = useState(false);
   const [filterAgent, setFilterAgent] = useState<AgentSlug | null>(null);
   const [adding, setAdding] = useState(false);
@@ -255,7 +261,9 @@ export default function IntegrationsPage() {
     return AGENTS.filter((a) => slugs.has(a.slug));
   }, [items]);
 
-  const connectedCount = items.filter((i) => i.status === "connected").length;
+  const connectedCount = items.filter(
+    (item) => integrationConnectionState(item, liveStatus) === "connected"
+  ).length;
 
   const updateItem = (next: Integration) =>
     setItems((prev) => prev.map((i) => (i.id === next.id ? next : i)));
@@ -272,7 +280,7 @@ export default function IntegrationsPage() {
         provider: "自訂",
         category: newCategory,
         link: newLink.trim() || "https://",
-        status: "connected",
+        status: "disconnected",
         icon: "custom",
         color: "#737373",
         uses: [],
@@ -291,7 +299,9 @@ export default function IntegrationsPage() {
     <div>
       <PageHeader
         title="串接服務"
-        description={`${connectedCount} 個服務連線中——每個服務的管理連結，以及哪位 Agent 用它做什麼，一頁看完`}
+        description={liveStatus === null
+          ? "正在確認服務連線狀態——每個服務的管理連結，以及哪位 Agent 用它做什麼，一頁看完"
+          : `${connectedCount} 個服務連線中——每個服務的管理連結，以及哪位 Agent 用它做什麼，一頁看完`}
         actions={
           <>
             <Badge tone="neutral">異動儲存於此瀏覽器（示範）</Badge>
@@ -380,6 +390,7 @@ export default function IntegrationsPage() {
           <IntegrationCard
             key={item.id}
             item={item}
+            connectionState={integrationConnectionState(item, liveStatus)}
             highlightAgent={filterAgent}
             onChange={updateItem}
             onRemove={() => removeItem(item.id)}

@@ -66,7 +66,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 ### 架構判定
 
 - **整體骨架已就位**：entrypoint、domain owner、port／adapter、Main／Teaching DB ownership 已足以讓新需求沿既有邊界開發；不需要再做一輪全 repo 搬檔。
-- **不是所有模組都同樣成熟**：OpenAI shared transport、Orders、Support 已有清楚 owner；Visit 已模組化但仍保留少量有界的 legacy translation；Firecrawl 尚把 provider transport、crawl policy、Supabase persistence 與 KB ingestion 混在 `src/lib/kb-crawl.ts`；Teachify 的真實簽章契約仍未由 sandbox event 證實；GA4／GSC／Google 已有 provider boundary。`/integrations` 仍是 localStorage／seed demo projection，不能當連線真相；Agent surface 使用的 `/api/integrations/status` 才是 live status。
+- **不是所有模組都同樣成熟**：OpenAI shared transport、Orders、Support 已有清楚 owner；Visit 已模組化但仍保留少量有界的 legacy translation；Knowledge Base 已把 Firecrawl HTTP／quota／retry 與 Main persistence／ingestion 分責；Teachify 的真實簽章契約仍未由 sandbox event 證實；GA4／GSC／Google 已有 provider boundary。`/integrations` 的管理連結與 Agent 用途仍保留 localStorage demo，但連線 badge／計數已改讀 `/api/integrations/status` live truth。
 - **下一階段是需求驅動的垂直切片，不是水平重構**：依 KV 已確認的功能需求與 journey，只整理該 journey 經過的 capability module、provider adapter、recovery 與驗收證據。沒有第二個真實 consumer 或共同故障模式，不抽通用框架。
 
 | Boundary | 現況 | 後續原則 |
@@ -74,9 +74,9 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | OpenAI | shared client + domain adapters，真實 acceptance 已通過 | 保持現有邊界，不再抽象一層；各 composite journey 只補 domain evidence |
 | Orders／Teachify | Orders workflow／repository／LINE delivery 已分離；真實 webhook 契約未證實 | sandbox event 驗簽章、重送、out-of-order，再決定 recovery |
 | Visit／LINE／Google | use cases、ports、lock 已建立；少量 `legacy-*` compatibility seam 仍在 | 只隨真實 delivery journey touch-and-migrate |
-| Knowledge Base／Firecrawl | 真實單頁 journey 已通過；`kb-crawl.ts` 仍混 transport、policy、persistence、ingestion | 依已觀察流程拆 Firecrawl transport 與 KB import／persistence，不建 generic crawler platform |
+| Knowledge Base／Firecrawl | 真實單頁 journey 已通過；`firecrawl-client.ts` owner HTTP／quota／retry，`kb-crawl.ts` owner Main source state／ingestion orchestration | 保持這兩個故障／回滾邊界，不建 generic crawler platform |
 | Reporting／GA4／GSC | provider query boundary 已有；部分 demo／fallback 尚未被真實資料取代 | 先用授權的 read-only property/site 驗輸入、空資料與 quota |
-| Integrations UI | `/integrations` 的卡片與動作仍是本機 demo；Agent status panel 已讀 live API | 上線前在不改 UI/UX 下改綁 live status，或由產品明確標示 demo；不得以靜態「已連線」作驗收證據 |
+| Integrations UI | 卡片、管理連結、Agent 用途與自訂服務仍是本機 demo；內建服務 badge／計數已讀 live API | localStorage 只負責 presentation edits；不得覆寫或冒充 provider connectivity |
 | Supabase | Main migration／typed client 可重建；Teaching 是獨立唯讀來源 | 固定使用我方 staging；不拿 Dennis production DB 當測試環境 |
 
 | Domain | UI／entrypoint | Current owner | Data／provider | 下一個 gate |
@@ -108,10 +108,12 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Knowledge Base real acceptance | `npm run acceptance:kb` + Firecrawl credit／Main staging query（2026-08-14） | 公開 KV README 單頁完成 scrape → draft → publish → vector index → semantic search；使用 1 credit，sources／docs／chunks cleanup 0，保留 3 筆 AI usage audit |
 | Visit AI real acceptance | authenticated production API + Chrome `/agents/visit` + Main staging query（2026-08-14） | 合成名片五欄正確、邀約草稿成功、虛構對象研究明確回 empty／10% 且未捏造來源；profile／run／steps cleanup 0，保留 3 筆 AI usage audit，未寄 Gmail／LINE |
 | Main Agent seed recovery | `20260813170350_seed_line_agents.sql` + online migration／insert-delete probe | clean schema 具備 12 個 canonical deployment rows；保留既有 settings／enabled，Visit activity 外鍵可寫入 |
+| KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + focused contracts | Firecrawl protocol／quota／retry 與 Main persistence／ingestion 分責；production code 淨少 7 行，未新增 route-specific layers |
+| Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／614 tests、93-page build、132 browser tests；Orders 1 + lock 2 + atomic cost 1 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；2026-08-14 incremental graph sync 3 files／31 nodes |
+| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 129 files／623 tests、93-page build、132 browser tests；Orders 1 + lock 2 + atomic cost 1 staging tests、fixture cleanup 0；Integrations／Knowledge Base／Visit 實機無 app error；2026-08-14 incremental graph sync 9 files／88 nodes |
 
 ## 5. Active TODO
 
@@ -132,14 +134,14 @@ Preparation 與真實 acceptance 已完成：Agent chat、Structured JSON、Embe
 - [x] `OPENAI_ACCEPTANCE=1`、`OPENAI_ACCEPTANCE_MAX_USD=0.05` 下執行 `npm run acceptance:openai`：1 file／1 test passed，14.49 秒。
 - [x] 證明文字／JSON／向量／媒體／短效 token 與 `ai_usage_logs`；Main staging 查詢確認 acceptance fixture cleanup 殘留為 0。
 
-### WP-11 Knowledge Base journey `[!]`
+### WP-11 Knowledge Base journey `[?]`
 
 Preparation 已完成：crawl／import／draft／publish／discard／search／reindex／recheck contracts，以及 provider-disabled Chrome journey。
 
 - [?] 決定 embedding 失敗 recovery：保留舊 chunks、標記 unavailable，或明確要求 reindex。目前 `indexDocs` 先刪舊 chunks 再 embedding，不能擅改語意。
 - [x] `npm run acceptance:kb` 以公開 KV README 跑 Firecrawl → draft → publish → vector index → semantic search；opt-in gate 固定 Main staging、允許來源與最多 1 credit。
 - [x] 依唯一 acceptance URL／source ID 精確清除 `kb_sources`、`knowledge_base`、`kb_chunks`；線上查詢三者殘留 0。Firecrawl 使用 1 credit，OpenAI 保留 3 筆 usage audit。
-- [ ] 依真實 journey 收斂 `kb-crawl.ts`：Firecrawl HTTP／quota adapter 與 KB import／Supabase persistence 分責；不新增 generic crawler、route-specific layers 或轉送介面。
+- [x] 依真實 journey 收斂：`firecrawl-client.ts` 負責 HTTP／quota／retry，`kb-crawl.ts` 保留 Main source state／shared ingestion；API、資料格式與 UI 不變，沒有 generic crawler、route-specific layers 或轉送介面。
 
 ### WP-12 Visit AI journey `[x]`
 
@@ -203,7 +205,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 ### WP-22 Final cleanup／handoff `[ ]`
 
 - [ ] Provider journeys 與已選 reliability decisions 達標；未執行項有接受理由。
-- [ ] 將 `/integrations` 從 localStorage／seed demo 改綁 `/api/integrations/status` 等 live truth，維持原 UI/UX；若產品選擇保留 demo，必須在畫面明確標示而不是顯示假的「已連線」。
+- [x] `/integrations` badge／計數已改綁 `/api/integrations/status` live truth並維持原 UI/UX；localStorage 僅保留管理連結、Agent 用途與自訂服務 demo，自訂項無 live probe 時顯示未連線。
 - [ ] 移除最後 dead code、過渡 re-export／flag、過期 tests、demo fallback 誤用與未接 composition。
 - [ ] 全量 verify、CodeGraph、關鍵 UI／API／provider matrix、staging cutover／rollback rehearsal。
 - [ ] 只把穩定操作知識補進 README／runbook，不新增重複架構文件。
@@ -232,7 +234,7 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 
 1. 確認 9 月底 KV 推廣版本必須包含的功能與驗收 journey；未確認前仍可做下列獨立 acceptance，不推導其他商業場景。
 2. [x] OpenAI 最窄付費 acceptance 已通過；usage fixture cleanup 0，驗收用 key 待輪替。
-3. [!] Firecrawl + OpenAI 的 KB 單頁 journey與 cleanup 已通過；剩餘依已證實流程收斂 `kb-crawl.ts` 責任邊界。
+3. [?] Firecrawl + OpenAI 的 KB 單頁 journey、cleanup 與責任收斂已通過；只剩 embedding 失敗 recovery 產品決策。
 4. Google read-only；再用 allowlisted email 做 Calendar／Gmail write。
 5. Teachify sandbox event；先確認 replay 產品決策。LINE primary／support 只在測試 channel／recipient allowlist 準備好後分開驗，再接 Visit、Orders、Reporting、Support composite journeys。
 6. 只依真實故障做 WP-20；接著恢復 remote、驗 CI／deploy／rollback。
@@ -243,10 +245,10 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 ## 8. Readiness verdict
 
 - Healthy enough：整體骨架、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior 都已就位；可直接承接已確認的 KV 功能需求，不需先完成全面重構。
-- Not uniformly clean：Firecrawl／KB 是目前最明顯的責任混合點；Visit 有受控 legacy seam；Teachify、GA4／GSC／Google／LINE 的完成度取決於真實 provider evidence，不能因 tests 綠燈宣稱完成。
+- Not uniformly clean：Visit 仍有受控 legacy seam；Teachify、GA4／GSC／Google／LINE 的完成度取決於真實 provider evidence，不能因 tests 綠燈宣稱完成。
 - Actually blocked：9 月底推廣版本的確切範圍、Firecrawl／OpenAI 以外的 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
 - Safe work now：沿已確認的 KV 需求承接功能；其餘 upstream 內容按需求手工移植。避免再做全域搬檔、每 route 一套 layer 或預建通用 Agent／plugin／multi-tenant framework。
-- 下一步：依已通過的 WP-11 journey 收斂 `kb-crawl.ts` 已證實的責任邊界，接著做 Google read-only；同時確認 9 月底推廣範圍。其餘 provider 逐批開啟，不一次開所有 side effects。
+- 下一步：做 Google Calendar／GA4／GSC read-only acceptance；同時確認 9 月底推廣範圍與 KB embedding recovery。其餘 provider 逐批開啟，不一次開所有 side effects。
 
 ## 9. 文件政策
 

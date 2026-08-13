@@ -1,4 +1,5 @@
 import type { AgentSlug } from "./types";
+import type { IntegrationStatusMap } from "./integration-status";
 
 // 串接服務管理：每個服務記錄「管理連結」與「哪位 Agent 用到哪個功能」。
 // 頁面允許使用者新增／編輯，異動存於瀏覽器 localStorage（介面示範，未接後端）。
@@ -24,6 +25,22 @@ export interface Integration {
   uses: IntegrationUse[];
   /** 內建種子服務：可編輯連結與功能，但不可移除 */
   builtin?: boolean;
+}
+
+export type IntegrationConnectionState = "loading" | "connected" | "disconnected";
+
+/**
+ * Built-in service badges are projections of the live status endpoint. The
+ * persisted seed field remains a presentation fallback for older surfaces; it
+ * is never accepted as connectivity evidence on the integrations page.
+ */
+export function integrationConnectionState(
+  item: Integration,
+  liveStatus: IntegrationStatusMap | null
+): IntegrationConnectionState {
+  if (!item.builtin) return "disconnected";
+  if (liveStatus === null) return "loading";
+  return liveStatus[item.id]?.connected ? "connected" : "disconnected";
 }
 
 export const INTEGRATION_CATEGORIES = [

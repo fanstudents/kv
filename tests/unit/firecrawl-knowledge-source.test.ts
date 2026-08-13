@@ -12,11 +12,13 @@ const helpers = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/lib/kb-crawl", () => ({
+vi.mock("@/adapters/knowledge-base/firecrawl-client", () => ({
   FirecrawlQuotaError: helpers.FakeQuotaError,
   getCreditUsage: helpers.getCreditUsage,
-  importUrl: helpers.importUrl,
   mapSite: helpers.mapSite,
+}));
+vi.mock("@/lib/kb-crawl", () => ({
+  importUrl: helpers.importUrl,
   recheckUrlSources: helpers.recheckUrlSources,
 }));
 vi.mock("@/lib/knowledge-base", () => ({ listKnowledgeDocs: helpers.listKnowledgeDocs }));
