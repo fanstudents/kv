@@ -50,6 +50,14 @@ describe("Google write boundary", () => {
     );
   });
 
+  it("does not report Gmail success when the provider omits the message id", async () => {
+    messagesSend.mockResolvedValue({ data: {} });
+
+    await expect(
+      sendGmail({ to: "fixture@example.test", subject: "acceptance", body: "test" })
+    ).rejects.toThrow("without returning a message id");
+  });
+
   it("maps a Visit invite to one primary Calendar event with attendee updates enabled", async () => {
     eventsInsert.mockResolvedValue({ data: { id: "event-1" } });
 
@@ -77,5 +85,18 @@ describe("Google write boundary", () => {
         attendees: [{ email: "fixture@example.test" }],
       },
     });
+  });
+
+  it("does not report Calendar success when the provider omits the event id", async () => {
+    eventsInsert.mockResolvedValue({ data: {} });
+
+    await expect(
+      createCalendarEvent({
+        summary: "Acceptance",
+        startISO: "2026-08-03T01:00:00.000Z",
+        endISO: "2026-08-03T02:00:00.000Z",
+        attendeeEmail: "fixture@example.test",
+      })
+    ).rejects.toThrow("without returning an event id");
   });
 });

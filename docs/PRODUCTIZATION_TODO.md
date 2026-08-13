@@ -111,6 +111,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + focused contracts | Firecrawl protocol／quota／retry 與 Main persistence／ingestion 分責；production code 淨少 7 行，未新增 route-specific layers |
 | Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
 | Google read real acceptance | `npm run acceptance:google:read` + Chrome `/integrations`（2026-08-14） | 專用 `KV Staging` OAuth client、Calendar／GA4／GSC production providers 4 tests passed；GA4 `524303407`、GSC `sc-domain:cablate.com` 可讀，Gmail／Calendar／GA4／GSC live connected；未建立行程或寄信 |
+| Google write real acceptance | `npm run acceptance:google:write`（2026-08-14） | 唯一 allowlist `reahtuoo310109@gmail.com`；Calendar 建立／回讀／刪除與 Gmail send production providers 2 tests passed；測試行程已清除，測試信不可回收 |
 | GA4／GSC live projections | `tests/e2e/live-overview-projections.spec.ts` + Chrome Agent／TV（2026-08-14） | 4 browser contracts 通過；Demo 模式維持既有固定資料。如實模式 Agent／TV 顯示 GA4 83 sessions、GSC 26 clicks／508 impressions；區間切換取消舊請求，loading／empty／error 不退回假資料 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
@@ -161,7 +162,7 @@ Change contract：範圍只含 `parse-card`、`draft-email`、Contact Research �
 
 - [?] 決定 Calendar 已建立、Gmail 或後續 DB／LINE 失敗時的 durable state 與人工補救。現況會有 `calendar_event_id` 但 invite 可能被標 `failed`，重送又被既有 event 擋下。
 - [?] 決定 timeout 已寫 `timed_out` 後，tag／activity／LINE 部分失敗是否重播及如何避免重複通知。
-- [ ] 有 Google + LINE credentials、allowlisted recipient 後，跑 inbound → approval → public respond → Calendar／Gmail／LINE staging journey。
+- [ ] Google write provider 已通過；接著以同一 allowlist 跑 public respond → Calendar／Gmail staging journey。完整 inbound → approval → public respond → LINE 仍待 LINE credentials／allowlisted user。
 
 ### WP-14 Google reads `[x]`
 
@@ -172,6 +173,7 @@ Projection change contract：只含 `/agents/report`、`/agents/expense` 與 TV 
 - [x] 專用 `KV Staging` OAuth client 已配置於 Git ignored `.env.local`；Data／Admin／Search Console APIs 已啟用，Calendar write、Gmail send、GA4 read、GSC read scopes 已由測試帳號授權。
 - [x] `npm run acceptance:google:read` 直接跑 shared auth、Calendar、GA4、GSC production providers：1 file／4 tests passed；Google API 列表確認 GA4 `CabLate` (`524303407`) 與 GSC `sc-domain:cablate.com` 權限，Chrome `/integrations` 顯示四項 live connected。
 - [x] 本批只讀 Calendar／GA4／GSC；沒有建立行程或寄 Gmail。Token expiry 由 shared OAuth refresh path 實際換取 access token 證實；quota／provider errors 已由既有 contracts 覆蓋，不做破壞性 quota 測試。
+- [x] `npm run acceptance:google:write` 以唯一 allowlisted recipient 跑 production providers：Calendar 建立、回讀、刪除與 Gmail send 共 2 tests passed；provider 未回傳 event／message ID 時 fail closed，Calendar fixture 已清除。
 - [x] `/agents/report`、`/agents/expense` 與 TV 的 Ivy／Leo projection 已在如實模式接回真實 API；Demo 模式仍用原固定資料。缺資料或 provider 失敗時不會偷偷退回 demo；其他尚無 provider 的行銷 Agent 維持真實狀態卡。
 
 ### WP-15 LINE journeys `[!]`
@@ -227,7 +229,7 @@ Google OAuth 3 個 credential values、GA4／GSC 2 個設定值已配置；其�
 |---|---|---|---|---|
 | 1 | OpenAI | 已配置並完成 US$0.05 gate acceptance；驗收後輪替 key | 無個資 synthetic fixture | WP-10 完成；WP-11／12／17 AI 已解鎖 |
 | 2 | Firecrawl | 已配置免費帳號 key；`FIRECRAWL_API_BASE` 使用官方預設 | 公開 KV README、單頁／1-credit gate | WP-11 provider journey 已通過 |
-| 3 | Google OAuth | 已配置 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN` | Calendar／GA4／GSC read 已通過；Calendar／Gmail write 仍需 allowlisted recipient | WP-14 完成；WP-13 write 待驗 |
+| 3 | Google OAuth | 已配置 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN`；write allowlist 已配置於 Git ignored `.env.local` | Calendar／GA4／GSC read 與 Calendar／Gmail write provider acceptance 已通過 | WP-14 完成；WP-13 composite journey 待驗 |
 | 4 | Google analytics | 已配置 `GA4_PROPERTY_ID`、`GSC_SITE_URL`；`GOOGLE_ADDITIONAL_CALENDAR_IDS` 仍選配 | GA4／GSC production-provider read 已通過 | WP-14 完成；WP-17 已解鎖 |
 | 5 | LINE primary | `LINE_CHANNEL_ID`、`LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN` | staging `line_agents.target_user_id` 指向明確測試 user | WP-13／15／16／17 |
 | 6 | LINE support | `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` | support 測試 user／channel，不與 primary 混用 | WP-15／18 |
@@ -242,7 +244,7 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 1. 確認 9 月底 KV 推廣版本必須包含的功能與驗收 journey；未確認前仍可做下列獨立 acceptance，不推導其他商業場景。
 2. [x] OpenAI 最窄付費 acceptance 已通過；usage fixture cleanup 0，驗收用 key 待輪替。
 3. [?] Firecrawl + OpenAI 的 KB 單頁 journey、cleanup 與責任收斂已通過；只剩 embedding 失敗 recovery 產品決策。
-4. [x] Google Calendar／GA4／GSC read-only acceptance 已通過，Ivy／Leo 的 Agent 與 TV projection 已接回真實 API；下一個 Google 動作只在 allowlisted email 準備好後做 Calendar／Gmail write。
+4. [x] Google Calendar／GA4／GSC read-only acceptance 與 Calendar／Gmail write acceptance 已通過，Ivy／Leo 的 Agent 與 TV projection 已接回真實 API；下一個 Google 動作是 Visit composite journey。
 5. Teachify sandbox event；先確認 replay 產品決策。LINE primary／support 只在測試 channel／recipient allowlist 準備好後分開驗，再接 Visit、Orders、Reporting、Support composite journeys。
 6. 只依真實故障做 WP-20；接著恢復 remote、驗 CI／deploy／rollback。
 7. WP-22 final cleanup、矩陣驗收與交接。

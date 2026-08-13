@@ -136,10 +136,14 @@ export async function sendGmail(params: { to: string; subject: string; body: str
     .replace(/\//g, "_")
     .replace(/=+$/, "");
 
-  await gmail.users.messages.send({
+  const { data } = await gmail.users.messages.send({
     userId: "me",
     requestBody: { raw },
   });
+
+  if (!data.id) {
+    throw new Error("Gmail accepted the request without returning a message id");
+  }
 }
 
 // 實際查詢的視窗拉到 3 個月，不是只看 7 天——upcoming／warnings 之前受限在 7 天內，
@@ -256,5 +260,9 @@ export async function createCalendarEvent(params: {
     },
   });
 
-  return data.id ?? "";
+  if (!data.id) {
+    throw new Error("Google Calendar accepted the request without returning an event id");
+  }
+
+  return data.id;
 }
