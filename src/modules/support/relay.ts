@@ -53,6 +53,17 @@ export interface SupportRelayPorts {
   conversations: SupportRelayConversationPort;
 }
 
+export interface SupportRelayIssue {
+  operation: "forward" | "relay-audit" | "subscriber" | "activity" | "conversation";
+  message: string;
+  userId?: string;
+}
+
+export interface SupportRelayResult {
+  capturedConversations: number;
+  issues: SupportRelayIssue[];
+}
+
 export function parseSupportRelayPayload(rawBody: string): SupportRelayPayload {
   try {
     const decoded = JSON.parse(rawBody) as { events?: unknown };
@@ -89,28 +100,43 @@ export async function processSupportRelay(params: {
   contentType: string;
   events: SupportRelayLineEvent[];
   ports: SupportRelayPorts;
-}): Promise<void> {
+}): Promise<SupportRelayResult> {
   const { rawBody, signature, contentType, events, ports } = params;
 
-  await Promise.allSettled([
-    ports.relay
-      .forward({ rawBody, signature, contentType })
-      .catch(async (error) => {
-        const message = error instanceof Error ? error.message : "轉發失敗";
+  const relayTask = async (): Promise<SupportRelayIssue[]> => {
+    try {
+      await ports.relay.forward({ rawBody, signature, contentType });
+      return [];
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "轉發失敗";
+      const issues: SupportRelayIssue[] = [{ operation: "forward", message }];
+      try {
         await ports.repository.recordActivity({
           summary: `轉發給舊客服系統失敗：${message}（客戶仍會由舊系統處理，只是這筆沒轉發成功）`,
           status: "failed",
         });
-      }),
-    ...events.map(async (event) => {
+      } catch (auditError) {
+        issues.push({ operation: "relay-audit", message: errorMessage(auditError) });
+      }
+      return issues;
+    }
+  };
+
+  const captureTasks = events.map(async (event): Promise<SupportRelayResult> => {
       const capture = planSupportRelayCapture(event);
-      if (capture.type === "skip") return;
+      if (capture.type === "skip") return { capturedConversations: 0, issues: [] };
+
+      const issues: SupportRelayIssue[] = [];
 
       if (capture.sourceUserId) {
-        await ports.subscribers.touch(capture.sourceUserId).catch(() => {});
+        try {
+          await ports.subscribers.touch(capture.sourceUserId);
+        } catch (error) {
+          issues.push({ operation: "subscriber", message: errorMessage(error), userId: capture.userId });
+        }
       }
 
-      await Promise.allSettled([
+      const [activity, conversation] = await Promise.allSettled([
         ports.repository.recordActivity({
           summary: capture.activitySummary,
           status: "success",
@@ -120,6 +146,25 @@ export async function processSupportRelay(params: {
           capture.text
         ),
       ]);
-    }),
-  ]);
+      if (activity.status === "rejected") {
+        issues.push({ operation: "activity", message: errorMessage(activity.reason), userId: capture.userId });
+      }
+      if (conversation.status === "rejected") {
+        issues.push({ operation: "conversation", message: errorMessage(conversation.reason), userId: capture.userId });
+      }
+      return {
+        capturedConversations: conversation.status === "fulfilled" ? 1 : 0,
+        issues,
+      };
+    });
+
+  const [relayIssues, ...captures] = await Promise.all([relayTask(), ...captureTasks]);
+  return {
+    capturedConversations: captures.reduce((total, capture) => total + capture.capturedConversations, 0),
+    issues: [...relayIssues, ...captures.flatMap((capture) => capture.issues)],
+  };
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || "unknown failure");
 }

@@ -44,13 +44,16 @@ export async function POST(req: NextRequest) {
   }
   const events = payload.events as SupportRelayLineEvent[];
 
-  await processSupportRelay({
+  const result = await processSupportRelay({
     rawBody,
     signature: signature ?? "",
     contentType: req.headers.get("content-type") ?? "application/json",
     events,
     ports,
   });
+  if (result.issues.length > 0) {
+    console.error("[support] relay completed with isolated failures", result);
+  }
 
   return NextResponse.json({ ok: true });
 }

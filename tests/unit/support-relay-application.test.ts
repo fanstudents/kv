@@ -63,7 +63,7 @@ describe("Amber LINE legacy relay application", () => {
         events: [{ type: "follow" }],
         ports: fixture.ports,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ capturedConversations: 0, issues: [] });
     expect(fixture.forwards).toEqual([request]);
     expect(fixture.activities).toEqual([]);
     expect(fixture.touches).toEqual([]);
@@ -73,7 +73,7 @@ describe("Amber LINE legacy relay application", () => {
   it("touches, records activity, and captures the full customer text", async () => {
     const fixture = createPorts();
 
-    await processSupportRelay({
+    const result = await processSupportRelay({
       ...request,
       events: [
         {
@@ -96,6 +96,7 @@ describe("Amber LINE legacy relay application", () => {
     expect(fixture.conversations).toEqual([
       { userId: "U123", text: "請問訂單進度" },
     ]);
+    expect(result).toEqual({ capturedConversations: 1, issues: [] });
   });
 
   it("records relay failure while still capturing customer messages", async () => {
@@ -115,7 +116,10 @@ describe("Amber LINE legacy relay application", () => {
         ],
         ports: fixture.ports,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({
+      capturedConversations: 1,
+      issues: [{ operation: "forward", message: "legacy unavailable" }],
+    });
     expect(fixture.activities).toContainEqual({
       summary:
         "轉發給舊客服系統失敗：legacy unavailable（客戶仍會由舊系統處理，只是這筆沒轉發成功）",
@@ -129,7 +133,7 @@ describe("Amber LINE legacy relay application", () => {
   it("preserves the non-Error relay fallback", async () => {
     const fixture = createPorts({ forwardError: "offline" });
 
-    await processSupportRelay({ ...request, events: [], ports: fixture.ports });
+    const result = await processSupportRelay({ ...request, events: [], ports: fixture.ports });
 
     expect(fixture.activities).toEqual([
       {
@@ -138,6 +142,10 @@ describe("Amber LINE legacy relay application", () => {
         status: "failed",
       },
     ]);
+    expect(result).toEqual({
+      capturedConversations: 0,
+      issues: [{ operation: "forward", message: "轉發失敗" }],
+    });
   });
 
   it("isolates subscriber, activity, and conversation failures from the ACK path", async () => {
@@ -159,7 +167,14 @@ describe("Amber LINE legacy relay application", () => {
         ],
         ports: fixture.ports,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({
+      capturedConversations: 0,
+      issues: [
+        { operation: "subscriber", message: "profile unavailable", userId: "U123" },
+        { operation: "activity", message: "activity unavailable", userId: "U123" },
+        { operation: "conversation", message: "conversation unavailable", userId: "U123" },
+      ],
+    });
     expect(fixture.touches).toEqual(["U123"]);
     expect(fixture.activities).toHaveLength(1);
     expect(fixture.conversations).toHaveLength(1);

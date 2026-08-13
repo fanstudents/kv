@@ -111,6 +111,7 @@ beforeEach(() => {
   mocks.verifyLineSignature.mockReturnValue(true);
   mocks.parseVisitLineWebhookPayload.mockReturnValue({ kind: "valid", events: [] });
   mocks.parseSupportRelayPayload.mockReturnValue({ type: "parsed", events: [] });
+  mocks.processSupportRelay.mockResolvedValue({ capturedConversations: 0, issues: [] });
 });
 
 afterEach(() => {
@@ -219,5 +220,28 @@ describe("LINE webhook route contracts", () => {
       events,
       ports: expect.any(Object),
     }));
+  });
+
+  it("keeps the LINE ACK while logging isolated support capture failures", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.processSupportRelay.mockResolvedValueOnce({
+      capturedConversations: 0,
+      issues: [{ operation: "conversation", message: "database unavailable", userId: "U123" }],
+    });
+
+    const response = await postSupportWebhook(
+      new NextRequest("http://localhost/api/line/webhook/support", {
+        method: "POST",
+        headers: { "x-line-signature": "valid-support" },
+        body: '{"events":[]}',
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[support] relay completed with isolated failures",
+      expect.objectContaining({ issues: expect.any(Array) }),
+    );
+    consoleError.mockRestore();
   });
 });
