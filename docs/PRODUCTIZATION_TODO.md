@@ -110,6 +110,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Main Agent seed recovery | `20260813170350_seed_line_agents.sql` + online migration／insert-delete probe | clean schema 具備 12 個 canonical deployment rows；保留既有 settings／enabled，Visit activity 外鍵可寫入 |
 | KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + focused contracts | Firecrawl protocol／quota／retry 與 Main persistence／ingestion 分責；production code 淨少 7 行，未新增 route-specific layers |
 | Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
+| Google read real acceptance | `npm run acceptance:google:read` + Chrome `/integrations`（2026-08-14） | 專用 `KV Staging` OAuth client、Calendar／GA4／GSC production providers 4 tests passed；GA4 `524303407`、GSC `sc-domain:cablate.com` 可讀，Gmail／Calendar／GA4／GSC live connected；未建立行程或寄信 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
@@ -161,11 +162,14 @@ Change contract：範圍只含 `parse-card`、`draft-email`、Contact Research �
 - [?] 決定 timeout 已寫 `timed_out` 後，tag／activity／LINE 部分失敗是否重播及如何避免重複通知。
 - [ ] 有 Google + LINE credentials、allowlisted recipient 後，跑 inbound → approval → public respond → Calendar／Gmail／LINE staging journey。
 
-### WP-14 Google reads `[!]`
+### WP-14 Google reads `[x]`
 
-OAuth、Calendar、GA4、GSC 的 config failure、refresh、query mapping、empty／error fallback contracts 已完成。
+OAuth、Calendar、GA4、GSC 的 config failure、refresh、query mapping、empty／error fallback contracts 與 production-provider acceptance 已完成。
 
-- [ ] 以測試 Calendar、GA4 property、GSC site 驗真實 read、permission、quota、token expiry與後台呈現。
+- [x] 專用 `KV Staging` OAuth client 已配置於 Git ignored `.env.local`；Data／Admin／Search Console APIs 已啟用，Calendar write、Gmail send、GA4 read、GSC read scopes 已由測試帳號授權。
+- [x] `npm run acceptance:google:read` 直接跑 shared auth、Calendar、GA4、GSC production providers：1 file／4 tests passed；Google API 列表確認 GA4 `CabLate` (`524303407`) 與 GSC `sc-domain:cablate.com` 權限，Chrome `/integrations` 顯示四項 live connected。
+- [x] 本批只讀 Calendar／GA4／GSC；沒有建立行程或寄 Gmail。Token expiry 由 shared OAuth refresh path 實際換取 access token 證實；quota／provider errors 已由既有 contracts 覆蓋，不做破壞性 quota 測試。
+- [!] `/agents/report`、`/agents/expense` 與 TV 的報表 projection 仍刻意使用 demo data；關閉示範模式時只顯示 live connection status。這不是 provider failure，但在 WP-22 必須決定是否把原 UI 接到已驗證 API，避免「來源 Google」文案被誤認為真實數據。
 
 ### WP-15 LINE journeys `[!]`
 
@@ -214,14 +218,14 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 
 Secrets 只放 Git ignored `.env.local` 或正式 secret store；不要貼進 Git、TODO、測試 fixture或聊天回報。
 
-總量：需向外部服務取得 12 個 credential values；另有 5 個必要設定值與 1 個選配 Calendar IDs。Main Supabase credentials 已設定，不列入待取得數量。
+Google OAuth 3 個 credential values、GA4／GSC 2 個設定值已配置；其餘待取得項目以本表為準。Main Supabase credentials 已設定，不列入待取得數量。
 
 | 優先 | Service | 需要取得／設定 | 同時要準備的安全資產 | 解鎖 |
 |---|---|---|---|---|
 | 1 | OpenAI | 已配置並完成 US$0.05 gate acceptance；驗收後輪替 key | 無個資 synthetic fixture | WP-10 完成；WP-11／12／17 AI 已解鎖 |
 | 2 | Firecrawl | 已配置免費帳號 key；`FIRECRAWL_API_BASE` 使用官方預設 | 公開 KV README、單頁／1-credit gate | WP-11 provider journey 已通過 |
-| 3 | Google OAuth | `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN` | 測試 Calendar、allowlisted email；OAuth scopes 含 Calendar write／Gmail send | WP-13／14 |
-| 4 | Google analytics | `GA4_PROPERTY_ID`、`GSC_SITE_URL`；必要時 `GOOGLE_ADDITIONAL_CALENDAR_IDS` | 可讀測試 property／site／shared calendar | WP-14／17 |
+| 3 | Google OAuth | 已配置 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN` | Calendar／GA4／GSC read 已通過；Calendar／Gmail write 仍需 allowlisted recipient | WP-14 完成；WP-13 write 待驗 |
+| 4 | Google analytics | 已配置 `GA4_PROPERTY_ID`、`GSC_SITE_URL`；`GOOGLE_ADDITIONAL_CALENDAR_IDS` 仍選配 | GA4／GSC production-provider read 已通過 | WP-14 完成；WP-17 已解鎖 |
 | 5 | LINE primary | `LINE_CHANNEL_ID`、`LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN` | staging `line_agents.target_user_id` 指向明確測試 user | WP-13／15／16／17 |
 | 6 | LINE support | `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` | support 測試 user／channel，不與 primary 混用 | WP-15／18 |
 | 7 | Teachify | `TEACHIFY_WEBHOOK_SECRET` | sandbox／去識別 order event、可重播 event ID | WP-16 |
@@ -235,7 +239,7 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 1. 確認 9 月底 KV 推廣版本必須包含的功能與驗收 journey；未確認前仍可做下列獨立 acceptance，不推導其他商業場景。
 2. [x] OpenAI 最窄付費 acceptance 已通過；usage fixture cleanup 0，驗收用 key 待輪替。
 3. [?] Firecrawl + OpenAI 的 KB 單頁 journey、cleanup 與責任收斂已通過；只剩 embedding 失敗 recovery 產品決策。
-4. Google read-only；再用 allowlisted email 做 Calendar／Gmail write。
+4. [x] Google Calendar／GA4／GSC read-only acceptance 已通過；下一個 Google 動作只在 allowlisted email 準備好後做 Calendar／Gmail write。
 5. Teachify sandbox event；先確認 replay 產品決策。LINE primary／support 只在測試 channel／recipient allowlist 準備好後分開驗，再接 Visit、Orders、Reporting、Support composite journeys。
 6. 只依真實故障做 WP-20；接著恢復 remote、驗 CI／deploy／rollback。
 7. WP-22 final cleanup、矩陣驗收與交接。
@@ -245,10 +249,10 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 ## 8. Readiness verdict
 
 - Healthy enough：整體骨架、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior 都已就位；可直接承接已確認的 KV 功能需求，不需先完成全面重構。
-- Not uniformly clean：Visit 仍有受控 legacy seam；Teachify、GA4／GSC／Google／LINE 的完成度取決於真實 provider evidence，不能因 tests 綠燈宣稱完成。
-- Actually blocked：9 月底推廣版本的確切範圍、Firecrawl／OpenAI 以外的 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
+- Not uniformly clean：Visit 仍有受控 legacy seam；Teachify／LINE 的完成度仍取決於真實 provider evidence；GA4／GSC／Calendar provider 已驗，但一般 Agent／TV 報表 projection 仍使用 demo data。
+- Actually blocked：9 月底推廣版本的確切範圍、LINE／Teachify／cron credentials 與 safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。Google read 已不再是 blocker。
 - Safe work now：沿已確認的 KV 需求承接功能；其餘 upstream 內容按需求手工移植。避免再做全域搬檔、每 route 一套 layer 或預建通用 Agent／plugin／multi-tenant framework。
-- 下一步：做 Google Calendar／GA4／GSC read-only acceptance；同時確認 9 月底推廣範圍與 KB embedding recovery。其餘 provider 逐批開啟，不一次開所有 side effects。
+- 下一步：確認一般 Agent／TV 是否應在非 demo mode 顯示已驗證的 GA4／GSC 數據；同時確認 9 月底推廣範圍與 KB embedding recovery。其餘 provider 逐批開啟，不一次開所有 side effects。
 
 ## 9. 文件政策
 
