@@ -21,10 +21,15 @@ export async function POST(req: NextRequest) {
 
   const verification = verifyTeachifyWebhook(rawBody, req.headers.get("x-teachify-signature"));
   if (verification === "invalid") {
-    await repository.recordActivity({
-      summary: "Teachify 訂單 Webhook 簽章驗證失敗，已拒絕",
-      status: "failed",
-    });
+    try {
+      await repository.recordActivity({
+        summary: "Teachify 訂單 Webhook 簽章驗證失敗，已拒絕",
+        status: "failed",
+      });
+    } catch (error) {
+      if (!(error instanceof OrdersRepositoryError)) throw error;
+      console.error("[orders] could not audit rejected Teachify webhook", error);
+    }
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 
@@ -62,6 +67,8 @@ export async function POST(req: NextRequest) {
     case "missing_recipient":
       return NextResponse.json({ ok: true, note: "reportTo not configured" });
     case "delivery_failed":
+      return NextResponse.json({ error: result.message }, { status: 502 });
+    case "delivery_unrecorded":
       return NextResponse.json({ error: result.message }, { status: 502 });
     case "delivered":
       return NextResponse.json({ ok: true });

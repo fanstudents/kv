@@ -39,6 +39,7 @@ const order: NormalizedOrder = {
 function fakeDependencies(params?: {
   config?: OrdersAgentConfig | null;
   deliveryError?: unknown;
+  recordError?: unknown;
 }) {
   const calls: string[] = [];
   const activities: OrdersActivity[] = [];
@@ -53,6 +54,7 @@ function fakeDependencies(params?: {
       },
       async recordActivity(activity) {
         calls.push(`activity:${activity.status}`);
+        if (params && "recordError" in params) throw params.recordError;
         activities.push(activity);
       },
     },
@@ -250,6 +252,34 @@ describe("Orders webhook orchestration", () => {
     expect(calls).toEqual(["upsert:order-1", "config", "deliver:U123", "activity:failed"]);
     expect(activities[0].summary).toBe("訂單通知推播失敗：LINE unavailable");
   });
+
+  it("distinguishes delivered-but-unrecorded from a LINE delivery failure", async () => {
+    const { dependencies, calls } = fakeDependencies({
+      recordError: new Error("database unavailable"),
+    });
+
+    await expect(
+      processOrderPayload({ payload, rawBody: JSON.stringify(payload), dependencies })
+    ).resolves.toEqual({
+      type: "delivery_unrecorded",
+      message: "訂單通知已送出，但執行紀錄寫入失敗，請勿重複發送",
+    });
+    expect(calls).toEqual(["upsert:order-1", "config", "deliver:U123", "activity:success"]);
+  });
+
+  it("retains both delivery and audit failures", async () => {
+    const { dependencies } = fakeDependencies({
+      deliveryError: new Error("LINE unavailable"),
+      recordError: new Error("database unavailable"),
+    });
+
+    await expect(
+      processOrderPayload({ payload, rawBody: JSON.stringify(payload), dependencies })
+    ).resolves.toEqual({
+      type: "delivery_failed",
+      message: "LINE unavailable；執行紀錄也寫入失敗",
+    });
+  });
 });
 
 describe("Orders test notification", () => {
@@ -304,5 +334,18 @@ describe("Orders test notification", () => {
     });
     expect(failure.calls).toEqual(["config", "deliver:U123", "activity:failed"]);
     expect(failure.activities[0].summary).toBe("測試訂單通知失敗：LINE unavailable");
+  });
+
+  it("does not invite a duplicate test notification when only audit persistence fails", async () => {
+    const fixture = fakeDependencies({
+      config: { settings: { reportTo: "U123" } },
+      recordError: new Error("database unavailable"),
+    });
+
+    await expect(runOrderTestNotification(fixture.dependencies)).resolves.toEqual({
+      kind: "error",
+      message: "測試通知已送出，但執行紀錄寫入失敗，請勿重複發送",
+    });
+    expect(fixture.calls).toEqual(["config", "deliver:U123", "activity:success"]);
   });
 });

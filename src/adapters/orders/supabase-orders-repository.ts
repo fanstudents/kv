@@ -13,7 +13,7 @@ type OrdersDatabaseError = {
 
 export class OrdersRepositoryError extends Error {
   constructor(
-    readonly operation: "upsert order" | "read Agent config",
+    readonly operation: "upsert order" | "read Agent config" | "record activity",
     databaseError: OrdersDatabaseError
   ) {
     super(`Orders repository could not ${operation}: ${databaseError.message}`, { cause: databaseError });
@@ -44,7 +44,7 @@ export function createSupabaseOrdersRepository(supabase: SupabaseOrdersClient): 
         summary: activity.summary,
         status: activity.status,
       });
-      if (error) console.error("[orders] could not record activity", error);
+      if (error) throw new OrdersRepositoryError("record activity", error);
     },
   };
 }

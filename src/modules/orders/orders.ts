@@ -56,6 +56,7 @@ export type ProcessOrderPayloadResult =
   | { type: "disabled" }
   | { type: "missing_recipient" }
   | { type: "delivered" }
+  | { type: "delivery_unrecorded"; message: string }
   | { type: "delivery_failed"; message: string };
 
 export type OrderTestNotificationPlan =
@@ -166,19 +167,32 @@ export async function processOrderPayload(params: {
 
   try {
     await dependencies.delivery.deliver(notification);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "推播失敗";
+    try {
+      await dependencies.repository.recordActivity({
+        summary: `訂單通知推播失敗：${message}`,
+        status: "failed",
+      });
+    } catch {
+      return { type: "delivery_failed", message: `${message}；執行紀錄也寫入失敗` };
+    }
+    return { type: "delivery_failed", message };
+  }
+
+  try {
     await dependencies.repository.recordActivity({
       summary: notification.successSummary,
       status: "success",
     });
-    return { type: "delivered" };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "推播失敗";
-    await dependencies.repository.recordActivity({
-      summary: `訂單通知推播失敗：${message}`,
-      status: "failed",
-    });
-    return { type: "delivery_failed", message };
+  } catch {
+    return {
+      type: "delivery_unrecorded",
+      message: "訂單通知已送出，但執行紀錄寫入失敗，請勿重複發送",
+    };
   }
+
+  return { type: "delivered" };
 }
 
 export function planOrderTestNotification(
@@ -215,17 +229,26 @@ export async function runOrderTestNotification(
 
   try {
     await dependencies.delivery.deliver(plan.delivery);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "推播失敗";
+    try {
+      await dependencies.repository.recordActivity({
+        summary: `測試訂單通知失敗：${message}`,
+        status: "failed",
+      });
+    } catch {
+      return { kind: "error", message: `${message}；執行紀錄也寫入失敗` };
+    }
+    return { kind: "error", message };
+  }
+
+  try {
     await dependencies.repository.recordActivity({
       summary: "已送出測試訂單通知",
       status: "success",
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "推播失敗";
-    await dependencies.repository.recordActivity({
-      summary: `測試訂單通知失敗：${message}`,
-      status: "failed",
-    });
-    return { kind: "error", message };
+  } catch {
+    return { kind: "error", message: "測試通知已送出，但執行紀錄寫入失敗，請勿重複發送" };
   }
 
   return { kind: "success", message: "測試通知已送出，請查看 LINE" };

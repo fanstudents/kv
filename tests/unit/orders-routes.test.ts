@@ -54,12 +54,53 @@ describe("Orders route contracts", () => {
       status: "failed",
     });
 
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    repository.recordActivity.mockRejectedValueOnce(
+      new OrdersRepositoryError("record activity", { message: "audit unavailable" })
+    );
+    const invalidSignatureWithoutAudit = await postTeachifyOrder(
+      new NextRequest("http://localhost/api/webhooks/teachify-order", { method: "POST", body: "{}" })
+    );
+    expect(invalidSignatureWithoutAudit.status).toBe(401);
+    await expect(invalidSignatureWithoutAudit.json()).resolves.toEqual({ error: "invalid signature" });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[orders] could not audit rejected Teachify webhook",
+      expect.any(OrdersRepositoryError)
+    );
+    consoleError.mockRestore();
+
     verifyTeachifyWebhook.mockReturnValue("unverified");
     const invalidPayload = await postTeachifyOrder(
       new NextRequest("http://localhost/api/webhooks/teachify-order", { method: "POST", body: "not-json" })
     );
     expect(invalidPayload.status).toBe(400);
     await expect(invalidPayload.json()).resolves.toEqual({ error: "invalid payload" });
+  });
+
+  it("returns an explicit retry-safe error after delivery succeeds but audit persistence fails", async () => {
+    const delivery = { deliver: vi.fn(async () => undefined) };
+    createLineOrdersDelivery.mockReturnValue(delivery);
+    verifyTeachifyWebhook.mockReturnValue("unverified");
+    createSupabaseOrdersRepository.mockReturnValueOnce({
+      upsertOrder: vi.fn(async () => undefined),
+      getAgentConfig: vi.fn(async () => ({ settings: { reportTo: "U123" } })),
+      recordActivity: vi.fn(async () => {
+        throw new OrdersRepositoryError("record activity", { message: "audit unavailable" });
+      }),
+    });
+
+    const response = await postTeachifyOrder(
+      new NextRequest("http://localhost/api/webhooks/teachify-order", {
+        method: "POST",
+        body: JSON.stringify({ id: "order-audit-failure", items: [] }),
+      })
+    );
+
+    expect(delivery.deliver).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      error: "訂單通知已送出，但執行紀錄寫入失敗，請勿重複發送",
+    });
   });
 
   it("keeps test-notification missing-recipient and success responses", async () => {

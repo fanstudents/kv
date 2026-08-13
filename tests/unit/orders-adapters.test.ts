@@ -75,7 +75,7 @@ describe("Orders external boundaries", () => {
     });
   });
 
-  it("fails closed on critical Supabase errors while keeping activity telemetry best effort", async () => {
+  it("fails closed on critical Supabase and activity errors", async () => {
     const ordersQuery = { upsert: vi.fn().mockResolvedValue({ error: { message: "write unavailable" } }) };
     const configQuery = {
       select: vi.fn(),
@@ -91,7 +91,6 @@ describe("Orders external boundaries", () => {
       return activityQuery;
     });
     const repository = createSupabaseOrdersRepository({ from } as never);
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
     await expect(
       repository.upsertOrder({
@@ -111,13 +110,10 @@ describe("Orders external boundaries", () => {
       name: "OrdersRepositoryError",
       message: expect.stringContaining("read unavailable"),
     });
-    await expect(repository.recordActivity({ summary: "fixture", status: "failed" })).resolves.toBeUndefined();
-    expect(consoleError).toHaveBeenCalledWith(
-      "[orders] could not record activity",
-      expect.objectContaining({ message: "telemetry unavailable" })
-    );
-
-    consoleError.mockRestore();
+    await expect(repository.recordActivity({ summary: "fixture", status: "failed" })).rejects.toMatchObject({
+      name: "OrdersRepositoryError",
+      message: expect.stringContaining("telemetry unavailable"),
+    });
   });
 
   it("renders and delivers both webhook and test messages through one LINE boundary", async () => {
