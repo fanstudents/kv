@@ -1381,6 +1381,10 @@ export type Database = {
           title: string
         }[]
       }
+      replace_kb_chunks: {
+        Args: { p_chunks: Json; p_doc_ids: string[] }
+        Returns: number
+      }
       requeue_stale_agent_tasks: {
         Args: { p_minutes?: number }
         Returns: number
@@ -1519,4 +1523,3 @@ export const Constants = {
     },
   },
 } as const
-

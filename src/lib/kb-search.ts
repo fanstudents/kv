@@ -35,10 +35,11 @@ export async function indexDocs(docIds: string[]): Promise<number> {
   if (docIds.length === 0) return 0;
   try {
     const supabase = getMainSupabase();
-    const { data: docs } = await supabase
+    const { data: docs, error: docsError } = await supabase
       .from("knowledge_base")
       .select("id,title,content,level,status,source_page")
       .in("id", docIds);
+    if (docsError) throw new Error(docsError.message);
 
     const rows: {
       doc_id: string;
@@ -66,17 +67,24 @@ export async function indexDocs(docIds: string[]): Promise<number> {
       });
     }
 
-    // 先清掉這些文件的舊段落（內容改過的話段落數可能變少）
-    await supabase.from("kb_chunks").delete().in("doc_id", docIds);
-    if (rows.length === 0) return 0;
+    const vectors = rows.length > 0 ? await embedKnowledgeTexts(rows.map((r) => r.content)) : [];
+    if (vectors.length !== rows.length || vectors.some((vector) => vector.length !== 1536)) {
+      throw new Error("Knowledge embedding response does not match the kb_chunks vector contract");
+    }
+    const withEmbedding = rows.map((row, index) => ({
+      ...row,
+      embedding: JSON.stringify(vectors[index]),
+    }));
 
-    const vectors = await embedKnowledgeTexts(rows.map((r) => r.content));
-    const withEmbedding = rows.map((r, i) => ({ ...r, embedding: JSON.stringify(vectors[i] ?? []) }));
-
-    const { error } = await supabase.from("kb_chunks").insert(withEmbedding);
+    // 刪除舊段落與插入新段落必須在同一個 DB transaction；provider／RPC 失敗時保留上一版索引。
+    const { data: replacedCount, error } = await supabase.rpc("replace_kb_chunks", {
+      p_doc_ids: docIds,
+      p_chunks: withEmbedding,
+    });
     if (error) throw new Error(error.message);
-    return withEmbedding.length;
-  } catch {
+    return Number(replacedCount ?? 0);
+  } catch (error) {
+    console.error("[knowledge-base] index update failed", error);
     return 0;
   }
 }

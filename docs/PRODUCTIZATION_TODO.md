@@ -109,6 +109,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Visit AI real acceptance | authenticated production API + Chrome `/agents/visit` + Main staging query（2026-08-14） | 合成名片五欄正確、邀約草稿成功、虛構對象研究明確回 empty／10% 且未捏造來源；profile／run／steps cleanup 0，保留 3 筆 AI usage audit，未寄 Gmail／LINE |
 | Main Agent seed recovery | `20260813170350_seed_line_agents.sql` + online migration／insert-delete probe | clean schema 具備 12 個 canonical deployment rows；保留既有 settings／enabled，Visit activity 外鍵可寫入 |
 | KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + focused contracts | Firecrawl protocol／quota／retry 與 Main persistence／ingestion 分責；production code 淨少 7 行，未新增 route-specific layers |
+| KB atomic index replacement | `replace_kb_chunks` migration + focused unit／Main staging rollback acceptance + Chrome（2026-08-14） | OpenAI／RPC 失敗保留上一版可搜尋 index；成功時整批 transaction replace；service-role-only，fixture cleanup 0，UI/UX 未改 |
 | Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
 | Google read real acceptance | `npm run acceptance:google:read` + Chrome `/integrations`（2026-08-14） | 專用 `KV Staging` OAuth client、Calendar／GA4／GSC production providers 4 tests passed；GA4 `524303407`、GSC `sc-domain:cablate.com` 可讀，Gmail／Calendar／GA4／GSC live connected；未建立行程或寄信 |
 | Google write real acceptance | `npm run acceptance:google:write`（2026-08-14） | 唯一 allowlist `reahtuoo310109@gmail.com`；Calendar 建立／回讀／刪除與 Gmail send production providers 2 tests passed；測試行程已清除，測試信不可回收 |
@@ -139,11 +140,11 @@ Preparation 與真實 acceptance 已完成：Agent chat、Structured JSON、Embe
 - [x] `OPENAI_ACCEPTANCE=1`、`OPENAI_ACCEPTANCE_MAX_USD=0.05` 下執行 `npm run acceptance:openai`：1 file／1 test passed，14.49 秒。
 - [x] 證明文字／JSON／向量／媒體／短效 token 與 `ai_usage_logs`；Main staging 查詢確認 acceptance fixture cleanup 殘留為 0。
 
-### WP-11 Knowledge Base journey `[?]`
+### WP-11 Knowledge Base journey `[x]`
 
 Preparation 已完成：crawl／import／draft／publish／discard／search／reindex／recheck contracts，以及 provider-disabled Chrome journey。
 
-- [?] 決定 embedding 失敗 recovery：保留舊 chunks、標記 unavailable，或明確要求 reindex。目前 `indexDocs` 先刪舊 chunks 再 embedding，不能擅改語意。
+- [x] embedding 失敗 recovery 採「保留上一版可搜尋 index」：先完成全部 1536 維向量，再由 service-role-only `replace_kb_chunks` 於單一 transaction 刪舊／寫新；Main staging 已證明 invalid replacement 會 rollback，成功則完整替換，fixture cleanup 0。
 - [x] `npm run acceptance:kb` 以公開 KV README 跑 Firecrawl → draft → publish → vector index → semantic search；opt-in gate 固定 Main staging、允許來源與最多 1 credit。
 - [x] 依唯一 acceptance URL／source ID 精確清除 `kb_sources`、`knowledge_base`、`kb_chunks`；線上查詢三者殘留 0。Firecrawl 使用 1 credit，OpenAI 保留 3 筆 usage audit。
 - [x] 依真實 journey 收斂：`firecrawl-client.ts` 負責 HTTP／quota／retry，`kb-crawl.ts` 保留 Main source state／shared ingestion；API、資料格式與 UI 不變，沒有 generic crawler、route-specific layers 或轉送介面。
@@ -230,7 +231,8 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [x] Support relay 維持 LINE 200 ACK 避免 provider retry 重複轉發舊客服，但 application 會回傳 forward／audit／subscriber／activity／conversation 的結構化 isolated failures，route 寫入 server diagnostics，不再由 `Promise.allSettled` 靜默吞錯。
 - [x] Visit 已收斂共置的 legacy adapters 保留為真實 LINE／Main／舊 schema 邊界，但 contact、offer、activity、workflow、invite 與 settings 的 Supabase errors 全部 fail-closed，不再偽裝成 missing/default/success；未新增 route-specific wrapper。
 - [x] Shared subscriber `touch` 的 lookup／last-seen／profile／insert errors 已改為 fail-closed，讓 Support relay 能正確回報 subscriber isolated failure，而不是在 DB 失敗時仍宣稱建檔成功。
-- [?] KB index replacement、Visit 多副作用 phase、Teachify duplicate／stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
+- [x] KB index replacement 已採 transaction 原子替換，provider／RPC 失敗不再清空可用索引；草稿／封存仍以空 replacement 清除既有 chunks，維持原產品契約。
+- [?] Visit 多副作用 phase、Teachify duplicate／stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
 
 ### WP-21 CI／deploy／rollback `[!]`
 
@@ -322,7 +324,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - **Exit（已達成）：**三條 journey 的輸入、DB diff、LINE receipt、Chrome evidence、cleanup 成對存在；`npm run acceptance:primary:composites` 為可重跑入口。
 
 3. **P3 — Recovery／replay 決策（D，可與 P2 平行）**
-   - KB embedding：建議先產生新 chunks，再以 transaction／可恢復方式替換；失敗時保留上一版可搜尋 index，不先清空。
+   - [x] KB embedding：先產生並驗證全部新 chunks，再以 service-role-only transaction 替換；Main staging rollback／replace、權限與 cleanup 已通過，失敗時保留上一版可搜尋 index。
    - Visit delivery：建議記錄 Calendar／Gmail／LINE 各 phase，重試只補未完成副作用，不重建 Calendar、不重寄已寄 Gmail。
    - Visit timeout：建議狀態與通知具備可重入 phase；partial failure 重試只完成缺少步驟。
    - Teachify：建議拒絕 stale event，只有實際狀態 transition 才通知；duplicate event 不重複 LINE push。

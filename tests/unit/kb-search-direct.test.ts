@@ -25,24 +25,69 @@ describe("kb search direct fallback behavior", () => {
     expect(mocks.embedKnowledgeTexts).not.toHaveBeenCalled();
   });
 
-  it("returns zero when embedding fails after prior chunks are cleared for a reindex", async () => {
+  it("preserves the prior index when embedding fails before the atomic replacement", async () => {
     const readDocs = vi.fn().mockResolvedValue({
       data: [{ id: "doc-1", title: "Guide", content: "Published content", level: 1, status: "published", source_page: null }],
+      error: null,
     });
-    const clearChunks = vi.fn().mockResolvedValue({ data: null, error: null });
     const from = vi.fn((table: string) => {
       if (table === "knowledge_base") return { select: vi.fn(() => ({ in: readDocs })) };
-      if (table === "kb_chunks") return { delete: vi.fn(() => ({ in: clearChunks })) };
       throw new Error(`unexpected table ${table}`);
     });
-    mocks.getMainSupabase.mockReturnValue({ from });
+    const rpc = vi.fn();
+    mocks.getMainSupabase.mockReturnValue({ from, rpc });
     mocks.embedKnowledgeTexts.mockRejectedValue(new Error("embedding unavailable"));
 
     await expect(indexDocs(["doc-1"])).resolves.toBe(0);
 
-    expect(clearChunks).toHaveBeenCalledWith("doc_id", ["doc-1"]);
     expect(mocks.embedKnowledgeTexts).toHaveBeenCalledWith(["Guide\nPublished content"]);
-    expect(from).toHaveBeenCalledWith("kb_chunks");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("replaces all chunks through one database RPC after embeddings are complete", async () => {
+    const readDocs = vi.fn().mockResolvedValue({
+      data: [{ id: "doc-1", title: "Guide", content: "Published content", level: 1, status: "published", source_page: 3 }],
+      error: null,
+    });
+    const from = vi.fn(() => ({ select: vi.fn(() => ({ in: readDocs })) }));
+    const rpc = vi.fn().mockResolvedValue({ data: 1, error: null });
+    mocks.getMainSupabase.mockReturnValue({ from, rpc });
+    mocks.embedKnowledgeTexts.mockResolvedValue([Array.from({ length: 1536 }, () => 0.25)]);
+
+    await expect(indexDocs(["doc-1"])).resolves.toBe(1);
+
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith("replace_kb_chunks", {
+      p_doc_ids: ["doc-1"],
+      p_chunks: [
+        expect.objectContaining({
+          doc_id: "doc-1",
+          chunk_index: 0,
+          content: "Guide\nPublished content",
+          level: 1,
+          source_page: 3,
+          embedding: expect.stringMatching(/^\[0\.25,/),
+        }),
+      ],
+    });
+  });
+
+  it("atomically clears chunks for documents that are no longer published", async () => {
+    const readDocs = vi.fn().mockResolvedValue({
+      data: [{ id: "doc-1", title: "Draft", content: "Not searchable", level: 1, status: "draft", source_page: null }],
+      error: null,
+    });
+    const from = vi.fn(() => ({ select: vi.fn(() => ({ in: readDocs })) }));
+    const rpc = vi.fn().mockResolvedValue({ data: 0, error: null });
+    mocks.getMainSupabase.mockReturnValue({ from, rpc });
+
+    await expect(indexDocs(["doc-1"])).resolves.toBe(0);
+
+    expect(mocks.embedKnowledgeTexts).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("replace_kb_chunks", {
+      p_doc_ids: ["doc-1"],
+      p_chunks: [],
+    });
   });
 
   it("fails closed without a database lookup when the embedding provider cannot return a query vector", async () => {
