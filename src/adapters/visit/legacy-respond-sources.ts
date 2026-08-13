@@ -40,10 +40,11 @@ export function createLegacyVisitRespondSources(): LegacyVisitRespondSources {
       getSettings: settings.get,
       createCalendarEvent: legacyVisitProviders.createCalendarEvent,
       async updateInviteFulfilled(inviteId, calendarEventId, location) {
-        await getClient()
+        const { error } = await getClient()
           .from("pending_invites")
           .update(toLegacyPendingInviteFulfilmentPatch(calendarEventId, location))
           .eq("id", inviteId);
+        if (error) throw error;
       },
       async sendThankYouEmail(params: VisitRespondEmailParams) {
         await legacyVisitProviders.sendEmail(params);
@@ -52,17 +53,19 @@ export function createLegacyVisitRespondSources(): LegacyVisitRespondSources {
         await pushLegacyLineMessage(to, text);
       },
       async recordActivity(activity) {
-        await getClient().from("line_agent_activity").insert({
+        const { error } = await getClient().from("line_agent_activity").insert({
           agent_slug: activity.agent_slug ?? "visit",
           summary: activity.summary,
           status: activity.status,
         });
+        if (error) throw error;
       },
       async markInviteFailed(inviteId) {
-        await getClient()
+        const { error } = await getClient()
           .from("pending_invites")
           .update(toLegacyPendingInviteStatusPatch("failed"))
           .eq("id", inviteId);
+        if (error) throw error;
       },
     },
     read: {

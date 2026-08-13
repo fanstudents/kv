@@ -61,4 +61,17 @@ describe("legacy Visit respond fulfilment source", () => {
     expect(pushLineMessage).toHaveBeenCalledWith("U1", "done");
     expect(sendEmail).toHaveBeenCalledWith({ to: "d@example.test", subject: "done", body: "html", html: true });
   });
+
+  it("does not silently report a fulfilled invite when Main persistence fails", async () => {
+    const failure = new Error("staging update failed");
+    const updateQuery = { eq: vi.fn().mockResolvedValue({ error: failure }) };
+    const client = {
+      from: vi.fn(() => ({ update: vi.fn(() => updateQuery) })),
+    };
+    getMainSupabase.mockReturnValue(client);
+
+    const adapter = createLegacyVisitRespondSources().fulfilment;
+
+    await expect(adapter.updateInviteFulfilled("i1", "event-1", "Taipei")).rejects.toBe(failure);
+  });
 });
