@@ -30,11 +30,12 @@ export function createSupportRelayDependencies(
     },
     repository: {
       async recordActivity(activity) {
-        await supabase.from("line_agent_activity").insert({
+        const { error } = await supabase.from("line_agent_activity").insert({
           agent_slug: "support",
           summary: activity.summary,
           status: activity.status,
         });
+        if (error) throw new Error(`Support relay activity write failed: ${error.message}`);
       },
     },
     subscribers: {

@@ -219,12 +219,15 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 
 ### WP-18 Support `[!]`
 
-- [ ] **可自主到 gate：**用合成 conversation、local relay double 與自行產生的 `SUPPORT_LOG_SECRET` 驗 capture／callback log／daily report 規則、Main persistence、partial failure 與 cleanup。
+- [x] **可自主到 gate：**`npm run acceptance:support:main` 以合成 conversation、local relay double 與測試程序內隨機 `SUPPORT_LOG_SECRET` 驗 capture、受保護 callback log、daily report、Main persistence、delivery failure 與精確 cleanup；1 file／2 tests passed，conversation／subscriber／activity 殘留為 0，Chrome `/agents/support` 已確認設定與活動回復。全程未呼叫 LINE、OpenAI 或舊客服 endpoint。
 - [!] **外部 gate：**獨立 Support LINE channel 三項 credentials、測試 user、舊客服 webhook 的 safe relay target／owner，以及 public staging deployment；缺任一項都不能宣稱 Support end-to-end 完成。
 
 ### WP-20 Targeted reliability `[?]`
 
 只修 WP-10～18 真實 evidence 暴露的故障：每項先定 idempotency、retry、timeout、partial failure、replay與 manual recovery；只有兩個真實 consumer 或共同故障模式才抽 shared primitive。優先用既有 `agent_runs`、`agent_run_steps`、`ai_usage_logs`、activity，不建平行 runtime。
+
+- [x] Broadcast、Orders、Team Lead 與 Support 的「外部副作用已成功但 activity 寫入失敗」不再被誤報成單純 delivery failure；回應會明確要求不得重送，DB adapters 不再吞 activity／conversation errors。
+- [?] KB index replacement、Visit 多副作用 phase、Teachify duplicate／stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
 
 ### WP-21 CI／deploy／rollback `[!]`
 
@@ -325,7 +328,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
 4. **P4 — 本地 provider readiness（G）**
    - Visit inbound：以本地有效 LINE signature fixture 驗 signature／parsing／application route 與失敗路徑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。
    - Teachify：驗 valid／invalid signature、duplicate／out-of-order fixture、parse failure、DB failure 與 LINE delivery failure；真實簽章規格另待 P5。
-   - Support：以 synthetic conversation、Support signature 與本地 relay double 驗 capture／forward／failure；不得借用 Primary LINE channel。
+   - [x] Support：local signature／route contracts、synthetic conversation、relay double、Main capture／callback／report、failure 與 cleanup 已通過；未借用 Primary LINE channel，也未宣稱真實 Support provider 完成。
    - **Exit**：三個 adapter 都能在不碰正式服務的情況下重播成功與失敗 evidence，並列明 provider 尚缺項。
 
 5. **P5 — 外部資產（E，可與 P1–P4 平行取得）**

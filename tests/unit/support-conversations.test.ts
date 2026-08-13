@@ -19,4 +19,13 @@ describe("Support conversation persistence", () => {
     expect(from).toHaveBeenCalledWith("line_support_conversations");
     expect(insert).toHaveBeenCalledWith({ line_user_id: "U123", role: "customer", text: "Need help" });
   });
+
+  it("surfaces persistence failures instead of reporting a false success", async () => {
+    const insert = vi.fn().mockResolvedValue({ error: { message: "database unavailable" } });
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => ({ insert })) });
+
+    await expect(logConversationMessage("U123", "bot", "Reply")).rejects.toThrow(
+      "Support conversation write failed: database unavailable"
+    );
+  });
 });

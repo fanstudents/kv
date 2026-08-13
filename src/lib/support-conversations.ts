@@ -7,5 +7,8 @@ export type ConversationRole = "customer" | "bot";
 
 export async function logConversationMessage(lineUserId: string, role: ConversationRole, text: string) {
   const supabase = getMainSupabase();
-  await supabase.from("line_support_conversations").insert({ line_user_id: lineUserId, role, text });
+  const { error } = await supabase
+    .from("line_support_conversations")
+    .insert({ line_user_id: lineUserId, role, text });
+  if (error) throw new Error(`Support conversation write failed: ${error.message}`);
 }
