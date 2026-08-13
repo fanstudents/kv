@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import TrendChart from "@/components/agents/charts/TrendChart";
+import { useAgentOverview } from "@/components/agents/overview-client";
 import type { PipelineOverview } from "@/modules/operations/pipeline";
 import type { WeekOverview } from "@/lib/google";
 import type { AgentSlug } from "@/lib/types";
+import type { TrafficOverview } from "@/lib/ga4";
+import type { SearchOverview } from "@/lib/gsc";
 import { buildTrafficDemo } from "@/lib/ga4-demo";
 import { buildSearchDemo } from "@/lib/gsc-demo";
 import { ADS_DEMO_CAMPAIGNS, ADS_DEMO_DAILY_SPEND, ADS_DEMO_STATS } from "@/lib/ads-demo";
@@ -16,40 +18,15 @@ import {
   REPUTATION_DEMO_TREND,
 } from "@/lib/reputation-demo";
 
-// 劇場模式的「彙報完才揭曉」區塊裡，五位行銷 Team 成員(數據／SEO／社群／廣告／口碑)
-// 目前全數改用示範資料呈現(錄影／展示用途)——原本 report／expense 接的是真實 GA4／GSC，
-// 想切回真實資料，把下面 ReportLiveMetrics／ExpenseLiveMetrics 改回呼叫
-// /api/agents/report/traffic-overview、/api/agents/expense/seo-overview 即可(參照 git 歷史)。
-// 營運／行程不是行銷 Team 成員，維持原本接真實資料來源的邏輯不變。
+// 劇場模式保留行銷 Team 的錄影／展示資料；如實模式只讓已接妥 provider 的
+// report／expense 讀真實 GA4／GSC。其餘行銷 Agent 不以 demo 冒充真實回饋。
 
 const LIVE_DATA_ENDPOINT: Partial<Record<AgentSlug, string>> = {
+  report: "/api/agents/report/traffic-overview?days=7",
+  expense: "/api/agents/expense/seo-overview?days=7",
   operations: "/api/agents/operations/pipeline",
   schedule: "/api/agents/schedule/week-overview",
 };
-
-function useOverview<T>(slug: AgentSlug) {
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const endpoint = LIVE_DATA_ENDPOINT[slug];
-    if (!endpoint) return;
-    let alive = true;
-    fetch(endpoint)
-      .then((r) => r.json())
-      .then((d) => {
-        if (!alive) return;
-        if (d.ok) setData(d.data as T);
-        else setError(d.error ?? "讀取失敗");
-      })
-      .catch(() => alive && setError("讀取失敗"));
-    return () => {
-      alive = false;
-    };
-  }, [slug]);
-
-  return { data, error };
-}
 
 function StatBox({ label, value, delta, deltaHint }: { label: string; value: string; delta?: number | null; deltaHint?: string }) {
   const hasDelta = typeof delta === "number" && delta !== 0;
@@ -94,9 +71,16 @@ function PanelShell({ title, source, children }: { title: string; source: string
   );
 }
 
-// 數據參謀(Ivy)用:GA4 流量示範資料
-function ReportLiveMetrics() {
-  const data = buildTrafficDemo(7);
+function ReportLiveMetrics({ mode }: { mode: "demo" | "live" }) {
+  const live = useAgentOverview<TrafficOverview>(mode === "live" ? LIVE_DATA_ENDPOINT.report! : null);
+  const data = mode === "demo" ? buildTrafficDemo(7) : live.data;
+
+  if (live.error) return <p className="text-xs text-amber-300">GA4 真實資料讀取失敗：{live.error}</p>;
+  if (!data) return <div aria-label="GA4 資料載入中" className="h-40 animate-pulse rounded-xl border border-white/8 bg-white/[0.02]" />;
+  if (data.sessions === 0 && data.activeUsers === 0 && data.conversions === 0 && data.dailyTrend.length === 0) {
+    return <p className="text-xs text-white/40">近 7 天沒有 GA4 流量資料</p>;
+  }
+
   const trendData = data.dailyTrend.map((d) => ({ date: d.date.slice(5).replace("-", "/"), sessions: d.sessions }));
 
   return (
@@ -119,9 +103,16 @@ function ReportLiveMetrics() {
   );
 }
 
-// SEO 尖兵(Leo)用:GSC 關鍵字排名示範資料
-function ExpenseLiveMetrics() {
-  const data = buildSearchDemo(7);
+function ExpenseLiveMetrics({ mode }: { mode: "demo" | "live" }) {
+  const live = useAgentOverview<SearchOverview>(mode === "live" ? LIVE_DATA_ENDPOINT.expense! : null);
+  const data = mode === "demo" ? buildSearchDemo(7) : live.data;
+
+  if (live.error) return <p className="text-xs text-amber-300">GSC 真實資料讀取失敗：{live.error}</p>;
+  if (!data) return <div aria-label="GSC 資料載入中" className="h-40 animate-pulse rounded-xl border border-white/8 bg-white/[0.02]" />;
+  if (data.totalClicks === 0 && data.totalImpressions === 0 && data.dailyTrend.length === 0 && data.topQueries.length === 0) {
+    return <p className="text-xs text-white/40">近 7 天沒有 Search Console 資料</p>;
+  }
+
   const trendData = data.dailyTrend.map((d) => ({ date: d.date.slice(5).replace("-", "/"), clicks: d.clicks }));
 
   return (
@@ -271,7 +262,7 @@ function CompetitorLiveMetrics() {
 }
 
 function OperationsLiveMetrics({ color }: { color: string }) {
-  const { data, error } = useOverview<PipelineOverview>("operations");
+  const { data, error } = useAgentOverview<PipelineOverview>(LIVE_DATA_ENDPOINT.operations!);
   if (error) return <p className="text-xs text-white/30">教學系統真實資料讀取失敗：{error}</p>;
   if (!data) return <div className="h-40 animate-pulse rounded-xl border border-white/8 bg-white/[0.02]" />;
 
@@ -325,7 +316,7 @@ function OperationsLiveMetrics({ color }: { color: string }) {
 // 行程助理(Milo)用:跟數字趨勢圖不同,這裡是行事曆形狀——未來七天的行程分佈條、
 // 接下來的行程、衝突提醒，不套「7 天增幅」的比較(未來的行程本來就沒有「前 7 天」可比)。
 function ScheduleLiveMetrics() {
-  const { data, error } = useOverview<WeekOverview>("schedule");
+  const { data, error } = useAgentOverview<WeekOverview>(LIVE_DATA_ENDPOINT.schedule!);
   if (error) return <p className="text-xs text-white/30">Google 行事曆真實資料讀取失敗：{error}</p>;
   if (!data) return <div className="h-40 animate-pulse rounded-xl border border-white/8 bg-white/[0.02]" />;
 
@@ -386,9 +377,17 @@ function ScheduleLiveMetrics() {
   );
 }
 
-export default function LiveMetricsPanel({ slug, color }: { slug: AgentSlug; color: string }) {
-  if (slug === "report") return <ReportLiveMetrics />;
-  if (slug === "expense") return <ExpenseLiveMetrics />;
+export default function LiveMetricsPanel({
+  slug,
+  color,
+  mode = "demo",
+}: {
+  slug: AgentSlug;
+  color: string;
+  mode?: "demo" | "live";
+}) {
+  if (slug === "report") return <ReportLiveMetrics mode={mode} />;
+  if (slug === "expense") return <ExpenseLiveMetrics mode={mode} />;
   if (slug === "card") return <CardLiveMetrics />;
   if (slug === "today") return <TodayLiveMetrics />;
   if (slug === "competitor") return <CompetitorLiveMetrics />;

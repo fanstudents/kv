@@ -1075,7 +1075,14 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
 
           {/* 右：彙報內容（可捲動） */}
           <div className="flex min-h-0 flex-col gap-6 border-t border-white/8 p-5 sm:p-7 lg:flex-1 lg:overflow-y-auto lg:border-l lg:border-t-0">
-            {!demoMode && <RealStatusPanel slug={agent.slug} color={agent.color} tone="dark" />}
+            {!demoMode && (
+              <>
+                <RealStatusPanel slug={agent.slug} color={agent.color} tone="dark" />
+                {(agent.slug === "report" || agent.slug === "expense") && (
+                  <LiveMetricsPanel slug={agent.slug} color={agent.color} mode="live" />
+                )}
+              </>
+            )}
 
             {/* 最近七天彙報（打字機） */}
             {demoMode && (
@@ -1098,7 +1105,7 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
             {/* 彙報完才揭曉：數字、任務重點、產出（滑入）——只在示範模式呈現 */}
             {demoMode && done && (
               <div className="space-y-6">
-                <LiveMetricsPanel slug={agent.slug} color={agent.color} />
+                <LiveMetricsPanel slug={agent.slug} color={agent.color} mode="demo" />
 
                 <div className="tv-in grid grid-cols-3 gap-3">
                   {brief.weekStats.map((s) => (
