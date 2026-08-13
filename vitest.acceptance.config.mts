@@ -10,12 +10,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["tests/acceptance/openai-provider.acceptance.test.ts"],
+    include: ["tests/acceptance/**/*.acceptance.test.ts"],
     clearMocks: true,
     restoreMocks: true,
     fileParallelism: false,
     maxWorkers: 1,
-    hookTimeout: 10_000,
+    hookTimeout: 60_000,
     testTimeout: 180_000,
   },
 });
