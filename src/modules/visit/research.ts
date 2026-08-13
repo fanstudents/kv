@@ -85,7 +85,7 @@ export interface VisitResearchRuns {
     runId: string | null,
     nodeId: string,
     patch: {
-      status: "running" | "done";
+      status: "running" | "done" | "failed";
       seq: number;
       input?: string;
       output?: string;
@@ -163,7 +163,23 @@ export async function runVisitContactResearch(
       input: searchInput.slice(0, 200),
       seq: 0,
     });
-    const profile = await provider.search(searchInput);
+    let profile: VisitContactProfile;
+    try {
+      profile = await provider.search(searchInput);
+    } catch (error) {
+      const errorDetail = error instanceof Error ? error.message : "unknown";
+      await runs.step(runId, "research-search", {
+        status: "failed",
+        output: errorDetail.slice(0, 200),
+        seq: 0,
+      });
+      throw error;
+    }
+    await runs.step(runId, "research-search", {
+      status: "done",
+      output: "公開資料搜尋完成",
+      seq: 0,
+    });
     const found = hasUsefulProfile(profile);
     const id = await repository.storeProfile({
       input,

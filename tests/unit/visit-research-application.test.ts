@@ -130,6 +130,21 @@ describe("Visit research application", () => {
       status: "done",
       runId: "run-1",
     });
+    expect(dependencies.runs.step).toHaveBeenNthCalledWith(1, "run-1", "research-search", {
+      status: "running",
+      input: "search input",
+      seq: 0,
+    });
+    expect(dependencies.runs.step).toHaveBeenNthCalledWith(2, "run-1", "research-search", {
+      status: "done",
+      output: "公開資料搜尋完成",
+      seq: 0,
+    });
+    expect(dependencies.runs.step).toHaveBeenNthCalledWith(3, "run-1", "research-store", {
+      status: "done",
+      output: "1 個連結、1 則近況",
+      seq: 1,
+    });
     expect(dependencies.runs.finish).toHaveBeenCalledWith("run-1", {
       status: "success",
       summary: "已完成 DB Name 的行前背景調查",
@@ -194,10 +209,43 @@ describe("Visit research application", () => {
       errorKind: "external",
       errorDetail: "provider unavailable",
     });
+    expect(dependencies.runs.step).toHaveBeenLastCalledWith("run-1", "research-search", {
+      status: "failed",
+      output: "provider unavailable",
+      seq: 0,
+    });
     expect(dependencies.repository.storeFailure).toHaveBeenCalledWith({
       input,
       errorDetail: "provider unavailable",
       runId: "run-1",
+    });
+  });
+
+  it("does not relabel a completed search when profile persistence fails", async () => {
+    const dependencies = createDependencies();
+    vi.mocked(dependencies.repository.storeProfile).mockRejectedValue(new Error("db unavailable"));
+
+    await expect(runVisitContactResearch(input, dependencies)).resolves.toBeNull();
+
+    expect(dependencies.runs.step).toHaveBeenNthCalledWith(1, "run-1", "research-search", {
+      status: "running",
+      input: "search input",
+      seq: 0,
+    });
+    expect(dependencies.runs.step).toHaveBeenNthCalledWith(2, "run-1", "research-search", {
+      status: "done",
+      output: "公開資料搜尋完成",
+      seq: 0,
+    });
+    expect(dependencies.runs.step).not.toHaveBeenCalledWith(
+      "run-1",
+      "research-search",
+      expect.objectContaining({ status: "failed" })
+    );
+    expect(dependencies.runs.finish).toHaveBeenCalledWith("run-1", {
+      status: "failed",
+      errorKind: "external",
+      errorDetail: "db unavailable",
     });
   });
 

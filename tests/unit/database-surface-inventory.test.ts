@@ -74,7 +74,10 @@ describe("database surface inventory", () => {
       .filter((name) => name.endsWith(".sql"))
       .sort();
 
-    expect(migrations).toEqual(["20260801000000_live_baseline.sql"]);
+    expect(migrations).toEqual([
+      "20260801000000_live_baseline.sql",
+      "20260813170350_seed_line_agents.sql",
+    ]);
 
     const baseline = readFileSync(
       join(process.cwd(), "supabase", "migrations", migrations[0]),
@@ -87,5 +90,12 @@ describe("database surface inventory", () => {
     expect(baseline.match(/^create trigger /gim)).toHaveLength(1);
     expect(baseline).toContain("maxvalue 9223372036854775807");
     expect(baseline).not.toContain("9223372036854776000");
+
+    const seed = readFileSync(
+      join(process.cwd(), "supabase", "migrations", migrations[1]),
+      "utf8"
+    );
+    expect(seed).toContain("insert into public.line_agents");
+    expect(seed).toContain("on conflict (slug) do nothing");
   });
 });

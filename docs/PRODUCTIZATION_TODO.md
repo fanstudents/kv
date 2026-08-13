@@ -66,7 +66,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 ### 架構判定
 
 - **整體骨架已就位**：entrypoint、domain owner、port／adapter、Main／Teaching DB ownership 已足以讓新需求沿既有邊界開發；不需要再做一輪全 repo 搬檔。
-- **不是所有模組都同樣成熟**：OpenAI shared transport、Orders、Support 已有清楚 owner；Visit 已模組化但仍保留少量有界的 legacy translation；Firecrawl 尚把 provider transport、crawl policy、Supabase persistence 與 KB ingestion 混在 `src/lib/kb-crawl.ts`；Teachify 的真實簽章契約仍未由 sandbox event 證實；GA4／GSC／Google 已有 provider boundary，但部分 demo projection 與 Visit legacy delivery 仍待真實旅程觸碰時收斂。
+- **不是所有模組都同樣成熟**：OpenAI shared transport、Orders、Support 已有清楚 owner；Visit 已模組化但仍保留少量有界的 legacy translation；Firecrawl 尚把 provider transport、crawl policy、Supabase persistence 與 KB ingestion 混在 `src/lib/kb-crawl.ts`；Teachify 的真實簽章契約仍未由 sandbox event 證實；GA4／GSC／Google 已有 provider boundary。`/integrations` 仍是 localStorage／seed demo projection，不能當連線真相；Agent surface 使用的 `/api/integrations/status` 才是 live status。
 - **下一階段是需求驅動的垂直切片，不是水平重構**：依 KV 已確認的功能需求與 journey，只整理該 journey 經過的 capability module、provider adapter、recovery 與驗收證據。沒有第二個真實 consumer 或共同故障模式，不抽通用框架。
 
 | Boundary | 現況 | 後續原則 |
@@ -76,6 +76,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Visit／LINE／Google | use cases、ports、lock 已建立；少量 `legacy-*` compatibility seam 仍在 | 只隨真實 delivery journey touch-and-migrate |
 | Knowledge Base／Firecrawl | 真實單頁 journey 已通過；`kb-crawl.ts` 仍混 transport、policy、persistence、ingestion | 依已觀察流程拆 Firecrawl transport 與 KB import／persistence，不建 generic crawler platform |
 | Reporting／GA4／GSC | provider query boundary 已有；部分 demo／fallback 尚未被真實資料取代 | 先用授權的 read-only property/site 驗輸入、空資料與 quota |
+| Integrations UI | `/integrations` 的卡片與動作仍是本機 demo；Agent status panel 已讀 live API | 上線前在不改 UI/UX 下改綁 live status，或由產品明確標示 demo；不得以靜態「已連線」作驗收證據 |
 | Supabase | Main migration／typed client 可重建；Teaching 是獨立唯讀來源 | 固定使用我方 staging；不拿 Dennis production DB 當測試環境 |
 
 | Domain | UI／entrypoint | Current owner | Data／provider | 下一個 gate |
@@ -105,10 +106,12 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | OpenAI acceptance cost gate | `e0a5f02` | 每次批准 US$0.05～0.10；provider／DB 前拒絕錯誤設定 |
 | OpenAI real acceptance | `npm run acceptance:openai` + Main staging query（2026-08-14） | Structured JSON、Embedding、Agent chat、TTS／STT、Realtime client secret、usage persistence 全數通過；fixture cleanup 0 |
 | Knowledge Base real acceptance | `npm run acceptance:kb` + Firecrawl credit／Main staging query（2026-08-14） | 公開 KV README 單頁完成 scrape → draft → publish → vector index → semantic search；使用 1 credit，sources／docs／chunks cleanup 0，保留 3 筆 AI usage audit |
+| Visit AI real acceptance | authenticated production API + Chrome `/agents/visit` + Main staging query（2026-08-14） | 合成名片五欄正確、邀約草稿成功、虛構對象研究明確回 empty／10% 且未捏造來源；profile／run／steps cleanup 0，保留 3 筆 AI usage audit，未寄 Gmail／LINE |
+| Main Agent seed recovery | `20260813170350_seed_line_agents.sql` + online migration／insert-delete probe | clean schema 具備 12 個 canonical deployment rows；保留既有 settings／enabled，Visit activity 外鍵可寫入 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／613 tests、93-page build、132 browser tests；Orders 1 + lock 2 + atomic cost 1 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；2026-08-13 graph sync 446 files／3,774 nodes／7,492 edges、pending changes 0 |
+| Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 127 files／614 tests、93-page build、132 browser tests；Orders 1 + lock 2 + atomic cost 1 staging tests、fixture cleanup 0；Knowledge Base／Visit／Meeting 實機無 app error；2026-08-14 incremental graph sync 3 files／31 nodes |
 
 ## 5. Active TODO
 
@@ -138,11 +141,15 @@ Preparation 已完成：crawl／import／draft／publish／discard／search／re
 - [x] 依唯一 acceptance URL／source ID 精確清除 `kb_sources`、`knowledge_base`、`kb_chunks`；線上查詢三者殘留 0。Firecrawl 使用 1 credit，OpenAI 保留 3 筆 usage audit。
 - [ ] 依真實 journey 收斂 `kb-crawl.ts`：Firecrawl HTTP／quota adapter 與 KB import／Supabase persistence 分責；不新增 generic crawler、route-specific layers 或轉送介面。
 
-### WP-12 Visit AI journey `[!]`
+### WP-12 Visit AI journey `[x]`
 
-- [ ] 用合成名片驗 parse-card／structured output／usage。
-- [ ] 驗 draft-email 與 Contact Research profile persistence；不在此包寄 Gmail／LINE。
-- [ ] 在 `/agents/visit` 完成受控 action journey 與 cleanup。
+Change contract：範圍只含 `parse-card`、`draft-email`、Contact Research 與其 Main DB／Chrome projection；不寄 Gmail／LINE、不改 UI。成功與失敗時 `research-search` step 都必須離開 `running`，run／profile／activity 必須與結果一致；AI usage 保留，synthetic fixture 精確清除。
+
+- [x] 合成名片經真實 `gpt-4o` structured output 正確辨識姓名、公司、職稱、Email、電話，usage 已落 Main。
+- [x] `gpt-4o-mini` 邀約信成功；虛構姓名／公司經 Web Search 回 empty、0 links／sources、10% confidence，沒有捏造公開資料。
+- [x] Chrome `/agents/visit` 顯示相同 empty profile、無 app console error；清除後 profile／run／steps 都為 0，三筆 usage audit 保留。
+- [x] 修正 research search step 只寫 `running` 的不一致；成功補 `done`、失敗補 `failed`，focused unit contract 與全量 verify 通過。
+- [x] 補上 idempotent `line_agents` seed migration；我方 staging 已有 12 rows，activity insert／delete probe 通過。原先 activity 缺失是空父表造成，不是 provider 成功的證據。
 
 ### WP-13 Visit delivery／recovery `[?][!]`
 
@@ -196,6 +203,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 ### WP-22 Final cleanup／handoff `[ ]`
 
 - [ ] Provider journeys 與已選 reliability decisions 達標；未執行項有接受理由。
+- [ ] 將 `/integrations` 從 localStorage／seed demo 改綁 `/api/integrations/status` 等 live truth，維持原 UI/UX；若產品選擇保留 demo，必須在畫面明確標示而不是顯示假的「已連線」。
 - [ ] 移除最後 dead code、過渡 re-export／flag、過期 tests、demo fallback 誤用與未接 composition。
 - [ ] 全量 verify、CodeGraph、關鍵 UI／API／provider matrix、staging cutover／rollback rehearsal。
 - [ ] 只把穩定操作知識補進 README／runbook，不新增重複架構文件。
