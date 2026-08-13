@@ -71,7 +71,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 
 | Boundary | 現況 | 後續原則 |
 |---|---|---|
-| OpenAI | shared client + domain adapters，邊界清楚 | 拿 key 後做成本受控 acceptance，不再抽象一層 |
+| OpenAI | shared client + domain adapters，真實 acceptance 已通過 | 保持現有邊界，不再抽象一層；各 composite journey 只補 domain evidence |
 | Orders／Teachify | Orders workflow／repository／LINE delivery 已分離；真實 webhook 契約未證實 | sandbox event 驗簽章、重送、out-of-order，再決定 recovery |
 | Visit／LINE／Google | use cases、ports、lock 已建立；少量 `legacy-*` compatibility seam 仍在 | 只隨真實 delivery journey touch-and-migrate |
 | Knowledge Base／Firecrawl | domain owner 已有；`kb-crawl.ts` 仍混 transport、policy、persistence、ingestion | 真實 crawl 時拆成 Firecrawl adapter + KB application，不建 generic crawler platform |
@@ -103,6 +103,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Conversation lock | `711dfd4` | compare-and-swap、contention／expiry／release 線上 staging 通過 |
 | Visit terminal cleanup | `86c4590`、`a3873c7` | approval／offer／timeout terminal paths 都嘗試釋放 lock |
 | OpenAI acceptance cost gate | `e0a5f02` | 每次批准 US$0.05～0.10；provider／DB 前拒絕錯誤設定 |
+| OpenAI real acceptance | `npm run acceptance:openai` + Main staging query（2026-08-14） | Structured JSON、Embedding、Agent chat、TTS／STT、Realtime client secret、usage persistence 全數通過；fixture cleanup 0 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
@@ -119,13 +120,13 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 - [?] 品牌改名與 Super Agent 展示頁是產品／UI 變更，需產品確認後才做。
 - [x] 明確拒絕直接帶入：錯誤的 `gpt-realtime-2.1` 計價、尚未證明安全的 generic retry／Agent task runtime、414 行預設 Supabase config、後端硬等 4 秒與 DB base64 大圖做法。
 
-### WP-10 OpenAI Real Acceptance `[!]`
+### WP-10 OpenAI Real Acceptance `[x]`
 
-Preparation 已完成：Agent chat、Structured JSON、Embedding、TTS／STT、Realtime client secret、usage persistence／cleanup，以及 acceptance-specific cost gate。
+Preparation 與真實 acceptance 已完成：Agent chat、Structured JSON、Embedding、TTS／STT、Realtime client secret、usage persistence／cleanup，以及 acceptance-specific cost gate。
 
-- [ ] 取得安全 `OPENAI_API_KEY`，執行前重驗官方模型價格。
-- [ ] 設定 `OPENAI_ACCEPTANCE=1`、`OPENAI_ACCEPTANCE_MAX_USD=0.05`，執行 `npm run acceptance:openai`。
-- [ ] 證明文字／JSON／向量／媒體／短效 token 與 `ai_usage_logs`；確認 cleanup 無殘留。
+- [x] `OPENAI_API_KEY` 只配置於 Git ignored `.env.local`；2026-08-14 已依官方文件重驗使用模型與 key 保管原則。因 key 曾經由聊天傳遞，完成本輪驗收後必須輪替。
+- [x] `OPENAI_ACCEPTANCE=1`、`OPENAI_ACCEPTANCE_MAX_USD=0.05` 下執行 `npm run acceptance:openai`：1 file／1 test passed，14.49 秒。
+- [x] 證明文字／JSON／向量／媒體／短效 token 與 `ai_usage_logs`；Main staging 查詢確認 acceptance fixture cleanup 殘留為 0。
 
 ### WP-11 Knowledge Base journey `[!]`
 
@@ -205,7 +206,7 @@ Secrets 只放 Git ignored `.env.local` 或正式 secret store；不要貼進 Gi
 
 | 優先 | Service | 需要取得／設定 | 同時要準備的安全資產 | 解鎖 |
 |---|---|---|---|---|
-| 1 | OpenAI | `OPENAI_API_KEY`；接受單次 US$0.05 成本 | 無個資 synthetic fixture | WP-10，並解鎖 WP-11／12／17 AI |
+| 1 | OpenAI | 已配置並完成 US$0.05 gate acceptance；驗收後輪替 key | 無個資 synthetic fixture | WP-10 完成；WP-11／12／17 AI 已解鎖 |
 | 2 | Firecrawl | `FIRECRAWL_API_KEY`；`FIRECRAWL_API_BASE` 通常留空 | 自有公開單頁 URL、低頁數上限 | WP-11 crawl |
 | 3 | Google OAuth | `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN` | 測試 Calendar、allowlisted email；OAuth scopes 含 Calendar write／Gmail send | WP-13／14 |
 | 4 | Google analytics | `GA4_PROPERTY_ID`、`GSC_SITE_URL`；必要時 `GOOGLE_ADDITIONAL_CALENDAR_IDS` | 可讀測試 property／site／shared calendar | WP-14／17 |
@@ -220,7 +221,7 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 ## 7. 執行順序
 
 1. 確認 9 月底 KV 推廣版本必須包含的功能與驗收 journey；未確認前仍可做下列獨立 acceptance，不推導其他商業場景。
-2. 拿 OpenAI key，跑最窄的付費 acceptance。
+2. [x] OpenAI 最窄付費 acceptance 已通過；usage fixture cleanup 0，驗收用 key 待輪替。
 3. Firecrawl + OpenAI 完成 KB 單頁 journey與 cleanup；同批收斂 `kb-crawl.ts` 的已證實邊界。
 4. Google read-only；再用 allowlisted email 做 Calendar／Gmail write。
 5. Teachify sandbox event；先確認 replay 產品決策。LINE primary／support 只在測試 channel／recipient allowlist 準備好後分開驗，再接 Visit、Orders、Reporting、Support composite journeys。
@@ -233,9 +234,9 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 
 - Healthy enough：整體骨架、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior 都已就位；可直接承接已確認的 KV 功能需求，不需先完成全面重構。
 - Not uniformly clean：Firecrawl／KB 是目前最明顯的責任混合點；Visit 有受控 legacy seam；Teachify、GA4／GSC／Google／LINE 的完成度取決於真實 provider evidence，不能因 tests 綠燈宣稱完成。
-- Actually blocked：9 月底推廣版本的確切範圍、外部 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
+- Actually blocked：9 月底推廣版本的確切範圍、OpenAI 以外的 provider credentials／safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。
 - Safe work now：沿已確認的 KV 需求承接功能；其餘 upstream 內容按需求手工移植。避免再做全域搬檔、每 route 一套 layer 或預建通用 Agent／plugin／multi-tenant framework。
-- 下一步：確認 9 月底推廣範圍，並照第 6 節取得安全 credentials／資產，依第 7 節做真實 acceptance；不要一次開所有 side effects。
+- 下一步：取得 Firecrawl key 與自有單頁 URL，執行 WP-11 Knowledge Base journey；同時確認 9 月底推廣範圍。其餘 provider 依第 7 節逐批開啟，不一次開所有 side effects。
 
 ## 9. 文件政策
 
