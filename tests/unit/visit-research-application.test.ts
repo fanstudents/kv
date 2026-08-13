@@ -198,6 +198,7 @@ describe("Visit research application", () => {
   });
 
   it("records provider failure and suppresses compensation-write failure", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     const dependencies = createDependencies();
     vi.mocked(dependencies.provider.search).mockRejectedValue(new Error("provider unavailable"));
     vi.mocked(dependencies.repository.storeFailure).mockRejectedValue(new Error("db unavailable"));
@@ -219,6 +220,11 @@ describe("Visit research application", () => {
       errorDetail: "provider unavailable",
       runId: "run-1",
     });
+    expect(errorLog).toHaveBeenCalledWith(
+      "[visit] research failure compensation unavailable",
+      "db unavailable",
+    );
+    errorLog.mockRestore();
   });
 
   it("does not relabel a completed search when profile persistence fails", async () => {

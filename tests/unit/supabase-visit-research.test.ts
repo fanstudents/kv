@@ -9,11 +9,12 @@ import { createSupabaseVisitResearchRepository } from "@/adapters/visit/supabase
 function createClient() {
   const contactSingle = vi.fn().mockResolvedValue({
     data: { name: "Dennis", company: "CabLate", title: "Founder", email: "d@example.test" },
+    error: null,
   });
   const contactEq = vi.fn(() => ({ maybeSingle: contactSingle }));
   const contactSelect = vi.fn(() => ({ eq: contactEq }));
 
-  const recentSingle = vi.fn().mockResolvedValue({ data: { id: "recent-1" } });
+  const recentSingle = vi.fn().mockResolvedValue({ data: { id: "recent-1" }, error: null });
   const recentGte = vi.fn(() => ({ maybeSingle: recentSingle }));
   const recentStatusEq = vi.fn(() => ({ gte: recentGte }));
   const recentContactEq = vi.fn(() => ({ eq: recentStatusEq }));
@@ -35,7 +36,7 @@ function createClient() {
     status: "done",
     created_at: "2026-08-02T00:00:00.000Z",
   };
-  const profileListLimit = vi.fn().mockResolvedValue({ data: [storedProfile] });
+  const profileListLimit = vi.fn().mockResolvedValue({ data: [storedProfile], error: null });
   const profileListOrder = vi.fn(() => ({ limit: profileListLimit }));
   const activityInsert = vi.fn().mockResolvedValue({ error: null });
   let profileSelectCall = 0;
@@ -167,10 +168,48 @@ describe("Supabase Visit research repository", () => {
   });
 
   it("keeps profile-list failures as the existing empty projection", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     getMainSupabase.mockImplementation(() => {
       throw new Error("missing database");
     });
 
     await expect(createSupabaseVisitResearchRepository().listProfiles(10)).resolves.toEqual([]);
+    expect(errorLog).toHaveBeenCalledWith("[visit] research profile list unavailable", "missing database");
+    errorLog.mockRestore();
+  });
+
+  it("surfaces required read failures and diagnoses best-effort activity failures", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const contactSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "contact unavailable" } });
+    const recentSingle = vi.fn().mockResolvedValue({ data: null, error: { message: "profile unavailable" } });
+    const activityInsert = vi.fn().mockResolvedValue({ data: null, error: { message: "activity unavailable" } });
+    const from = vi.fn((table: string) => {
+      if (table === "contacts") {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: contactSingle })) })) };
+      }
+      if (table === "contact_profiles") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({ gte: vi.fn(() => ({ maybeSingle: recentSingle })) })),
+            })),
+          })),
+        };
+      }
+      if (table === "line_agent_activity") return { insert: activityInsert };
+      throw new Error(`Unexpected table: ${table}`);
+    });
+    getMainSupabase.mockReturnValue({ from });
+    const repository = createSupabaseVisitResearchRepository();
+
+    await expect(repository.findContact("contact-1")).rejects.toThrow(
+      "Visit research contact read failed: contact unavailable",
+    );
+    await expect(repository.findRecentCompletedProfile("contact-1", "2026-01-01T00:00:00.000Z")).rejects.toThrow(
+      "Visit research recent profile read failed: profile unavailable",
+    );
+    await expect(repository.recordActivity({ summary: "done", status: "success" })).resolves.toBeUndefined();
+    expect(errorLog).toHaveBeenCalledWith("[visit] research activity write failed", "activity unavailable");
+    errorLog.mockRestore();
   });
 });

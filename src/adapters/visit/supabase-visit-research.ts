@@ -36,22 +36,24 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
 
   return {
     async findContact(contactId) {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("contacts")
         .select("name,company,title,email")
         .eq("id", contactId)
         .maybeSingle();
+      if (error) throw new Error(`Visit research contact read failed: ${error.message}`);
       return data;
     },
 
     async findRecentCompletedProfile(contactId, sinceIso) {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("contact_profiles")
         .select("id")
         .eq("contact_id", contactId)
         .eq("status", "done")
         .gte("created_at", sinceIso)
         .maybeSingle();
+      if (error) throw new Error(`Visit research recent profile read failed: ${error.message}`);
       return data?.id ?? null;
     },
 
@@ -85,7 +87,7 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
     },
 
     async storeFailure({ input, errorDetail, runId }) {
-      await getClient().from("contact_profiles").insert({
+      const { error } = await getClient().from("contact_profiles").insert({
         contact_id: input.contactId,
         invite_id: input.inviteId ?? null,
         person_name: input.name,
@@ -94,17 +96,19 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
         error_detail: errorDetail,
         run_id: runId,
       });
+      if (error) throw new Error(`Visit research failure write failed: ${error.message}`);
     },
 
     async listProfiles(limit) {
       try {
-        const { data } = await getClient()
+        const { data, error } = await getClient()
           .from("contact_profiles")
           .select(
             "id,person_name,company,company_summary,person_summary,links,highlights,talking_points,sources,confidence,status,created_at"
           )
           .order("created_at", { ascending: false })
           .limit(limit);
+        if (error) throw new Error(`Visit research profile list failed: ${error.message}`);
         return (data ?? []).map((row): ContactProfileRow => ({
           ...row,
           links: profileLinks(row.links),
@@ -112,17 +116,22 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
           talking_points: stringList(row.talking_points),
           sources: stringList(row.sources),
         }));
-      } catch {
+      } catch (error) {
+        console.error(
+          "[visit] research profile list unavailable",
+          error instanceof Error ? error.message : "unknown error",
+        );
         return [];
       }
     },
 
     async recordActivity(activity) {
-      await getClient().from("line_agent_activity").insert({
+      const { error } = await getClient().from("line_agent_activity").insert({
         agent_slug: "visit",
         summary: activity.summary,
         status: activity.status,
       });
+      if (error) console.error("[visit] research activity write failed", error.message);
     },
   };
 }

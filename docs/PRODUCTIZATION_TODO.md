@@ -233,6 +233,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [x] Visit 已收斂共置的 legacy adapters 保留為真實 LINE／Main／舊 schema 邊界，但 contact、offer、activity、workflow、invite 與 settings 的 Supabase errors 全部 fail-closed，不再偽裝成 missing/default/success；未新增 route-specific wrapper。
 - [x] Shared subscriber `touch` 的 lookup／last-seen／profile／insert errors 已改為 fail-closed，讓 Support relay 能正確回報 subscriber isolated failure，而不是在 DB 失敗時仍宣稱建檔成功。
 - [x] Visit 共用 contact tag 的 lookup／write errors 已改為 fail-closed；名片／offer／timeout 流程不再於標籤未落 DB 時取得假成功，純列表讀取仍保留 starter tags fallback。
+- [x] Visit research 的必要 contact／recent-profile reads 已 fail-closed；profile list、failure compensation 與 activity 保留不阻塞已確認拜訪的 best-effort 契約，但 DB error 會留下明確 server diagnostic。
 - [x] KB index replacement 已採 transaction 原子替換，provider／RPC 失敗不再清空可用索引；草稿／封存仍以空 replacement 清除既有 chunks，維持原產品契約。
 - [?] Visit 多副作用 phase、Teachify duplicate／stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
 

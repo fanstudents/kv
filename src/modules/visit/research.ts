@@ -216,8 +216,12 @@ export async function runVisitContactResearch(
     });
     try {
       await repository.storeFailure({ input, errorDetail, runId });
-    } catch {
+    } catch (failureWriteError) {
       // Research is best-effort; a failed compensation write must not break the confirmed visit.
+      console.error(
+        "[visit] research failure compensation unavailable",
+        failureWriteError instanceof Error ? failureWriteError.message : "unknown error",
+      );
     }
     return null;
   }
