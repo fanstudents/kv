@@ -77,6 +77,7 @@ describe("database surface inventory", () => {
     expect(migrations).toEqual([
       "20260801000000_live_baseline.sql",
       "20260813170350_seed_line_agents.sql",
+      "20260813222936_atomic_kb_chunk_replacement.sql",
     ]);
 
     const baseline = readFileSync(

@@ -32,9 +32,11 @@ npm run typecheck
 npm test
 npm run build
 npm run verify:full
+npm run test:e2e:run:staging
 ```
 
 `verify:full` 的 browser smoke 不等於真實功能 E2E；需要登入、資料庫或外部 provider 的 journey 必須使用對應環境另行驗證。
+`test:e2e:run:staging` 會載入 Git ignored `.env.local` 驗證真實 Main read paths；會寫入 Main 的 integration／acceptance 一律維持 opt-in gate，執行後必須確認 fixture cleanup，詳細 gate 與證據只維護在 `docs/PRODUCTIZATION_TODO.md`。
 
 ## 重構文件
 
