@@ -23,14 +23,18 @@ export async function getAvailableTags(supabase: DB): Promise<string[]> {
 
 /** 為聯絡人加上一個標籤（已存在則略過）。 */
 export async function addContactTag(supabase: DB, contactId: string, tag: string): Promise<string[]> {
-  try {
-    const { data } = await supabase.from("contacts").select("tags").eq("id", contactId).maybeSingle();
-    const cur: string[] = data?.tags ?? [];
-    if (cur.includes(tag)) return cur;
-    const next = [...cur, tag];
-    await supabase.from("contacts").update({ tags: next }).eq("id", contactId);
-    return next;
-  } catch {
-    return [];
-  }
+  const { data, error: readError } = await supabase
+    .from("contacts")
+    .select("tags")
+    .eq("id", contactId)
+    .maybeSingle();
+  if (readError) throw new Error(`Contact tag lookup failed: ${readError.message}`);
+
+  const cur: string[] = data?.tags ?? [];
+  if (cur.includes(tag)) return cur;
+
+  const next = [...cur, tag];
+  const { error: writeError } = await supabase.from("contacts").update({ tags: next }).eq("id", contactId);
+  if (writeError) throw new Error(`Contact tag write failed: ${writeError.message}`);
+  return next;
 }
