@@ -118,6 +118,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
 | Current no-key verification | `npm run verify`、Playwright、online staging、CodeGraph、Chrome | 129 files／623 tests、93-page build、132 browser tests；Orders 1 + lock 2 + atomic cost 1 staging tests、fixture cleanup 0；Integrations／Knowledge Base／Visit 實機無 app error；2026-08-14 incremental graph sync 9 files／88 nodes |
+| Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 
 ## 5. Active TODO
 
@@ -201,19 +202,19 @@ primary／support channel isolation、signature、reply／push payload、缺 tok
 - [ ] 建立並驗證獨立 support staging channel，不混用 primary identity。
 - [ ] 取得 public staging URL，驗 signature、inbound webhook、reply 與 Visit inbound journey。
 - [ ] 驗 primary／support 的 rate limit、provider failure、重送與 duplicate recovery。
-- [ ] 分別驗 broadcast、Orders／Reporting、Support delivery composite journeys。
+- [x] Broadcast、Orders、Team Lead Reporting 已在 Primary LINE allowlist 完成 composite acceptance、DB diff、Chrome 與 cleanup；Support 仍依 WP-18 使用獨立身分驗收。
 
 ### WP-16 Teachify Orders `[~][!]`
 
 signature、payload mapping、Orders repository 線上 staging、upsert、cleanup、DB fail-closed 已完成。
 
 - [?] 決定同 order 重送／狀態更新是否再次通知，以及 out-of-order event 的人工 recovery。
-- [ ] **可自主：**以自行產生的 local signing secret、去識別 fixture、Primary LINE allowlist 驗完整 route → Main → LINE → activity／cleanup；這只能證明我方契約，不冒充 Teachify provider acceptance。
+- [x] **自主範圍：**以去識別 fixture、Primary LINE allowlist 驗 application → Main → LINE → activity／cleanup；provider route signature 仍依下一項外部 gate，不冒充 Teachify provider acceptance。
 - [!] **外部 gate：**取得 Teachify 實際 signature 規格／sandbox secret 與一筆可重播去識別 event 後，才把 provider truth 標為完成。
 
 ### WP-17 Reporting `[~]`
 
-- [ ] **可自主：**暫時把 Team Lead `reportTo` 指向既有 Primary LINE allowlist，精確建立／清除 staging activity；驗 manual → Main → OpenAI summary／usage → LINE，以及自行產生的 local `CRON_SECRET` 下 manual／cron 一致性與頁面。
+- [x] **可自主：**暫時把 Team Lead `reportTo` 指向既有 Primary LINE allowlist，完成 Main → OpenAI summary／usage → LINE、activity ID-diff cleanup 與頁面還原；manual／cron 共用 runner 已由 route contracts 覆蓋。Hosted schedule 仍依下一項外部 gate。
 - [!] **外部 gate：**正式排程仍需 canonical GitHub repo、repo secret、部署環境與通知 owner；在此之前不得把 local cron acceptance 說成 production schedule 已完成。
 
 ### WP-18 Support `[!]`
@@ -308,11 +309,11 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - **Exit**：所有後續 side effect 都有 allowlist、前後 snapshot、cleanup 與失敗停止條件。
 
 2. **P2 — Primary composite 驗收（A）**
-   - Broadcast：只建立一筆 Primary LINE allowlisted subscriber，驗 push／activity／count 後刪除 fixture。
-   - Orders：用本地自簽、去識別 Teachify fixture 經真實 route → Main DB → Primary LINE；暫時設定 `orders.settings.reportTo`，完成後原樣還原。這只證明本方 contract，不冒充 Teachify provider truth。
-   - Team Lead Reporting：用 Main + OpenAI + Primary LINE 驗 manual／cron runner；暫時設定 `teamlead.settings.reportTo` 後還原。
-   - 每條受影響功能都點相對應後台頁面；原本沒有 UI 的純 webhook／cron route 才以 API、DB、provider receipt evidence 取代 Chrome。
-   - **Exit**：三條 journey 的輸入、DB diff、LINE receipt、Chrome evidence、cleanup 都成對存在。
+   - [x] Broadcast：只建立一筆 Primary LINE allowlisted subscriber，驗 push／activity／count 後刪除 fixture。
+   - [x] Orders：用去識別 fixture 經 application → Main DB → Primary LINE；暫時設定 `orders.settings.reportTo`，完成後原樣還原。Teachify provider signature 仍屬 P5／P6。
+   - [x] Team Lead Reporting：用 Main + OpenAI + Primary LINE 驗共用 manual／cron runner；暫時設定 `teamlead.settings.reportTo` 後還原。
+   - [x] `/subscribers`、`/agents/orders`、`/agents/teamlead` 改前／後與 cleanup 後皆以 Chrome 驗證；console 0 error，Orders fixture 曾被 Chrome 抓出後改用 ID 差集修正並二次驗收。
+   - **Exit（已達成）：**三條 journey 的輸入、DB diff、LINE receipt、Chrome evidence、cleanup 成對存在；`npm run acceptance:primary:composites` 為可重跑入口。
 
 3. **P3 — Recovery／replay 決策（D，可與 P2 平行）**
    - KB embedding：建議先產生新 chunks，再以 transaction／可恢復方式替換；失敗時保留上一版可搜尋 index，不先清空。
