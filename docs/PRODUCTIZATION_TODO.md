@@ -8,9 +8,9 @@
 
 狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Architecture ready for scoped KV delivery; needs external acceptance and release truth`
 
-### 換機接續 checkpoint（2026-08-06）
+### 換機接續 checkpoint（2026-08-14）
 
-- Git snapshot：`codex/kv-wp0-toolchain`／`725ef59` 起，收尾 commit 見 branch tip；checkpoint 前工作樹乾淨。CodeGraph 為 442 files／3,754 nodes／7,730 edges，無 pending drift。
+- Git snapshot：`codex/kv-wp0-toolchain`，以本文件所在 branch tip 為準；本次同步前 tip 為 `192cab9`。CodeGraph 為 456 files／3,920 nodes／9,794 edges，無 pending drift。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
@@ -203,20 +203,23 @@ primary／support channel isolation、signature、reply／push payload、缺 tok
 - [ ] 驗 primary／support 的 rate limit、provider failure、重送與 duplicate recovery。
 - [ ] 分別驗 broadcast、Orders／Reporting、Support delivery composite journeys。
 
-### WP-16 Teachify Orders `[?][!]`
+### WP-16 Teachify Orders `[~][!]`
 
 signature、payload mapping、Orders repository 線上 staging、upsert、cleanup、DB fail-closed 已完成。
 
 - [?] 決定同 order 重送／狀態更新是否再次通知，以及 out-of-order event 的人工 recovery。
-- [ ] 用 sandbox／去識別 event 驗 Teachify webhook；LINE delivery 依 WP-15 allowlist。
+- [ ] **可自主：**以自行產生的 local signing secret、去識別 fixture、Primary LINE allowlist 驗完整 route → Main → LINE → activity／cleanup；這只能證明我方契約，不冒充 Teachify provider acceptance。
+- [!] **外部 gate：**取得 Teachify 實際 signature 規格／sandbox secret 與一筆可重播去識別 event 後，才把 provider truth 標為完成。
 
-### WP-17 Reporting `[!]`
+### WP-17 Reporting `[~]`
 
-- [ ] 以真實受控資料驗 manual／cron 一致、OpenAI summary／usage、Google reads、LINE delivery、replay與頁面。
+- [ ] **可自主：**暫時把 Team Lead `reportTo` 指向既有 Primary LINE allowlist，精確建立／清除 staging activity；驗 manual → Main → OpenAI summary／usage → LINE，以及自行產生的 local `CRON_SECRET` 下 manual／cron 一致性與頁面。
+- [!] **外部 gate：**正式排程仍需 canonical GitHub repo、repo secret、部署環境與通知 owner；在此之前不得把 local cron acceptance 說成 production schedule 已完成。
 
 ### WP-18 Support `[!]`
 
-- [ ] 以 support channel、合成 conversation、safe relay target 驗 inbound → relay／callback → delivery → daily report。
+- [ ] **可自主到 gate：**用合成 conversation、local relay double 與自行產生的 `SUPPORT_LOG_SECRET` 驗 capture／callback log／daily report 規則、Main persistence、partial failure 與 cleanup。
+- [!] **外部 gate：**獨立 Support LINE channel 三項 credentials、測試 user、舊客服 webhook 的 safe relay target／owner，以及 public staging deployment；缺任一項都不能宣稱 Support end-to-end 完成。
 
 ### WP-20 Targeted reliability `[?]`
 
@@ -224,7 +227,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 
 ### WP-21 CI／deploy／rollback `[!]`
 
-本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。scheduled URLs 指向 `https://kva.zeabur.app`，部署真相仍未知。
+本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。`https://kva.zeabur.app` 於 2026-08-14 已回 200，LINE／Teachify GET health routes 也存在，但頁面品牌為 MixAgent，無版本／commit 證據；因此它是「存活但 ownership／revision／staging 身分未知」，不得直接拿來做破壞性驗收或改 webhook。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
 - [ ] 驗 locked install、lint、typecheck、unit、build、browser smoke、artifact與 flaky 分類。
@@ -239,45 +242,133 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [ ] 全量 verify、CodeGraph、關鍵 UI／API／provider matrix、staging cutover／rollback rehearsal。
 - [ ] 只把穩定操作知識補進 README／runbook，不新增重複架構文件。
 
-## 6. 你回來後要取得的 credentials／資產
+## 6. 自主邊界與仍需外部取得的資產
 
 Secrets 只放 Git ignored `.env.local` 或正式 secret store；不要貼進 Git、TODO、測試 fixture或聊天回報。
 
-Google OAuth 3 個 credential values、GA4／GSC 2 個設定值已配置；其餘待取得項目以本表為準。Main Supabase credentials 已設定，不列入待取得數量。
+目前不需要再取得 Main Supabase、OpenAI、Firecrawl、Google 或 Primary LINE 才能繼續工程工作。`CRON_SECRET`、`SUPPORT_LOG_SECRET` 是我方內部 secret，可自行安全產生，不應算成外部 blocker。真正仍需外部提供的是 Support LINE、Teachify provider truth、safe relay、部署／canonical repo，以及產品決策；Main Supabase credentials 已設定，不列入待取得數量。
 
 | 優先 | Service | 需要取得／設定 | 同時要準備的安全資產 | 解鎖 |
 |---|---|---|---|---|
-| 1 | OpenAI | 已配置並完成 US$0.05 gate acceptance；驗收後輪替 key | 無個資 synthetic fixture | WP-10 完成；WP-11／12／17 AI 已解鎖 |
+| 1 | OpenAI | 已配置並完成 US$0.05 gate acceptance；因曾透過聊天傳遞，仍需由帳號 owner 輪替 key | 無個資 synthetic fixture | WP-10 完成；WP-11／12／17 AI 已解鎖，輪替是 release gate |
 | 2 | Firecrawl | 已配置免費帳號 key；`FIRECRAWL_API_BASE` 使用官方預設 | 公開 KV README、單頁／1-credit gate | WP-11 provider journey 已通過 |
 | 3 | Google OAuth | 已配置 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN`；write allowlist 已配置於 Git ignored `.env.local` | Calendar／GA4／GSC read、Calendar／Gmail write provider 與 Visit composite journey 已通過 | WP-13／14 的 Google 範圍完成 |
 | 4 | Google analytics | 已配置 `GA4_PROPERTY_ID`、`GSC_SITE_URL`；`GOOGLE_ADDITIONAL_CALENDAR_IDS` 仍選配 | GA4／GSC production-provider read 已通過 | WP-14 完成；WP-17 已解鎖 |
-| 5 | LINE primary | `LINE_CHANNEL_ID`、`LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN` | staging `line_agents.target_user_id` 指向明確測試 user | WP-13／15／16／17 |
+| 5 | LINE primary | 已配置 `LINE_CHANNEL_ID`、`LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN` 與單一 allowlisted user | 每個 acceptance 暫時寫入精確 recipient／fixture，結束後復原；不把 user ID 寫入 Git | WP-13／15／16／17 可自主繼續 |
 | 6 | LINE support | `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` | support 測試 user／channel，不與 primary 混用 | WP-15／18 |
 | 7 | Teachify | `TEACHIFY_WEBHOOK_SECRET` | sandbox／去識別 order event、可重播 event ID | WP-16 |
-| 8 | Cron／Support | `CRON_SECRET`、`SUPPORT_LOG_SECRET`、`SUPPORT_RELAY_TARGET_URL` | safe relay endpoint、通知 owner | WP-17／18／21 |
-| 9 | GitHub／Zeabur | canonical repo access、deploy project、secret owner | staging／production URL、health check、rollback owner | WP-21／22 |
+| 8 | Cron／Support | `CRON_SECRET`、`SUPPORT_LOG_SECRET` 可自行產生；只有 `SUPPORT_RELAY_TARGET_URL` 必須由舊客服系統 owner 確認 | safe relay endpoint、通知 owner；local secret 不進 Git | WP-17 可自主；WP-18 relay／WP-21 hosted schedule 仍有外部 gate |
+| 9 | GitHub／Zeabur | `upstream/fanstudents/kv` 可讀且已有本 branch；`origin/cablate/kv` 失效。需決定 canonical repo、write policy、deploy project／secret owner | `kva.zeabur.app` 存活但 revision／用途未知；需要獨立 staging 身分、health version、rollback owner | WP-21／22 |
 
-Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock integration 已可重跑，不需再建立本地業務 DB。
+Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock integration 已可重跑，不需再建立本地業務 DB。現有 `line_agents` 的 Team Lead／Orders／Support `reportTo` 均未設定，但這不是外部 credential：可在受控 acceptance 中暫時指向既有 allowlisted Primary LINE user，測完精確復原；Support 正式身份仍不得借用 Primary channel。
 
-## 7. 執行順序
+## 7. 後續主線（唯一執行順序）
 
-1. 確認 9 月底 KV 推廣版本必須包含的功能與驗收 journey；未確認前仍可做下列獨立 acceptance，不推導其他商業場景。
-2. [x] OpenAI 最窄付費 acceptance 已通過；usage fixture cleanup 0，驗收用 key 待輪替。
-3. [?] Firecrawl + OpenAI 的 KB 單頁 journey、cleanup 與責任收斂已通過；只剩 embedding 失敗 recovery 產品決策。
-4. [x] Google Calendar／GA4／GSC read-only、Calendar／Gmail write 與 Visit composite journey 已通過，Ivy／Leo 的 Agent 與 TV projection 已接回真實 API；Google 已不再是 Visit blocker。
-5. Teachify sandbox event；先確認 replay 產品決策。LINE primary／support 只在測試 channel／recipient allowlist 準備好後分開驗，再接 Visit、Orders、Reporting、Support composite journeys。
-6. 只依真實故障做 WP-20；接著恢復 remote、驗 CI／deploy／rollback。
-7. WP-22 final cleanup、矩陣驗收與交接。
+### 7.1 Outcome 與 guardrails
 
-每個 slice 都要：CodeGraph 找 owner／consumer → 固定不變契約 → 完成同批程式碼 → focused tests → affected Chrome journey → heavy verify → 精確 cleanup → coherent commit。本來沒有 UI 的 API 才能以 API evidence 取代 Chrome；低等級 mock 不得冒充 provider／staging 完成。
+- **Primary outcome**：在 UI／UX、既有 API 與既有資料格式未經核准不變的前提下，把 KV 整理成可發布、可維護、可擴充且能安全承接需求的產品 codebase。
+- **自主 outcome**：先關閉 Primary LINE、Orders、Team Lead Reporting 與本地 provider-contract 的證據缺口，不等待無關的外部資產。
+- **Provider outcome**：在隔離 staging 與 allowlist 中完成真實 LINE inbound、Teachify、Support 與 hosted schedule journey；fixture 必須可識別且可還原。
+- **Operational outcome**：建立 canonical repo／branch、可辨識版本的 deploy、migration ordering、CI、promotion 與 rollback truth。
+- **Guardrails**：不借用正式客戶或 Support 身分做測試；不以 mock 冒充 provider 驗收；不為未確認需求預建通用 Agent runtime／plugin／multi-tenant framework；不再每條 route 複製一組 rules／ports／application／adapter。
+
+### 7.2 權限分類
+
+| 類別 | 意義 | 處理方式 |
+|---|---|---|
+| A | 現在可自主完成 | 直接執行、驗證、cleanup、commit |
+| G | 可自主做到外部驗收門前 | 完成本地 contract／fixture／failure evidence，清楚標示尚非 provider 完成 |
+| D | 需要產品／可靠性決策 | 先記錄建議與不變條件，未核准不偷偷改變語意 |
+| E | 需要外部資產或 ownership | 列出最小取得物；其他不相依工作繼續 |
+
+### 7.3 依賴圖
+
+```text
+P0 Scope control（D，不阻塞 P1／P2／P4） ────────────────────┐
+P1 驗收護欄（A） ──> P2 Primary composite（A） ──────────────┤
+        └──────────> P4 本地 provider readiness（G） ─┐      │
+P3 Recovery 決策（D） ────────────────────────────────┼─> P6 真實 provider journeys ─┤
+P5 外部 staging 資產（E，可平行取得） ─────────────────┘      │
+                                                               v
+P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollback（E） -> P9 cleanup／交接
+```
+
+### 7.4 Work packages 與退出條件
+
+0. **P0 — Scope control（D，不阻塞 P1／P2／P4）**
+   - 確認 9 月底推廣版的使用者、必含能力、明確不做項、驗收 journey 與 release owner。
+   - 逐項裁決 upstream 候選：名片轉正、LINE 寄出／取消卡片、Firecrawl fallback、社群連結、劇院圖文／hold state；只把核准項目沿現有 Visit／KB owner 手工移植，不 merge 整包 upstream。
+   - 品牌改名與 Super Agent 展示是產品／UI 需求，另立 change contract，不混入保持 UI 不變的結構整理。
+   - **Exit**：每個候選有 accept／defer／reject、owner、journey 與 guardrail；未決項不阻塞下面不相依的 acceptance。
+
+1. **P1 — 驗收護欄（A）**
+   - 本地產生並設定 `CRON_SECRET`、`SUPPORT_LOG_SECRET`；它們不是外部 blocker。
+   - 建立 acceptance recipient allowlist、具名 fixture、資料／設定 snapshot 與精確 restore；不得使用正式客戶 recipient。
+   - 固定每批流程：CodeGraph 找 owner／consumer → 固定契約 → 完成同批修改 → focused tests → affected Chrome journey → heavy verify → cleanup → coherent commit。
+   - **Exit**：所有後續 side effect 都有 allowlist、前後 snapshot、cleanup 與失敗停止條件。
+
+2. **P2 — Primary composite 驗收（A）**
+   - Broadcast：只建立一筆 Primary LINE allowlisted subscriber，驗 push／activity／count 後刪除 fixture。
+   - Orders：用本地自簽、去識別 Teachify fixture 經真實 route → Main DB → Primary LINE；暫時設定 `orders.settings.reportTo`，完成後原樣還原。這只證明本方 contract，不冒充 Teachify provider truth。
+   - Team Lead Reporting：用 Main + OpenAI + Primary LINE 驗 manual／cron runner；暫時設定 `teamlead.settings.reportTo` 後還原。
+   - 每條受影響功能都點相對應後台頁面；原本沒有 UI 的純 webhook／cron route 才以 API、DB、provider receipt evidence 取代 Chrome。
+   - **Exit**：三條 journey 的輸入、DB diff、LINE receipt、Chrome evidence、cleanup 都成對存在。
+
+3. **P3 — Recovery／replay 決策（D，可與 P2 平行）**
+   - KB embedding：建議先產生新 chunks，再以 transaction／可恢復方式替換；失敗時保留上一版可搜尋 index，不先清空。
+   - Visit delivery：建議記錄 Calendar／Gmail／LINE 各 phase，重試只補未完成副作用，不重建 Calendar、不重寄已寄 Gmail。
+   - Visit timeout：建議狀態與通知具備可重入 phase；partial failure 重試只完成缺少步驟。
+   - Teachify：建議拒絕 stale event，只有實際狀態 transition 才通知；duplicate event 不重複 LINE push。
+   - **Exit**：每項有 approved behavior、idempotency key、失敗後狀態與重試矩陣；核准前只測現況，不改產品語意。
+
+4. **P4 — 本地 provider readiness（G）**
+   - Visit inbound：以本地有效 LINE signature fixture 驗 signature／parsing／application route 與失敗路徑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。
+   - Teachify：驗 valid／invalid signature、duplicate／out-of-order fixture、parse failure、DB failure 與 LINE delivery failure；真實簽章規格另待 P5。
+   - Support：以 synthetic conversation、Support signature 與本地 relay double 驗 capture／forward／failure；不得借用 Primary LINE channel。
+   - **Exit**：三個 adapter 都能在不碰正式服務的情況下重播成功與失敗 evidence，並列明 provider 尚缺項。
+
+5. **P5 — 外部資產（E，可與 P1–P4 平行取得）**
+   - Support LINE：專用 channel ID／secret／access token、測試 user／room，以及可安全改 webhook 的 owner。
+   - Teachify：官方實際 signing spec／secret，加一筆 sandbox 或去識別可重播事件。
+   - Support relay：既有客服 webhook target、owner 與 failure／rollback 聯絡人。
+   - Deploy：canonical GitHub repo／branch、Zeabur project ownership、獨立 staging URL、revision／commit 可見性、secret store 與 release owner。`kva.zeabur.app` 現在可回 200 且有 webhook routes，但尚不能證明它是本 branch、隔離 staging 或可安全覆寫的環境。
+   - Security／產品：輪替曾貼入對話的 OpenAI key；確認 9 月底 scope／acceptance journeys、品牌與 super-agent 範圍。
+   - **Exit**：每項都能指出 owner、環境、用途、允許副作用、撤回方法；只取得真正缺少的資產。
+
+6. **P6 — 真實 provider journeys（G + E）**
+   - 部署目前驗證過的 commit 到獨立 staging，health/version 能對應 commit；先套 migration 再切流量。
+   - Primary LINE：真實 inbound Visit text／image／postback、Calendar／Gmail／LINE 回覆與 timeout，全部限制測試 recipient。
+   - Teachify：真實 provider signature／event → Orders persistence → 去重／replay → Primary LINE。
+   - Support：專用 Support LINE inbound → capture → relay；確認既有客服 bot 回覆 owner，不讓 KV 搶答。
+   - Reporting：GitHub hosted schedule → cron auth → Team Lead／Support report；Support delivery identity 先確認，不預設使用 Primary channel。
+   - **Exit**：每條 journey 有 provider receipt、DB diff、UI evidence、cleanup、failure／retry evidence 與 owner sign-off。
+
+7. **P7 — 核准需求與證據驅動的可靠性／架構收斂（A）**
+   - 先把 P0 核准的功能逐條做成垂直 slice；每條都沿既有 domain owner 實作，不把 upstream 舊架構帶回來。
+   - 只修 P2／P4／P6 暴露的 retry、idempotency、partial failure、observability 或契約問題；不再推測式搬檔。
+   - 把重複 route wrappers、過細 rules／ports／application／adapter 收斂到 domain owner；保留確實隔離 provider／DB 的 adapter，不保留只轉呼叫的儀式層。
+   - 以成熟 npm 套件取代已盤點、測試成本高且無產品差異的自造輪；每項先比較 bundle、維護度、契約與 migration cost，不做整包換框架。
+   - **Exit**：新增抽象有至少兩個真實 consumer；刪除或合併的模組有 caller evidence；LOC／檔案數不因儀式層持續膨脹。
+
+8. **P8 — CI／deploy／migration／rollback（E）**
+   - 在 canonical repo 跑 hosted CI：install、lint、typecheck、unit／integration、build、Playwright smoke 與 artifacts。
+   - 固定 deploy command、migration ordering、health/version、canary／promotion、DB backup／restore 與 application rollback runbook。
+   - 將 hosted cron secrets 放入 repo／deploy secret store，不寫入文件或 git；實際觸發 schedule。
+   - **Exit**：從指定 commit 可重現 staging deploy、migration、smoke、promotion 與 rollback；責任人明確。
+
+9. **P9 — Final cleanup 與交接（A）**
+   - 刪除確定無 caller 的 dead code、誤用 demo data 與已完成使命的 transitional adapters；不清理未知 upstream 功能。
+   - 跑完整 lint／typecheck／test／build／browser／provider matrix，更新 CodeGraph 與最小必要 README／runbook／本 TODO。
+   - 列出已驗、未驗、已接受風險、營運 owner 與下一批需求入口。
+   - **Exit**：乾淨 worktree、可追溯 commits、零遺留 fixture、文件與實際 revision 一致，可由另一位工程師依文件重現。
 
 ## 8. Readiness verdict
 
-- Healthy enough：整體骨架、Main／Teaching DB、核心 domain ownership、本地驗證、Orders staging、atomic conversation lock、provider-disabled behavior 都已就位；可直接承接已確認的 KV 功能需求，不需先完成全面重構。
-- Not uniformly clean：Visit 仍有受控 legacy seam；Teachify／LINE 的完成度仍取決於真實 provider evidence；GA4／GSC／Calendar provider 與 Ivy／Leo live projection 已驗，但 Goals current 值與尚無 provider 的行銷 Agent 仍有明確 demo 邊界。
-- Actually blocked：9 月底推廣版本的確切範圍、LINE／Teachify／cron credentials 與 safe recipients、三個產品 recovery 決策、canonical GitHub／Zeabur deploy與 rollback truth。Google read 已不再是 blocker。
-- Safe work now：沿已確認的 KV 需求承接功能；其餘 upstream 內容按需求手工移植。避免再做全域搬檔、每 route 一套 layer 或預建通用 Agent／plugin／multi-tenant framework。
-- 下一步：確認 9 月底推廣範圍與 KB embedding recovery；再依已取得的安全憑證逐批驗 LINE／Teachify／Reporting composite journey，不一次開所有 side effects。
+- **現在不是卡死**：P1、P2、P4 以及 P3 的決策草案都能自主往前；Primary LINE、Main／Teaching DB、OpenAI、Firecrawl、Google 已可用，內部 cron／support log secret 可自行產生。
+- **現在也不是「只差測試」**：骨架與主要 domain ownership 已就位，但 Visit／Teachify／Support 的 recovery／replay 語意仍需決策；過細 wrapper 要在真實 evidence 後收斂，不能直接宣告 architecture 完成。
+- **真正外部 gate**：Support 專用 LINE、Teachify 真實簽章素材、Support relay target、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及 9 月底產品 scope／release owner。
+- **建議立即順序**：P1 → P2；同時完成 P3 草案與 P4。等待 P5 時不中斷；資產到齊後只跑 P6，再依 evidence 做 P7，最後 P8、P9。
+- **禁止誤判**：本地自簽 fixture 只證明我們的 contract；可回 200 的 `kva.zeabur.app` 只證明 domain 存活。兩者都不能替代 provider receipt、commit identity、隔離 staging 或 rollback truth。
 
 ## 9. 文件政策
 
