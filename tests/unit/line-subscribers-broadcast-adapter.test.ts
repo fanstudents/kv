@@ -88,4 +88,20 @@ describe("LINE Subscribers broadcast adapter", () => {
     expect(pushLineRawMessages).toHaveBeenCalledWith("U1", [{ type: "text", text: "公告" }], "support");
     expect(query.insert).toHaveBeenCalledOnce();
   });
+
+  it("does not swallow broadcast audit write failures", async () => {
+    const query = { insert: vi.fn().mockResolvedValue({ error: { message: "database unavailable" } }) };
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    const adapter = createLineSubscribersBroadcastAdapter();
+
+    await expect(adapter.recordLog({
+      tag_filter: null,
+      channel_filter: null,
+      message_style: "text",
+      message_text: "公告",
+      recipient_count: 1,
+      success_count: 1,
+      failed_count: 0,
+    })).rejects.toThrow("Broadcast log write failed: database unavailable");
+  });
 });

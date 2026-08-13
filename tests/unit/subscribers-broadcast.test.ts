@@ -121,4 +121,17 @@ describe("Subscribers broadcast", () => {
       failed_count: 1,
     }]);
   });
+
+  it("reports partial success without inviting a duplicate send when audit logging fails", async () => {
+    const { port } = fakePort({
+      recordLog: async () => {
+        throw new Error("database unavailable");
+      },
+    });
+
+    await expect(runSubscribersBroadcast(request, port)).resolves.toEqual({
+      kind: "error",
+      message: "訊息已送出（成功 1 位、失敗 1 位），但推播紀錄寫入失敗，請勿重複發送",
+    });
+  });
 });

@@ -82,6 +82,48 @@ describe("Daily report external boundaries", () => {
     });
   });
 
+  it("does not turn Team Lead database failures into empty or successful results", async () => {
+    const configQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      single: vi.fn().mockResolvedValue({ data: null, error: { message: "config unavailable" } }),
+    };
+    configQuery.select.mockReturnValue(configQuery);
+    configQuery.eq.mockReturnValue(configQuery);
+    const activitiesQuery = {
+      select: vi.fn(),
+      gte: vi.fn(),
+      neq: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn().mockResolvedValue({ data: null, error: { message: "activity unavailable" } }),
+    };
+    activitiesQuery.select.mockReturnValue(activitiesQuery);
+    activitiesQuery.gte.mockReturnValue(activitiesQuery);
+    activitiesQuery.neq.mockReturnValue(activitiesQuery);
+    activitiesQuery.order.mockReturnValue(activitiesQuery);
+    const activityWrite = {
+      insert: vi.fn().mockResolvedValue({ error: { message: "write unavailable" } }),
+    };
+    let activityTableCalls = 0;
+    const from = vi.fn((table: string) => {
+      if (table === "line_agents") return configQuery;
+      if (table === "line_agent_activity") {
+        activityTableCalls += 1;
+        return activityTableCalls === 1 ? activitiesQuery : activityWrite;
+      }
+      throw new Error(`unexpected table: ${table}`);
+    });
+    const repository = createSupabaseTeamLeadReportRepository({ from } as never);
+
+    await expect(repository.getAgentConfig()).rejects.toThrow("Team Lead config read failed: config unavailable");
+    await expect(repository.listActivities("2026-07-30T00:00:00.000Z")).rejects.toThrow(
+      "Team Lead activity read failed: activity unavailable"
+    );
+    await expect(repository.recordActivity({ summary: "sent", status: "success" })).rejects.toThrow(
+      "Team Lead activity write failed: write unavailable"
+    );
+  });
+
   it("keeps Support's conversation, subscriber, and activity mappings", async () => {
     const configQuery = {
       select: vi.fn(),

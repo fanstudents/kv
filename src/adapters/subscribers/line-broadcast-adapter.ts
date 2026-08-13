@@ -41,7 +41,8 @@ export function createLineSubscribersBroadcastAdapter(): SubscribersBroadcastPor
       );
     },
     async recordLog(log) {
-      await supabase.from("broadcast_logs").insert(log);
+      const { error } = await supabase.from("broadcast_logs").insert(log);
+      if (error) throw new Error(`Broadcast log write failed: ${error.message}`);
     },
   };
 }

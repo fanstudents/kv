@@ -86,15 +86,22 @@ export async function runSubscribersBroadcast(
   const successCount = results.filter((result) => result.status === "fulfilled").length;
   const failedCount = results.length - successCount;
 
-  await port.recordLog({
-    tag_filter: input.input.tags.length > 0 ? input.input.tags.join(",") : null,
-    channel_filter: input.input.channel === "all" ? null : input.input.channel,
-    message_style: input.input.style,
-    message_text: input.input.text,
-    recipient_count: recipients.length,
-    success_count: successCount,
-    failed_count: failedCount,
-  });
+  try {
+    await port.recordLog({
+      tag_filter: input.input.tags.length > 0 ? input.input.tags.join(",") : null,
+      channel_filter: input.input.channel === "all" ? null : input.input.channel,
+      message_style: input.input.style,
+      message_text: input.input.text,
+      recipient_count: recipients.length,
+      success_count: successCount,
+      failed_count: failedCount,
+    });
+  } catch {
+    return {
+      kind: "error" as const,
+      message: `訊息已送出（成功 ${successCount} 位、失敗 ${failedCount} 位），但推播紀錄寫入失敗，請勿重複發送`,
+    };
+  }
 
   return {
     kind: "ok" as const,
