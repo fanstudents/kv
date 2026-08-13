@@ -46,4 +46,27 @@ describe("legacy Visit LINE card adapter", () => {
       status: "pending",
     });
   });
+
+  it("surfaces contact and offer persistence failures", async () => {
+    const failedQuery = {
+      insert: vi.fn().mockReturnThis(),
+      select: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: { message: "database unavailable" } }),
+    };
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => failedQuery) });
+    const adapter = createLegacyVisitLineCardAdapter();
+
+    await expect(adapter.createContact({
+      name: "Fixture",
+      company: "",
+      title: "",
+      email: "",
+      phone: "",
+    }, "line-1")).rejects.toThrow(
+      "Visit contact write failed: database unavailable"
+    );
+    await expect(adapter.createOffer("line-1", "contact-1")).rejects.toThrow(
+      "Visit offer write failed: database unavailable"
+    );
+  });
 });

@@ -52,7 +52,7 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
 
   return {
     async findPendingOffer(lineUserId): Promise<VisitLineOfferConversation | null> {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("visit_offers")
         .select("*, contacts(id, name, title, company, email, phone)")
         .eq("line_user_id", lineUserId)
@@ -60,18 +60,20 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (error) throw new Error(`Visit pending offer read failed: ${error.message}`);
       if (!data) return null;
       return { id: data.id, contact: contactDetails(data.contacts) };
     },
 
     async findStaleOffers(query: VisitStaleOfferQuery): Promise<readonly VisitStaleOffer[]> {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("visit_offers")
         .select("id, line_user_id, contact_id, contacts(name)")
         .eq("status", "pending")
         .lt("created_at", query.olderThan)
         .gt("created_at", query.notOlderThan)
         .limit(query.limit);
+      if (error) throw new Error(`Visit stale offers read failed: ${error.message}`);
 
       return (data ?? []).map((offer) => ({
         id: offer.id,
@@ -82,17 +84,20 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
     },
 
     async resolveOffer(id, outcome: VisitLineOfferResolution, resolvedAt) {
-      await getClient().from("visit_offers").update(toLegacyVisitOfferResolution(outcome, resolvedAt)).eq("id", id);
+      const { error } = await getClient().from("visit_offers").update(toLegacyVisitOfferResolution(outcome, resolvedAt)).eq("id", id);
+      if (error) throw new Error(`Visit offer resolution failed: ${error.message}`);
     },
     async updateContactField(contactId, field: VisitLineContactField, value) {
-      await getClient().from("contacts").update(contactFieldPatch(field, value)).eq("id", contactId);
+      const { error } = await getClient().from("contacts").update(contactFieldPatch(field, value)).eq("id", contactId);
+      if (error) throw new Error(`Visit contact update failed: ${error.message}`);
     },
     async findContact(contactId) {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("contacts")
         .select("id, name, title, company, email")
         .eq("id", contactId)
         .single();
+      if (error) throw new Error(`Visit contact read failed: ${error.message}`);
       return contactDetails(data);
     },
     async createPendingInvite(lineUserId, invite: LegacyPreparedInvite) {
@@ -105,7 +110,7 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
       return { id: data.id };
     },
     async findPendingApprovalInvite(lineUserId): Promise<VisitLineApprovalInvite | null> {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("pending_invites")
         .select("*, contacts(id, name, title, company, email)")
         .eq("line_user_id", lineUserId)
@@ -113,6 +118,7 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (error) throw new Error(`Visit pending invite read failed: ${error.message}`);
       if (!data) return null;
       return {
         id: data.id,
@@ -124,10 +130,12 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
       };
     },
     async updateInviteStatus(id, status: VisitLinePendingInviteStatus) {
-      await getClient().from("pending_invites").update(toLegacyPendingInviteStatusPatch(status)).eq("id", id);
+      const { error } = await getClient().from("pending_invites").update(toLegacyPendingInviteStatusPatch(status)).eq("id", id);
+      if (error) throw new Error(`Visit invite status update failed: ${error.message}`);
     },
     async updateInviteDraft(id, subject, body) {
-      await getClient().from("pending_invites").update(toLegacyPendingInviteRevisionPatch(subject, body)).eq("id", id);
+      const { error } = await getClient().from("pending_invites").update(toLegacyPendingInviteRevisionPatch(subject, body)).eq("id", id);
+      if (error) throw new Error(`Visit invite draft update failed: ${error.message}`);
     },
   };
 }

@@ -13,11 +13,12 @@ export function createSupabaseVisitSettings(): VisitSettingsPort {
 
   return {
     async get(): Promise<VisitSettings> {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("line_agents")
         .select("settings")
         .eq("slug", "visit")
         .single();
+      if (error) throw new Error(`Visit settings read failed: ${error.message}`);
       const settings = data?.settings && typeof data.settings === "object" && !Array.isArray(data.settings)
         ? data.settings
         : {};

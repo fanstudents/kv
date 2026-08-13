@@ -15,6 +15,7 @@ import { createLegacyVisitLineActivityAdapter } from "@/adapters/visit/legacy-li
 describe("legacy LINE activity adapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    insert.mockResolvedValue({ error: null });
   });
 
   it("writes the unchanged legacy activity record", async () => {
@@ -43,5 +44,17 @@ describe("legacy LINE activity adapter", () => {
     await adapter.record(activity);
 
     expect(insert).toHaveBeenCalledWith(activity);
+  });
+
+  it("surfaces activity persistence failures", async () => {
+    insert.mockResolvedValueOnce({ error: { message: "database unavailable" } });
+
+    await expect(
+      createLegacyVisitLineActivityAdapter().record({
+        agent_slug: "visit",
+        summary: "fixture",
+        status: "failed",
+      })
+    ).rejects.toThrow("Visit activity write failed: database unavailable");
   });
 });

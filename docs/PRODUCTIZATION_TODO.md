@@ -228,6 +228,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 
 - [x] Broadcast、Orders、Team Lead 與 Support 的「外部副作用已成功但 activity 寫入失敗」不再被誤報成單純 delivery failure；回應會明確要求不得重送，DB adapters 不再吞 activity／conversation errors。
 - [x] Support relay 維持 LINE 200 ACK 避免 provider retry 重複轉發舊客服，但 application 會回傳 forward／audit／subscriber／activity／conversation 的結構化 isolated failures，route 寫入 server diagnostics，不再由 `Promise.allSettled` 靜默吞錯。
+- [x] Visit 已收斂共置的 legacy adapters 保留為真實 LINE／Main／舊 schema 邊界，但 contact、offer、activity、workflow、invite 與 settings 的 Supabase errors 全部 fail-closed，不再偽裝成 missing/default/success；未新增 route-specific wrapper。
 - [?] KB index replacement、Visit 多副作用 phase、Teachify duplicate／stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
 
 ### WP-21 CI／deploy／rollback `[!]`

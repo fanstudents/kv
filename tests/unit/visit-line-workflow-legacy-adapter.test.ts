@@ -151,4 +151,17 @@ describe("legacy Visit LINE workflow persistence adapter", () => {
 
     await expect(adapter.createPendingInvite("line-1", invite)).rejects.toThrow("insert failed");
   });
+
+  it("does not turn workflow database failures into missing records or successful writes", async () => {
+    const adapter = createLegacyVisitLineWorkflowAdapter();
+    query.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: "read unavailable" } });
+    await expect(adapter.findPendingOffer("line-1")).rejects.toThrow(
+      "Visit pending offer read failed: read unavailable"
+    );
+
+    query.eq.mockResolvedValueOnce({ error: { message: "write unavailable" } });
+    await expect(
+      adapter.resolveOffer("offer-1", "declined", "2026-07-31T00:00:00.000Z")
+    ).rejects.toThrow("Visit offer resolution failed: write unavailable");
+  });
 });

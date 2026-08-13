@@ -7,8 +7,8 @@ vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { createSupabaseVisitSettings } from "@/adapters/visit/supabase-visit-settings";
 
-function createClient(settings: Record<string, unknown> | null) {
-  const single = vi.fn().mockResolvedValue({ data: settings === null ? null : { settings } });
+function createClient(settings: Record<string, unknown> | null, error: { message: string } | null = null) {
+  const single = vi.fn().mockResolvedValue({ data: settings === null ? null : { settings }, error });
   const eq = vi.fn(() => ({ single }));
   const select = vi.fn(() => ({ eq }));
   const from = vi.fn(() => ({ select }));
@@ -83,5 +83,14 @@ describe("Supabase Visit settings", () => {
 
     expect(getMainSupabase).toHaveBeenCalledOnce();
     expect(db.single).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not substitute defaults when the settings database is unavailable", async () => {
+    const db = createClient(null, { message: "database unavailable" });
+    getMainSupabase.mockReturnValue(db.client);
+
+    await expect(createSupabaseVisitSettings().get()).rejects.toThrow(
+      "Visit settings read failed: database unavailable"
+    );
   });
 });

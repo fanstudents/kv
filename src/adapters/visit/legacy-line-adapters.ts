@@ -52,19 +52,21 @@ export function createLegacyVisitLineCardAdapter(): VisitLineCardPersistencePort
 
   return {
     async createContact(contact: VisitBusinessCard, lineUserId) {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("contacts")
         .insert(toLegacyContactInsert(contact, lineUserId))
         .select()
         .single();
+      if (error) throw new Error(`Visit contact write failed: ${error.message}`);
       return data ? { id: data.id } : null;
     },
     async createOffer(lineUserId, contactId) {
-      const { data } = await getClient()
+      const { data, error } = await getClient()
         .from("visit_offers")
         .insert(toLegacyVisitOfferInsert(lineUserId, contactId))
         .select()
         .single();
+      if (error) throw new Error(`Visit offer write failed: ${error.message}`);
       return data ? { id: data.id } : null;
     },
   };
@@ -79,7 +81,8 @@ export function createLegacyVisitLineActivityAdapter(): VisitLineActivityPort {
 
   return {
     async record(activity) {
-      await getClient().from("line_agent_activity").insert(activity);
+      const { error } = await getClient().from("line_agent_activity").insert(activity);
+      if (error) throw new Error(`Visit activity write failed: ${error.message}`);
     },
   };
 }
