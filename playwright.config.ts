@@ -2,6 +2,11 @@ import { defineConfig } from "@playwright/test";
 
 const port = 3100;
 const baseURL = `http://localhost:${port}`;
+const mainDatabaseEnvironment = {
+  SUPABASE_URL: process.env.SUPABASE_URL ?? "",
+  SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY ?? "",
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+};
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -50,9 +55,7 @@ export default defineConfig({
       GOOGLE_CLIENT_ID: "",
       GOOGLE_CLIENT_SECRET: "",
       GOOGLE_REFRESH_TOKEN: "",
-      SUPABASE_URL: "",
-      SUPABASE_ANON_KEY: "",
-      SUPABASE_SERVICE_ROLE_KEY: "",
+      ...mainDatabaseEnvironment,
       TEACHING_SUPABASE_URL: "",
       TEACHING_SUPABASE_ANON_KEY: "",
       FIRECRAWL_API_KEY: "",

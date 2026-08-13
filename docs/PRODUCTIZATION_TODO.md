@@ -234,16 +234,16 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。`https://kva.zeabur.app` 於 2026-08-14 已回 200，LINE／Teachify GET health routes 也存在，但頁面品牌為 MixAgent，無版本／commit 證據；因此它是「存活但 ownership／revision／staging 身分未知」，不得直接拿來做破壞性驗收或改 webhook。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
-- [ ] 驗 locked install、lint、typecheck、unit、build、browser smoke、artifact與 flaky 分類。
+- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、129 files／644 unit tests、93-page production build與 136-test hermetic browser smoke；另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無缺 Supabase env 日誌。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
 - [ ] 指定 scheduled failure 通知目的地／owner。
 - [ ] 明確 deploy command、migration ordering、health check、promotion、app／secret／migration rollback與 release owner。
 
-### WP-22 Final cleanup／handoff `[ ]`
+### WP-22 Final cleanup／handoff `[~]`
 
-- [ ] Provider journeys 與已選 reliability decisions 達標；未執行項有接受理由。
+- [~] Main／OpenAI／Firecrawl／Google／Primary LINE 與 Support Main 自主 journeys 已達標；Support LINE、Teachify provider truth、Visit inbound、hosted schedule／deploy 仍有明確外部 gate，replay decisions 仍依 P3。
 - [x] `/integrations` badge／計數已改綁 `/api/integrations/status` live truth並維持原 UI/UX；localStorage 僅保留管理連結、Agent 用途與自訂服務 demo，自訂項無 live probe 時顯示未連線。
-- [ ] 移除最後 dead code、過渡 re-export／flag、過期 tests、demo fallback 誤用與未接 composition。
-- [ ] 全量 verify、CodeGraph、關鍵 UI／API／provider matrix、staging cutover／rollback rehearsal。
+- [~] 本輪 CodeGraph 沒找到可安全刪除的無 caller 模組；Visit `legacy-*` adapters 仍被 webhook／cron 真實呼叫，保留為外部／舊 schema 邊界。最後 transitional cleanup 要等 P6 evidence，不為減檔名硬刪。
+- [~] 全量 verify、CodeGraph、22-file／106-test P4 contracts、7-page Chrome matrix、Main residue audit 與 staging browser matrix已完成；staging cutover／rollback rehearsal 仍待 deploy ownership。
 - [ ] 只把穩定操作知識補進 README／runbook，不新增重複架構文件。
 
 ## 6. 自主邊界與仍需外部取得的資產
@@ -326,10 +326,10 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - **Exit**：每項有 approved behavior、idempotency key、失敗後狀態與重試矩陣；核准前只測現況，不改產品語意。
 
 4. **P4 — 本地 provider readiness（G）**
-   - Visit inbound：以本地有效 LINE signature fixture 驗 signature／parsing／application route 與失敗路徑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。
-   - Teachify：驗 valid／invalid signature、duplicate／out-of-order fixture、parse failure、DB failure 與 LINE delivery failure；真實簽章規格另待 P5。
+   - [x] Visit inbound：本地 LINE signature、parsing、route、application 與 delivery failure contracts 已重跑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。
+   - [~] Teachify：valid／invalid signature、parse、DB、LINE delivery 與 delivered-but-unrecorded contracts 已通過；duplicate／out-of-order 仍缺官方 event／timestamp truth 與 P3 核准語意，未自行猜測。
    - [x] Support：local signature／route contracts、synthetic conversation、relay double、Main capture／callback／report、failure 與 cleanup 已通過；未借用 Primary LINE channel，也未宣稱真實 Support provider 完成。
-   - **Exit**：三個 adapter 都能在不碰正式服務的情況下重播成功與失敗 evidence，並列明 provider 尚缺項。
+   - **Exit `[~]`**：22 files／106 tests 證明三個 adapter 的既有本地成功／失敗路徑；只剩 Teachify duplicate／out-of-order 要在 P3/P5 truth 後補，provider 尚缺項已列明。
 
 5. **P5 — 外部資產（E，可與 P1–P4 平行取得）**
    - Support LINE：專用 channel ID／secret／access token、測試 user／room，以及可安全改 webhook 的 owner。

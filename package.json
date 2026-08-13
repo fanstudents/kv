@@ -22,6 +22,7 @@
     "test:e2e": "npm run build && playwright test",
     "test:e2e:smoke": "npm run build && playwright test --grep-invert @visual",
     "test:e2e:run:smoke": "playwright test --grep-invert @visual",
+    "test:e2e:run:staging": "node --env-file-if-exists=.env.local ./node_modules/playwright/cli.js test --grep-invert @visual",
     "test:e2e:update": "npm run build && playwright test --grep @visual --update-snapshots",
     "acceptance:openai": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts tests/acceptance/openai-provider.acceptance.test.ts",
     "acceptance:kb": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts tests/acceptance/knowledge-base-provider.acceptance.test.ts",
