@@ -27,10 +27,14 @@ export async function POST(req: NextRequest) {
   const ports = createSupportRelayDependencies(supabase);
 
   if (!verifyLineSignature(rawBody, signature, "support")) {
-    await ports.repository.recordActivity({
-      summary: "客服 Webhook 收到簽章驗證失敗的請求",
-      status: "failed",
-    });
+    try {
+      await ports.repository.recordActivity({
+        summary: "客服 Webhook 收到簽章驗證失敗的請求",
+        status: "failed",
+      });
+    } catch (error) {
+      console.error("[support] could not audit rejected LINE webhook", error);
+    }
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 

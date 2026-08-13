@@ -178,6 +178,26 @@ describe("LINE webhook route contracts", () => {
     expect(mocks.processSupportRelay).not.toHaveBeenCalled();
   });
 
+  it("keeps rejecting an invalid support signature when audit persistence is unavailable", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.verifyLineSignature.mockReturnValue(false);
+    mocks.recordSupportActivity.mockRejectedValueOnce(new Error("database unavailable"));
+
+    const response = await postSupportWebhook(
+      new NextRequest("http://localhost/api/line/webhook/support", { method: "POST", body: '{"events":[]}' }),
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "invalid signature" });
+    expect(mocks.parseSupportRelayPayload).not.toHaveBeenCalled();
+    expect(mocks.processSupportRelay).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[support] could not audit rejected LINE webhook",
+      expect.any(Error),
+    );
+    consoleError.mockRestore();
+  });
+
   it("forwards only a parsed, signed support payload to the relay owner", async () => {
     const events = [{ type: "message", message: { type: "text", text: "需要幫忙" } }];
     mocks.parseSupportRelayPayload.mockReturnValue({ type: "parsed", events });

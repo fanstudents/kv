@@ -306,7 +306,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - **Exit**：每個候選有 accept／defer／reject、owner、journey 與 guardrail；未決項不阻塞下面不相依的 acceptance。
 
 1. **P1 — 驗收護欄（A）**
-   - 本地產生並設定 `CRON_SECRET`、`SUPPORT_LOG_SECRET`；它們不是外部 blocker。
+   - [x] 本地已產生並設定 Git ignored 的 `CRON_SECRET`、`SUPPORT_LOG_SECRET`；它們不是外部 blocker，也未寫入文件或 commit。
    - 建立 acceptance recipient allowlist、具名 fixture、資料／設定 snapshot 與精確 restore；不得使用正式客戶 recipient。
    - 固定每批流程：CodeGraph 找 owner／consumer → 固定契約 → 完成同批修改 → focused tests → affected Chrome journey → heavy verify → cleanup → coherent commit。
    - **Exit**：所有後續 side effect 都有 allowlist、前後 snapshot、cleanup 與失敗停止條件。
