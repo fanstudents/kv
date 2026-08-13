@@ -98,4 +98,39 @@ describe("Supabase Subscribers repository", () => {
       picture_url: "https://example.com/a.png",
     });
   });
+
+  it("surfaces subscriber lookup failures before profile or persistence work", async () => {
+    const existingQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: "database unavailable" } }),
+    };
+    existingQuery.select.mockReturnValue(existingQuery);
+    existingQuery.eq.mockReturnValue(existingQuery);
+    getMainSupabase.mockReturnValue({ from: vi.fn(() => existingQuery) });
+
+    await expect(supabaseSubscribersRepository.touch("U1", "support")).rejects.toThrow(
+      "Subscriber lookup failed: database unavailable"
+    );
+    expect(getLineProfile).not.toHaveBeenCalled();
+  });
+
+  it("surfaces subscriber creation failures", async () => {
+    const existingQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    existingQuery.select.mockReturnValue(existingQuery);
+    existingQuery.eq.mockReturnValue(existingQuery);
+    const insert = vi.fn().mockResolvedValue({ error: { message: "write unavailable" } });
+    getMainSupabase.mockReturnValue({
+      from: vi.fn().mockReturnValueOnce(existingQuery).mockReturnValueOnce({ insert }),
+    });
+    getLineProfile.mockResolvedValue(null);
+
+    await expect(supabaseSubscribersRepository.touch("U1", "support")).rejects.toThrow(
+      "Subscriber creation failed: write unavailable"
+    );
+  });
 });

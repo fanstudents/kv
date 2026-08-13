@@ -24,32 +24,39 @@ export const supabaseSubscribersRepository: SubscribersRepository = {
 
   async touch(lineUserId, channel) {
     const supabase = getMainSupabase();
-    const { data: existing } = await supabase
+    const { data: existing, error: readError } = await supabase
       .from("line_subscribers")
       .select("id, display_name")
       .eq("line_user_id", lineUserId)
       .maybeSingle();
+    if (readError) throw new Error(`Subscriber lookup failed: ${readError.message}`);
 
     if (existing) {
-      await supabase.from("line_subscribers").update({ last_seen_at: new Date().toISOString() }).eq("id", existing.id);
+      const { error: touchError } = await supabase
+        .from("line_subscribers")
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq("id", existing.id);
+      if (touchError) throw new Error(`Subscriber touch failed: ${touchError.message}`);
       if (!existing.display_name) {
         const profile = await getLineProfile(lineUserId, channel).catch(() => null);
         if (profile?.displayName) {
-          await supabase
+          const { error: profileError } = await supabase
             .from("line_subscribers")
             .update({ display_name: profile.displayName, picture_url: profile.pictureUrl ?? null })
             .eq("id", existing.id);
+          if (profileError) throw new Error(`Subscriber profile update failed: ${profileError.message}`);
         }
       }
       return;
     }
 
     const profile = await getLineProfile(lineUserId, channel).catch(() => null);
-    await supabase.from("line_subscribers").insert({
+    const { error: insertError } = await supabase.from("line_subscribers").insert({
       line_user_id: lineUserId,
       channel,
       display_name: profile?.displayName ?? null,
       picture_url: profile?.pictureUrl ?? null,
     });
+    if (insertError) throw new Error(`Subscriber creation failed: ${insertError.message}`);
   },
 };
