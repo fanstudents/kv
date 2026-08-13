@@ -78,4 +78,27 @@ describe("agent test-push compatibility", () => {
       status: "failed",
     });
   });
+
+  it("reports a delivered message as partial failure when activity persistence fails", async () => {
+    const port: AgentTestPushPort = {
+      send: vi.fn(async () => undefined),
+      recordFailure: vi.fn(async () => undefined),
+      recordSuccess: vi.fn(async () => { throw new Error("database unavailable"); }),
+    };
+
+    await expect(runAgentTestPush(input, port)).resolves.toEqual({
+      kind: "partial_failure",
+      message: "LINE 已送出，但活動紀錄失敗；請勿重複發送",
+    });
+  });
+
+  it("preserves the delivery error when failure activity persistence also fails", async () => {
+    const port: AgentTestPushPort = {
+      send: vi.fn(async () => { throw new Error("LINE down"); }),
+      recordFailure: vi.fn(async () => { throw new Error("database unavailable"); }),
+      recordSuccess: vi.fn(),
+    };
+
+    await expect(runAgentTestPush(input, port)).resolves.toEqual({ kind: "error", message: "LINE down" });
+  });
 });

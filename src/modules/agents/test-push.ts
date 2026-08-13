@@ -87,6 +87,7 @@ export interface AgentTestPushPort {
 
 export type AgentTestPushResult =
   | { kind: "success"; ok: true; activity: Record<string, unknown> | null }
+  | { kind: "partial_failure"; message: string }
   | { kind: "error"; message: string };
 
 export async function runAgentTestPush(
@@ -104,18 +105,30 @@ export async function runAgentTestPush(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "推播失敗";
-    await port.recordFailure({
-      agent_slug: input.slug,
-      summary: `測試推播失敗（${input.styleLabel}）：${message}`,
-      status: "failed",
-    });
+    try {
+      await port.recordFailure({
+        agent_slug: input.slug,
+        summary: `測試推播失敗（${input.styleLabel}）：${message}`,
+        status: "failed",
+      });
+    } catch (activityError) {
+      console.error("[agent-test-push] Failed to persist delivery failure", activityError);
+    }
     return { kind: "error", message };
   }
 
-  const activity = await port.recordSuccess({
-    agent_slug: input.slug,
-    summary: `已透過 LINE Messaging API 送出測試推播（${input.styleLabel}樣式）`,
-    status: "success",
-  });
-  return { kind: "success", ok: true, activity };
+  try {
+    const activity = await port.recordSuccess({
+      agent_slug: input.slug,
+      summary: `已透過 LINE Messaging API 送出測試推播（${input.styleLabel}樣式）`,
+      status: "success",
+    });
+    return { kind: "success", ok: true, activity };
+  } catch (activityError) {
+    console.error("[agent-test-push] LINE delivered but activity persistence failed", activityError);
+    return {
+      kind: "partial_failure",
+      message: "LINE 已送出，但活動紀錄失敗；請勿重複發送",
+    };
+  }
 }

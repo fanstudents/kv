@@ -80,5 +80,22 @@ describe("agent admin route contracts", () => {
     );
     expect(failed.status).toBe(502);
     await expect(failed.json()).resolves.toEqual({ error: "LINE down" });
+
+    createLineAgentTestPushAdapter.mockReturnValueOnce({
+      send: vi.fn(async () => undefined),
+      recordFailure: vi.fn(async () => undefined),
+      recordSuccess: vi.fn(async () => { throw new Error("database unavailable"); }),
+    });
+    const partial = await postTestPush(
+      new NextRequest("http://localhost/api/agents/operations/test-push", {
+        method: "POST",
+        body: JSON.stringify({ to: "U1", text: "hello" }),
+      }),
+      { params },
+    );
+    expect(partial.status).toBe(500);
+    await expect(partial.json()).resolves.toEqual({
+      error: "LINE 已送出，但活動紀錄失敗；請勿重複發送",
+    });
   });
 });

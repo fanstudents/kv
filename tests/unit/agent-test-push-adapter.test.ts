@@ -39,4 +39,23 @@ describe("LINE agent test-push adapter", () => {
     expect(failureQuery.insert).toHaveBeenCalledWith({ agent_slug: "support", summary: "failed", status: "failed" });
     expect(successQuery.insert).toHaveBeenCalledWith({ agent_slug: "support", summary: "success", status: "success" });
   });
+
+  it("fails closed when either activity write is rejected", async () => {
+    const failureQuery = { insert: vi.fn(async () => ({ error: new Error("failure write rejected") })) };
+    const successQuery = {
+      insert: vi.fn(),
+      select: vi.fn(),
+      single: vi.fn(async () => ({ data: null, error: new Error("success write rejected") })),
+    };
+    successQuery.insert.mockReturnValue(successQuery);
+    successQuery.select.mockReturnValue(successQuery);
+    const from = vi.fn(() => (from.mock.calls.length === 1 ? failureQuery : successQuery));
+    getMainSupabase.mockReturnValue({ from });
+    const adapter = createLineAgentTestPushAdapter();
+
+    await expect(adapter.recordFailure({ agent_slug: "visit", summary: "failed", status: "failed" }))
+      .rejects.toThrow("failure write rejected");
+    await expect(adapter.recordSuccess({ agent_slug: "visit", summary: "success", status: "success" }))
+      .rejects.toThrow("success write rejected");
+  });
 });

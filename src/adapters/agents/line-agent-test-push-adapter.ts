@@ -20,10 +20,12 @@ export function createLineAgentTestPushAdapter(): AgentTestPushPort {
       );
     },
     async recordFailure(activity) {
-      await supabase.from("line_agent_activity").insert(activity);
+      const { error } = await supabase.from("line_agent_activity").insert(activity);
+      if (error) throw error;
     },
     async recordSuccess(activity) {
-      const { data } = await supabase.from("line_agent_activity").insert(activity).select().single();
+      const { data, error } = await supabase.from("line_agent_activity").insert(activity).select().single();
+      if (error) throw error;
       return data ?? null;
     },
   };

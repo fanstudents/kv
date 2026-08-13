@@ -28,7 +28,7 @@ import { PUSH_STYLES, type PushStyle } from "@/lib/line-message-styles";
 import type { AgentMeta, AgentActivity } from "@/lib/types";
 
 const TEST_USER_ID_KEY = "line-agent-console:test-user-id";
-const DEFAULT_TEST_USER_ID = "U00cbec1389dcf7d4c8802fafc2cc9951";
+const DEFAULT_TEST_USER_ID = "";
 
 function subscribeToStoredTestUserId(onStoreChange: () => void) {
   const handleStorage = (event: StorageEvent) => {

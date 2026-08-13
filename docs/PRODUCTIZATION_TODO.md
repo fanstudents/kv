@@ -180,12 +180,28 @@ Projection change contract：只含 `/agents/report`、`/agents/expense` 與 TV 
 - [x] `npm run acceptance:google:write` 以唯一 allowlisted recipient 跑 production providers：Calendar 建立、回讀、刪除與 Gmail send 共 2 tests passed；provider 未回傳 event／message ID 時 fail closed，Calendar fixture 已清除。
 - [x] `/agents/report`、`/agents/expense` 與 TV 的 Ivy／Leo projection 已在如實模式接回真實 API；Demo 模式仍用原固定資料。缺資料或 provider 失敗時不會偷偷退回 demo；其他尚無 provider 的行銷 Agent 維持真實狀態卡。
 
-### WP-15 LINE journeys `[!]`
+### WP-15 LINE journeys `[~]`
 
-primary／support channel isolation、signature、reply／push payload、缺 token／provider failure contracts 已完成。
+primary／support channel isolation、signature、reply／push payload、缺 token／provider failure contracts 已完成。Primary staging channel 已獨立建立並完成 KV 應用層驗收；Support 與 inbound webhook 尚未完成。
 
-- [ ] 取得兩組 channel credentials 與明確 allowlisted user；分開驗 Agent push、broadcast、Orders／Reporting、Support delivery。
-- [ ] 驗 rate limit／provider failure與重送，不混用 primary／support identity。
+#### Primary LINE acceptance contract（active）
+
+- **範圍／非目標：** 本批只驗 primary channel 的 Agent test-push；不啟用 webhook、不碰既有正式 LINE、不驗 support channel、broadcast、Orders 或 Reporting。
+- **入口與消費者：** Chrome `/agents/visit` → `POST /api/agents/[slug]/test-push` → `runAgentTestPush` → LINE Messaging API ＋ Main `line_agent_activity`。
+- **輸入與狀態：** Git-ignored staging credentials、單一 `LINE_ACCEPTANCE_USER_ID` allowlist、Main `kv-staging`、文字訊息；acceptance 必須由 `LINE_PRIMARY_ACCEPTANCE=1` 明確開啟。
+- **輸出與副作用：** LINE 成功收到一則 UTF-8 訊息，Supabase 寫入一筆 success activity；自動 acceptance 結束後刪除該筆 fixture。Chrome 實機證據完成後也刪除人工測試紀錄。
+- **UI 狀態：** 保留既有 sending／sent／error 畫面；推播成功但 activity 寫入失敗時，回傳「已送出但紀錄失敗、請勿重複發送」，不得顯示完整成功。
+- **不變條件：** `support` slug 仍只使用 `LINE_SUPPORT_CHANNEL_*`；其他 slug 使用 primary；測試對象必須明確輸入，repo 不得內建預設收件人；不把任何 secret、token 或 user ID 提交到 Git。
+- **驗收例：** 在 Coco 頁輸入 staging allowlisted user 並送出純文字通知後，畫面顯示「已送出！請查看 LINE」，LINE 收到可讀中文，執行紀錄新增 success；DB 寫入失敗時不得顯示 sent。
+- **測試映射／證據：** `tests/unit/agent-test-push*.test.ts`、`tests/unit/agent-admin-routes.test.ts`、`npm run acceptance:line:primary`、production build、Chrome `/agents/visit`（2026-08-14）。
+- **刻意變更：** activity insert error 從靜默忽略改為 fail-closed；成功送達但紀錄失敗被分類為 partial failure；移除寫死的 LINE 測試收件人，保留既有手動輸入與本機記憶行為。
+- **待決：** public staging URL／webhook、第二組 support channel、rate limit／retry／duplicate recovery，以及 broadcast／Orders／Reporting／Support composite journeys。
+
+- [x] 建立獨立 primary staging channel、設定 credentials 與 allowlisted user；驗 KV Agent push、UTF-8、Main activity persistence、fixture cleanup、Chrome sent/error 狀態。
+- [ ] 建立並驗證獨立 support staging channel，不混用 primary identity。
+- [ ] 取得 public staging URL，驗 signature、inbound webhook、reply 與 Visit inbound journey。
+- [ ] 驗 primary／support 的 rate limit、provider failure、重送與 duplicate recovery。
+- [ ] 分別驗 broadcast、Orders／Reporting、Support delivery composite journeys。
 
 ### WP-16 Teachify Orders `[?][!]`
 

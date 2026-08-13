@@ -13,5 +13,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   if (parsed.kind === "invalid") return NextResponse.json({ error: parsed.message }, { status: 400 });
   const result = await runAgentTestPush(parsed.input, createLineAgentTestPushAdapter());
   if (result.kind === "error") return NextResponse.json({ error: result.message }, { status: 502 });
+  if (result.kind === "partial_failure") return NextResponse.json({ error: result.message }, { status: 500 });
   return NextResponse.json({ ok: true, activity: result.activity });
 }
