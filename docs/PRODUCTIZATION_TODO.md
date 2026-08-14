@@ -10,7 +10,7 @@
 
 ### 換機接續 checkpoint（2026-08-14）
 
-- Git snapshot：`codex/kv-wp0-toolchain`，以本文件所在 branch tip 為準；本次同步前 tip 為 `192cab9`。CodeGraph 為 456 files／3,920 nodes／9,794 edges，無 pending drift。
+- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `734379e`（P2-5）。CodeGraph 為 471 files／4,080 nodes／10,184 edges，無 pending drift。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
@@ -37,10 +37,10 @@
 - [x] `/api/version`：回傳 service、package version、commit 與 runtime environment；不回傳 secrets。
 - [x] `/api/health`：回傳 Main Supabase 設定 readiness；缺設定時回 503；不執行 DB/provider side effect。
 - [x] CI 執行 `npm run verify:config`，確保 doctor command 在乾淨環境可執行。
-- [ ] CI 執行 local migration replay 與 generated-type drift check。
+- [x] CI 執行 local migration replay 與 generated-type drift check（schema job 已納入 `.github/workflows/ci.yml`）。
 - [ ] 確認 canonical deploy、health/version 來源、migration promotion 與 rollback owner。
 
-### P2 Ownership／overdesign 收斂（2026-08-14，進行中）
+### P2 Ownership／overdesign 收斂（2026-08-14，本輪 evidence boundary 已完成）
 
 範圍先限於 Knowledge Base；不改 UI、API payload、Main schema 或 provider side effects。
 
@@ -52,14 +52,15 @@
 - [x] Agent context 的 `knowledge_access` max-level read 與 `kb_citations` best-effort audit write 已移到 `supabase-knowledge-store.ts`；`src/lib/knowledge-base.ts` 現在只組裝 context。
 - [x] Firecrawl URL／site journey 的 `kb_sources` lookup、check-in、refresh、create、failure、recheck-list 已移到 `supabase-knowledge-source-store.ts`；PDF source persistence 明確標為 transitional。
 - [ ] 下一個真實 KB journey 觸碰時，才把 `src/lib/knowledge-base.ts` 的 context 與 `kb-import.ts` 的 ingestion ownership 往 domain slice touch-and-migrate；不得先做全 repo 搬檔。
-- [ ] 以 caller evidence 決定是否合併其他單 caller forwarding；沒有第二 consumer、provider translation、transaction、concurrency 或 recovery 理由就不新增 abstraction。
+- [x] 已完成其他薄層的 caller evidence review：checklist 是穩定 DB port object；live-task 有 3 個 API consumers；TV 同時組合 Google／Main DB；AI usage 包含 budget 語意；meeting adapters 分隔 demo/live context 與 usage。沒有符合安全合併條件的候選，因此不再機械式搬遷。
+- **P2 停線規則：** PDF／context 與其他 transitional islands 只有在真實 journey、第二 consumer、provider translation、transaction、concurrency 或 recovery 需求出現時才再動。
 
 #### P2-3 change contract：Knowledge index ownership
 
 - **範圍：** 只移動 `indexDocs`／`indexStats` 的 implementation owner；保留 `/api/knowledge-base/reindex`、發布／編輯自動重建索引、`replace_kb_chunks` atomic RPC、embedding 維度與錯誤回傳行為。
 - **入口與 consumer：** `supabaseKnowledgeIndexRepository`、`supabase-knowledge-store` 的 publish/update side effect、`kb-search` 的 query search；不改 API JSON、頁面文案或資料表。
 - **不變條件：** 空 doc id 不呼叫 DB/provider；草稿／封存會以空 chunks 清除舊索引；embedding／RPC 失敗不清空上一版；index stats 仍回 `{ chunks, docs }`。
-- **驗收證據：** focused 30 tests、完整 672 tests、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`。
+- **驗收證據：** focused KB contracts（含 source-store 28 tests）、完整 676 tests、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`。
 - **非目標：** 不搬 `searchKnowledge`／`formatHits`、`knowledgeContext`、PDF／Firecrawl ingestion；不新增 generic search／workflow framework。
 
 #### P2-4 change contract：Context persistence boundary
@@ -165,7 +166,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current no-key verification | `npm run verify:full`、staging Playwright／integration、CodeGraph、Chrome | 130 files／659 tests、93-page build、136 hermetic + 136 Main staging browser tests；Orders 1 + lock 2 + atomic cost 1 + KB atomicity 2 staging tests、9 個相關 DB surface fixture residue 0；8 個受影響後台頁面實機無 app error；2026-08-14 CodeGraph 460 files／4,007 nodes／10,041 edges |
+| Current P2-5 verification | focused KB contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 134 files／676 tests、93-page build；P2-5 focused 5 files／28 tests；Chrome `/knowledge-base` 與 `/goals` 無 app error；2026-08-14 CodeGraph 471 files／4,080 nodes／10,184 edges |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 
 ## 5. Active TODO
@@ -426,7 +427,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
 - **現在不是卡死**：P1、P2、P4 以及 P3 的決策草案都能自主往前；Primary LINE、Main／Teaching DB、OpenAI、Firecrawl、Google 已可用，內部 cron／support log secret 可自行產生。
 - **現在也不是「只差測試」**：骨架與主要 domain ownership 已就位，但 Visit／Teachify／Support 的 recovery／replay 語意仍需決策；過細 wrapper 要在真實 evidence 後收斂，不能直接宣告 architecture 完成。
 - **真正外部 gate**：Support 專用 LINE、Teachify 真實簽章素材、Support relay target、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及 9 月底產品 scope／release owner。
-- **建議立即順序**：P1 → P2；同時完成 P3 草案與 P4。等待 P5 時不中斷；資產到齊後只跑 P6，再依 evidence 做 P7，最後 P8、P9。
+- **建議立即順序**：P2 先停在 evidence boundary；先核准 P3 recovery／replay 語意並取得 P5 外部資產，資產到齊後只跑 P6。P7 只修 P6 暴露的可靠性問題，最後做 P8、P9。
 - **禁止誤判**：本地自簽 fixture 只證明我們的 contract；可回 200 的 `kva.zeabur.app` 只證明 domain 存活。兩者都不能替代 provider receipt、commit identity、隔離 staging 或 rollback truth。
 
 ## 9. 文件政策
