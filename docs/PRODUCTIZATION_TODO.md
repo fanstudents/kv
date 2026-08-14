@@ -167,10 +167,11 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 135 files／694 tests、93-page build；本批 timeout recovery + Support relay delivery-key contracts；Chrome `/agents/support` 顯示原有後台畫面、DOM／screenshot 正常且 app error 0；2026-08-15 CodeGraph 473 files／4,124 nodes／10,377 edges |
+| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 136 files／698 tests、93-page build；本批 Support relay delivery-key + Agent 後台 live-error contracts；Chrome `/agents/support` 版面與 console 0 error，live 模式不再把空資料誤當靜態成功；2026-08-15 CodeGraph 475 files／4,144 nodes／10,425 edges |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
 | LINE webhook payload guard | `parseVisitLineWebhookPayload`／`parseSupportRelayPayload` + 28 focused contracts（2026-08-15） | `events` 非陣列會在 route dispatch 前被拒絕；陣列中的 null／primitive 不會進入 application `.map`；正常空 payload 與既有 signature／relay contract 保持不變。未改 UI 或 provider side-effect policy |
+| Agent admin live-error truth | `agent-page-state` contracts + shared `AgentPageShell`／`RealStatusPanel`／`agent-status` changes（2026-08-15） | 既有版面與 API 不變；demo 模式保留展示 fallback；live 模式設定／活動／真實狀態讀取失敗會留下可見 failed activity／狀態錯誤，空陣列不再被補成靜態執行紀錄；PATCH 失敗會回復 toggle、儲存按鈕不再誤顯示成功 |
 
 ## 5. Active TODO
 
@@ -414,6 +415,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
 7. **P7 — 核准需求與證據驅動的可靠性／架構收斂（A）**
    - 先把 P0 核准的功能逐條做成垂直 slice；每條都沿既有 domain owner 實作，不把 upstream 舊架構帶回來。
    - 只修 P2／P4／P6 暴露的 retry、idempotency、partial failure、observability 或契約問題；不再推測式搬檔。
+   - [x] 共用 Agent 後台的設定／活動／真實狀態讀取已改為「成功才更新、失敗留診斷」；demo fallback 只在 demo 模式保留，PATCH 失敗會回復本地 optimistic state，不改 UI 結構或 API payload。
    - 把重複 route wrappers、過細 rules／ports／application／adapter 收斂到 domain owner；保留確實隔離 provider／DB 的 adapter，不保留只轉呼叫的儀式層。
    - 以成熟 npm 套件取代已盤點、測試成本高且無產品差異的自造輪；每項先比較 bundle、維護度、契約與 migration cost，不做整包換框架。
    - **Exit**：新增抽象有至少兩個真實 consumer；刪除或合併的模組有 caller evidence；LOC／檔案數不因儀式層持續膨脹。

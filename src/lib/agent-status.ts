@@ -22,7 +22,10 @@ const listeners = new Set<() => void>();
 function load() {
   if (loading) return loading;
   loading = fetch("/api/agents")
-    .then((r) => (r.ok ? r.json() : null))
+    .then(async (r) => {
+      if (!r.ok) throw new Error(`Agent status request failed (${r.status})`);
+      return r.json();
+    })
     .then((d) => {
       if (d?.enabled) {
         cache = d.enabled as StatusMap;
@@ -30,7 +33,11 @@ function load() {
         listeners.forEach((l) => l());
       }
     })
-    .catch(() => {})
+    .catch((error) => {
+      // Keep the last known status for the sidebar, but never hide a failed
+      // live read from diagnostics. The page-level controls fail closed.
+      console.error("[agent-status] live status read failed", error);
+    })
     .finally(() => {
       loading = null;
     });

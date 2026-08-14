@@ -26,6 +26,11 @@ import { useDemoMode } from "@/lib/demo-mode";
 import { refreshAgentStatus } from "@/lib/agent-status";
 import { PUSH_STYLES, type PushStyle } from "@/lib/line-message-styles";
 import type { AgentMeta, AgentActivity } from "@/lib/types";
+import {
+  createAgentFailureActivity,
+  mapAgentActivityRows,
+  readAgentApiResponse,
+} from "@/components/agents/agent-page-state";
 
 const TEST_USER_ID_KEY = "line-agent-console:test-user-id";
 const DEFAULT_TEST_USER_ID = "";
@@ -80,6 +85,19 @@ export default function AgentPageShell({
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [loadErrors, setLoadErrors] = useState<Array<{ key: string; message: string }>>([]);
+
+  const recordLoadError = (key: string, message: string) => {
+    setLoadErrors((errors) => [
+      ...errors.filter((error) => error.key !== key),
+      { key, message },
+    ]);
+  };
+
+  const clearLoadError = (key: string) => {
+    setLoadErrors((errors) => errors.filter((error) => error.key !== key));
+  };
   const storedTestUserId = useSyncExternalStore(
     subscribeToStoredTestUserId,
     getStoredTestUserId,
@@ -95,38 +113,47 @@ export default function AgentPageShell({
 
   useEffect(() => {
     fetch(`/api/agents/${agent.slug}`)
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => readAgentApiResponse(res, "Agent 設定讀取失敗"))
       .then((data) => {
+        clearLoadError("settings");
         if (data) {
-          setEnabled(Boolean(data.enabled));
-          if (data.settings) {
-            if (["text", "flex", "confirm", "buttons"].includes(data.settings.pushStyle)) {
-              setPushStyle(data.settings.pushStyle);
+          const row = data as { enabled?: unknown; settings?: Record<string, unknown> };
+          setEnabled(Boolean(row.enabled));
+          if (row.settings) {
+            if (["text", "flex", "confirm", "buttons"].includes(String(row.settings.pushStyle))) {
+              setPushStyle(row.settings.pushStyle as PushStyle);
             }
-            onSettingsLoaded?.(data.settings);
+            onSettingsLoaded?.(row.settings);
           }
         }
       })
-      .catch(() => {})
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "Agent 設定讀取失敗";
+        console.error(`[agent:${agent.slug}] settings load failed`, error);
+        if (!demoMode) recordLoadError("settings", message);
+      })
       .finally(() => setLoaded(true));
 
     fetch(`/api/agents/${agent.slug}/activity`)
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => readAgentApiResponse(res, "執行紀錄讀取失敗"))
       .then((rows) => {
-        if (Array.isArray(rows) && rows.length > 0) {
-          setActivity(
-            rows.map((r) => ({
-              id: r.id,
-              timestamp: new Date(r.occurred_at).toLocaleString("zh-TW"),
-              summary: r.summary,
-              status: r.status,
-            }))
-          );
+        const mapped = mapAgentActivityRows(rows);
+        if (mapped) {
+          clearLoadError("activity");
+          setActivity(mapped.length > 0 || !demoMode ? mapped : fallbackActivity);
         }
       })
-      .catch(() => {});
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : "執行紀錄讀取失敗";
+        console.error(`[agent:${agent.slug}] activity load failed`, error);
+        if (demoMode) setActivity(fallbackActivity);
+        else {
+          setActivity([]);
+          recordLoadError("activity", message);
+        }
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agent.slug]);
+  }, [agent.slug, demoMode]);
 
   // 最近一次「真正的執行」——排除草稿狀態的種子紀錄，避免誤導流程圖
   const latestRun = activity.find((a) => !a.summary.includes("草稿狀態") && a.timestamp !== "尚未啟用");
@@ -142,26 +169,42 @@ export default function AgentPageShell({
   }, [myGoals]);
 
   const handleToggle = async (next: boolean) => {
+    const previous = enabled;
     setEnabled(next);
-    await fetch(`/api/agents/${agent.slug}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled: next }),
-    }).catch(() => {});
-    // 側欄的燈、劇院模式的值勤人數都讀同一份狀態，切換後立刻更新
-    refreshAgentStatus();
+    try {
+      const response = await fetch(`/api/agents/${agent.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+      await readAgentApiResponse(response, "啟用狀態儲存失敗");
+      // 側欄的燈、劇院模式的值勤人數都讀同一份狀態，切換後立刻更新
+      refreshAgentStatus();
+    } catch (error) {
+      setEnabled(previous);
+      const message = error instanceof Error ? error.message : "啟用狀態儲存失敗";
+      console.error(`[agent:${agent.slug}] toggle failed`, error);
+      if (!demoMode) recordLoadError("toggle", message);
+    }
   };
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(false);
     try {
-      await fetch(`/api/agents/${agent.slug}`, {
+      const response = await fetch(`/api/agents/${agent.slug}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings: { ...settings, pushStyle } }),
       });
+      await readAgentApiResponse(response, "設定儲存失敗");
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setSaveError(true);
+      const message = error instanceof Error ? error.message : "設定儲存失敗";
+      console.error(`[agent:${agent.slug}] settings save failed`, error);
+      if (!demoMode) recordLoadError("settings-save", message);
     } finally {
       setSaving(false);
     }
@@ -183,24 +226,22 @@ export default function AgentPageShell({
           accentColor: agent.color,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "推播失敗");
+      await readAgentApiResponse(res, "推播失敗");
       setTestState("sent");
       fetch(`/api/agents/${agent.slug}/activity`)
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => readAgentApiResponse(r, "執行紀錄更新失敗"))
         .then((rows) => {
-          if (Array.isArray(rows)) {
-            setActivity(
-              rows.map((r) => ({
-                id: r.id,
-                timestamp: new Date(r.occurred_at).toLocaleString("zh-TW"),
-                summary: r.summary,
-                status: r.status,
-              }))
-            );
+          const mapped = mapAgentActivityRows(rows);
+          if (mapped) {
+            clearLoadError("activity-refresh");
+            setActivity(mapped);
           }
         })
-        .catch(() => {});
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : "執行紀錄更新失敗";
+          console.error(`[agent:${agent.slug}] activity refresh failed`, error);
+          if (!demoMode) recordLoadError("activity-refresh", message);
+        });
       setTimeout(() => setTestState("idle"), 2500);
     } catch (err) {
       setTestState("error");
@@ -234,7 +275,7 @@ export default function AgentPageShell({
               className="flex items-center gap-1.5 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              {saved ? "已儲存" : "儲存設定"}
+              {saveError ? "儲存失敗" : saved ? "已儲存" : "儲存設定"}
             </button>
             <Toggle checked={enabled} onChange={handleToggle} label={enabled ? "已啟用" : "已停用"} />
           </>
@@ -308,7 +349,15 @@ export default function AgentPageShell({
 
         <Card>
           <h2 className="mb-4 text-sm font-semibold text-neutral-700 dark:text-neutral-200">執行紀錄</h2>
-          <ActivityLog items={activity} />
+          <ActivityLog
+            items={[
+              ...(demoMode ? [] : loadErrors.map(({ key, message }) =>
+                createAgentFailureActivity(`${agent.slug}-load-error-${key}`, message)
+              )
+              ),
+              ...activity,
+            ]}
+          />
         </Card>
 
         {preview && (

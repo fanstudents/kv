@@ -7,6 +7,7 @@ import { useIntegrationStatus } from "@/components/integrations/useIntegrationSt
 import { INTEGRATION_SEEDS } from "@/lib/integrations-data";
 import { getAgent } from "@/lib/agent-data";
 import type { AgentSlug } from "@/lib/types";
+import { readAgentApiResponse } from "@/components/agents/agent-page-state";
 
 // 關掉示範模式時，用這一塊取代所有示範數字：如實呈現這位 Agent 現在的狀態——
 // 啟用了沒有、接上了哪些服務（哪些還沒接）、過去七天真的跑過幾次、最後一次是什麼時候。
@@ -42,15 +43,19 @@ export default function RealStatusPanel({
   // 統計在「資料回來的當下」算好（而不是每次 render 都讀一次時鐘），
   // render 才是純函式、也不會因為重繪而數字跳動。
   const [stats, setStats] = useState<{ total: number; week: number; latest: string | null } | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const liveStatus = useIntegrationStatus();
 
   useEffect(() => {
     let alive = true;
     fetch(`/api/agents/${slug}/activity`)
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => readAgentApiResponse(r, "執行紀錄讀取失敗"))
       .then((d) => {
         if (!alive) return;
-        const rows: ActivityRow[] = Array.isArray(d) ? d : [];
+        setStats(null);
+        setStatsError(null);
+        if (!Array.isArray(d)) throw new Error("執行紀錄格式錯誤");
+        const rows = d as ActivityRow[];
         // 種子資料（「尚未啟用」「等待接上…」）不算真的跑過，濾掉才不會誤導
         const real = rows.filter((r) => !r.summary?.includes("尚未") && !r.summary?.includes("等待"));
         const now = Date.now();
@@ -62,7 +67,12 @@ export default function RealStatusPanel({
           latest: first ? `最後一次 ${relTime(first.occurred_at)}：${first.summary.slice(0, 28)}` : null,
         });
       })
-      .catch(() => alive && setStats({ total: 0, week: 0, latest: null }));
+      .catch((error) => {
+        if (!alive) return;
+        const message = error instanceof Error ? error.message : "執行紀錄讀取失敗";
+        console.error(`[agent:${slug}] real activity stats failed`, error);
+        setStatsError(message);
+      });
     return () => {
       alive = false;
     };
@@ -141,7 +151,9 @@ export default function RealStatusPanel({
 
       {/* 真實執行紀錄 */}
       <p className={`mb-1.5 text-[11px] font-semibold tracking-[0.15em] ${muted}`}>執行紀錄</p>
-      {stats === null ? (
+      {statsError ? (
+        <p className={`text-xs ${muted}`}>執行紀錄讀取失敗：{statsError}</p>
+      ) : stats === null ? (
         <p className={`text-xs ${muted}`}>讀取中…</p>
       ) : stats.total === 0 ? (
         <p className={`flex items-center gap-1.5 text-xs ${muted}`}>
