@@ -37,6 +37,10 @@
     "schema:rehearse": "npx --no-install supabase db start --yes && npx --no-install supabase db reset --local --no-seed --yes",
     "schema:types": "npx --no-install supabase gen types typescript --local --schema public > src/lib/database.types.ts",
     "schema:types:check": "npm run schema:types && git diff --exit-code -- src/lib/database.types.ts",
+    "doctor": "node --env-file-if-exists=.env.local scripts/doctor.mjs",
+    "doctor:staging": "node --env-file-if-exists=.env.local scripts/doctor.mjs --profile=staging --strict",
+    "doctor:live": "node --env-file-if-exists=.env.local scripts/doctor.mjs --profile=live --strict",
+    "verify:config": "npm run doctor -- --profile=demo --strict",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "verify:full": "npm run verify && npm run test:e2e:run:smoke"
   },

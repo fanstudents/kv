@@ -1,5 +1,5 @@
 export type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-export type ApiAccess = "session" | "public-auth" | "public-webhook" | "public-callback" | "cron";
+export type ApiAccess = "session" | "public-auth" | "public-runtime" | "public-webhook" | "public-callback" | "cron";
 export type ApiFamily =
   | "auth"
   | "agents"
@@ -87,6 +87,7 @@ export const API_SURFACES: ApiSurface[] = [
   surface("cron/visit-timeout", ["GET"], "cron", "visit", ["supabase", "line"]),
   surface("goals", ["GET", "PUT", "DELETE", "POST"], "session", "goals", ["supabase"]),
   surface("goals/history", ["GET"], "session", "goals", ["supabase"]),
+  surface("health", ["GET"], "public-runtime", "runtime", ["local"]),
   surface("integrations/status", ["GET"], "session", "dashboard", ["local"]),
   surface("knowledge-base", ["GET", "POST", "PATCH", "DELETE"], "session", "knowledge", ["supabase"]),
   surface("knowledge-base/access", ["PUT"], "session", "knowledge", ["supabase"]),
@@ -111,6 +112,7 @@ export const API_SURFACES: ApiSurface[] = [
   surface("subscribers/[id]", ["PATCH"], "session", "support", ["supabase"]),
   surface("subscribers/broadcast", ["GET", "POST"], "session", "support", ["line", "supabase"]),
   surface("tv/idle", ["GET"], "session", "dashboard", ["google", "supabase"]),
+  surface("version", ["GET"], "public-runtime", "runtime", ["local"]),
   surface("webhooks/teachify-order", ["GET", "POST"], "public-webhook", "orders", ["teachify", "line", "supabase"]),
 ];
 

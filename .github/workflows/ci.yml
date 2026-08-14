@@ -30,6 +30,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Check install configuration shape
+        run: npm run verify:config
+
       - name: Lint
         run: npm run lint
 
@@ -58,3 +61,25 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  schema:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Rehearse local migrations
+        run: npm run schema:rehearse
+
+      - name: Check generated database types
+        run: npm run schema:types:check

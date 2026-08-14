@@ -48,8 +48,10 @@ describe("API surface inventory", () => {
         "/api/cron/support-daily-report",
         "/api/cron/team-lead-report",
         "/api/cron/visit-timeout",
+        "/api/health",
         "/api/line/webhook",
         "/api/line/webhook/support",
+        "/api/version",
         "/api/webhooks/teachify-order",
       ].sort()
     );

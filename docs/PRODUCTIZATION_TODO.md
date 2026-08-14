@@ -31,6 +31,15 @@
 - [ ] product-specific partial failure／retry／replay 決策已確認並驗證。
 - [~] 無價值薄包裝持續收斂；保留的 port／adapter 必須有 provider translation、多 consumer、transaction、concurrency 或 recovery 理由。
 
+### P1 安裝與運維基礎（2026-08-14，進行中）
+
+- [x] `npm run doctor`：以 `demo`／`staging`／`live` profile 檢查環境變數、Main migration inventory 與 server-write key；只顯示缺少的變數名稱，不呼叫外部服務。
+- [x] `/api/version`：回傳 service、package version、commit 與 runtime environment；不回傳 secrets。
+- [x] `/api/health`：回傳 Main Supabase 設定 readiness；缺設定時回 503；不執行 DB/provider side effect。
+- [x] CI 執行 `npm run verify:config`，確保 doctor command 在乾淨環境可執行。
+- [ ] CI 執行 local migration replay 與 generated-type drift check。
+- [ ] 確認 canonical deploy、health/version 來源、migration promotion 與 rollback owner。
+
 不做：另開空白專案重寫、全面 UI redesign、為未知未來建立通用 Agent runtime、無 migration 設計改資料格式、以檔案數或測試數當進度。
 
 ## 2. 不可破壞契約
