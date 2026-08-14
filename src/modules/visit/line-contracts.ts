@@ -2,6 +2,7 @@ import type {
   LegacyContactRow,
   LegacyPendingInviteStatus,
   LegacyPreparedInvite,
+  LegacyVisitTimeoutPhase,
   LegacyVisitOfferRow,
 } from "./legacy-schema";
 import type { VisitBusinessCard } from "./provider-port";
@@ -53,6 +54,7 @@ export interface VisitStaleOffer {
   lineUserId: string | null;
   contactId: string | null;
   contactName: string | null;
+  timeoutPhase: LegacyVisitTimeoutPhase | null;
 }
 
 export interface VisitStaleOfferQuery {
@@ -88,6 +90,8 @@ export interface VisitLineWorkflowPersistencePort {
   findPendingOffer(lineUserId: string): Promise<VisitLineOfferConversation | null>;
   findStaleOffers(query: VisitStaleOfferQuery): Promise<readonly VisitStaleOffer[]>;
   resolveOffer(id: string, outcome: VisitLineOfferResolution, resolvedAt: string): Promise<void>;
+  markTimeoutPhase(id: string, phase: LegacyVisitTimeoutPhase): Promise<void>;
+  recordTimeoutError(id: string, message: string): Promise<void>;
   updateContactField(contactId: string, field: VisitLineContactField, value: string): Promise<void>;
   findContact(contactId: string): Promise<VisitLineContactDetails | null>;
   createPendingInvite(lineUserId: string, invite: LegacyPreparedInvite): Promise<{ id: string }>;

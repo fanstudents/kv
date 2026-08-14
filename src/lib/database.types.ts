@@ -1359,6 +1359,8 @@ export type Database = {
           line_user_id: string
           resolved_at: string | null
           status: string
+          timeout_error: string | null
+          timeout_phase: string | null
         }
         Insert: {
           contact_id?: string | null
@@ -1367,6 +1369,8 @@ export type Database = {
           line_user_id: string
           resolved_at?: string | null
           status?: string
+          timeout_error?: string | null
+          timeout_phase?: string | null
         }
         Update: {
           contact_id?: string | null
@@ -1375,6 +1379,8 @@ export type Database = {
           line_user_id?: string
           resolved_at?: string | null
           status?: string
+          timeout_error?: string | null
+          timeout_phase?: string | null
         }
         Relationships: [
           {

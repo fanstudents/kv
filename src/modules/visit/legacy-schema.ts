@@ -1,4 +1,9 @@
 export type LegacyVisitOfferStatus = "pending" | "accepted" | "declined";
+export type LegacyVisitTimeoutPhase =
+  | "resolved"
+  | "activity_recorded"
+  | "line_notified"
+  | "completed";
 export type LegacyPendingInviteStatus =
   | "awaiting_approval"
   | "pending"
@@ -44,6 +49,8 @@ export interface LegacyVisitOfferRow {
   status: LegacyVisitOfferStatus;
   created_at?: string;
   resolved_at?: string | null;
+  timeout_phase?: LegacyVisitTimeoutPhase | null;
+  timeout_error?: string | null;
 }
 
 export interface LegacyPendingInviteRow {
@@ -108,10 +115,21 @@ export function toLegacyVisitOfferResolution(
   outcome: "accepted" | "declined" | "timed_out",
   resolvedAt: string
 ) {
-  return {
+  const patch = {
     status: outcome === "accepted" ? ("accepted" as const) : ("declined" as const),
     resolved_at: resolvedAt,
   };
+  return outcome === "timed_out"
+    ? { ...patch, timeout_phase: "resolved" as const, timeout_error: null }
+    : patch;
+}
+
+export function toLegacyVisitOfferTimeoutPhasePatch(phase: LegacyVisitTimeoutPhase) {
+  return { timeout_phase: phase, timeout_error: null };
+}
+
+export function toLegacyVisitOfferTimeoutErrorPatch(message: string) {
+  return { timeout_error: message.slice(0, 1000) };
 }
 
 export function toLegacyPendingInviteInsert(

@@ -9,6 +9,9 @@ const query = vi.hoisted(() => {
     limit: vi.fn(),
     lt: vi.fn(),
     gt: vi.fn(),
+    is: vi.fn(),
+    not: vi.fn(),
+    neq: vi.fn(),
     maybeSingle: vi.fn(),
     update: vi.fn(),
     insert: vi.fn(),
@@ -68,12 +71,14 @@ describe("legacy Visit LINE workflow persistence adapter", () => {
               id: "offer-1",
               line_user_id: "line-1",
               contact_id: "contact-1",
+              timeout_phase: null,
               contacts: { name: "Alice" },
             },
             {
               id: "offer-2",
               line_user_id: null,
               contact_id: null,
+              timeout_phase: null,
               contacts: null,
             },
           ],
@@ -88,16 +93,34 @@ describe("legacy Visit LINE workflow persistence adapter", () => {
         limit: 20,
       })
     ).resolves.toEqual([
-      { id: "offer-1", lineUserId: "line-1", contactId: "contact-1", contactName: "Alice" },
-      { id: "offer-2", lineUserId: null, contactId: null, contactName: null },
+      { id: "offer-1", lineUserId: "line-1", contactId: "contact-1", contactName: "Alice", timeoutPhase: null },
+      { id: "offer-2", lineUserId: null, contactId: null, contactName: null, timeoutPhase: null },
     ]);
 
     expect(from).toHaveBeenCalledWith("visit_offers");
-    expect(query.select).toHaveBeenCalledWith("id, line_user_id, contact_id, contacts(name)");
+    expect(query.select).toHaveBeenCalledWith("id, line_user_id, contact_id, timeout_phase, contacts(name)");
     expect(query.eq).toHaveBeenCalledWith("status", "pending");
+    expect(query.is).toHaveBeenCalledWith("timeout_phase", null);
     expect(query.lt).toHaveBeenCalledWith("created_at", "2026-07-31T11:57:00.000Z");
     expect(query.gt).toHaveBeenCalledWith("created_at", "2026-07-31T11:40:00.000Z");
     expect(query.limit).toHaveBeenCalledWith(20);
+  });
+
+  it("writes timeout checkpoints and keeps the last error bounded", async () => {
+    const adapter = createLegacyVisitLineWorkflowAdapter();
+
+    await adapter.resolveOffer("offer-1", "timed_out", "2026-07-31T00:00:00.000Z");
+    await adapter.markTimeoutPhase("offer-1", "line_notified");
+    await adapter.recordTimeoutError("offer-1", "provider unavailable");
+
+    expect(query.update).toHaveBeenNthCalledWith(1, {
+      status: "declined",
+      resolved_at: "2026-07-31T00:00:00.000Z",
+      timeout_phase: "resolved",
+      timeout_error: null,
+    });
+    expect(query.update).toHaveBeenNthCalledWith(2, { timeout_phase: "line_notified", timeout_error: null });
+    expect(query.update).toHaveBeenNthCalledWith(3, { timeout_error: "provider unavailable" });
   });
 
   it("maps prepared invites through the unchanged legacy row shape", async () => {

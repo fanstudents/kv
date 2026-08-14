@@ -9,6 +9,8 @@ function createDependencies() {
     workflow: {
       findStaleOffers: vi.fn(),
       resolveOffer: vi.fn().mockResolvedValue(undefined),
+      markTimeoutPhase: vi.fn().mockResolvedValue(undefined),
+      recordTimeoutError: vi.fn().mockResolvedValue(undefined),
     },
     tags: { add: vi.fn().mockResolvedValue([]) },
     activity: { record: vi.fn().mockResolvedValue(undefined) },
@@ -75,6 +77,12 @@ describe("Visit timeout application", () => {
     expect(dependencies.lock.release).toHaveBeenCalledWith("line-1", "visit");
     expect(dependencies.delivery.pushText).toHaveBeenCalledOnce();
     expect(dependencies.lock.release).toHaveBeenCalledOnce();
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(1, "offer-1", "activity_recorded");
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(2, "offer-1", "line_notified");
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(3, "offer-1", "completed");
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(4, "offer-2", "activity_recorded");
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(5, "offer-2", "line_notified");
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(6, "offer-2", "completed");
   });
 
   it("keeps delivery and lock failures best effort", async () => {
@@ -89,6 +97,9 @@ describe("Visit timeout application", () => {
     expect(dependencies.workflow.resolveOffer).toHaveBeenCalledOnce();
     expect(dependencies.activity.record).toHaveBeenCalledOnce();
     expect(dependencies.liveTask.setState).toHaveBeenCalledOnce();
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenCalledWith("offer-1", "activity_recorded");
+    expect(dependencies.workflow.markTimeoutPhase).not.toHaveBeenCalledWith("offer-1", "line_notified");
+    expect(dependencies.workflow.recordTimeoutError).toHaveBeenCalledWith("offer-1", "LINE unavailable");
   });
 
   it("releases the conversation lock after a terminal status even when later work fails", async () => {
@@ -98,11 +109,35 @@ describe("Visit timeout application", () => {
     ]);
     dependencies.activity.record.mockRejectedValue(new Error("activity unavailable"));
 
-    await expect(runVisitTimeoutApplication(dependencies)).rejects.toThrow("activity unavailable");
+    await expect(runVisitTimeoutApplication(dependencies)).resolves.toBe(1);
 
     expect(dependencies.workflow.resolveOffer).toHaveBeenCalledOnce();
     expect(dependencies.lock.release).toHaveBeenCalledWith("line-1", "visit");
     expect(dependencies.delivery.pushText).not.toHaveBeenCalled();
+    expect(dependencies.workflow.markTimeoutPhase).not.toHaveBeenCalled();
+    expect(dependencies.workflow.recordTimeoutError).toHaveBeenCalledWith("offer-1", "activity unavailable");
+  });
+
+  it("resumes after the activity checkpoint without repeating the audit or tag step", async () => {
+    const dependencies = createDependencies();
+    dependencies.workflow.findStaleOffers.mockResolvedValue([
+      {
+        id: "offer-1",
+        lineUserId: "line-1",
+        contactId: "contact-1",
+        contactName: "Alice",
+        timeoutPhase: "activity_recorded",
+      },
+    ]);
+
+    await expect(runVisitTimeoutApplication(dependencies)).resolves.toBe(1);
+
+    expect(dependencies.workflow.resolveOffer).not.toHaveBeenCalled();
+    expect(dependencies.tags.add).not.toHaveBeenCalled();
+    expect(dependencies.activity.record).not.toHaveBeenCalled();
+    expect(dependencies.delivery.pushText).toHaveBeenCalledOnce();
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(1, "offer-1", "line_notified");
+    expect(dependencies.workflow.markTimeoutPhase).toHaveBeenNthCalledWith(2, "offer-1", "completed");
   });
 
   it("does not perform side effects when there are no stale offers", async () => {

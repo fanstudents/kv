@@ -8,6 +8,8 @@ import {
   toLegacyPendingInviteStatusPatch,
   toLegacyVisitOfferInsert,
   toLegacyVisitOfferResolution,
+  toLegacyVisitOfferTimeoutErrorPatch,
+  toLegacyVisitOfferTimeoutPhasePatch,
 } from "@/modules/visit/legacy-schema";
 
 describe("Visit legacy schema compatibility", () => {
@@ -37,7 +39,19 @@ describe("Visit legacy schema compatibility", () => {
     const resolvedAt = "2026-07-31T20:00:00.000Z";
     expect(toLegacyVisitOfferResolution("accepted", resolvedAt)).toEqual({ status: "accepted", resolved_at: resolvedAt });
     expect(toLegacyVisitOfferResolution("declined", resolvedAt)).toEqual({ status: "declined", resolved_at: resolvedAt });
-    expect(toLegacyVisitOfferResolution("timed_out", resolvedAt)).toEqual({ status: "declined", resolved_at: resolvedAt });
+    expect(toLegacyVisitOfferResolution("timed_out", resolvedAt)).toEqual({
+      status: "declined",
+      resolved_at: resolvedAt,
+      timeout_phase: "resolved",
+      timeout_error: null,
+    });
+    expect(toLegacyVisitOfferTimeoutPhasePatch("activity_recorded")).toEqual({
+      timeout_phase: "activity_recorded",
+      timeout_error: null,
+    });
+    expect(toLegacyVisitOfferTimeoutErrorPatch("provider unavailable")).toEqual({
+      timeout_error: "provider unavailable",
+    });
   });
 
   it("writes the pending-invite payload and status patches", () => {

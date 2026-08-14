@@ -7,7 +7,10 @@ import {
   toLegacyPendingInviteRevisionPatch,
   toLegacyPendingInviteStatusPatch,
   toLegacyVisitOfferResolution,
+  toLegacyVisitOfferTimeoutErrorPatch,
+  toLegacyVisitOfferTimeoutPhasePatch,
   type LegacyPreparedInvite,
+  type LegacyVisitTimeoutPhase,
 } from "@/modules/visit/legacy-schema";
 import type {
   VisitLineApprovalInvite,
@@ -66,26 +69,55 @@ export function createLegacyVisitLineWorkflowAdapter(): VisitLineWorkflowPersist
     },
 
     async findStaleOffers(query: VisitStaleOfferQuery): Promise<readonly VisitStaleOffer[]> {
-      const { data, error } = await getClient()
-        .from("visit_offers")
-        .select("id, line_user_id, contact_id, contacts(name)")
-        .eq("status", "pending")
-        .lt("created_at", query.olderThan)
-        .gt("created_at", query.notOlderThan)
-        .limit(query.limit);
-      if (error) throw new Error(`Visit stale offers read failed: ${error.message}`);
+      const baseQuery = "id, line_user_id, contact_id, timeout_phase, contacts(name)";
+      const [pendingResult, recoveryResult] = await Promise.all([
+        getClient()
+          .from("visit_offers")
+          .select(baseQuery)
+          .eq("status", "pending")
+          .is("timeout_phase", null)
+          .lt("created_at", query.olderThan)
+          .gt("created_at", query.notOlderThan)
+          .limit(query.limit),
+        getClient()
+          .from("visit_offers")
+          .select(baseQuery)
+          .eq("status", "declined")
+          .not("timeout_phase", "is", null)
+          .neq("timeout_phase", "completed")
+          .gt("resolved_at", query.notOlderThan)
+          .limit(query.limit),
+      ]);
+      if (pendingResult.error) throw new Error(`Visit stale offers read failed: ${pendingResult.error.message}`);
+      if (recoveryResult.error) throw new Error(`Visit timeout recovery read failed: ${recoveryResult.error.message}`);
 
-      return (data ?? []).map((offer) => ({
+      const rows = [...(recoveryResult.data ?? []), ...(pendingResult.data ?? [])].slice(0, query.limit);
+      return rows.map((offer) => ({
         id: offer.id,
         lineUserId: offer.line_user_id ?? null,
         contactId: offer.contact_id ?? null,
         contactName: offer.contacts?.name ?? null,
+        timeoutPhase: (offer.timeout_phase as LegacyVisitTimeoutPhase | null) ?? null,
       }));
     },
 
     async resolveOffer(id, outcome: VisitLineOfferResolution, resolvedAt) {
       const { error } = await getClient().from("visit_offers").update(toLegacyVisitOfferResolution(outcome, resolvedAt)).eq("id", id);
       if (error) throw new Error(`Visit offer resolution failed: ${error.message}`);
+    },
+    async markTimeoutPhase(id, phase) {
+      const { error } = await getClient()
+        .from("visit_offers")
+        .update(toLegacyVisitOfferTimeoutPhasePatch(phase))
+        .eq("id", id);
+      if (error) throw new Error(`Visit timeout checkpoint failed: ${error.message}`);
+    },
+    async recordTimeoutError(id, message) {
+      const { error } = await getClient()
+        .from("visit_offers")
+        .update(toLegacyVisitOfferTimeoutErrorPatch(message))
+        .eq("id", id);
+      if (error) throw new Error(`Visit timeout error write failed: ${error.message}`);
     },
     async updateContactField(contactId, field: VisitLineContactField, value) {
       const { error } = await getClient().from("contacts").update(contactFieldPatch(field, value)).eq("id", contactId);

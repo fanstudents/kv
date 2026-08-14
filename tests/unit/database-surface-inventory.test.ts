@@ -80,6 +80,7 @@ describe("database surface inventory", () => {
       "20260813222936_atomic_kb_chunk_replacement.sql",
       "20260814153820_teachify_order_delivery_claim.sql",
       "20260814162213_visit_invite_fulfilment_phase.sql",
+      "20260814164718_visit_offer_timeout_recovery.sql",
     ]);
 
     const baseline = readFileSync(
@@ -100,5 +101,13 @@ describe("database surface inventory", () => {
     );
     expect(seed).toContain("insert into public.line_agents");
     expect(seed).toContain("on conflict (slug) do nothing");
+
+    const timeout = readFileSync(
+      join(process.cwd(), "supabase", "migrations", migrations[5]),
+      "utf8",
+    );
+    expect(timeout).toContain('add column if not exists "timeout_phase" text');
+    expect(timeout).toContain('add column if not exists "timeout_error" text');
+    expect(timeout).toContain("'line_notified'::text");
   });
 });
