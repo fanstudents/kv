@@ -50,6 +50,7 @@
 - [x] `knowledge_base`／`knowledge_access` 的 row mapping、CRUD、access persistence 已移到 `src/adapters/knowledge-base/supabase-knowledge-store.ts`；API payload、UI、schema 與 side-effect 順序不變。
 - [x] `indexDocs`／`indexStats` 已移到 `src/adapters/knowledge-base/supabase-knowledge-index.ts`；embedding、Main Supabase 與 atomic RPC 的 ownership 不再藏在 `src/lib/kb-search.ts`。
 - [x] Agent context 的 `knowledge_access` max-level read 與 `kb_citations` best-effort audit write 已移到 `supabase-knowledge-store.ts`；`src/lib/knowledge-base.ts` 現在只組裝 context。
+- [x] Firecrawl URL／site journey 的 `kb_sources` lookup、check-in、refresh、create、failure、recheck-list 已移到 `supabase-knowledge-source-store.ts`；PDF source persistence 明確標為 transitional。
 - [ ] 下一個真實 KB journey 觸碰時，才把 `src/lib/knowledge-base.ts` 的 context 與 `kb-import.ts` 的 ingestion ownership 往 domain slice touch-and-migrate；不得先做全 repo 搬檔。
 - [ ] 以 caller evidence 決定是否合併其他單 caller forwarding；沒有第二 consumer、provider translation、transaction、concurrency 或 recovery 理由就不新增 abstraction。
 
@@ -68,6 +69,14 @@
 - **不變條件：** 沒有 `knowledge_access` row 時仍預設 L1；max-level 查詢錯誤仍 fail-closed；citation insert 失敗不阻斷回答。
 - **驗收證據：** `tests/unit/knowledge-base-store.test.ts` 的 access／citation contracts、meeting context regression、完整 test/lint/typecheck/build、Chrome `/knowledge-base` 與 `/goals`。
 - **非目標：** 不改 `searchKnowledge`／`formatHits`、PDF／Firecrawl ingestion、prompt 內容或資料 migration。
+
+#### P2-5 change contract：Firecrawl URL source persistence
+
+- **範圍：** 只移動 Firecrawl URL／site import 與 recheck 共用的 `kb_sources` lookup、check-in、refresh、create、failure、recheck-list persistence；PDF source persistence 暫留 `kb-import.ts`。
+- **入口與 consumer：** `src/lib/kb-crawl.ts#importUrl`、`recheckUrlSources`；保留 Firecrawl HTTP／quota／retry 在 `firecrawl-client.ts`，保留候選條目 ingestion 在 `kb-import.ts`。
+- **不變條件：** URL normalization／checksum、unchanged check-in、content hash refresh、source status transitions、recheck checked／changed 統計與既有錯誤訊息不變。
+- **驗收證據：** baseline `kb-crawl-direct` 24 tests；after focused crawl／source adapter 28 tests、完整 676 tests、lint/typecheck/build、Chrome `/knowledge-base` 與 `/goals`。
+- **非目標：** 不新增 generic source repository、workflow engine、PDF migration、UI/API/schema 變更；recheck 對 `knowledge_base` review mark 與 `line_agent_activity` audit 仍留在現有 workflow owner。
 
 不做：另開空白專案重寫、全面 UI redesign、為未知未來建立通用 Agent runtime、無 migration 設計改資料格式、以檔案數或測試數當進度。
 
@@ -96,7 +105,7 @@ page/component -> API route/composition -> modules/<domain> -> port
 - `src/app/**`：HTTP／頁面入口、輸入輸出與 composition，不擁有核心規則。
 - `src/modules/<domain>/**`：use case、狀態轉移與必要 port，不直接依賴 SDK／env。
 - `src/adapters/<domain>/**`：資料／provider 翻譯、錯誤與可靠性邊界。
-- `src/lib/**`：共用技術能力與待觸碰 legacy orchestration islands；不是新業務邏輯的預設落點。KB context／ingestion 目前仍在這裡，需以真實 journey 觸碰時再收斂。
+- `src/lib/**`：共用技術能力與待觸碰 legacy orchestration islands；不是新業務邏輯的預設落點。KB context／PDF source／shared ingestion 目前仍在這裡，需以真實 journey 觸碰時再收斂。
 - `src/components/**`：既有 presentation；只有真實需求才局部整理。
 
 Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研究、邀約、報告、訂單才是 workflow。不要把三者混成通用 runtime。
@@ -104,7 +113,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 ### 架構判定
 
 - **整體骨架已就位**：entrypoint、domain owner、port／adapter、Main／Teaching DB ownership 已足以讓新需求沿既有邊界開發；不需要再做一輪全 repo 搬檔。
-- **不是所有模組都同樣成熟**：OpenAI shared transport、Orders、Support 已有清楚 owner；Visit 已模組化但仍保留少量有界的 legacy translation；Knowledge Base 已把 Firecrawl HTTP／quota／retry、`knowledge_base`／`knowledge_access` persistence 與 embedding／atomic index 分責，但 context／ingestion 仍是 transitional `src/lib` orchestration；Teachify 的真實簽章契約仍未由 sandbox event 證實；GA4／GSC／Google 已有 provider boundary。`/integrations` 的管理連結與 Agent 用途仍保留 localStorage demo，但連線 badge／計數已改讀 `/api/integrations/status` live truth。
+- **不是所有模組都同樣成熟**：OpenAI shared transport、Orders、Support 已有清楚 owner；Visit 已模組化但仍保留少量有界的 legacy translation；Knowledge Base 已把 Firecrawl HTTP／quota／retry、URL／site `kb_sources`、`knowledge_base`／`knowledge_access` persistence 與 embedding／atomic index 分責，但 context／PDF source／shared ingestion 仍是 transitional `src/lib` orchestration；Teachify 的真實簽章契約仍未由 sandbox event 證實；GA4／GSC／Google 已有 provider boundary。`/integrations` 的管理連結與 Agent 用途仍保留 localStorage demo，但連線 badge／計數已改讀 `/api/integrations/status` live truth。
 - **下一階段是需求驅動的垂直切片，不是水平重構**：依 KV 已確認的功能需求與 journey，只整理該 journey 經過的 capability module、provider adapter、recovery 與驗收證據。沒有第二個真實 consumer 或共同故障模式，不抽通用框架。
 
 | Boundary | 現況 | 後續原則 |
@@ -112,7 +121,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | OpenAI | shared client + domain adapters，真實 acceptance 已通過 | 保持現有邊界，不再抽象一層；各 composite journey 只補 domain evidence |
 | Orders／Teachify | Orders workflow／repository／LINE delivery 已分離；真實 webhook 契約未證實 | sandbox event 驗簽章、重送、out-of-order，再決定 recovery |
 | Visit／LINE／Google | use cases、ports、lock 已建立；少量 `legacy-*` compatibility seam 仍在 | 只隨真實 delivery journey touch-and-migrate |
-| Knowledge Base／Firecrawl | 真實單頁 journey 已通過；`supabase-knowledge-store.ts` owner `knowledge_base`／`knowledge_access` persistence，`supabase-knowledge-index.ts` owner embedding／index write；`firecrawl-client.ts` owner HTTP／quota／retry，`kb-crawl.ts`／`kb-import.ts` 仍 owner source state／ingestion orchestration | 保持 provider／DB 故障與回滾邊界；下一個真實 KB slice 才收斂 context／ingestion，不建 generic crawler platform |
+| Knowledge Base／Firecrawl | 真實單頁 journey 已通過；`supabase-knowledge-store.ts` owner `knowledge_base`／`knowledge_access` persistence，`supabase-knowledge-index.ts` owner embedding／index write，`supabase-knowledge-source-store.ts` owner URL／site `kb_sources` state；`firecrawl-client.ts` owner HTTP／quota／retry，`kb-import.ts` 仍 owner PDF source／shared ingestion orchestration | 保持 provider／DB 故障與回滾邊界；下一個真實 KB slice 才收斂 PDF source／ingestion，不建 generic crawler platform |
 | Reporting／GA4／GSC | provider query boundary 已有；部分 demo／fallback 尚未被真實資料取代 | 先用授權的 read-only property/site 驗輸入、空資料與 quota |
 | Integrations UI | 卡片、管理連結、Agent 用途與自訂服務仍是本機 demo；內建服務 badge／計數已讀 live API | localStorage 只負責 presentation edits；不得覆寫或冒充 provider connectivity |
 | Supabase | Main migration／typed client 可重建；Teaching 是獨立唯讀來源 | 固定使用我方 staging；不拿 Dennis production DB 當測試環境 |
@@ -121,7 +130,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 |---|---|---|---|---|
 | Auth／後台 | `/login`、dashboard layout、`api/auth/**` | `modules/auth` | session、Main DB | release smoke |
 | Operations／Goals | `/dashboard`、`/goals`、`/todos` | `modules/operations`、`goals`、`checklist` | Main + Teaching read | feature-driven |
-| Knowledge Base | `/knowledge-base/**`、KB APIs／cron | `modules/knowledge-base` + Supabase document/index stores + transitional context／ingestion／Firecrawl composition | Main、Firecrawl、OpenAI | P2／WP-11 |
+| Knowledge Base | `/knowledge-base/**`、KB APIs／cron | `modules/knowledge-base` + Supabase document/index/source stores + transitional context／PDF ingestion／Firecrawl composition | Main、Firecrawl、OpenAI | P2／WP-11 |
 | Meeting | `/meeting`、meeting APIs | `modules/meeting` + OpenAI adapters | Main、OpenAI realtime／audio | WP-10 |
 | Visit | `/agents/visit`、LINE webhook、timeout、public respond | `modules/visit` + conversation lock／Visit adapters | Main、OpenAI、LINE、Google | WP-12／13 |
 | Orders | `/agents/orders`、Teachify webhook | `modules/orders` + Orders adapters | Main、Teachify、LINE | WP-15／16 |
@@ -146,7 +155,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Knowledge Base real acceptance | `npm run acceptance:kb` + Firecrawl credit／Main staging query（2026-08-14） | 公開 KV README 單頁完成 scrape → draft → publish → vector index → semantic search；使用 1 credit，sources／docs／chunks cleanup 0，保留 3 筆 AI usage audit |
 | Visit AI real acceptance | authenticated production API + Chrome `/agents/visit` + Main staging query（2026-08-14） | 合成名片五欄正確、邀約草稿成功、虛構對象研究明確回 empty／10% 且未捏造來源；profile／run／steps cleanup 0，保留 3 筆 AI usage audit，未寄 Gmail／LINE |
 | Main Agent seed recovery | `20260813170350_seed_line_agents.sql` + online migration／insert-delete probe | clean schema 具備 12 個 canonical deployment rows；保留既有 settings／enabled，Visit activity 外鍵可寫入 |
-| KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + `supabase-knowledge-store.ts` + `supabase-knowledge-index.ts` + focused contracts | Firecrawl protocol／quota／retry、`knowledge_base`／`knowledge_access` persistence、embedding／atomic index 與 source state／ingestion 分責；未新增 route-specific layer；context／ingestion 仍標示 transitional |
+| KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + `supabase-knowledge-store.ts` + `supabase-knowledge-index.ts` + `supabase-knowledge-source-store.ts` + focused contracts | Firecrawl protocol／quota／retry、URL／site `kb_sources` persistence、`knowledge_base`／`knowledge_access` persistence、embedding／atomic index 與 workflow orchestration 分責；未新增 route-specific layer；PDF source／ingestion 仍標示 transitional |
 | KB atomic index replacement | `replace_kb_chunks` migration + focused unit／Main staging rollback acceptance + Chrome（2026-08-14） | OpenAI／RPC 失敗保留上一版可搜尋 index；成功時整批 transaction replace；service-role-only，fixture cleanup 0，UI/UX 未改 |
 | Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
 | Google read real acceptance | `npm run acceptance:google:read` + Chrome `/integrations`（2026-08-14） | 專用 `KV Staging` OAuth client、Calendar／GA4／GSC production providers 4 tests passed；GA4 `524303407`、GSC `sc-domain:cablate.com` 可讀，Gmail／Calendar／GA4／GSC live connected；未建立行程或寄信 |

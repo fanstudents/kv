@@ -1,6 +1,14 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { crawlSite, scrapeUrl } from "@/adapters/knowledge-base/firecrawl-client";
+import {
+  checkInUrlSource,
+  createUrlSource,
+  findUrlSourceByChecksum,
+  listUrlSourcesForRecheck,
+  markUrlSourceFailed,
+  refreshUrlSource,
+} from "@/adapters/knowledge-base/supabase-knowledge-source-store";
 import { getMainSupabase } from "@/lib/supabase";
 import { ingestPages } from "@/lib/kb-import";
 
@@ -47,7 +55,6 @@ export async function importUrl(params: {
   mode: "single" | "site";
   limit?: number;
 }): Promise<UrlImportResult> {
-  const supabase = getMainSupabase();
   const url = normalizeUrl(params.url);
   // 來源身分＝網址本身（不是內容），這樣重爬時可以更新同一筆而不是長出新的
   const checksum = hash(`${params.mode}:${url}`);
@@ -63,18 +70,12 @@ export async function importUrl(params: {
   const contentHash = hash(fullText);
   const now = new Date().toISOString();
 
-  const { data: existing, error: existingError } = await supabase
-    .from("kb_sources")
-    .select("id,content_hash")
-    .eq("checksum", checksum)
-    .maybeSingle();
-  if (existingError) throw new Error(`Knowledge source lookup failed: ${existingError.message}`);
+  const existing = await findUrlSourceByChecksum(checksum);
 
-  if (existing?.id && existing.content_hash === contentHash) {
-    const { error } = await supabase.from("kb_sources").update({ last_checked_at: now }).eq("id", existing.id);
-    if (error) throw new Error(`Knowledge source check-in failed: ${error.message}`);
+  if (existing?.id && existing.contentHash === contentHash) {
+    await checkInUrlSource(existing.id, now);
     return {
-      sourceId: existing.id as string,
+      sourceId: existing.id,
       url,
       mode: params.mode,
       pageCount: usable.length,
@@ -88,41 +89,29 @@ export async function importUrl(params: {
 
   let sourceId: string;
   if (existing?.id) {
-    sourceId = existing.id as string;
-    const { error } = await supabase
-      .from("kb_sources")
-      .update({
-        page_count: usable.length,
-        char_count: fullText.length,
-        status: "converting",
-        extracted_text: fullText,
-        content_hash: contentHash,
-        last_checked_at: now,
-        updated_at: now,
-      })
-      .eq("id", sourceId);
-    if (error) throw new Error(`Knowledge source refresh failed: ${error.message}`);
+    sourceId = existing.id;
+    await refreshUrlSource({
+      sourceId,
+      pageCount: usable.length,
+      charCount: fullText.length,
+      extractedText: fullText,
+      contentHash,
+      lastCheckedAt: now,
+      updatedAt: now,
+    });
   } else {
-    const { data, error } = await supabase
-      .from("kb_sources")
-      .insert({
-        filename: usable[0].title || url,
-        source_type: params.mode === "site" ? "site" : "url",
-        url,
-        mime_type: "text/markdown",
-        byte_size: fullText.length,
-        checksum,
-        content_hash: contentHash,
-        page_count: usable.length,
-        char_count: fullText.length,
-        status: "converting",
-        extracted_text: fullText,
-        last_checked_at: now,
-      })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    sourceId = data.id as string;
+    sourceId = await createUrlSource({
+      filename: usable[0].title || url,
+      sourceType: params.mode === "site" ? "site" : "url",
+      url,
+      byteSize: fullText.length,
+      checksum,
+      contentHash,
+      pageCount: usable.length,
+      charCount: fullText.length,
+      extractedText: fullText,
+      lastCheckedAt: now,
+    });
   }
 
   try {
@@ -133,16 +122,13 @@ export async function importUrl(params: {
     });
     return { sourceId, url, mode: params.mode, pageCount: usable.length, ...ingested };
   } catch (err) {
-    const { error: failureStatusError } = await supabase
-      .from("kb_sources")
-      .update({
-        status: "failed",
-        error_detail: err instanceof Error ? err.message : "unknown",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sourceId);
-    if (failureStatusError) {
-      console.error("[knowledge-base] failed to persist source failure status", failureStatusError.message);
+    try {
+      await markUrlSourceFailed(sourceId, err instanceof Error ? err.message : "unknown", new Date().toISOString());
+    } catch (failureStatusError) {
+      console.error(
+        "[knowledge-base] failed to persist source failure status",
+        failureStatusError instanceof Error ? failureStatusError.message : "unknown",
+      );
     }
     throw err;
   }
@@ -160,13 +146,7 @@ export interface RecheckResult {
  */
 export async function recheckUrlSources(limit = 10): Promise<RecheckResult> {
   const supabase = getMainSupabase();
-  const { data: sources, error: sourcesError } = await supabase
-    .from("kb_sources")
-    .select("id,url,source_type,content_hash")
-    .in("source_type", ["url", "site"])
-    .order("last_checked_at", { ascending: true, nullsFirst: true })
-    .limit(limit);
-  if (sourcesError) throw new Error(`Knowledge source recheck list failed: ${sourcesError.message}`);
+  const sources = await listUrlSourcesForRecheck(limit);
 
   const result: RecheckResult = { checked: 0, changed: [] };
 
@@ -177,13 +157,9 @@ export async function recheckUrlSources(limit = 10): Promise<RecheckResult> {
       const now = new Date().toISOString();
       // 單頁比對正文；整站來源這裡只比首頁，變了就值得整份重看
       const nextHash = hash(`# ${page.title}\n來源：${page.url}\n\n${page.markdown}`);
-      const changed = Boolean(src.content_hash) && src.content_hash !== nextHash;
+      const changed = Boolean(src.contentHash) && src.contentHash !== nextHash;
 
-      const { error: checkInError } = await supabase
-        .from("kb_sources")
-        .update({ last_checked_at: now })
-        .eq("id", src.id);
-      if (checkInError) throw new Error(`Knowledge source check-in failed: ${checkInError.message}`);
+      await checkInUrlSource(src.id, now);
       if (!changed) {
         result.checked += 1;
         continue;
@@ -210,7 +186,7 @@ export async function recheckUrlSources(limit = 10): Promise<RecheckResult> {
       });
       if (activityError) throw new Error(`Knowledge source activity write failed: ${activityError.message}`);
       result.checked += 1;
-      result.changed.push({ sourceId: src.id as string, url: src.url as string, staleDocs: ids.length });
+      result.changed.push({ sourceId: src.id, url: src.url, staleDocs: ids.length });
     } catch (error) {
       // 單一來源失敗不影響其他，但不能把失敗來源算成 checked／changed 成功。
       console.warn(

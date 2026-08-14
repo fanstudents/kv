@@ -2,10 +2,24 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  checkInUrlSource: vi.fn(),
+  createUrlSource: vi.fn(),
+  findUrlSourceByChecksum: vi.fn(),
   getMainSupabase: vi.fn(),
   ingestPages: vi.fn(),
+  listUrlSourcesForRecheck: vi.fn(),
+  markUrlSourceFailed: vi.fn(),
+  refreshUrlSource: vi.fn(),
 }));
 
+vi.mock("@/adapters/knowledge-base/supabase-knowledge-source-store", () => ({
+  checkInUrlSource: mocks.checkInUrlSource,
+  createUrlSource: mocks.createUrlSource,
+  findUrlSourceByChecksum: mocks.findUrlSourceByChecksum,
+  listUrlSourcesForRecheck: mocks.listUrlSourcesForRecheck,
+  markUrlSourceFailed: mocks.markUrlSourceFailed,
+  refreshUrlSource: mocks.refreshUrlSource,
+}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase: mocks.getMainSupabase }));
 vi.mock("@/lib/kb-import", () => ({ ingestPages: mocks.ingestPages }));
 
@@ -32,8 +46,14 @@ function scrapeResponse(page: { url: string; title: string; markdown: string }):
 const initialFirecrawlApiKey = process.env.FIRECRAWL_API_KEY;
 
 beforeEach(() => {
+  mocks.checkInUrlSource.mockReset();
+  mocks.createUrlSource.mockReset();
+  mocks.findUrlSourceByChecksum.mockReset();
   mocks.getMainSupabase.mockReset();
   mocks.ingestPages.mockReset();
+  mocks.listUrlSourcesForRecheck.mockReset();
+  mocks.markUrlSourceFailed.mockReset();
+  mocks.refreshUrlSource.mockReset();
   process.env.FIRECRAWL_API_KEY = "credential-free-test-key";
 });
 
@@ -50,25 +70,11 @@ describe("kb crawl direct import state transitions", () => {
       title: "Guide",
       markdown: "This is enough source text to be a usable knowledge-base page. ".repeat(2),
     };
-    const query = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      maybeSingle: vi.fn(),
-      update: vi.fn(),
-    };
-    query.select.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.maybeSingle.mockResolvedValue({
-      data: { id: "source-existing", content_hash: contentHash(page.title, page.url, page.markdown) },
-      error: null,
+    mocks.findUrlSourceByChecksum.mockResolvedValue({
+      id: "source-existing",
+      contentHash: contentHash(page.title, page.url, page.markdown),
     });
-    query.update.mockReturnValue(query);
-    query.eq.mockImplementation((...args: unknown[]) => {
-      if (args[0] === "id") return Promise.resolve({ data: null, error: null });
-      return query;
-    });
-    const from = vi.fn(() => query);
-    mocks.getMainSupabase.mockReturnValue({ from });
+    mocks.checkInUrlSource.mockResolvedValue(undefined);
     const fetchMock = vi.fn().mockResolvedValue(scrapeResponse(page));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -86,8 +92,7 @@ describe("kb crawl direct import state transitions", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(mocks.ingestPages).not.toHaveBeenCalled();
-    expect(query.update).toHaveBeenCalledWith(expect.objectContaining({ last_checked_at: expect.any(String) }));
-    expect(query.eq).toHaveBeenLastCalledWith("id", "source-existing");
+    expect(mocks.checkInUrlSource).toHaveBeenCalledWith("source-existing", expect.any(String));
   });
 
   it("refreshes a changed existing source before it runs the shared ingestion pipeline", async () => {
@@ -96,21 +101,8 @@ describe("kb crawl direct import state transitions", () => {
       title: "Updated guide",
       markdown: "The source has materially changed and contains enough text for ingestion. ".repeat(2),
     };
-    const query = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      maybeSingle: vi.fn(),
-      update: vi.fn(),
-    };
-    query.select.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.maybeSingle.mockResolvedValue({ data: { id: "source-existing", content_hash: "old-content" }, error: null });
-    query.update.mockReturnValue(query);
-    query.eq.mockImplementation((...args: unknown[]) => {
-      if (args[0] === "id") return Promise.resolve({ data: null, error: null });
-      return query;
-    });
-    mocks.getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    mocks.findUrlSourceByChecksum.mockResolvedValue({ id: "source-existing", contentHash: "old-content" });
+    mocks.refreshUrlSource.mockResolvedValue(undefined);
     mocks.ingestPages.mockResolvedValue({
       chunkCount: 2,
       processedChunks: 2,
@@ -130,11 +122,13 @@ describe("kb crawl direct import state transitions", () => {
       truncated: false,
     });
 
-    expect(query.update).toHaveBeenCalledWith(
+    expect(mocks.refreshUrlSource).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "converting",
-        content_hash: contentHash(page.title, page.url, page.markdown),
-        extracted_text: `# ${page.title}\n來源：${page.url}\n\n${page.markdown}`,
+        sourceId: "source-existing",
+        pageCount: 1,
+        charCount: expect.any(Number),
+        contentHash: contentHash(page.title, page.url, page.markdown),
+        extractedText: `# ${page.title}\n來源：${page.url}\n\n${page.markdown}`,
       }),
     );
     expect(mocks.ingestPages).toHaveBeenCalledWith({
@@ -150,37 +144,18 @@ describe("kb crawl direct import state transitions", () => {
       title: "New guide",
       markdown: "This new source contains enough text for the import pipeline to accept it. ".repeat(2),
     };
-    const query = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      maybeSingle: vi.fn(),
-      insert: vi.fn(),
-      single: vi.fn(),
-      update: vi.fn(),
-    };
-    query.select.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.maybeSingle.mockResolvedValue({ data: null, error: null });
-    query.insert.mockReturnValue(query);
-    query.single.mockResolvedValue({ data: { id: "source-new" }, error: null });
-    query.update.mockReturnValue(query);
-    query.eq.mockImplementation((...args: unknown[]) => {
-      if (args[0] === "id") return Promise.resolve({ data: null, error: null });
-      return query;
-    });
-    mocks.getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    mocks.findUrlSourceByChecksum.mockResolvedValue(null);
+    mocks.createUrlSource.mockResolvedValue("source-new");
+    mocks.markUrlSourceFailed.mockResolvedValue(undefined);
     mocks.ingestPages.mockRejectedValue(new Error("conversion unavailable"));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(scrapeResponse(page)));
 
     await expect(importUrl({ url: page.url, mode: "single" })).rejects.toThrow("conversion unavailable");
 
-    expect(query.insert).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "converting", url: page.url, source_type: "url" }),
+    expect(mocks.createUrlSource).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceType: "url", url: page.url, contentHash: expect.any(String) }),
     );
-    expect(query.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "failed", error_detail: "conversion unavailable" }),
-    );
-    expect(query.eq).toHaveBeenLastCalledWith("id", "source-new");
+    expect(mocks.markUrlSourceFailed).toHaveBeenCalledWith("source-new", "conversion unavailable", expect.any(String));
   });
 
   it("does not claim an unchanged source was checked when the check-in write fails", async () => {
@@ -189,19 +164,11 @@ describe("kb crawl direct import state transitions", () => {
       title: "Guide",
       markdown: "This is enough source text to be a usable knowledge-base page. ".repeat(2),
     };
-    const query = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn(), update: vi.fn() };
-    query.select.mockReturnValue(query);
-    query.eq.mockReturnValue(query);
-    query.maybeSingle.mockResolvedValue({
-      data: { id: "source-existing", content_hash: contentHash(page.title, page.url, page.markdown) },
-      error: null,
+    mocks.findUrlSourceByChecksum.mockResolvedValue({
+      id: "source-existing",
+      contentHash: contentHash(page.title, page.url, page.markdown),
     });
-    query.update.mockReturnValue(query);
-    query.eq.mockImplementation((...args: unknown[]) => {
-      if (args[0] === "id") return Promise.resolve({ data: null, error: { message: "database unavailable" } });
-      return query;
-    });
-    mocks.getMainSupabase.mockReturnValue({ from: vi.fn(() => query) });
+    mocks.checkInUrlSource.mockRejectedValue(new Error("Knowledge source check-in failed: database unavailable"));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(scrapeResponse(page)));
 
     await expect(importUrl({ url: page.url, mode: "single" })).rejects.toThrow(
@@ -219,29 +186,18 @@ describe("kb crawl direct recheck state transitions", () => {
       markdown: "This content is unchanged and remains long enough for a valid scrape. ".repeat(2),
     };
     const sources = [
-      { id: "source-changed", url: "https://example.com/changed", content_hash: "old-content" },
+      { id: "source-changed", url: "https://example.com/changed", contentHash: "old-content", sourceType: "url" },
       {
         id: "source-same",
         url: unchanged.url,
-        content_hash: contentHash(unchanged.title, unchanged.url, unchanged.markdown),
+        contentHash: contentHash(unchanged.title, unchanged.url, unchanged.markdown),
+        sourceType: "url",
       },
-      { id: "source-missing-url", url: null, content_hash: "old-content" },
-      { id: "source-broken", url: "https://example.com/broken", content_hash: "old-content" },
+      { id: "source-missing-url", url: null, contentHash: "old-content", sourceType: "url" },
+      { id: "source-broken", url: "https://example.com/broken", contentHash: "old-content", sourceType: "url" },
     ];
-    const sourceEq = vi.fn();
-    const sourceQuery = {
-      select: vi.fn(),
-      in: vi.fn(),
-      order: vi.fn(),
-      limit: vi.fn(),
-      update: vi.fn(),
-    };
-    sourceQuery.select.mockReturnValue(sourceQuery);
-    sourceQuery.in.mockReturnValue(sourceQuery);
-    sourceQuery.order.mockReturnValue(sourceQuery);
-    sourceQuery.limit.mockResolvedValue({ data: sources, error: null });
-    sourceEq.mockResolvedValue({ data: null, error: null });
-    sourceQuery.update.mockReturnValue({ eq: sourceEq });
+    mocks.listUrlSourcesForRecheck.mockResolvedValue(sources);
+    mocks.checkInUrlSource.mockResolvedValue(undefined);
 
     const docsEq = vi.fn();
     const docsQuery = { select: vi.fn() };
@@ -251,7 +207,6 @@ describe("kb crawl direct recheck state transitions", () => {
     const markDocsForReview = vi.fn(() => ({ in: markDocsForReviewIn }));
     const activityInsert = vi.fn().mockResolvedValue({ data: null, error: null });
     const from = vi.fn((table: string) => {
-      if (table === "kb_sources") return sourceQuery;
       if (table === "knowledge_base") {
         return { ...docsQuery, update: markDocsForReview };
       }
@@ -278,7 +233,7 @@ describe("kb crawl direct recheck state transitions", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(sourceQuery.update).toHaveBeenCalledTimes(2);
+    expect(mocks.checkInUrlSource).toHaveBeenCalledTimes(2);
     expect(markDocsForReview).toHaveBeenCalledWith(
       expect.objectContaining({ review_at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) }),
     );
