@@ -14,10 +14,20 @@ export function parseVisitLineWebhookPayload(rawBody: string): VisitLineWebhookP
   try {
     const parsed = JSON.parse(rawBody) as { events?: unknown } | null;
     if (!parsed || typeof parsed !== "object") return { kind: "invalid" };
-    return { kind: "valid", events: (parsed.events ?? []) as LineInboundEvent[] };
+    if (parsed.events === undefined) return { kind: "valid", events: [] };
+    if (!Array.isArray(parsed.events)) return { kind: "invalid" };
+
+    return {
+      kind: "valid",
+      events: parsed.events.filter(isLineInboundEvent),
+    };
   } catch {
     return { kind: "invalid" };
   }
+}
+
+function isLineInboundEvent(value: unknown): value is LineInboundEvent {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export type VisitLinePostback =

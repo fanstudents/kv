@@ -169,6 +169,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Current P2-5 verification | focused KB contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 134 files／676 tests、93-page build；P2-5 focused 5 files／28 tests；Chrome `/knowledge-base` 與 `/goals` 無 app error；2026-08-14 CodeGraph 471 files／4,080 nodes／10,184 edges |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
+| LINE webhook payload guard | `parseVisitLineWebhookPayload`／`parseSupportRelayPayload` + 28 focused contracts（2026-08-15） | `events` 非陣列會在 route dispatch 前被拒絕；陣列中的 null／primitive 不會進入 application `.map`；正常空 payload 與既有 signature／relay contract 保持不變。未改 UI 或 provider side-effect policy |
 
 ## 5. Active TODO
 
@@ -253,6 +254,7 @@ primary／support channel isolation、signature、reply／push payload、缺 tok
 - [ ] 建立並驗證獨立 support staging channel，不混用 primary identity。
 - [ ] 取得 public staging URL，驗 signature、inbound webhook、reply 與 Visit inbound journey。
 - [ ] 驗 primary／support 的 rate limit、provider failure、重送與 duplicate recovery。
+- [x] Visit／Support webhook parser 先驗證 `events` collection shape，避免 malformed payload 直接進入 dispatcher；provider-level retry／duplicate policy 仍保留在 P3／外部 gate。
 - [x] Broadcast、Orders、Team Lead Reporting 已在 Primary LINE allowlist 完成 composite acceptance、DB diff、Chrome 與 cleanup；Support 仍依 WP-18 使用獨立身分驗收。
 
 ### WP-16 Teachify Orders `[~][!]`

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { processSupportRelay } from "@/modules/support/relay";
+import { parseSupportRelayPayload, processSupportRelay } from "@/modules/support/relay";
 import type {
   SupportRelayActivity,
   SupportRelayForwardRequest,
@@ -54,6 +54,15 @@ const request = {
 };
 
 describe("Amber LINE legacy relay application", () => {
+  it("keeps only object events and rejects a malformed event collection", () => {
+    expect(parseSupportRelayPayload('{"events":[{"type":"message"},null,42]}')).toEqual({
+      type: "parsed",
+      events: [{ type: "message" }],
+    });
+    expect(parseSupportRelayPayload("{}")).toEqual({ type: "parsed", events: [] });
+    expect(parseSupportRelayPayload('{"events":{}}')).toEqual({ type: "invalid" });
+  });
+
   it("forwards the exact transport values and skips non-text events", async () => {
     const fixture = createPorts();
 

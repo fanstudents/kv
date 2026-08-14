@@ -5,7 +5,6 @@ import { createSupportRelayDependencies } from "@/adapters/support/support-relay
 import {
   parseSupportRelayPayload,
   processSupportRelay,
-  type SupportRelayLineEvent,
 } from "@/modules/support/relay";
 
 // 這支帳號實際上是既有客服機器人（多租戶架構，不方便改它的程式碼）在用的 LINE 官方帳號。
@@ -42,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (payload.type === "invalid") {
     return NextResponse.json({ error: "invalid payload" }, { status: 400 });
   }
-  const events = payload.events as SupportRelayLineEvent[];
+  const events = payload.events;
 
   const result = await processSupportRelay({
     rawBody,

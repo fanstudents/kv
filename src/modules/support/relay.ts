@@ -5,7 +5,7 @@ export interface SupportRelayLineEvent {
 }
 
 export type SupportRelayPayload =
-  | { type: "parsed"; events: unknown }
+  | { type: "parsed"; events: SupportRelayLineEvent[] }
   | { type: "invalid" };
 
 export type SupportRelayCapturePlan =
@@ -67,10 +67,20 @@ export interface SupportRelayResult {
 export function parseSupportRelayPayload(rawBody: string): SupportRelayPayload {
   try {
     const decoded = JSON.parse(rawBody) as { events?: unknown };
-    return { type: "parsed", events: decoded.events ?? [] };
+    if (decoded.events === undefined) return { type: "parsed", events: [] };
+    if (!Array.isArray(decoded.events)) return { type: "invalid" };
+
+    return {
+      type: "parsed",
+      events: decoded.events.filter(isSupportRelayLineEvent),
+    };
   } catch {
     return { type: "invalid" };
   }
+}
+
+function isSupportRelayLineEvent(value: unknown): value is SupportRelayLineEvent {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function planSupportRelayCapture(

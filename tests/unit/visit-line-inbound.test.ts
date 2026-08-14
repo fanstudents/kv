@@ -3,6 +3,7 @@ import {
   classifyVisitApprovalText,
   classifyVisitDecisionText,
   normalizeVisitLineInbound,
+  parseVisitLineWebhookPayload,
 } from "@/modules/visit/line-inbound";
 
 const base = {
@@ -11,6 +12,22 @@ const base = {
 };
 
 describe("Visit LINE inbound normalizer", () => {
+  it("accepts an event array and ignores malformed event entries", () => {
+    expect(parseVisitLineWebhookPayload('{"events":[{"type":"follow"},null,42]}')).toEqual({
+      kind: "valid",
+      events: [{ type: "follow" }],
+    });
+    expect(parseVisitLineWebhookPayload("{}"), "missing events keeps the empty webhook contract").toEqual({
+      kind: "valid",
+      events: [],
+    });
+  });
+
+  it("rejects invalid JSON and non-array events before dispatch", () => {
+    expect(parseVisitLineWebhookPayload("not-json")).toEqual({ kind: "invalid" });
+    expect(parseVisitLineWebhookPayload('{"events":{}}')).toEqual({ kind: "invalid" });
+  });
+
   it("normalizes image and text messages without provider types", () => {
     expect(
       normalizeVisitLineInbound({
