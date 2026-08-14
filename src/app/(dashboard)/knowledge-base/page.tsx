@@ -138,9 +138,12 @@ export default function KnowledgeBasePage() {
   // 這裡編輯的異動會直接影響 Agent 對話時實際讀得到什麼內容（見 src/lib/knowledge-base.ts）。
   useEffect(() => {
     fetch("/api/knowledge-base/reindex")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error(`索引狀態載入失敗（${r.status}）`);
+        return r.json();
+      })
       .then((d) => d?.stats && setIndexStats(d.stats))
-      .catch(() => {});
+      .catch((error) => setNotice(error instanceof Error ? error.message : "索引狀態載入失敗"));
   }, []);
 
   const reindex = async () => {

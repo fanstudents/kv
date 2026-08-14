@@ -49,9 +49,17 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const parsed = parseKnowledgeIngestionPublish(body);
   if (parsed.kind === "invalid") return NextResponse.json({ error: parsed.message }, { status: 400 });
-  return NextResponse.json(
-    await publishKnowledgeDrafts(parsed.ids, supabaseKnowledgeIngestionRepository)
-  );
+  try {
+    return NextResponse.json(
+      await publishKnowledgeDrafts(parsed.ids, supabaseKnowledgeIngestionRepository)
+    );
+  } catch (error) {
+    console.error("[knowledge-base] draft publish failed", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "發布知識庫索引失敗" },
+      { status: 503 },
+    );
+  }
 }
 
 /** 丟棄草稿 */

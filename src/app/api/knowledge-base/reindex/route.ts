@@ -6,11 +6,27 @@ import { readKnowledgeIndexStats, rebuildKnowledgeIndex } from "@/modules/knowle
 // 平常不需要呼叫——發布與編輯都會自動更新該份文件的索引。
 export const maxDuration = 300;
 
+function indexFailure(error: unknown) {
+  console.error("[knowledge-base] reindex request failed", error);
+  return NextResponse.json(
+    { error: error instanceof Error ? error.message : "知識庫索引服務暫時無法使用" },
+    { status: 503 },
+  );
+}
+
 export async function GET() {
-  const stats = await readKnowledgeIndexStats(supabaseKnowledgeIndexRepository);
-  return NextResponse.json({ stats });
+  try {
+    const stats = await readKnowledgeIndexStats(supabaseKnowledgeIndexRepository);
+    return NextResponse.json({ stats });
+  } catch (error) {
+    return indexFailure(error);
+  }
 }
 
 export async function POST() {
-  return NextResponse.json(await rebuildKnowledgeIndex(supabaseKnowledgeIndexRepository));
+  try {
+    return NextResponse.json(await rebuildKnowledgeIndex(supabaseKnowledgeIndexRepository));
+  } catch (error) {
+    return indexFailure(error);
+  }
 }

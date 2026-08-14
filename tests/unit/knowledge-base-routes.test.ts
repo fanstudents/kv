@@ -400,4 +400,16 @@ describe("knowledge-base route contracts", () => {
     });
     expect(mocks.rebuildKnowledgeIndex).toHaveBeenCalledWith(mocks.index);
   });
+
+  it("reports index read and rebuild failures instead of returning a zero-success envelope", async () => {
+    mocks.readKnowledgeIndexStats.mockRejectedValueOnce(new Error("stats unavailable"));
+    const stats = await getKnowledgeReindex();
+    expect(stats.status).toBe(503);
+    await expect(stats.json()).resolves.toEqual({ error: "stats unavailable" });
+
+    mocks.rebuildKnowledgeIndex.mockRejectedValueOnce(new Error("embedding unavailable"));
+    const rebuild = await postKnowledgeReindex();
+    expect(rebuild.status).toBe(503);
+    await expect(rebuild.json()).resolves.toEqual({ error: "embedding unavailable" });
+  });
 });

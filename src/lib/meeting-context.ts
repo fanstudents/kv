@@ -269,8 +269,9 @@ export async function getAgentLiveContext(slug: string, question?: string): Prom
 
   try {
     parts.push(await knowledgeContext(slug, question));
-  } catch {
-    /* 知識庫讀不到不影響其他真實資料 */
+  } catch (error) {
+    console.error("[meeting-context] knowledge base unavailable", error);
+    parts.push("知識庫目前暫時無法檢索；請明確告知使用者目前無法查詢知識庫，不要把查不到當成沒有資料或自行補充。");
   }
 
   return parts.filter(Boolean).join("\n\n");
