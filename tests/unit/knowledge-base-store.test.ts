@@ -11,6 +11,8 @@ vi.mock("@/adapters/knowledge-base/supabase-knowledge-index", () => ({
 }));
 
 import {
+  citeKnowledge,
+  getAgentMaxLevel,
   listAgentAccess,
   listKnowledgeDocs,
   removeKnowledgeDoc,
@@ -82,5 +84,34 @@ describe("Knowledge Base store error boundaries", () => {
     });
 
     await expect(listAgentAccess()).rejects.toThrow("access failed");
+  });
+
+  it("keeps Agent context access reads at the Supabase store boundary", async () => {
+    const access = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { max_level: 3 }, error: null }),
+    };
+    access.select.mockReturnValue(access);
+    access.eq.mockReturnValue(access);
+    getMainSupabase.mockReturnValue({ from: () => access });
+
+    await expect(getAgentMaxLevel("visit")).resolves.toBe(3);
+    expect(access.eq).toHaveBeenCalledWith("agent_slug", "visit");
+  });
+
+  it("keeps citation audit best-effort without blocking context callers", async () => {
+    const insert = vi.fn().mockRejectedValue(new Error("audit unavailable"));
+    getMainSupabase.mockReturnValue({ from: () => ({ insert }) });
+
+    await expect(
+      citeKnowledge({ docId: "doc-1", agentSlug: "visit", question: "What is this?", runId: "run-1" }),
+    ).resolves.toBeUndefined();
+    expect(insert).toHaveBeenCalledWith({
+      doc_id: "doc-1",
+      agent_slug: "visit",
+      question: "What is this?",
+      run_id: "run-1",
+    });
   });
 });

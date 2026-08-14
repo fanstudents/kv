@@ -247,3 +247,32 @@ export async function setAgentAccess(slug: AgentSlug, level: KnowledgeLevel): Pr
     .upsert({ agent_slug: slug, max_level: level, updated_at: new Date().toISOString() });
   if (error) throw new Error(error.message);
 }
+
+/** Agent context 讀取權限的 persistence boundary。沒有設定時維持原本的 L1 預設。 */
+export async function getAgentMaxLevel(slug: string): Promise<KnowledgeLevel> {
+  const { data, error } = await getMainSupabase()
+    .from("knowledge_access")
+    .select("max_level")
+    .eq("agent_slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data?.max_level as KnowledgeLevel) ?? 1;
+}
+
+export async function citeKnowledge(params: {
+  docId: string;
+  agentSlug?: string;
+  question?: string;
+  runId?: string | null;
+}): Promise<void> {
+  try {
+    await getMainSupabase().from("kb_citations").insert({
+      doc_id: params.docId,
+      agent_slug: params.agentSlug ?? null,
+      question: params.question ?? null,
+      run_id: params.runId ?? null,
+    });
+  } catch {
+    /* best-effort audit; citation failure must not block the Agent answer */
+  }
+}

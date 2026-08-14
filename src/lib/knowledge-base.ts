@@ -1,26 +1,18 @@
 import "server-only";
 
-import { listKnowledgeDocs } from "@/adapters/knowledge-base/supabase-knowledge-store";
-import { levelInfo, type KnowledgeLevel } from "@/lib/knowledge-base-data";
+import {
+  citeKnowledge,
+  getAgentMaxLevel,
+  listKnowledgeDocs,
+} from "@/adapters/knowledge-base/supabase-knowledge-store";
+import { levelInfo } from "@/lib/knowledge-base-data";
 import { formatHits, searchKnowledge } from "@/lib/kb-search";
-import { getMainSupabase } from "@/lib/supabase";
 
 // 知識庫的「真實資料」由 Supabase adapter store 管理（knowledge_base／
-// knowledge_access 表）。這個檔案只保留 Agent 對話所需的 context 組裝與引用紀錄，
-// 避免資料庫查詢、文件 CRUD 和 prompt 組裝再次混在同一個 legacy helper 裡。
+// knowledge_access／kb_citations 表）。這個檔案只保留 Agent 對話所需的 context 組裝，
+// 避免資料庫查詢、文件 CRUD、audit 寫入和 prompt 組裝再次混在同一個 legacy helper 裡。
 //
 // 三個狀態：draft（AI 轉出來待人審，不進 prompt）→ published（生效）→ archived（退場但留著可追溯）。
-
-async function getAgentMaxLevel(slug: string): Promise<KnowledgeLevel> {
-  const supabase = getMainSupabase();
-  const { data, error } = await supabase
-    .from("knowledge_access")
-    .select("max_level")
-    .eq("agent_slug", slug)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data?.max_level as KnowledgeLevel) ?? 1;
-}
 
 /** 沒有問題可檢索時（例如語音會議一開場），只給一份「知識庫有什麼」的目錄 */
 const INDEX_LIMIT = 40;
@@ -65,23 +57,4 @@ export async function knowledgeContext(slug: string, question?: string): Promise
     parts.push(`另有 ${withheld} 份文件因等級高於你的讀取權限，未提供內容——如被問起，請照實說明無法讀取，不要編造。`);
   }
   return parts.join("\n");
-}
-
-/** 記錄一次引用：哪位 Agent 為了回答什麼、用到了哪一條知識（驗證知識有沒有在幫忙） */
-export async function citeKnowledge(params: {
-  docId: string;
-  agentSlug?: string;
-  question?: string;
-  runId?: string | null;
-}): Promise<void> {
-  try {
-    await getMainSupabase().from("kb_citations").insert({
-      doc_id: params.docId,
-      agent_slug: params.agentSlug ?? null,
-      question: params.question ?? null,
-      run_id: params.runId ?? null,
-    });
-  } catch {
-    /* best-effort */
-  }
 }

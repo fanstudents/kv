@@ -49,6 +49,7 @@
 - [x] 明確標註 `src/adapters/knowledge-base/supabase-knowledge-adapters.ts` 仍有 transitional `src/lib/kb-*`／context 組合，尚未宣稱 strict hexagonal。
 - [x] `knowledge_base`／`knowledge_access` 的 row mapping、CRUD、access persistence 已移到 `src/adapters/knowledge-base/supabase-knowledge-store.ts`；API payload、UI、schema 與 side-effect 順序不變。
 - [x] `indexDocs`／`indexStats` 已移到 `src/adapters/knowledge-base/supabase-knowledge-index.ts`；embedding、Main Supabase 與 atomic RPC 的 ownership 不再藏在 `src/lib/kb-search.ts`。
+- [x] Agent context 的 `knowledge_access` max-level read 與 `kb_citations` best-effort audit write 已移到 `supabase-knowledge-store.ts`；`src/lib/knowledge-base.ts` 現在只組裝 context。
 - [ ] 下一個真實 KB journey 觸碰時，才把 `src/lib/knowledge-base.ts` 的 context 與 `kb-import.ts` 的 ingestion ownership 往 domain slice touch-and-migrate；不得先做全 repo 搬檔。
 - [ ] 以 caller evidence 決定是否合併其他單 caller forwarding；沒有第二 consumer、provider translation、transaction、concurrency 或 recovery 理由就不新增 abstraction。
 
@@ -57,8 +58,16 @@
 - **範圍：** 只移動 `indexDocs`／`indexStats` 的 implementation owner；保留 `/api/knowledge-base/reindex`、發布／編輯自動重建索引、`replace_kb_chunks` atomic RPC、embedding 維度與錯誤回傳行為。
 - **入口與 consumer：** `supabaseKnowledgeIndexRepository`、`supabase-knowledge-store` 的 publish/update side effect、`kb-search` 的 query search；不改 API JSON、頁面文案或資料表。
 - **不變條件：** 空 doc id 不呼叫 DB/provider；草稿／封存會以空 chunks 清除舊索引；embedding／RPC 失敗不清空上一版；index stats 仍回 `{ chunks, docs }`。
-- **驗收證據：** focused 30 tests、完整 670 tests、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`。
+- **驗收證據：** focused 30 tests、完整 672 tests、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`。
 - **非目標：** 不搬 `searchKnowledge`／`formatHits`、`knowledgeContext`、PDF／Firecrawl ingestion；不新增 generic search／workflow framework。
+
+#### P2-4 change contract：Context persistence boundary
+
+- **範圍：** 只移動 Agent max-level read 與 citation audit write 的 Supabase implementation；保留 `knowledgeContext` 的檢索、目錄、權限過濾、引用截斷與 best-effort 語意。
+- **入口與 consumer：** `src/lib/knowledge-base.ts#knowledgeContext` 與 `src/lib/meeting-context.ts`；不改 Agent prompt 文案、API JSON 或資料表。
+- **不變條件：** 沒有 `knowledge_access` row 時仍預設 L1；max-level 查詢錯誤仍 fail-closed；citation insert 失敗不阻斷回答。
+- **驗收證據：** `tests/unit/knowledge-base-store.test.ts` 的 access／citation contracts、meeting context regression、完整 test/lint/typecheck/build、Chrome `/knowledge-base` 與 `/goals`。
+- **非目標：** 不改 `searchKnowledge`／`formatHits`、PDF／Firecrawl ingestion、prompt 內容或資料 migration。
 
 不做：另開空白專案重寫、全面 UI redesign、為未知未來建立通用 Agent runtime、無 migration 設計改資料格式、以檔案數或測試數當進度。
 
