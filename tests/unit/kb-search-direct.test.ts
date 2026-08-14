@@ -10,7 +10,8 @@ vi.mock("@/adapters/knowledge-base/openai-knowledge-provider", () => ({
 }));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase: mocks.getMainSupabase }));
 
-import { indexDocs, searchKnowledge } from "@/lib/kb-search";
+import { indexDocs } from "@/adapters/knowledge-base/supabase-knowledge-index";
+import { searchKnowledge } from "@/lib/kb-search";
 
 beforeEach(() => {
   mocks.embedKnowledgeTexts.mockReset();

@@ -1,10 +1,10 @@
 import "server-only";
 
+import { indexDocs } from "@/adapters/knowledge-base/supabase-knowledge-index";
 import { getMainSupabase } from "@/lib/supabase";
 import { normalizeDatabaseJson } from "@/lib/database-json";
 import type { Database } from "@/lib/database.types";
 import { AGENTS } from "@/lib/agent-data";
-import { indexDocs } from "@/lib/kb-search";
 import {
   type KnowledgeDoc,
   type KnowledgeKind,

@@ -1,7 +1,7 @@
 import "server-only";
 
+import { indexDocs, indexStats } from "@/adapters/knowledge-base/supabase-knowledge-index";
 import { importPdf, listKbSources } from "@/lib/kb-import";
-import { indexDocs, indexStats } from "@/lib/kb-search";
 import {
   addKnowledgeDoc,
   listAgentAccess,

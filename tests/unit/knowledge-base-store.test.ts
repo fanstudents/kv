@@ -6,10 +6,8 @@ const { getMainSupabase, indexDocs } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
-vi.mock("@/lib/kb-search", () => ({
-  formatHits: vi.fn(),
+vi.mock("@/adapters/knowledge-base/supabase-knowledge-index", () => ({
   indexDocs,
-  searchKnowledge: vi.fn(),
 }));
 
 import {

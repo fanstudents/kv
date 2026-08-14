@@ -18,7 +18,7 @@ vi.mock("@/lib/kb-import", () => ({
   importPdf: helpers.importPdf,
   listKbSources: helpers.listKbSources,
 }));
-vi.mock("@/lib/kb-search", () => ({
+vi.mock("@/adapters/knowledge-base/supabase-knowledge-index", () => ({
   indexDocs: helpers.indexDocs,
   indexStats: helpers.indexStats,
 }));
