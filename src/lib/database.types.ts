@@ -1224,6 +1224,56 @@ export type Database = {
         }
         Relationships: []
       }
+      teachify_order_deliveries: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          delivered_at: string | null
+          delivery_status: string
+          event_key: string
+          id: string
+          last_error: string | null
+          order_id: string
+          recipient: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_status?: string
+          event_key: string
+          id?: string
+          last_error?: string | null
+          order_id: string
+          recipient: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivery_status?: string
+          event_key?: string
+          id?: string
+          last_error?: string | null
+          order_id?: string
+          recipient?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teachify_order_deliveries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "teachify_orders"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1360,6 +1410,25 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "agent_tasks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_teachify_order_delivery: {
+        Args: {
+          p_event_key: string
+          p_order_id: string
+          p_recipient: string
+          p_stale_after_seconds?: number
+        }
+        Returns: {
+          claim_status: string
+          delivery_id: string
+          delivery_status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "teachify_order_deliveries"
           isOneToOne: false
           isSetofReturn: true
         }

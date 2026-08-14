@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLineOrdersDelivery } from "@/adapters/orders/line-orders-delivery";
+import { createSupabaseOrderDeliveryLedger } from "@/adapters/orders/supabase-order-delivery-ledger";
 import {
   createSupabaseOrdersRepository,
   OrdersRepositoryError,
@@ -15,8 +16,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const repository = createSupabaseOrdersRepository(getMainSupabase());
+  const supabase = getMainSupabase();
+  const repository = createSupabaseOrdersRepository(supabase);
   const delivery = createLineOrdersDelivery();
+  const deliveryLedger = createSupabaseOrderDeliveryLedger(supabase);
   const rawBody = await req.text();
 
   const verification = verifyTeachifyWebhook(rawBody, req.headers.get("x-teachify-signature"));
@@ -45,7 +48,7 @@ export async function POST(req: NextRequest) {
     result = await processOrderPayload({
       payload,
       rawBody,
-      dependencies: { repository, delivery },
+      dependencies: { repository, delivery, deliveryLedger },
     });
   } catch (error) {
     if (!(error instanceof OrdersRepositoryError)) throw error;
@@ -66,6 +69,10 @@ export async function POST(req: NextRequest) {
       });
     case "missing_recipient":
       return NextResponse.json({ ok: true, note: "reportTo not configured" });
+    case "duplicate_skipped":
+      return NextResponse.json({ ok: true, note: "duplicate order event skipped" });
+    case "delivery_in_progress":
+      return NextResponse.json({ ok: true, note: "order delivery already in progress" }, { status: 202 });
     case "delivery_failed":
       return NextResponse.json({ error: result.message }, { status: 502 });
     case "delivery_unrecorded":

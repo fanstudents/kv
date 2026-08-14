@@ -35,6 +35,7 @@ export const DATABASE_SURFACES: DatabaseSurface[] = [
   { table: "meetings", owner: "kv-primary", coverage: "defined" },
   { table: "metric_snapshots", owner: "kv-primary", coverage: "defined" },
   { table: "pending_invites", owner: "kv-primary", coverage: "defined" },
+  { table: "teachify_order_deliveries", owner: "kv-primary", coverage: "defined" },
   { table: "teachify_orders", owner: "kv-primary", coverage: "defined" },
   { table: "visit_offers", owner: "kv-primary", coverage: "defined" },
   { table: "enterprise_inquiries", owner: "teaching-system", coverage: "external" },

@@ -3,17 +3,20 @@ import { NextRequest } from "next/server";
 
 const {
   createLineOrdersDelivery,
+  createSupabaseOrderDeliveryLedger,
   createSupabaseOrdersRepository,
   getMainSupabase,
   verifyTeachifyWebhook,
 } = vi.hoisted(() => ({
   createLineOrdersDelivery: vi.fn(),
+  createSupabaseOrderDeliveryLedger: vi.fn(),
   createSupabaseOrdersRepository: vi.fn(),
   getMainSupabase: vi.fn(),
   verifyTeachifyWebhook: vi.fn(),
 }));
 
 vi.mock("@/adapters/orders/line-orders-delivery", () => ({ createLineOrdersDelivery }));
+vi.mock("@/adapters/orders/supabase-order-delivery-ledger", () => ({ createSupabaseOrderDeliveryLedger }));
 vi.mock("@/adapters/orders/supabase-orders-repository", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/adapters/orders/supabase-orders-repository")>()),
   createSupabaseOrdersRepository,
@@ -29,6 +32,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   getMainSupabase.mockReturnValue({});
   createLineOrdersDelivery.mockReturnValue({ deliver: vi.fn(async () => undefined) });
+  createSupabaseOrderDeliveryLedger.mockReturnValue({
+    claim: vi.fn(async () => ({ status: "claimed", deliveryId: "delivery-1" })),
+    markDelivered: vi.fn(async () => undefined),
+    markFailed: vi.fn(async () => undefined),
+  });
   createSupabaseOrdersRepository.mockReturnValue({
     upsertOrder: vi.fn(async () => undefined),
     getAgentConfig: vi.fn(async () => ({ settings: { reportTo: "U123" } })),
@@ -101,6 +109,41 @@ describe("Orders route contracts", () => {
     await expect(response.json()).resolves.toEqual({
       error: "訂單通知已送出，但執行紀錄寫入失敗，請勿重複發送",
     });
+  });
+
+  it("acknowledges duplicate and in-progress delivery claims without another LINE send", async () => {
+    verifyTeachifyWebhook.mockReturnValue("unverified");
+    const delivery = { deliver: vi.fn(async () => undefined) };
+    createLineOrdersDelivery.mockReturnValue(delivery);
+
+    createSupabaseOrderDeliveryLedger.mockReturnValueOnce({
+      claim: vi.fn(async () => ({ status: "delivery_complete", deliveryId: "delivery-1" })),
+      markDelivered: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    });
+    const duplicate = await postTeachifyOrder(
+      new NextRequest("http://localhost/api/webhooks/teachify-order", {
+        method: "POST",
+        body: JSON.stringify({ id: "order-duplicate", items: [] }),
+      })
+    );
+    expect(duplicate.status).toBe(200);
+    await expect(duplicate.json()).resolves.toEqual({ ok: true, note: "duplicate order event skipped" });
+
+    createSupabaseOrderDeliveryLedger.mockReturnValueOnce({
+      claim: vi.fn(async () => ({ status: "in_progress", deliveryId: "delivery-2" })),
+      markDelivered: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    });
+    const inProgress = await postTeachifyOrder(
+      new NextRequest("http://localhost/api/webhooks/teachify-order", {
+        method: "POST",
+        body: JSON.stringify({ id: "order-in-progress", items: [] }),
+      })
+    );
+    expect(inProgress.status).toBe(202);
+    await expect(inProgress.json()).resolves.toEqual({ ok: true, note: "order delivery already in progress" });
+    expect(delivery.deliver).not.toHaveBeenCalled();
   });
 
   it("keeps test-notification missing-recipient and success responses", async () => {

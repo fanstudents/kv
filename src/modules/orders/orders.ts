@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export interface NormalizedOrder {
   id: string;
   tradeNo: string;
@@ -44,6 +46,18 @@ export interface OrdersDelivery {
 export interface OrdersDependencies {
   repository: OrdersRepository;
   delivery: OrdersDelivery;
+  deliveryLedger?: OrderDeliveryLedger;
+}
+
+export type OrderDeliveryClaim =
+  | { status: "claimed"; deliveryId: string }
+  | { status: "delivery_complete"; deliveryId: string }
+  | { status: "in_progress"; deliveryId: string };
+
+export interface OrderDeliveryLedger {
+  claim(input: { orderId: string; eventKey: string; recipient: string }): Promise<OrderDeliveryClaim>;
+  markDelivered(deliveryId: string): Promise<void>;
+  markFailed(deliveryId: string, message: string): Promise<void>;
 }
 
 export type OrderNotificationPlan =
@@ -55,6 +69,8 @@ export type ProcessOrderPayloadResult =
   | { type: "unrecognized" }
   | { type: "disabled" }
   | { type: "missing_recipient" }
+  | { type: "duplicate_skipped" }
+  | { type: "delivery_in_progress" }
   | { type: "delivered" }
   | { type: "delivery_unrecorded"; message: string }
   | { type: "delivery_failed"; message: string };
@@ -92,6 +108,39 @@ export function parseOrderPayload(body: unknown): NormalizedOrder | null {
 
   if (candidate) return normalizeOrderCandidate(candidate);
   return parseEnrollmentPayload(envelope);
+}
+
+/**
+ * Build a stable business-event key until the provider's official webhook
+ * event id is available. Exact replays with the same order state therefore
+ * share one delivery claim, while refunds/state changes get a new key.
+ */
+export function deriveOrderEventKey(payload: unknown, order: NormalizedOrder): string {
+  const envelope = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const event = envelope.event && typeof envelope.event === "object" ? (envelope.event as Record<string, unknown>) : {};
+  const meta = envelope.meta && typeof envelope.meta === "object" ? (envelope.meta as Record<string, unknown>) : {};
+  const explicit = [
+    envelope.event_id,
+    envelope.eventId,
+    envelope.webhook_id,
+    envelope.webhookId,
+    event.id,
+    meta.event_id,
+    meta.eventId,
+  ].find((value) => typeof value === "string" || typeof value === "number");
+  if (explicit !== undefined) return `event:${String(explicit)}`;
+
+  const fingerprint = JSON.stringify({
+    id: order.id,
+    tradeNo: order.tradeNo,
+    amount: order.amount,
+    currency: order.currency,
+    itemNames: order.itemNames,
+    couponCode: order.couponCode,
+    isRefund: order.isRefund,
+    paidAt: order.paidAt,
+  });
+  return `fingerprint:${createHash("sha256").update(fingerprint).digest("hex")}`;
 }
 
 export function formatOrderText(order: NormalizedOrder): string {
@@ -165,10 +214,29 @@ export async function processOrderPayload(params: {
     return { type: "missing_recipient" };
   }
 
+  let deliveryId: string | null = null;
+  if (dependencies.deliveryLedger) {
+    const claim = await dependencies.deliveryLedger.claim({
+      orderId: order.id,
+      eventKey: deriveOrderEventKey(payload, order),
+      recipient: notification.recipient,
+    });
+    if (claim.status === "delivery_complete") return { type: "duplicate_skipped" };
+    if (claim.status === "in_progress") return { type: "delivery_in_progress" };
+    deliveryId = claim.deliveryId;
+  }
+
   try {
     await dependencies.delivery.deliver(notification);
   } catch (error) {
     const message = error instanceof Error ? error.message : "推播失敗";
+    if (deliveryId) {
+      try {
+        await dependencies.deliveryLedger?.markFailed(deliveryId, message);
+      } catch (ledgerError) {
+        console.error("[orders] could not mark failed delivery", ledgerError);
+      }
+    }
     try {
       await dependencies.repository.recordActivity({
         summary: `訂單通知推播失敗：${message}`,
@@ -178,6 +246,18 @@ export async function processOrderPayload(params: {
       return { type: "delivery_failed", message: `${message}；執行紀錄也寫入失敗` };
     }
     return { type: "delivery_failed", message };
+  }
+
+  if (deliveryId) {
+    try {
+      await dependencies.deliveryLedger?.markDelivered(deliveryId);
+    } catch (ledgerError) {
+      console.error("[orders] delivery succeeded but claim state could not be recorded", ledgerError);
+      return {
+        type: "delivery_unrecorded",
+        message: "訂單通知已送出，但 delivery 狀態寫入失敗，請勿重複發送",
+      };
+    }
   }
 
   try {

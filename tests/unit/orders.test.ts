@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   DEMO_ORDER,
+  deriveOrderEventKey,
   formatOrderText,
   parseOrderPayload,
   planOrderNotification,
@@ -195,6 +196,46 @@ describe("Orders request and notification rules", () => {
 });
 
 describe("Orders webhook orchestration", () => {
+  it("derives stable keys for exact business-event replays and new refund states", () => {
+    const key = deriveOrderEventKey(payload, order);
+    expect(key).toBe(deriveOrderEventKey(payload, order));
+    expect(key).toMatch(/^fingerprint:[a-f0-9]{64}$/);
+    expect(deriveOrderEventKey({ event_id: "evt-1" }, order)).toBe("event:evt-1");
+    expect(deriveOrderEventKey(payload, { ...order, isRefund: true })).not.toBe(key);
+  });
+
+  it("skips a duplicate event after the delivery ledger marks it complete", async () => {
+    const { dependencies, calls } = fakeDependencies();
+    const deliver = vi.spyOn(dependencies.delivery, "deliver");
+    dependencies.deliveryLedger = {
+      claim: vi.fn(async () => ({ status: "delivery_complete" as const, deliveryId: "delivery-1" })),
+      markDelivered: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      processOrderPayload({ payload, rawBody: JSON.stringify(payload), dependencies })
+    ).resolves.toEqual({ type: "duplicate_skipped" });
+    expect(calls).toEqual(["upsert:order-1", "config"]);
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it("does not send a second LINE message while the same event is being claimed", async () => {
+    const { dependencies, calls } = fakeDependencies();
+    const deliver = vi.spyOn(dependencies.delivery, "deliver");
+    dependencies.deliveryLedger = {
+      claim: vi.fn(async () => ({ status: "in_progress" as const, deliveryId: "delivery-1" })),
+      markDelivered: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    };
+
+    await expect(
+      processOrderPayload({ payload, rawBody: JSON.stringify(payload), dependencies })
+    ).resolves.toEqual({ type: "delivery_in_progress" });
+    expect(calls).toEqual(["upsert:order-1", "config"]);
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
   it("records unrecognized payloads without persistence or delivery", async () => {
     const { dependencies, calls, activities } = fakeDependencies();
     const rawBody = `{"unknown":"${"x".repeat(600)}"}`;

@@ -13,7 +13,12 @@ type OrdersDatabaseError = {
 
 export class OrdersRepositoryError extends Error {
   constructor(
-    readonly operation: "upsert order" | "read Agent config" | "record activity",
+    readonly operation:
+      | "upsert order"
+      | "read Agent config"
+      | "record activity"
+      | "claim order delivery"
+      | "update order delivery",
     databaseError: OrdersDatabaseError
   ) {
     super(`Orders repository could not ${operation}: ${databaseError.message}`, { cause: databaseError });

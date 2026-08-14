@@ -120,7 +120,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Boundary | 現況 | 後續原則 |
 |---|---|---|
 | OpenAI | shared client + domain adapters，真實 acceptance 已通過 | 保持現有邊界，不再抽象一層；各 composite journey 只補 domain evidence |
-| Orders／Teachify | Orders workflow／repository／LINE delivery 已分離；真實 webhook 契約未證實 | sandbox event 驗簽章、重送、out-of-order，再決定 recovery |
+| Orders／Teachify | Orders workflow／repository／LINE delivery 已分離；staging 已加入 delivery claim ledger，真實 webhook 契約仍未證實 | 先用 claim ledger 防 exact replay／並行重送；取得 provider event／timestamp truth 後再決定 stale／out-of-order recovery |
 | Visit／LINE／Google | use cases、ports、lock 已建立；少量 `legacy-*` compatibility seam 仍在 | 只隨真實 delivery journey touch-and-migrate |
 | Knowledge Base／Firecrawl | 真實單頁 journey 已通過；`supabase-knowledge-store.ts` owner `knowledge_base`／`knowledge_access` persistence，`supabase-knowledge-index.ts` owner embedding／index write，`supabase-knowledge-source-store.ts` owner URL／site `kb_sources` state；`firecrawl-client.ts` owner HTTP／quota／retry，`kb-import.ts` 仍 owner PDF source／shared ingestion orchestration | 保持 provider／DB 故障與回滾邊界；下一個真實 KB slice 才收斂 PDF source／ingestion，不建 generic crawler platform |
 | Reporting／GA4／GSC | provider query boundary 已有；部分 demo／fallback 尚未被真實資料取代 | 先用授權的 read-only property/site 驗輸入、空資料與 quota |
@@ -168,6 +168,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
 | Current P2-5 verification | focused KB contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 134 files／676 tests、93-page build；P2-5 focused 5 files／28 tests；Chrome `/knowledge-base` 與 `/goals` 無 app error；2026-08-14 CodeGraph 471 files／4,080 nodes／10,184 edges |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
+| Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
 
 ## 5. Active TODO
 
@@ -258,7 +259,8 @@ primary／support channel isolation、signature、reply／push payload、缺 tok
 
 signature、payload mapping、Orders repository 線上 staging、upsert、cleanup、DB fail-closed 已完成。
 
-- [?] 決定同 order 重送／狀態更新是否再次通知，以及 out-of-order event 的人工 recovery。
+- [x] exact replay／並行重送先以 `teachify_order_deliveries` 的 `(order_id,event_key)` claim 防止重複 LINE；`claimed`、`in_progress`、`delivery_complete`、delivery failed 與 delivered-but-unrecorded 均有 focused contracts。fallback event key 是 normalized business-event fingerprint；不冒充官方 provider event ID。
+- [?] 決定同 order 狀態更新是否再次通知，以及 stale／out-of-order event 的人工 recovery；需 provider event ID／timestamp 與產品決策。
 - [x] **自主範圍：**以去識別 fixture、Primary LINE allowlist 驗 application → Main → LINE → activity／cleanup；provider route signature 仍依下一項外部 gate，不冒充 Teachify provider acceptance。
 - [!] **外部 gate：**取得 Teachify 實際 signature 規格／sandbox secret 與一筆可重播去識別 event 後，才把 provider truth 標為完成。
 
@@ -283,7 +285,8 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [x] Visit 共用 contact tag 的 lookup／write errors 已改為 fail-closed；名片／offer／timeout 流程不再於標籤未落 DB 時取得假成功，純列表讀取仍保留 starter tags fallback。
 - [x] Visit research 的必要 contact／recent-profile reads 已 fail-closed；profile list、failure compensation 與 activity 保留不阻塞已確認拜訪的 best-effort 契約，但 DB error 會留下明確 server diagnostic。
 - [x] KB index replacement 已採 transaction 原子替換，provider／RPC 失敗不再清空可用索引；草稿／封存仍以空 replacement 清除既有 chunks，維持原產品契約。
-- [?] Visit 多副作用 phase、Teachify duplicate／stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
+- [x] Teachify exact replay／並行 claim 已按 provider-specific ledger 實作，不引入 generic retry／queue；stale／out-of-order 仍保留給 provider truth 與產品決策。
+- [?] Visit 多副作用 phase、Teachify stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
 
 ### WP-21 CI／deploy／rollback `[!]`
 
@@ -378,14 +381,15 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - [x] KB embedding：先產生並驗證全部新 chunks，再以 service-role-only transaction 替換；Main staging rollback／replace、權限與 cleanup 已通過，失敗時保留上一版可搜尋 index。
    - Visit delivery：建議記錄 Calendar／Gmail／LINE 各 phase，重試只補未完成副作用，不重建 Calendar、不重寄已寄 Gmail。
    - Visit timeout：建議狀態與通知具備可重入 phase；partial failure 重試只完成缺少步驟。
-   - Teachify：建議拒絕 stale event，只有實際狀態 transition 才通知；duplicate event 不重複 LINE push。
-   - **Exit**：每項有 approved behavior、idempotency key、失敗後狀態與重試矩陣；核准前只測現況，不改產品語意。
+   - [x] Teachify exact replay／並行重送：以 `(order_id,event_key)` durable claim 記錄 `sending`／`delivered`／`failed`，claim 進行中回 202，不再第二次 LINE push；delivery state 寫入失敗回 `delivery_unrecorded`，避免假裝完整成功。
+   - Teachify stale／out-of-order：仍需官方 event ID／timestamp／狀態轉移契約與產品核准；目前 fingerprint 只保護相同 normalized event 的 exact replay。
+   - **Exit**：已完成 Teachify exact replay 的 approved local behavior、idempotency key、失敗狀態與 focused／remote probe 證據；Visit phase、Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
 
 4. **P4 — 本地 provider readiness（G）**
    - [x] Visit inbound：本地 LINE signature、parsing、route、application 與 delivery failure contracts 已重跑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。
-   - [~] Teachify：valid／invalid signature、parse、DB、LINE delivery 與 delivered-but-unrecorded contracts 已通過；duplicate／out-of-order 仍缺官方 event／timestamp truth 與 P3 核准語意，未自行猜測。
+   - [~] Teachify：valid／invalid signature、parse、DB、LINE delivery、delivered-but-unrecorded 與 exact replay claim contracts 已通過；duplicate 的 provider event／stale／out-of-order truth 仍缺，未自行猜測。
    - [x] Support：local signature／route contracts、synthetic conversation、relay double、Main capture／callback／report、failure 與 cleanup 已通過；未借用 Primary LINE channel，也未宣稱真實 Support provider 完成。
-   - **Exit `[~]`**：22 files／106 tests 證明三個 adapter 的既有本地成功／失敗路徑；只剩 Teachify duplicate／out-of-order 要在 P3/P5 truth 後補，provider 尚缺項已列明。
+   - **Exit `[~]`**：既有 22 files／106 tests 加上本批 4 files／36 focused tests 與 remote claim probe，證明本地 provider contracts 與 exact replay ledger；Teachify provider event／stale／out-of-order、Support LINE 與 Visit inbound 仍有外部 gate。
 
 5. **P5 — 外部資產（E，可與 P1–P4 平行取得）**
    - Support LINE：專用 channel ID／secret／access token、測試 user／room，以及可安全改 webhook 的 owner。
