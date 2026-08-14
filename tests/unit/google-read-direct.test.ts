@@ -79,7 +79,10 @@ describe("Calendar read adapter", () => {
         { label: "8/3（一）09:00", title: "Primary meeting" },
         { label: "8/3（一）10:10", title: "Shared meeting" },
       ],
-      warnings: ["8/3（一）10:10 兩場行程僅相隔 10 分"],
+      warnings: [
+        "無法讀取行事曆「shared@example.com」，該來源的行程未納入總覽",
+        "8/3（一）10:10 兩場行程僅相隔 10 分",
+      ],
     });
 
     expect(eventsList).toHaveBeenCalledTimes(3);

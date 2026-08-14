@@ -171,9 +171,9 @@ export async function listWeekOverview(): Promise<WeekOverview> {
 
   const calendarIds = ["primary", ...additionalCalendarIds()];
   const lists = await Promise.all(
-    calendarIds.map((calendarId) =>
-      calendar.events
-        .list({
+    calendarIds.map(async (calendarId) => {
+      try {
+        const response = await calendar.events.list({
           calendarId,
           timeMin: now.toISOString(),
           timeMax: rangeEnd.toISOString(),
@@ -181,10 +181,16 @@ export async function listWeekOverview(): Promise<WeekOverview> {
           orderBy: "startTime",
           // 3 個月的視窗比 7 天裝得下更多行程，50 筆很容易在旺季被塞滿而截斷
           maxResults: 250,
-        })
-        // 其中一個日曆讀不到（例如分享權限被收回）不該讓整份週覽開天窗
-        .catch(() => ({ data: { items: [] } }))
-    )
+        });
+        return { calendarId, data: response.data, failed: false as const };
+      } catch (error) {
+        // 其中一個日曆讀不到（例如分享權限被收回）不該讓整份週覽開天窗，
+        // 但也不能把「少了一個來源」偽裝成「真的沒有行程」——後面會在既有
+        // warnings 區塊明示是哪個日曆沒有納入。
+        console.error(`[google] calendar read failed: ${calendarId}`, error);
+        return { calendarId, data: { items: [] }, failed: true as const };
+      }
+    })
   );
 
   const events = lists
@@ -217,7 +223,9 @@ export async function listWeekOverview(): Promise<WeekOverview> {
     .map((e) => ({ label: formatTaipeiLabel(e.start), title: e.title }));
 
   // 注意事項：同日兩場行程相隔 < 30 分（或重疊）
-  const warnings: string[] = [];
+  const warnings: string[] = lists
+    .filter((list) => list.failed)
+    .map((list) => `無法讀取行事曆「${list.calendarId}」，該來源的行程未納入總覽`);
   const timed = events.filter((e) => !e.allDay).sort((a, b) => a.start.getTime() - b.start.getTime());
   for (let i = 1; i < timed.length && warnings.length < 2; i++) {
     const prev = timed[i - 1];
