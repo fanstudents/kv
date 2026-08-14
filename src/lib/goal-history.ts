@@ -9,13 +9,26 @@ import type { SnapshotRow } from "./agent-memory";
 // Agent 自己頁面又畫一次同一份目標），所以用 module-level 快取避免重複打 API；
 // 快取沒有主動失效機制——這頁的資料本來就是每日一筆的快照，不需要即時。
 
+interface HistoryResult {
+  points: SnapshotRow[];
+  error: string | null;
+}
+
 const cache = new Map<string, SnapshotRow[]>();
-const inflight = new Map<string, Promise<SnapshotRow[]>>();
+const inflight = new Map<string, Promise<HistoryResult>>();
 
 interface HistoryState {
   key: string;
   points: SnapshotRow[];
   loading: boolean;
+  error: string | null;
+}
+
+export function parseGoalHistoryResponse(data: unknown): SnapshotRow[] {
+  if (!data || typeof data !== "object" || !Array.isArray((data as { points?: unknown }).points)) {
+    throw new Error("目標趨勢回應格式錯誤");
+  }
+  return (data as { points: SnapshotRow[] }).points;
 }
 
 function getHistoryState(key: string): HistoryState {
@@ -23,22 +36,30 @@ function getHistoryState(key: string): HistoryState {
     key,
     points: cache.get(key) ?? [],
     loading: !cache.has(key),
+    error: null,
   };
 }
 
-async function fetchHistory(metricId: string, days: number): Promise<SnapshotRow[]> {
+async function fetchHistory(metricId: string, days: number): Promise<HistoryResult> {
   const key = `${metricId}:${days}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return { points: cache.get(key)!, error: null };
   if (inflight.has(key)) return inflight.get(key)!;
 
   const p = fetch(`/api/goals/history?metricId=${encodeURIComponent(metricId)}&days=${days}`)
-    .then((r) => (r.ok ? r.json() : { points: [] }))
-    .then((d) => {
-      const points = Array.isArray(d.points) ? (d.points as SnapshotRow[]) : [];
-      cache.set(key, points);
-      return points;
+    .then((r) => {
+      if (!r.ok) throw new Error(`目標趨勢讀取失敗（${r.status}）`);
+      return r.json();
     })
-    .catch(() => [] as SnapshotRow[])
+    .then((d) => {
+      const points = parseGoalHistoryResponse(d);
+      cache.set(key, points);
+      return { points, error: null };
+    })
+    .catch((error) => {
+      const message = error instanceof Error ? error.message : "目標趨勢讀取失敗";
+      console.error("[goals] history load failed", error);
+      return { points: [] as SnapshotRow[], error: message };
+    })
     .finally(() => {
       inflight.delete(key);
     });
@@ -56,8 +77,8 @@ export function useMetricHistory(metricId: string, days = 30) {
     let cancelled = false;
     if (cache.has(key)) return;
 
-    fetchHistory(metricId, days).then((p) => {
-      if (!cancelled) setState({ key, points: p, loading: false });
+    fetchHistory(metricId, days).then((result) => {
+      if (!cancelled) setState({ key, points: result.points, loading: false, error: result.error });
     });
 
     return () => {
@@ -65,5 +86,5 @@ export function useMetricHistory(metricId: string, days = 30) {
     };
   }, [key, metricId, days]);
 
-  return { points: current.points, loading: current.loading };
+  return { points: current.points, loading: current.loading, error: current.error };
 }

@@ -25,11 +25,23 @@ export default function GoalTrend({
   width?: number;
   height?: number;
 }) {
-  const { points, loading } = useMetricHistory(metricId, days);
+  const { points, loading, error } = useMetricHistory(metricId, days);
   const dark = usePrefersDark();
 
   if (loading) {
     return <span style={{ width, height }} className="block shrink-0 animate-pulse rounded bg-neutral-100 dark:bg-neutral-800" />;
+  }
+
+  if (error) {
+    return (
+      <span
+        style={{ width }}
+        title={error}
+        className="shrink-0 text-right text-[10px] leading-tight text-amber-500"
+      >
+        讀取失敗
+      </span>
+    );
   }
 
   if (points.length < 2) {
