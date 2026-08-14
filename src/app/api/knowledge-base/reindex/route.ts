@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseKnowledgeIndex } from "@/adapters/knowledge-base/supabase-knowledge-adapters";
+import { supabaseKnowledgeIndexRepository } from "@/adapters/knowledge-base/supabase-knowledge-adapters";
 import { readKnowledgeIndexStats, rebuildKnowledgeIndex } from "@/modules/knowledge-base/search-index";
 
 // 重建整個知識庫的檢索索引（第一次啟用檢索、或改過切段規則時用）。
@@ -7,10 +7,10 @@ import { readKnowledgeIndexStats, rebuildKnowledgeIndex } from "@/modules/knowle
 export const maxDuration = 300;
 
 export async function GET() {
-  const stats = await readKnowledgeIndexStats(createSupabaseKnowledgeIndex());
+  const stats = await readKnowledgeIndexStats(supabaseKnowledgeIndexRepository);
   return NextResponse.json({ stats });
 }
 
 export async function POST() {
-  return NextResponse.json(await rebuildKnowledgeIndex(createSupabaseKnowledgeIndex()));
+  return NextResponse.json(await rebuildKnowledgeIndex(supabaseKnowledgeIndexRepository));
 }

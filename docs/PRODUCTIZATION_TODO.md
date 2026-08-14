@@ -40,6 +40,16 @@
 - [ ] CI 執行 local migration replay 與 generated-type drift check。
 - [ ] 確認 canonical deploy、health/version 來源、migration promotion 與 rollback owner。
 
+### P2 Ownership／overdesign 收斂（2026-08-14，進行中）
+
+範圍先限於 Knowledge Base；不改 UI、API payload、Main schema 或 provider side effects。
+
+- [x] 以 CodeGraph 確認 KB route → domain module → Supabase composition → `src/lib` legacy store 的 caller／測試範圍。
+- [x] 將無狀態的 per-request forwarding factory 收斂為三個穩定 port objects；保留單一 transitional composition boundary。
+- [x] 明確標註 `src/adapters/knowledge-base/supabase-knowledge-adapters.ts` 仍轉呼叫 `src/lib/kb-*`／`knowledge-base.ts`，尚未宣稱 strict hexagonal。
+- [ ] 下一個真實 KB journey 觸碰時，才把必要 persistence／provider ownership 往 domain slice touch-and-migrate；不得先做全 repo 搬檔。
+- [ ] 以 caller evidence 決定是否合併其他單 caller forwarding；沒有第二 consumer、provider translation、transaction、concurrency 或 recovery 理由就不新增 abstraction。
+
 不做：另開空白專案重寫、全面 UI redesign、為未知未來建立通用 Agent runtime、無 migration 設計改資料格式、以檔案數或測試數當進度。
 
 ## 2. 不可破壞契約
@@ -92,7 +102,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 |---|---|---|---|---|
 | Auth／後台 | `/login`、dashboard layout、`api/auth/**` | `modules/auth` | session、Main DB | release smoke |
 | Operations／Goals | `/dashboard`、`/goals`、`/todos` | `modules/operations`、`goals`、`checklist` | Main + Teaching read | feature-driven |
-| Knowledge Base | `/knowledge-base/**`、KB APIs／cron | `modules/knowledge-base` + consolidated Supabase／Firecrawl adapters | Main、Firecrawl、OpenAI | WP-11 |
+| Knowledge Base | `/knowledge-base/**`、KB APIs／cron | `modules/knowledge-base` + transitional Supabase／Firecrawl composition | Main、Firecrawl、OpenAI | P2／WP-11 |
 | Meeting | `/meeting`、meeting APIs | `modules/meeting` + OpenAI adapters | Main、OpenAI realtime／audio | WP-10 |
 | Visit | `/agents/visit`、LINE webhook、timeout、public respond | `modules/visit` + conversation lock／Visit adapters | Main、OpenAI、LINE、Google | WP-12／13 |
 | Orders | `/agents/orders`、Teachify webhook | `modules/orders` + Orders adapters | Main、Teachify、LINE | WP-15／16 |

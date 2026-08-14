@@ -33,42 +33,39 @@ vi.mock("@/lib/knowledge-base", () => ({
 }));
 
 import {
-  createSupabaseKnowledgeIndex,
-  createSupabaseKnowledgeIngestion,
-  createSupabaseKnowledgeRepository,
+  supabaseKnowledgeIndexRepository,
+  supabaseKnowledgeIngestionRepository,
+  supabaseKnowledgeRepository,
 } from "@/adapters/knowledge-base/supabase-knowledge-adapters";
 
 describe("Supabase knowledge compatibility adapters", () => {
   it("keeps document signature translation and access operations in one domain boundary", async () => {
-    const repository = createSupabaseKnowledgeRepository();
     helpers.updateKnowledgeDoc.mockResolvedValue({ id: "doc-1" });
 
-    await repository.update({ id: "doc-1", patch: { title: "Guide" } });
-    await repository.setAccess("support", 2);
+    await supabaseKnowledgeRepository.update({ id: "doc-1", patch: { title: "Guide" } });
+    await supabaseKnowledgeRepository.setAccess("support", 2);
 
     expect(helpers.updateKnowledgeDoc).toHaveBeenCalledWith("doc-1", { title: "Guide" });
     expect(helpers.setAgentAccess).toHaveBeenCalledWith("support", 2);
   });
 
   it("keeps source-scoped drafts and publish operations in the ingestion boundary", async () => {
-    const ingestion = createSupabaseKnowledgeIngestion();
     helpers.listKnowledgeDocs.mockResolvedValue([]);
     helpers.publishKnowledgeDocs.mockResolvedValue(1);
 
-    await ingestion.listDraftDocs("source-1");
-    await ingestion.publish(["doc-1"]);
+    await supabaseKnowledgeIngestionRepository.listDraftDocs("source-1");
+    await supabaseKnowledgeIngestionRepository.publish(["doc-1"]);
 
     expect(helpers.listKnowledgeDocs).toHaveBeenCalledWith({ status: "draft", sourceDocId: "source-1" });
     expect(helpers.publishKnowledgeDocs).toHaveBeenCalledWith(["doc-1"]);
   });
 
   it("keeps published selection and index helpers in the search boundary", async () => {
-    const index = createSupabaseKnowledgeIndex();
     helpers.listKnowledgeDocs.mockResolvedValue([]);
     helpers.indexDocs.mockResolvedValue(1);
 
-    await index.listPublishedDocs();
-    await index.indexDocs(["doc-1"]);
+    await supabaseKnowledgeIndexRepository.listPublishedDocs();
+    await supabaseKnowledgeIndexRepository.indexDocs(["doc-1"]);
 
     expect(helpers.listKnowledgeDocs).toHaveBeenCalledWith({ status: "published" });
     expect(helpers.indexDocs).toHaveBeenCalledWith(["doc-1"]);

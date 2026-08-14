@@ -12,10 +12,7 @@ const mocks = vi.hoisted(() => {
     crawlSource,
     ingestion,
     index,
-    createSupabaseKnowledgeRepository: vi.fn(() => repository),
     createFirecrawlKnowledgeSource: vi.fn(() => crawlSource),
-    createSupabaseKnowledgeIngestion: vi.fn(() => ingestion),
-    createSupabaseKnowledgeIndex: vi.fn(() => index),
     parseKnowledgeDocumentQuery: vi.fn(),
     readKnowledgeDocuments: vi.fn(),
     parseKnowledgeDocumentCreate: vi.fn(),
@@ -45,9 +42,9 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@/lib/agent-data", () => ({ AGENTS: [{ slug: "visit" }] }));
 vi.mock("@/adapters/knowledge-base/supabase-knowledge-adapters", () => ({
-  createSupabaseKnowledgeRepository: mocks.createSupabaseKnowledgeRepository,
-  createSupabaseKnowledgeIngestion: mocks.createSupabaseKnowledgeIngestion,
-  createSupabaseKnowledgeIndex: mocks.createSupabaseKnowledgeIndex,
+  supabaseKnowledgeRepository: mocks.repository,
+  supabaseKnowledgeIngestionRepository: mocks.ingestion,
+  supabaseKnowledgeIndexRepository: mocks.index,
 }));
 vi.mock("@/adapters/knowledge-base/firecrawl-knowledge-source", () => ({
   createFirecrawlKnowledgeSource: mocks.createFirecrawlKnowledgeSource,
@@ -215,7 +212,6 @@ describe("knowledge-base route contracts", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "invalid document" });
-    expect(mocks.createSupabaseKnowledgeRepository).not.toHaveBeenCalled();
     expect(mocks.createKnowledgeDocument).not.toHaveBeenCalled();
   });
 
@@ -260,7 +256,6 @@ describe("knowledge-base route contracts", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "invalid access" });
-    expect(mocks.createSupabaseKnowledgeRepository).toHaveBeenCalledOnce();
     expect(mocks.updateKnowledgeAccess).toHaveBeenCalledWith(
       { kind: "invalid", message: "invalid access" },
       mocks.repository,
@@ -330,7 +325,6 @@ describe("knowledge-base route contracts", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ error: expect.any(String) });
     expect(mocks.validateKnowledgeIngestionFile).not.toHaveBeenCalled();
-    expect(mocks.createSupabaseKnowledgeIngestion).not.toHaveBeenCalled();
   });
 
   it("keeps invalid-PDF and oversized-PDF validation status envelopes", async () => {
@@ -355,7 +349,6 @@ describe("knowledge-base route contracts", () => {
 
     expect(oversized.status).toBe(413);
     await expect(oversized.json()).resolves.toEqual({ error: "file too large" });
-    expect(mocks.createSupabaseKnowledgeIngestion).not.toHaveBeenCalled();
   });
 
   it("keeps PDF upload and draft read response contracts at the ingestion boundary", async () => {
