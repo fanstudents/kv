@@ -161,7 +161,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
 | Google read real acceptance | `npm run acceptance:google:read` + Chrome `/integrations`（2026-08-14） | 專用 `KV Staging` OAuth client、Calendar／GA4／GSC production providers 4 tests passed；GA4 `524303407`、GSC `sc-domain:cablate.com` 可讀，Gmail／Calendar／GA4／GSC live connected；未建立行程或寄信 |
 | Google write real acceptance | `npm run acceptance:google:write`（2026-08-14） | 唯一 allowlist `reahtuoo310109@gmail.com`；Calendar 建立／回讀／刪除與 Gmail send production providers 2 tests passed；測試行程已清除，測試信不可回收 |
-| Visit delivery real acceptance | `npm run acceptance:visit:delivery` + Chrome public respond（2026-08-14） | Main synthetic invite → Visit application／adapters → Calendar／Gmail／activity 通過；Chrome location form → success page，console 0 error；Calendar 與 contact／invite／activity cleanup 皆確認 0 殘留，LINE 未呼叫成功且不影響主流程 |
+| Visit delivery real acceptance | `npm run acceptance:visit:delivery` + Chrome public respond（2026-08-15） | Main synthetic invite → Visit application／adapters → Calendar／Gmail 與 phase checkpoint 通過；synthetic LINE user 故意不可投遞，`email_sent`＋failed partial activity 如實保留，Chrome location form → success page，console 0 error；Calendar、contact、invite、marker activity cleanup 皆確認 0 殘留，已寄 Gmail 不可回收 |
 | GA4／GSC live projections | `tests/e2e/live-overview-projections.spec.ts` + Chrome Agent／TV（2026-08-14） | 4 browser contracts 通過；Demo 模式維持既有固定資料。如實模式 Agent／TV 顯示 GA4 83 sessions、GSC 26 clicks／508 impressions；區間切換取消舊請求，loading／empty／error 不退回假資料 |
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
@@ -210,13 +210,13 @@ Change contract：範圍只含 `parse-card`、`draft-email`、Contact Research �
 - [x] 修正 research search step 只寫 `running` 的不一致；成功補 `done`、失敗補 `failed`，focused unit contract 與全量 verify 通過。
 - [x] 補上 idempotent `line_agents` seed migration；我方 staging 已有 12 rows，activity insert／delete probe 通過。原先 activity 缺失是空父表造成，不是 provider 成功的證據。
 
-### WP-13 Visit delivery／recovery `[?][!]`
+### WP-13 Visit delivery／recovery `[~][!]`
 
 已完成：LINE signature／channel contracts、approval／offer／public respond／timeout 狀態契約、Google MIME／Calendar create mapping、atomic lock、所有 terminal lock cleanup。
 
-Delivery change contract：範圍只含既有 public respond 的 Main staging、Calendar、Gmail 與 activity 寫入，不改 UI／API payload、不使用 LINE 正式身份；唯一外寄對象為 `GOOGLE_WRITE_ACCEPTANCE_RECIPIENT`。成功必須持久化非空 `calendar_event_id` 並留下 success activity；Main 寫入或 Google 未回傳 ID 必須 fail closed；Calendar／DB synthetic fixtures 必須精確清除，已寄 Gmail 不可回收。
+Delivery change contract：範圍只含既有 public respond 的 Main staging、Calendar、Gmail 與 activity 寫入，不改 UI／API payload、不使用 LINE 正式身份；唯一外寄對象為 `GOOGLE_WRITE_ACCEPTANCE_RECIPIENT`。Calendar／Gmail 核心成功必須持久化非空 `calendar_event_id` 與 phase checkpoint；LINE 未完成時保留 `email_sent`、記錄 failed partial activity，頁面仍告知外部聯絡人行程與信件已完成；有效 LINE 成功時才進入 `completed`／success activity。Main 寫入或 Google 未回傳 ID 必須 fail closed；Calendar／DB synthetic fixtures 必須精確清除，已寄 Gmail 不可回收。
 
-- [?] 決定 Calendar 已建立、Gmail 或後續 DB／LINE 失敗時的 durable state 與人工補救。現況會有 `calendar_event_id` 但 invite 可能被標 `failed`，重送又被既有 event 擋下。
+- [x] Visit public respond 已以 additive migration `20260814162213_visit_invite_fulfilment_phase.sql` 補上 `pending_invites.fulfilment_phase`／`fulfilment_error`。Calendar、Gmail、LINE 每完成一段就留下 checkpoint；重送只補未完成的副作用，不重建已記錄的 Calendar，也不重寄已完成的 Gmail。舊的 confirmed＋既有 `calendar_event_id` 維持 already handled；舊 failed rows 可從既有 Calendar checkpoint 恢復。這是 at-least-once 邊界：若外部副作用成功但 checkpoint 寫入失敗，仍需人工 reconciliation，沒有宣稱 exactly-once。
 - [?] 決定 timeout 已寫 `timed_out` 後，tag／activity／LINE 部分失敗是否重播及如何避免重複通知。
 - [x] 同一 allowlist 的 public respond → Main → Calendar／Gmail → activity staging journey 已由 acceptance 與 Chrome 各通過一次；Calendar／DB fixture 均清除，Gmail 測試信保留作為外部證據。
 - [ ] 完整 inbound → approval → public respond → LINE 仍待 LINE credentials／allowlisted user。
@@ -288,14 +288,14 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [x] Visit research 的必要 contact／recent-profile reads 已 fail-closed；profile list、failure compensation 與 activity 保留不阻塞已確認拜訪的 best-effort 契約，但 DB error 會留下明確 server diagnostic。
 - [x] KB index replacement 已採 transaction 原子替換，provider／RPC 失敗不再清空可用索引；草稿／封存仍以空 replacement 清除既有 chunks，維持原產品契約。
 - [x] Teachify exact replay／並行 claim 已按 provider-specific ledger 實作，不引入 generic retry／queue；stale／out-of-order 仍保留給 provider truth 與產品決策。
-- [?] Visit 多副作用 phase、Teachify stale event 與 Support relay retry 仍需依 P3 核准產品語意後實作，不以 generic retry 猜測處理。
+- [x] Visit public respond 多副作用 phase 已按 provider-specific contract 實作；不引入 generic retry／queue。Teachify stale／out-of-order 與 Support relay retry 仍需 provider truth／產品語意後處理。
 
 ### WP-21 CI／deploy／rollback `[!]`
 
 本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。`https://kva.zeabur.app` 於 2026-08-14 已回 200，LINE／Teachify GET health routes 也存在，但頁面品牌為 MixAgent，無版本／commit 證據；因此它是「存活但 ownership／revision／staging 身分未知」，不得直接拿來做破壞性驗收或改 webhook。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
-- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、130 files／659 unit tests、93-page production build與 136-test hermetic browser smoke；另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無缺 Supabase env 日誌。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
+- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、135 files／690 unit tests、93-page production build與 136-test hermetic browser smoke；另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無缺 Supabase env 日誌。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
 - [ ] 指定 scheduled failure 通知目的地／owner。
 - [ ] 明確 deploy command、migration ordering、health check、promotion、app／secret／migration rollback與 release owner。
 
@@ -304,7 +304,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [~] Main／OpenAI／Firecrawl／Google／Primary LINE 與 Support Main 自主 journeys 已達標；Support LINE、Teachify provider truth、Visit inbound、hosted schedule／deploy 仍有明確外部 gate，replay decisions 仍依 P3。
 - [x] `/integrations` badge／計數已改綁 `/api/integrations/status` live truth並維持原 UI/UX；localStorage 僅保留管理連結、Agent 用途與自訂服務 demo，自訂項無 live probe 時顯示未連線。
 - [~] 本輪 CodeGraph 沒找到可安全刪除的無 caller 模組；Visit `legacy-*` adapters 仍被 webhook／cron 真實呼叫，保留為外部／舊 schema 邊界。最後 transitional cleanup 要等 P6 evidence，不為減檔名硬刪。
-- [~] 全量 verify、CodeGraph、130-file／659-test contracts、8-page Chrome matrix、Main residue audit 與 136-test staging browser matrix 已完成；staging cutover／rollback rehearsal 仍待 deploy ownership。
+- [~] 全量 verify、CodeGraph、135-file／690-test contracts、8-page Chrome matrix、Main residue audit 與 136-test staging browser matrix 已完成；staging cutover／rollback rehearsal 仍待 deploy ownership。
 - [x] 穩定的安裝、verify、staging read-path 與 opt-in write/cleanup 邊界已補進 README；細節只由本 TODO 維護，不新增重複架構／runbook 文件。
 
 ## 6. 自主邊界與仍需外部取得的資產
@@ -381,11 +381,11 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
 
 3. **P3 — Recovery／replay 決策（D，可與 P2 平行）**
    - [x] KB embedding：先產生並驗證全部新 chunks，再以 service-role-only transaction 替換；Main staging rollback／replace、權限與 cleanup 已通過，失敗時保留上一版可搜尋 index。
-   - Visit delivery：建議記錄 Calendar／Gmail／LINE 各 phase，重試只補未完成副作用，不重建 Calendar、不重寄已寄 Gmail。
+   - [x] Visit delivery：`pending_invites.fulfilment_phase`／`fulfilment_error` 記錄 Calendar／Gmail／LINE／完成 checkpoint；重試只補未完成副作用，不重建已記錄 Calendar、不重寄已完成 Gmail。外部副作用成功但 checkpoint 寫入失敗仍列入人工 reconciliation，不宣稱 exactly-once。
    - Visit timeout：建議狀態與通知具備可重入 phase；partial failure 重試只完成缺少步驟。
    - [x] Teachify exact replay／並行重送：以 `(order_id,event_key)` durable claim 記錄 `sending`／`delivered`／`failed`，claim 進行中回 202，不再第二次 LINE push；delivery state 寫入失敗回 `delivery_unrecorded`，避免假裝完整成功。
    - Teachify stale／out-of-order：仍需官方 event ID／timestamp／狀態轉移契約與產品核准；目前 fingerprint 只保護相同 normalized event 的 exact replay。
-   - **Exit**：已完成 Teachify exact replay 的 approved local behavior、idempotency key、失敗狀態與 focused／remote probe 證據；Visit phase、Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
+   - **Exit**：Visit phase 與 Teachify exact replay 的 approved local behavior、idempotency／checkpoint、失敗狀態與 focused／remote probe 證據已完成；Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
 
 4. **P4 — 本地 provider readiness（G）**
    - [x] Visit inbound：本地 LINE signature、parsing、route、application 與 delivery failure contracts 已重跑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。

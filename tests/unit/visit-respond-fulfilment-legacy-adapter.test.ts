@@ -51,12 +51,19 @@ describe("legacy Visit respond fulfilment source", () => {
       attendeeEmail: "d@example.test",
     })).resolves.toBe("event-1");
     await adapter.updateInviteFulfilled("i1", "event-1", "Taipei");
+    await adapter.markInviteFulfilmentPhase("i1", "email_sent");
+    await adapter.recordInviteFulfilmentError("i1", "LINE unavailable");
     await adapter.sendThankYouEmail({ to: "d@example.test", subject: "done", body: "html", html: true });
     await adapter.pushLineMessage("U1", "done");
     await adapter.recordActivity({ agent_slug: "visit", summary: "done", status: "success" });
-    await adapter.markInviteFailed("i1");
-    expect(query.update).toHaveBeenCalledWith({ calendar_event_id: "event-1", location: "Taipei" });
-    expect(query.update).toHaveBeenCalledWith({ status: "failed" });
+    expect(query.update).toHaveBeenCalledWith({
+      calendar_event_id: "event-1",
+      location: "Taipei",
+      fulfilment_phase: "calendar_created",
+      fulfilment_error: null,
+    });
+    expect(query.update).toHaveBeenCalledWith({ fulfilment_phase: "email_sent", fulfilment_error: null });
+    expect(query.update).toHaveBeenCalledWith({ fulfilment_error: "LINE unavailable" });
     expect(query.insert).toHaveBeenCalledWith({ agent_slug: "visit", summary: "done", status: "success" });
     expect(pushLineMessage).toHaveBeenCalledWith("U1", "done");
     expect(sendEmail).toHaveBeenCalledWith({ to: "d@example.test", subject: "done", body: "html", html: true });

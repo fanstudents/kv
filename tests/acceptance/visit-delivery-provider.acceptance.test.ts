@@ -143,11 +143,15 @@ describe.sequential("Visit delivery provider acceptance", () => {
 
     const { data: persisted, error: persistedError } = await supabase
       .from("pending_invites")
-      .select("status, calendar_event_id, location")
+      .select("status, calendar_event_id, location, fulfilment_phase, fulfilment_error")
       .eq("id", inviteId)
       .single();
     if (persistedError) throw persistedError;
     expect(persisted.status).toBe("confirmed");
+    // This journey deliberately uses a synthetic line user, so Calendar and
+    // Gmail are verified while LINE remains a resumable partial phase.
+    expect(persisted.fulfilment_phase).toBe("email_sent");
+    expect(persisted.fulfilment_error).toContain("LINE");
     const persistedEventId = persisted.calendar_event_id;
     expect(persistedEventId).toBeTruthy();
     if (!persistedEventId) throw new Error("Visit fulfilment did not persist the Calendar event id");
@@ -160,7 +164,7 @@ describe.sequential("Visit delivery provider acceptance", () => {
       .ilike("summary", `%${marker}%`);
     if (activityError) throw activityError;
     expect(activities).toHaveLength(1);
-    expect(activities[0]).toMatchObject({ status: "success" });
+    expect(activities[0]).toMatchObject({ status: "failed" });
 
     const auth = getGoogleOAuthClient();
     await ensureFreshAccessToken(auth);

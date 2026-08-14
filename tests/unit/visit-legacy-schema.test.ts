@@ -77,10 +77,14 @@ describe("Visit legacy schema compatibility", () => {
     expect(toLegacyPendingInviteFulfilmentPatch("calendar-1", "Taipei")).toEqual({
       calendar_event_id: "calendar-1",
       location: "Taipei",
+      fulfilment_phase: "calendar_created",
+      fulfilment_error: null,
     });
     expect(toLegacyPendingInviteFulfilmentPatch("calendar-2", undefined)).toEqual({
       calendar_event_id: "calendar-2",
       location: null,
+      fulfilment_phase: "calendar_created",
+      fulfilment_error: null,
     });
   });
 });

@@ -3,6 +3,7 @@ import {
   parseVisitInviteChoice,
   selectVisitInviteSlot,
 } from "@/modules/visit/public-response";
+import type { LegacyPendingInviteFulfilmentPhase } from "@/modules/visit/legacy-schema";
 import type {
   VisitRespondFulfilmentSource,
   VisitRespondReadSource,
@@ -74,6 +75,50 @@ function alreadyHandledPage(label?: string): VisitPublicInvitePage {
   };
 }
 
+const FULFILMENT_PHASE_ORDER: readonly LegacyPendingInviteFulfilmentPhase[] = [
+  "calendar_created",
+  "email_sent",
+  "line_notified",
+  "completed",
+];
+
+function phaseRank(phase: LegacyPendingInviteFulfilmentPhase | null | undefined): number {
+  return phase ? FULFILMENT_PHASE_ORDER.indexOf(phase) + 1 : 0;
+}
+
+/**
+ * Old rows only have a calendar_event_id. A row that was marked failed after
+ * creating the event can safely resume at the email phase; an old confirmed
+ * row without the new checkpoint is treated as already completed for
+ * backwards compatibility.
+ */
+function effectiveFulfilmentPhase(row: {
+  status: string;
+  calendar_event_id?: string | null;
+  fulfilment_phase?: LegacyPendingInviteFulfilmentPhase | null;
+}): LegacyPendingInviteFulfilmentPhase | null {
+  if (row.fulfilment_phase) return row.fulfilment_phase;
+  if (row.status === "failed" && row.calendar_event_id) return "calendar_created";
+  return null;
+}
+
+function isFulfilmentComplete(row: {
+  status: string;
+  calendar_event_id?: string | null;
+  fulfilment_phase?: LegacyPendingInviteFulfilmentPhase | null;
+}): boolean {
+  if (row.fulfilment_phase === "completed") return true;
+  return Boolean(row.status === "confirmed" && row.calendar_event_id && !row.fulfilment_phase);
+}
+
+function isFulfilmentResumable(row: {
+  status: string;
+  calendar_event_id?: string | null;
+  fulfilment_phase?: LegacyPendingInviteFulfilmentPhase | null;
+}): boolean {
+  return row.status === "confirmed" || row.status === "failed";
+}
+
 export async function resolveVisitPublicInviteGet(params: {
   inviteId: string | null;
   choiceValue: string | null;
@@ -96,7 +141,7 @@ export async function resolveVisitPublicInviteGet(params: {
     row = claimed ?? (await read.refetchInvite(inviteId));
   }
 
-  if (row.status === "confirmed" && !row.calendar_event_id) {
+  if (isFulfilmentResumable(row) && !isFulfilmentComplete(row)) {
     return {
       kind: "location-form",
       inviteId,
@@ -133,49 +178,110 @@ export async function fulfilVisitPublicInvite(params: {
   const row = await read.findInviteForFulfilment(inviteId);
   if (!row) return { page: missingInvitePage() };
 
-  if (row.status !== "confirmed" || row.calendar_event_id) {
+  if (!isFulfilmentResumable(row) || isFulfilmentComplete(row)) {
     return { page: alreadyHandledPage(selectVisitInviteSlot(row).label) };
   }
 
   const contact = row.contacts as VisitRespondContact;
   const contactName = contact?.name || "對方";
   const { label: chosenLabel, startISO, endISO } = selectVisitInviteSlot(row);
+  let completedPhase = effectiveFulfilmentPhase(row);
+  let settings: Awaited<ReturnType<VisitRespondFulfilmentSource["getSettings"]>> | null = null;
+  const getSettings = async () => {
+    if (!settings) settings = await fulfilment.getSettings();
+    return settings;
+  };
+  const recoveryPage = () => ({
+    page: {
+      kind: "location-form" as const,
+      inviteId,
+      chosenLabel,
+    },
+  });
+  const recordFailure = async (message: string, summary = `對方確認時段後，自動排程失敗：${message}`) => {
+    await fulfilment.recordInviteFulfilmentError(inviteId, message).catch(() => {});
+    await fulfilment.recordActivity({
+      agent_slug: "visit",
+      summary,
+      status: "failed",
+    }).catch(() => {});
+  };
 
   try {
-    const settings = await fulfilment.getSettings();
-    const eventId = await fulfilment.createCalendarEvent({
-      summary: `${settings.senderName} 拜訪 ${contactName}${contact?.company ? `（${contact.company}）` : ""}`,
-      description: `由 ${settings.senderName} 透過約拜訪 Agent 安排的${settings.meetingType}，對象：${contactName}${
-        contact?.company ? ` / ${contact.company}` : ""
-      }。`,
-      location,
-      startISO,
-      endISO,
-      attendeeEmail: row.to_email,
-    });
-
-    await fulfilment.updateInviteFulfilled(inviteId, eventId, location);
-    await fulfilment.sendThankYouEmail({
-      to: row.to_email,
-      subject: `已確認見面時間：${chosenLabel}`,
-      body: renderThankYouEmail({
-        contactName,
-        senderName: settings.senderName,
-        chosenLabel,
+    let eventId = row.calendar_event_id ?? null;
+    if (!eventId) {
+      const currentSettings = await getSettings();
+      eventId = await fulfilment.createCalendarEvent({
+        summary: `${currentSettings.senderName} 拜訪 ${contactName}${contact?.company ? `（${contact.company}）` : ""}`,
+        description: `由 ${currentSettings.senderName} 透過約拜訪 Agent 安排的${currentSettings.meetingType}，對象：${contactName}${
+          contact?.company ? ` / ${contact.company}` : ""
+        }。`,
         location,
-      }),
-      html: true,
-    });
+        startISO,
+        endISO,
+        attendeeEmail: row.to_email,
+      });
 
-    await fulfilment.pushLineMessage(
-      row.line_user_id,
-      `🎉 ${contactName}已選擇 ${chosenLabel}${location ? `，地點：${location}` : ""}，已自動建立行事曆邀請並寄出感謝信給對方。`
-    ).catch(() => {});
+      await fulfilment.updateInviteFulfilled(inviteId, eventId, location);
+      completedPhase = "calendar_created";
+    }
+
+    if (phaseRank(completedPhase) < phaseRank("email_sent")) {
+      const currentSettings = await getSettings();
+      await fulfilment.sendThankYouEmail({
+        to: row.to_email,
+        subject: `已確認見面時間：${chosenLabel}`,
+        body: renderThankYouEmail({
+          contactName,
+          senderName: currentSettings.senderName,
+          chosenLabel,
+          location,
+        }),
+        html: true,
+      });
+      await fulfilment.markInviteFulfilmentPhase(inviteId, "email_sent");
+      completedPhase = "email_sent";
+    }
+
+    if (phaseRank(completedPhase) < phaseRank("line_notified")) {
+      try {
+        await fulfilment.pushLineMessage(
+          row.line_user_id,
+          `🎉 ${contactName}已選擇 ${chosenLabel}${location ? `，地點：${location}` : ""}，已自動建立行事曆邀請並寄出感謝信給對方。`
+        );
+        await fulfilment.markInviteFulfilmentPhase(inviteId, "line_notified");
+        completedPhase = "line_notified";
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "LINE 通知失敗";
+        await recordFailure(
+          `LINE 通知失敗：${message}`,
+          `${contactName} 已確認 ${chosenLabel}，Calendar／Gmail 已完成，LINE 通知失敗：${message}`,
+        );
+        // Calendar and Gmail are already complete for the external contact.
+        // Keep the public response successful; a later GET/POST can resume
+        // the missing LINE notification from the durable email checkpoint.
+        return {
+          page: {
+            kind: "message",
+            title: "時段已確認！",
+            message: `已為您安排 ${chosenLabel}${location ? `，地點約在 ${location}` : ""}，行事曆邀請與確認信都已經寄到您的信箱囉，謝謝您！`,
+          },
+        };
+      }
+    }
+
+    if (phaseRank(completedPhase) < phaseRank("completed")) {
+      await fulfilment.markInviteFulfilmentPhase(inviteId, "completed");
+      completedPhase = "completed";
+    }
 
     await fulfilment.recordActivity({
       agent_slug: "visit",
       summary: `${contactName} 已確認 ${chosenLabel}${location ? `（地點：${location}）` : ""}，行事曆邀請與感謝信已寄出`,
       status: "success",
+    }).catch(async (error) => {
+      const message = error instanceof Error ? error.message : "活動紀錄寫入失敗";
+      await fulfilment.recordInviteFulfilmentError(inviteId, `活動紀錄寫入失敗：${message}`).catch(() => {});
     });
 
     const backgroundResearch = contact?.name
@@ -193,7 +299,14 @@ export async function fulfilVisitPublicInvite(params: {
         }
       : undefined;
 
-    if (backgroundResearch) scheduleBackgroundResearch?.(backgroundResearch);
+    if (backgroundResearch && phaseRank(effectiveFulfilmentPhase(row)) < phaseRank("completed")) {
+      try {
+        scheduleBackgroundResearch?.(backgroundResearch);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "背景研究排程失敗";
+        await fulfilment.recordInviteFulfilmentError(inviteId, `背景研究排程失敗：${message}`).catch(() => {});
+      }
+    }
 
     return {
       page: {
@@ -204,16 +317,15 @@ export async function fulfilVisitPublicInvite(params: {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "建立行事曆或寄信失敗";
-    await fulfilment.markInviteFailed(inviteId);
-    await fulfilment.recordActivity({
-      agent_slug: "visit",
-      summary: `對方確認時段後，自動排程失敗：${message}`,
-      status: "failed",
-    });
+    await recordFailure(message);
     await fulfilment.pushLineMessage(
       row.line_user_id,
       `⚠️ ${contactName}選了 ${chosenLabel}，但自動安排行事曆時發生問題，請手動確認並聯繫對方。`
     ).catch(() => {});
+
+    if (row.calendar_event_id || phaseRank(completedPhase) >= phaseRank("calendar_created")) {
+      return recoveryPage();
+    }
 
     return {
       page: {

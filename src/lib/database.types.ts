@@ -1085,6 +1085,8 @@ export type Database = {
           chosen_slot: string | null
           contact_id: string | null
           created_at: string
+          fulfilment_error: string | null
+          fulfilment_phase: string | null
           id: string
           line_user_id: string
           location: string | null
@@ -1105,6 +1107,8 @@ export type Database = {
           chosen_slot?: string | null
           contact_id?: string | null
           created_at?: string
+          fulfilment_error?: string | null
+          fulfilment_phase?: string | null
           id?: string
           line_user_id: string
           location?: string | null
@@ -1125,6 +1129,8 @@ export type Database = {
           chosen_slot?: string | null
           contact_id?: string | null
           created_at?: string
+          fulfilment_error?: string | null
+          fulfilment_phase?: string | null
           id?: string
           line_user_id?: string
           location?: string | null

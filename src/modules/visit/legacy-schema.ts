@@ -6,6 +6,17 @@ export type LegacyPendingInviteStatus =
   | "cancelled"
   | "failed";
 
+/**
+ * Durable checkpoints for the public invite's external side effects.
+ * The phase records the last completed step, so a later POST can resume
+ * without recreating work that already has a receipt.
+ */
+export type LegacyPendingInviteFulfilmentPhase =
+  | "calendar_created"
+  | "email_sent"
+  | "line_notified"
+  | "completed";
+
 export interface LegacyContactRow {
   id: string;
   name: string;
@@ -53,6 +64,8 @@ export interface LegacyPendingInviteRow {
   resolved_at?: string | null;
   calendar_event_id?: string | null;
   location?: string | null;
+  fulfilment_phase?: LegacyPendingInviteFulfilmentPhase | null;
+  fulfilment_error?: string | null;
 }
 
 export interface LegacyPreparedInvite {
@@ -150,5 +163,22 @@ export function toLegacyPendingInviteFulfilmentPatch(
   return {
     calendar_event_id: calendarEventId,
     location: location ?? null,
+    fulfilment_phase: "calendar_created" as const,
+    fulfilment_error: null,
+  };
+}
+
+export function toLegacyPendingInviteFulfilmentPhasePatch(
+  phase: LegacyPendingInviteFulfilmentPhase,
+) {
+  return {
+    fulfilment_phase: phase,
+    fulfilment_error: null,
+  };
+}
+
+export function toLegacyPendingInviteFulfilmentErrorPatch(message: string) {
+  return {
+    fulfilment_error: message.slice(0, 1000),
   };
 }

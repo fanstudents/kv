@@ -79,6 +79,7 @@ describe("database surface inventory", () => {
       "20260813170350_seed_line_agents.sql",
       "20260813222936_atomic_kb_chunk_replacement.sql",
       "20260814153820_teachify_order_delivery_claim.sql",
+      "20260814162213_visit_invite_fulfilment_phase.sql",
     ]);
 
     const baseline = readFileSync(

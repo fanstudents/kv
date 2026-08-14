@@ -49,7 +49,7 @@ function createReadSource() {
   return source;
 }
 
-function createFulfilmentSource(options?: { calendarError?: unknown }) {
+function createFulfilmentSource(options?: { calendarError?: unknown; emailError?: unknown; lineError?: unknown }) {
   const calls: string[] = [];
   const source: VisitRespondFulfilmentSource = {
     getSettings: vi.fn(async () => {
@@ -73,17 +73,22 @@ function createFulfilmentSource(options?: { calendarError?: unknown }) {
     updateInviteFulfilled: vi.fn(async () => {
       calls.push("fulfilled");
     }),
+    markInviteFulfilmentPhase: vi.fn(async (_inviteId, phase) => {
+      calls.push(`phase:${phase}`);
+    }),
+    recordInviteFulfilmentError: vi.fn(async () => {
+      calls.push("failure-state");
+    }),
     sendThankYouEmail: vi.fn(async () => {
       calls.push("email");
+      if (options?.emailError !== undefined) throw options.emailError;
     }),
     pushLineMessage: vi.fn(async () => {
       calls.push("line");
+      if (options?.lineError !== undefined) throw options.lineError;
     }),
     recordActivity: vi.fn(async () => {
       calls.push("activity");
-    }),
-    markInviteFailed: vi.fn(async () => {
-      calls.push("failed");
     }),
   };
   return { calls, source };
@@ -153,6 +158,26 @@ describe("Visit public invite response capability", () => {
     expect(read.refetchInvite).toHaveBeenCalledWith("invite-1");
   });
 
+  it("reopens a failed legacy invite at the location form when Calendar already exists", async () => {
+    const read = createReadSource();
+    read.findInvite.mockResolvedValue(
+      invite({ status: "failed", calendar_event_id: "event-1" }),
+    );
+
+    await expect(
+      resolveVisitPublicInviteGet({
+        inviteId: "invite-1",
+        choiceValue: null,
+        read,
+        nowIso: () => "2026-07-31T00:00:00.000Z",
+      }),
+    ).resolves.toEqual({
+      kind: "location-form",
+      inviteId: "invite-1",
+      chosenLabel: "週一上午",
+    });
+  });
+
   it("keeps duplicate POSTs out of calendar, email, LINE, and activity side effects", async () => {
     const read = createReadSource();
     const fixture = createFulfilmentSource();
@@ -178,6 +203,73 @@ describe("Visit public invite response capability", () => {
     expect(fixture.calls).toEqual([]);
   });
 
+  it("resumes from the durable calendar checkpoint without creating another event", async () => {
+    const read = createReadSource();
+    const fixture = createFulfilmentSource();
+    read.findInviteForFulfilment.mockResolvedValue(
+      fulfilmentRow({ calendar_event_id: "event-1", fulfilment_phase: "calendar_created" }),
+    );
+
+    await expect(
+      fulfilVisitPublicInvite({
+        inviteId: "invite-1",
+        locationValue: "Taipei",
+        read,
+        fulfilment: fixture.source,
+        renderThankYouEmail: vi.fn(() => "thanks"),
+      }),
+    ).resolves.toMatchObject({ page: { kind: "message", title: "時段已確認！" } });
+
+    expect(fixture.calls).toEqual(["settings", "email", "phase:email_sent", "line", "phase:line_notified", "phase:completed", "activity"]);
+    expect(fixture.source.createCalendarEvent).not.toHaveBeenCalled();
+    expect(fixture.source.updateInviteFulfilled).not.toHaveBeenCalled();
+  });
+
+  it("resumes only the missing LINE notification after the email checkpoint", async () => {
+    const read = createReadSource();
+    const fixture = createFulfilmentSource();
+    read.findInviteForFulfilment.mockResolvedValue(
+      fulfilmentRow({ calendar_event_id: "event-1", fulfilment_phase: "email_sent" }),
+    );
+
+    await fulfilVisitPublicInvite({
+      inviteId: "invite-1",
+      locationValue: null,
+      read,
+      fulfilment: fixture.source,
+      renderThankYouEmail: vi.fn(),
+    });
+
+    expect(fixture.calls).toEqual(["line", "phase:line_notified", "phase:completed", "activity"]);
+    expect(fixture.source.getSettings).not.toHaveBeenCalled();
+    expect(fixture.source.sendThankYouEmail).not.toHaveBeenCalled();
+  });
+
+  it("keeps the public response successful while leaving LINE resumable after email", async () => {
+    const read = createReadSource();
+    const fixture = createFulfilmentSource({ lineError: new Error("LINE unavailable") });
+    read.findInviteForFulfilment.mockResolvedValue(
+      fulfilmentRow({ calendar_event_id: "event-1", fulfilment_phase: "email_sent" }),
+    );
+
+    await expect(
+      fulfilVisitPublicInvite({
+        inviteId: "invite-1",
+        locationValue: null,
+        read,
+        fulfilment: fixture.source,
+        renderThankYouEmail: vi.fn(),
+      }),
+    ).resolves.toMatchObject({ page: { kind: "message", title: "時段已確認！" } });
+
+    expect(fixture.calls).toEqual(["line", "failure-state", "activity"]);
+    expect(fixture.source.recordInviteFulfilmentError).toHaveBeenCalledWith(
+      "invite-1",
+      "LINE 通知失敗：LINE unavailable",
+    );
+    expect(fixture.source.markInviteFulfilmentPhase).not.toHaveBeenCalled();
+  });
+
   it("preserves successful calendar, email, LINE, activity order and deferred research payload", async () => {
     const read = createReadSource();
     const fixture = createFulfilmentSource();
@@ -194,7 +286,17 @@ describe("Visit public invite response capability", () => {
       scheduleBackgroundResearch,
     });
 
-    expect(fixture.calls).toEqual(["settings", "calendar", "fulfilled", "email", "line", "activity"]);
+    expect(fixture.calls).toEqual([
+      "settings",
+      "calendar",
+      "fulfilled",
+      "email",
+      "phase:email_sent",
+      "line",
+      "phase:line_notified",
+      "phase:completed",
+      "activity",
+    ]);
     expect(fixture.source.createCalendarEvent).toHaveBeenCalledWith({
       summary: "Dennis 拜訪 Dennis（CabLate）",
       description: "由 Dennis 透過約拜訪 Agent 安排的喝咖啡，對象：Dennis / CabLate。",
@@ -257,7 +359,7 @@ describe("Visit public invite response capability", () => {
         tone: "error",
       },
     });
-    expect(fixture.calls).toEqual(["settings", "calendar", "failed", "activity", "line"]);
+    expect(fixture.calls).toEqual(["settings", "calendar", "failure-state", "activity", "line"]);
     expect(fixture.source.recordActivity).toHaveBeenCalledWith({
       agent_slug: "visit",
       summary: "對方確認時段後，自動排程失敗：calendar unavailable",
@@ -265,7 +367,7 @@ describe("Visit public invite response capability", () => {
     });
   });
 
-  it("keeps scheduler failures inside the original fulfilment failure boundary", async () => {
+  it("keeps background research failures out of the fulfilment result", async () => {
     const read = createReadSource();
     const fixture = createFulfilmentSource();
     read.findInviteForFulfilment.mockResolvedValue(fulfilmentRow());
@@ -281,28 +383,22 @@ describe("Visit public invite response capability", () => {
           throw new Error("after unavailable");
         },
       })
-    ).resolves.toMatchObject({
-      page: {
-        kind: "message",
-        title: "時段已收到",
-        tone: "error",
-      },
-    });
+    ).resolves.toMatchObject({ page: { kind: "message", title: "時段已確認！" } });
     expect(fixture.calls).toEqual([
       "settings",
       "calendar",
       "fulfilled",
       "email",
+      "phase:email_sent",
       "line",
+      "phase:line_notified",
+      "phase:completed",
       "activity",
-      "failed",
-      "activity",
-      "line",
+      "failure-state",
     ]);
-    expect(fixture.source.recordActivity).toHaveBeenLastCalledWith({
-      agent_slug: "visit",
-      summary: "對方確認時段後，自動排程失敗：after unavailable",
-      status: "failed",
-    });
+    expect(fixture.source.recordInviteFulfilmentError).toHaveBeenCalledWith(
+      "invite-1",
+      "背景研究排程失敗：after unavailable",
+    );
   });
 });

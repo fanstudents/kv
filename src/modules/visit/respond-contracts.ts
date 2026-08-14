@@ -1,4 +1,8 @@
 import type { VisitResearchInput } from "@/modules/visit/research";
+import type {
+  LegacyPendingInviteFulfilmentPhase,
+  LegacyPendingInviteRow,
+} from "@/modules/visit/legacy-schema";
 
 export interface VisitRespondAgentSettings {
   rangeStartDays: number;
@@ -33,12 +37,12 @@ export interface VisitRespondFulfilmentSource {
   getSettings(): Promise<VisitRespondAgentSettings>;
   createCalendarEvent(params: VisitRespondCalendarEventParams): Promise<string>;
   updateInviteFulfilled(inviteId: string, calendarEventId: string, location: string | undefined): Promise<void>;
+  markInviteFulfilmentPhase(inviteId: string, phase: LegacyPendingInviteFulfilmentPhase): Promise<void>;
+  recordInviteFulfilmentError(inviteId: string, message: string): Promise<void>;
   sendThankYouEmail(params: VisitRespondEmailParams): Promise<void>;
   pushLineMessage(to: string, text: string): Promise<void>;
   recordActivity(activity: { agent_slug?: string; summary: string; status: "success" | "failed" }): Promise<void>;
-  markInviteFailed(inviteId: string): Promise<void>;
 }
-import type { LegacyPendingInviteRow } from "@/modules/visit/legacy-schema";
 import type { VisitInviteChoice } from "@/modules/visit/public-response";
 
 export type VisitRespondFulfilmentRow = LegacyPendingInviteRow & { contacts: unknown };

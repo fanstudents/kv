@@ -5,8 +5,9 @@ import { legacyVisitProviders } from "@/adapters/visit/legacy-provider-adapter";
 import { createSupabaseVisitSettings } from "@/adapters/visit/supabase-visit-settings";
 import {
   toLegacyPendingInviteConfirmationPatch,
+  toLegacyPendingInviteFulfilmentErrorPatch,
+  toLegacyPendingInviteFulfilmentPhasePatch,
   toLegacyPendingInviteFulfilmentPatch,
-  toLegacyPendingInviteStatusPatch,
   type LegacyPendingInviteRow,
 } from "@/modules/visit/legacy-schema";
 import type {
@@ -46,6 +47,20 @@ export function createLegacyVisitRespondSources(): LegacyVisitRespondSources {
           .eq("id", inviteId);
         if (error) throw error;
       },
+      async markInviteFulfilmentPhase(inviteId, phase) {
+        const { error } = await getClient()
+          .from("pending_invites")
+          .update(toLegacyPendingInviteFulfilmentPhasePatch(phase))
+          .eq("id", inviteId);
+        if (error) throw error;
+      },
+      async recordInviteFulfilmentError(inviteId, message) {
+        const { error } = await getClient()
+          .from("pending_invites")
+          .update(toLegacyPendingInviteFulfilmentErrorPatch(message))
+          .eq("id", inviteId);
+        if (error) throw error;
+      },
       async sendThankYouEmail(params: VisitRespondEmailParams) {
         await legacyVisitProviders.sendEmail(params);
       },
@@ -58,13 +73,6 @@ export function createLegacyVisitRespondSources(): LegacyVisitRespondSources {
           summary: activity.summary,
           status: activity.status,
         });
-        if (error) throw error;
-      },
-      async markInviteFailed(inviteId) {
-        const { error } = await getClient()
-          .from("pending_invites")
-          .update(toLegacyPendingInviteStatusPatch("failed"))
-          .eq("id", inviteId);
         if (error) throw error;
       },
     },
