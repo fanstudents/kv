@@ -10,10 +10,48 @@
 
 ### 換機接續 checkpoint（2026-08-15）
 
-- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `ebddc5f`（goal trend failure truth）。CodeGraph 為 476 files／4,158 nodes／10,441 edges，無 pending drift。
+- Last code snapshot：`ebddc5f`（goal trend failure truth）。CodeGraph 為 476 files／4,158 nodes／10,441 edges，無 pending drift。
+- 本文件 revision 的輸入 snapshot：`be62051`（docs: record goal trend checkpoint）；本輪只整理計畫，不改 runtime code。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
+
+### 執行計畫身份與 GORE（2026-08-15）
+
+- **Profile：** Master；這份文件同時管理產品範圍、架構收斂、真實旅程、部署與交接，不另建第二份計畫。
+- **完整計畫 readiness：** `Needs Revision`。原因不是不能工作，而是 P0 產品範圍、P3 部分 recovery 語意、P5 外部 ownership，以及 W1 可變流程驗證尚未關閉；第一個可執行包仍可先做。
+- **架構交付狀態：** `Modular monolith ready for scoped KV delivery; transitional seams remain; not SaaS-ready`。這是目前可交付範圍的判定，不等於完整產品化計畫已 Ready。
+
+| Actor／consumer | Job／outcome | Product intent／why now |
+|---|---|---|
+| 工程團隊 | 在不複製客戶專案的前提下維護、驗證、擴充與部署 KV | 讓 Dennis 的 vibe-coded 原作可長期承接需求，而不是每次再拆一輪或另寫一套 |
+| 產品 owner／導入者 | 決定 9 月底要賣的能力組合、允許的外部副作用與 release owner | 先交付固定且可驗收的企業導入／內訓能力，不把未知需求提前做成平台 |
+| 企業操作人員 | 使用原有後台與事件入口完成 Visit、Orders、Support、KB 等工作 | UI／UX 不變，但故障、空資料與真實 provider 狀態要能被信任 |
+
+| Goal ID | Type | Goal | Observable outcome | 對應工作 |
+|---|---|---|---|---|
+| G-01 | Primary | 以固定能力包安全交付 KV | 選定的真實 journey 可在隔離 staging 重跑、留下 DB／provider／UI 證據並可交接 | P0、P5、P6、P8、P9 |
+| G-02 | Supporting | 每個變更有清楚 domain owner、錯誤語意與 side-effect 邊界 | 新需求可由 CodeGraph 定位到 owner；失敗不被空結果或 demo fallback 藏掉 | P1、P4、P7 |
+| G-03 | Enabling | 用最小實驗證明「可變流程」需要哪一層抽象 | 至少一個真實變化可不複製 route／module；沒有第二 consumer 就明確停止抽象 | W1；必要時 W2／W3 deferred |
+| G-04 | Enabling | 安裝、版本、migration、排程與 rollback 可重現 | 另一位工程師可依同一 commit 完成 staging deploy 與回退 | P8、P9 |
+
+**品質護欄：** UI／UX、既有 API JSON、Main／Teaching 資料 ownership 與 provider side-effect 順序預設不變；每個新增抽象必須有至少兩個真實 consumer，或有 provider translation、transaction、concurrency、recovery 的明確理由；每個 runtime change 都要有 focused tests、完整 verify 與受影響 Chrome evidence。
+
+**不變條件與非目標：** Agent role、event、workflow、provider 是四個不同概念；`modules/agents/identity.ts` 目前只是 `legacy-static-registry` 相容接縫，不是可動態編排的 runtime。現在不做 generic workflow engine／registry／JSON DSL／plugin marketplace／低碼編輯器／multi-tenant SaaS，也不另開空白專案重寫。
+
+**Goal trace：** G-01 → P0／P5／P6／P8／P9；G-02 → P1／P4／P7；G-03 → W1；G-04 → P8／P9。若 W1 結論改變 workflow owner、資料模型或 release strategy，先修回本文件，再進入下游 package。
+
+**證據標籤：** `[Requirement]` 是使用者／產品要求；`[Fact]` 是目前 repo、runtime、測試或設定已驗證的事實；`[Decision]` 是已選方案；`[Inference]` 是由多個事實推導；`[Assumption]` 是可回退的暫定值；`[Unknown]` 是必須由 decision、spike 或 preflight 關閉的未知。`[x]` 代表 evidence 已存在，`[~]` 代表部分完成，`[!]` 代表外部／release gate，`[?]` 代表尚未決定。
+
+| ID | Type | Requirement／invariant／non-goal | 由哪個工作證明 |
+|---|---|---|---|
+| R-01 | Requirement | UI／UX、既有 API JSON、Main／Teaching data ownership 與 provider side-effect 順序預設不變 | P1、P6、P7、P9 |
+| R-02 | Requirement | 選定的真實 journey 必須留下 provider receipt、DB diff、Chrome、cleanup 與 owner sign-off | P2、P6、P8 |
+| R-03 | Requirement | 可變流程先由既有 domain owner／typed config 表達；只有證據成立才升級抽象 | W1、P7 |
+| I-01 | Invariant | 不複製 route／domain module；不新增只有單 caller 的儀式層 | W1、P7 |
+| I-02 | Invariant | Agent role、event、workflow、provider 分開建模；`identity.ts` compatibility seam 不得冒充 runtime | W1、P6 |
+| NG-01 | Non-goal | 現在不做 generic workflow engine／registry／JSON DSL／plugin marketplace／低碼 UI | W1；W2／W3 只有觸發才重開 |
+| NG-02 | Non-goal | 現在不做 multi-tenant SaaS、全 repo rewrite、UI redesign 或把 Teaching DB 併入 Main | 全部 work packages |
 
 ### KV 推廣與模組化要求（2026-08-13）
 
@@ -29,6 +67,7 @@
 - [x] 本地 lint、typecheck、unit／contract、production build 與 browser smoke 可重複執行。
 - [ ] canonical CI、部署、健康檢查與 rollback 可重複執行。
 - [ ] product-specific partial failure／retry／replay 決策已確認並驗證。
+- [ ] 至少一個可變流程已完成 W1 proof，並明確記錄「保留 explicit use case」或「值得進 W2」；沒有證據時不建立 workflow registry。
 - [~] 無價值薄包裝持續收斂；保留的 port／adapter 必須有 provider translation、多 consumer、transaction、concurrency 或 recovery 理由。
 
 ### P1 安裝與運維基礎（2026-08-14，進行中）
@@ -60,7 +99,7 @@
 - **範圍：** 只移動 `indexDocs`／`indexStats` 的 implementation owner，並把 provider／DB 失敗明確化；保留 `/api/knowledge-base/reindex`、發布／編輯自動重建索引、`replace_kb_chunks` atomic RPC、embedding 維度與成功回傳行為。
 - **入口與 consumer：** `supabaseKnowledgeIndexRepository`、`supabase-knowledge-store` 的 publish/update side effect、`kb-search` 的 query search；成功 API JSON、頁面文案、資料表與 UI 不變，失敗改以結構化非 2xx 回報。
 - **不變條件：** 空 doc id 不呼叫 DB/provider；草稿／封存會以空 chunks 清除舊索引；embedding／RPC 失敗不清空上一版，並以結構化非 2xx 回應呈現；成功時 index stats 仍回 `{ chunks, docs }`。
-- **驗收證據：** focused KB contracts（含 source-store 28 tests）、完整 700 tests、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`；本批另以 Chrome 點擊「重建索引」驗證成功 envelope。
+- **驗收證據：** focused KB contracts（含 source-store 28 tests）、當時完整 test suite、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`；本批另以 Chrome 點擊「重建索引」驗證成功 envelope。
 - **非目標：** 不搬 `searchKnowledge`／`formatHits`、`knowledgeContext`、PDF／Firecrawl ingestion；不新增 generic search／workflow framework。
 
 #### P2-4 change contract：Context persistence boundary
@@ -76,10 +115,10 @@
 - **範圍：** 只移動 Firecrawl URL／site import 與 recheck 共用的 `kb_sources` lookup、check-in、refresh、create、failure、recheck-list persistence；PDF source persistence 暫留 `kb-import.ts`。
 - **入口與 consumer：** `src/lib/kb-crawl.ts#importUrl`、`recheckUrlSources`；保留 Firecrawl HTTP／quota／retry 在 `firecrawl-client.ts`，保留候選條目 ingestion 在 `kb-import.ts`。
 - **不變條件：** URL normalization／checksum、unchanged check-in、content hash refresh、source status transitions、recheck checked／changed 統計與既有錯誤訊息不變。
-- **驗收證據：** baseline `kb-crawl-direct` 24 tests；after focused crawl／source adapter 28 tests、完整 676 tests、lint/typecheck/build、Chrome `/knowledge-base` 與 `/goals`。
+- **驗收證據：** baseline `kb-crawl-direct` 24 tests；after focused crawl／source adapter 28 tests、當時完整 test suite、lint/typecheck/build、Chrome `/knowledge-base` 與 `/goals`。
 - **非目標：** 不新增 generic source repository、workflow engine、PDF migration、UI/API/schema 變更；recheck 對 `knowledge_base` review mark 與 `line_agent_activity` audit 仍留在現有 workflow owner。
 
-不做：另開空白專案重寫、全面 UI redesign、為未知未來建立通用 Agent runtime、無 migration 設計改資料格式、以檔案數或測試數當進度。
+不做：另開空白專案重寫、全面 UI redesign、為未知未來建立通用 Agent runtime／workflow engine／registry／JSON DSL／plugin marketplace、無 migration 設計改資料格式、以檔案數或測試數當進度。
 
 ## 2. 不可破壞契約
 
@@ -110,6 +149,31 @@ page/component -> API route/composition -> modules/<domain> -> port
 - `src/components/**`：既有 presentation；只有真實需求才局部整理。
 
 Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研究、邀約、報告、訂單才是 workflow。不要把三者混成通用 runtime。
+
+### Workflow 擴充政策（本輪重新定調）
+
+前面曾提出 `WorkflowDefinition + Registry + Binding` 的方向；本文件現在把它降級為**未來可能的選項**，不是目前要建立的架構。原因是現有 `identity.ts` 的 `WorkflowBinding`、`capabilityIds` 仍是空的 legacy compatibility model，真正的 Visit／Orders／Support 行為仍由 domain module 明確持有。現在直接做 registry 只會增加檔案、mapping 與測試，卻沒有第二個真實 consumer 可以證明它值得存在。
+
+目前採用的最小路徑：
+
+```text
+事件（webhook／cron／postback）
+  -> 現有 domain use case
+  -> typed deployment config／local policy（只放安全可變參數）
+  -> ports／provider adapters
+  -> Main DB／外部 provider
+```
+
+- **可配置的是參數，不是任意程式流程：** 例如通知開關、需要人工核准、報告收件人、允許的 provider／recipient；使用既有 settings 與 Zod／型別驗證，不把任意 JSON 變成 DSL。
+- **行為先留在 code-owned workflow：** Visit、Orders、Support 各自維持明確 use case；不同客戶若只是參數差異，不複製 route 或 module。
+- **只有證據才抽象：** 出現第二個獨立 consumer、第二個客戶要選同一種變化，或同一故障／recovery 模式重複出現，才考慮抽出最小 typed policy／definition。
+- **停止條件：** W1 若證明現有 explicit use case 已足夠，就停止，不建立 workflow registry；不要為了「未來可能有很多 Agent」預先做平台。
+
+| 後續層級 | 觸發條件 | 可以做什麼 | 現在狀態 |
+|---|---|---|---|
+| W1 | 一個真實流程需要一個可變行為 | 在既有 domain owner 內做最小 typed config／policy proof | 本輪先做；不需新的外部 key |
+| W2 | 至少兩個獨立 consumer 需要選擇／版本化同一行為 | 小型、code-owned、typed `WorkflowDefinition` registry | Deferred；由 W1 證據觸發 |
+| W3 | 非工程人員需要不發版就編輯流程，且已有明確權限／audit／rollback 需求 | DB catalog／受限 DSL／管理 UI | Deferred；另立產品平台計畫 |
 
 ### 架構判定
 
@@ -305,7 +369,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。`https://kva.zeabur.app` 於 2026-08-14 已回 200，LINE／Teachify GET health routes 也存在，但頁面品牌為 MixAgent，無版本／commit 證據；因此它是「存活但 ownership／revision／staging 身分未知」，不得直接拿來做破壞性驗收或改 webhook。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
-- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、135 files／692 unit tests、93-page production build與 136-test hermetic browser smoke；另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無缺 Supabase env 日誌。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
+- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、137 files／703 tests、93-page production build與 136-test hermetic browser smoke；另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無缺 Supabase env 日誌。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
 - [ ] 指定 scheduled failure 通知目的地／owner。
 - [ ] 明確 deploy command、migration ordering、health check、promotion、app／secret／migration rollback與 release owner。
 
@@ -314,7 +378,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [~] Main／OpenAI／Firecrawl／Google／Primary LINE 與 Support Main 自主 journeys 已達標；Support LINE、Teachify provider truth、Visit inbound、hosted schedule／deploy 仍有明確外部 gate，replay decisions 仍依 P3。
 - [x] `/integrations` badge／計數已改綁 `/api/integrations/status` live truth並維持原 UI/UX；localStorage 僅保留管理連結、Agent 用途與自訂服務 demo，自訂項無 live probe 時顯示未連線。
 - [~] 本輪 CodeGraph 沒找到可安全刪除的無 caller 模組；Visit `legacy-*` adapters 仍被 webhook／cron 真實呼叫，保留為外部／舊 schema 邊界。最後 transitional cleanup 要等 P6 evidence，不為減檔名硬刪。
-- [~] 全量 verify、CodeGraph、136-file／700-test contracts、8-page Chrome matrix、Main residue audit 與 136-test staging browser matrix 已完成；staging cutover／rollback rehearsal 仍待 deploy ownership。
+- [~] 全量 verify、CodeGraph、137-file／703-test contracts、8-page Chrome matrix、Main residue audit 與 136-test staging browser matrix 已完成；staging cutover／rollback rehearsal 仍待 deploy ownership。
 - [x] 穩定的安裝、verify、staging read-path 與 opt-in write/cleanup 邊界已補進 README；細節只由本 TODO 維護，不新增重複架構／runbook 文件。
 
 ## 6. 自主邊界與仍需外部取得的資產
@@ -322,6 +386,8 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 Secrets 只放 Git ignored `.env.local` 或正式 secret store；不要貼進 Git、TODO、測試 fixture或聊天回報。
 
 目前不需要再取得 Main Supabase、OpenAI、Firecrawl、Google 或 Primary LINE 才能繼續工程工作。`CRON_SECRET`、`SUPPORT_LOG_SECRET` 是我方內部 secret，可自行安全產生，不應算成外部 blocker。真正仍需外部提供的是 Support LINE、Teachify provider truth、safe relay、部署／canonical repo，以及產品決策；Main Supabase credentials 已設定，不列入待取得數量。
+
+W1 bounded workflow proof 只使用既有 Main staging fixture、local provider doubles 與目前已存在的設定，不需要再拿新的外部 key；它的輸出是「是否值得抽出最小 policy」的決策，不是新的 runtime 平台。
 
 | 優先 | Service | 需要取得／設定 | 同時要準備的安全資產 | 解鎖 |
 |---|---|---|---|---|
@@ -359,26 +425,44 @@ Main `kv-staging` 的 Supabase env 已設定；Orders 與 conversation lock inte
 ### 7.3 依賴圖
 
 ```text
-P0 Scope control（D，不阻塞 P1／P2／P4） ────────────────────┐
-P1 驗收護欄（A） ──> P2 Primary composite（A） ──────────────┤
-        └──────────> P4 本地 provider readiness（G） ─┐      │
-P3 Recovery 決策（D） ────────────────────────────────┼─> P6 真實 provider journeys ─┤
-P5 外部 staging 資產（E，可平行取得） ─────────────────┘      │
+P0 Scope（D） ───────────────────────────────────────────────┐
+P1 驗收護欄（A） ──> P2 Primary composite（A） ─────────────┤
+         ├──────────> P4 本地 provider readiness（G） ──────┤
+         └──────────> W1 bounded workflow proof（A） ────────┤
+P3 Recovery／replay decisions（D） ──────────────────────────┤
+P5 外部 staging／ownership 資產（E） ────────────────────────┤
                                                                v
-P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollback（E） -> P9 cleanup／交接
+P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
+                                   -> P8 CI／deploy／rollback（E） -> P9 cleanup／交接
 ```
+
+**DAG 讀法：** P1、P2、P4、W1 可以先用現有 fixture／staging 自主推進；P0、P3、P5 可平行整理但屬決策或外部 gate。P6 必須等 P0 的產品 scope、P3 的 recovery 語意、P4 的本地 contract、P5 的 credentials／ownership 與 W1 的抽象決策都明確；P7 只修 P6 真正暴露的問題，不能提前做水平大重構。
+
+| ID | Outcome | Depends on | Produces | 可平行 | Serial owner／integration point |
+|---|---|---|---|---|---|
+| P0 | 9 月底能力包與驗收範圍定案 | 產品 owner 輸入 | accept／defer／reject、journey、release owner | P1、P4、W1、P5 | 產品 owner |
+| P1 | 所有 side effect 都有測試護欄 | 現有 staging／env | allowlist、fixture、snapshot／restore、停止條件 | P0、P3、P4、P5 | 工程團隊 |
+| P2 | Primary composite evidence 可重跑 | P1 | DB diff、provider receipt、Chrome、cleanup | P0、P3、P4、W1 | acceptance owner |
+| P3 | Visit／Teachify／Support recovery 語意核准 | 現有 local contracts、provider input | retry／replay／stale／rollback decisions | P0、P1、P4、P5、W1 | 產品＋可靠性 owner |
+| P4 | 本地 provider contract 與 failure map 完整 | P1 | local contract、fixture、未驗外部項清單 | P0、P3、P5、W1 | 各 domain owner |
+| P5 | 外部 credentials／部署 ownership 可使用且可撤回 | 外部協作者與產品決策 | Support／Teachify／deploy 資產及 owner | P0、P1、P3、P4、W1 | release owner |
+| W1 | 一個可變流程完成最小抽象判定 | P1 | keep explicit／extract policy／W2 deferred decision | P0、P3、P4、P5 | 該 domain owner |
+| P6 | 真實 provider journeys 在隔離 staging 通過 | P0、P3、P4、P5、W1 | receipt、DB diff、UI、cleanup、owner sign-off | 無；同一環境 serial | release owner |
+| P7 | 只修 P6 暴露的可靠性與 ownership 問題 | P6 | focused code／contracts、architecture decision | 不同 domain 可平行，整合需 serial | 工程整合 owner |
+| P8 | deploy／migration／health／rollback 可重現 | P7、canonical repo owner | hosted CI、promotion、rollback runbook | 無；release serial | release owner |
+| P9 | 乾淨交接與下一批入口完成 | P8 | clean worktree、證據索引、owner／risk handoff | 無 | engineering＋product owner |
 
 ### 7.4 Work packages 與退出條件
 
-0. **P0 — Scope control（D，不阻塞 P1／P2／P4）**
+0. **P0 — Scope control（D，不阻塞 P1／P2／P4／W1）**
    - 確認 9 月底推廣版的使用者、必含能力、明確不做項、驗收 journey 與 release owner。
    - 逐項裁決 upstream 候選：名片轉正、LINE 寄出／取消卡片、Firecrawl fallback、社群連結、劇院圖文／hold state；只把核准項目沿現有 Visit／KB owner 手工移植，不 merge 整包 upstream。
    - 品牌改名與 Super Agent 展示是產品／UI 需求，另立 change contract，不混入保持 UI 不變的結構整理。
    - **Exit**：每個候選有 accept／defer／reject、owner、journey 與 guardrail；未決項不阻塞下面不相依的 acceptance。
 
-1. **P1 — 驗收護欄（A）**
+1. **P1 — 驗收護欄（A，尚未封口）**
    - [x] 本地已產生並設定 Git ignored 的 `CRON_SECRET`、`SUPPORT_LOG_SECRET`；它們不是外部 blocker，也未寫入文件或 commit。
-   - 建立 acceptance recipient allowlist、具名 fixture、資料／設定 snapshot 與精確 restore；不得使用正式客戶 recipient。
+   - [ ] 建立 acceptance recipient allowlist、具名 fixture、資料／設定 snapshot 與精確 restore；不得使用正式客戶 recipient。
    - 固定每批流程：CodeGraph 找 owner／consumer → 固定契約 → 完成同批修改 → focused tests → affected Chrome journey → heavy verify → cleanup → coherent commit。
    - **Exit**：所有後續 side effect 都有 allowlist、前後 snapshot、cleanup 與失敗停止條件。
 
@@ -389,13 +473,39 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - [x] `/subscribers`、`/agents/orders`、`/agents/teamlead` 改前／後與 cleanup 後皆以 Chrome 驗證；console 0 error，Orders fixture 曾被 Chrome 抓出後改用 ID 差集修正並二次驗收。
    - **Exit（已達成）：**三條 journey 的輸入、DB diff、LINE receipt、Chrome evidence、cleanup 成對存在；`npm run acceptance:primary:composites` 為可重跑入口。
 
-3. **P3 — Recovery／replay 決策（D，可與 P2 平行）**
+**W1 — Bounded workflow extensibility proof（A，P1 後可執行）**
+
+**Contribution：** G-03；驗證 R-03「可變行為先用既有 domain owner／typed config 表達，沒有證據就不抽平台」，並守住 I-01 UI／API／資料相容性。
+
+- **目的：** 回答「未來不同企業要有些流程差異時，最小需要哪一層」；不是建立 workflow engine，也不是把 Agent 變成可任意編排的資料表。
+- **範圍 anchors：** 先盤點 `modules/visit`、`modules/orders`、`modules/support` 的現有 use case、`line_agents.settings` 與 provider ports；可選一個不需要新外部 key 的真實變化，例如 Orders 通知開關或 Visit 人工核准開關。實際選項要以 CodeGraph caller／既有 contract 證據決定。
+- **不變：** 不新增 `workflow-engine`／generic registry／JSON DSL／plugin marketplace；不複製 route／domain module；不改 UI、API payload、Main schema、Teaching ownership 或 provider side-effect 順序；不把 `identity.ts` 的 compatibility binding 宣稱成 runtime。
+
+執行順序：
+
+1. 用 CodeGraph 與現有測試列出 Visit／Orders／Support 的固定規則、可安全配置參數、provider 差異與真正重複的能力；每一項標示 owner 與 consumer。
+2. 選一個最小且可回退的變化，先寫 behavior contract：輸入／設定、狀態、輸出、side effect、錯誤與 restore 行為。
+3. 在原 domain owner 內實作或驗證 typed config／local policy；若現有 code 已能表達，直接記錄「不需新抽象」，不要為了完成 W1 硬加檔案。
+4. 跑 focused contract、完整 `npm run verify:full`、CodeGraph impact／caller 檢查；受影響頁面照既有規則開 Chrome 做改前／改後／cleanup 驗證。
+5. 把結論回寫本文件：保留 explicit use case、抽出最小 shared policy，或建立 W2 deferred gate。若沒有第二 consumer，明確 STOP，不建立 registry。
+
+| Check | 證明內容 | 失敗處理 |
+|---|---|---|
+| CodeGraph impact／caller | 沒有 route copy、單 caller 儀式層或新增跨域耦合 | 回到原 domain owner，撤回不必要的 wrapper |
+| focused + full tests | 變化的規則、API／資料相容性與全域回歸 | 只回退 W1 變更，不影響既有 P2 evidence |
+| Chrome affected journey | UI 外觀、互動順序、loading／success／error 與 cleanup 不變 | 停止 W1，不進 P6；修復或還原後再驗 |
+| decision record | 清楚判斷 explicit／W2／W3，而不是留下模糊「以後再說」 | 將未決項標為 Unknown，指定 owner／觸發條件 |
+
+- **Done When：** 一個可觀察的流程變化已可重跑；沒有複製 route／module；所有行為與回退證據存在；本文件已記錄 keep／extract／defer 決策。
+- **Rollback／handoff：** W1 任一驗證失敗就回退本批 code／fixture，保留失敗證據；成功只把決策交給 P6／P7，不自動開 W2。只有第二個獨立 consumer 或明確產品需求出現，才重新開 W2。
+
+3. **P3 — Recovery／replay 決策（D，可與 P1／P2／P4／W1／P5 平行整理）**
    - [x] KB embedding：先產生並驗證全部新 chunks，再以 service-role-only transaction 替換；Main staging rollback／replace、權限與 cleanup 已通過，失敗時保留上一版可搜尋 index。
    - [x] Visit delivery：`pending_invites.fulfilment_phase`／`fulfilment_error` 記錄 Calendar／Gmail／LINE／完成 checkpoint；重試只補未完成副作用，不重建已記錄 Calendar、不重寄已完成 Gmail。外部副作用成功但 checkpoint 寫入失敗仍列入人工 reconciliation，不宣稱 exactly-once。
    - [x] Visit timeout：以 `timeout_phase`／`timeout_error` 保存逾時判定、activity checkpoint、LINE notification 與完成狀態；partial failure 只重試缺少步驟，並以 legacy `declined` status 保持相容。
    - [x] Teachify exact replay／並行重送：以 `(order_id,event_key)` durable claim 記錄 `sending`／`delivered`／`failed`，claim 進行中回 202，不再第二次 LINE push；delivery state 寫入失敗回 `delivery_unrecorded`，避免假裝完整成功。
    - Teachify stale／out-of-order：仍需官方 event ID／timestamp／狀態轉移契約與產品核准；目前 fingerprint 只保護相同 normalized event 的 exact replay。
-- **Exit**：Visit public respond、Visit timeout phase 與 Teachify exact replay 的 approved local behavior、idempotency／checkpoint、失敗狀態與 focused／remote probe 證據已完成；Support 已有可追蹤的 delivery identity，但舊客服 target 尚未確認 idempotency／人工 replay／rollback，因此 Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
+   - **Exit**：Visit public respond、Visit timeout phase 與 Teachify exact replay 的 approved local behavior、idempotency／checkpoint、失敗狀態與 focused／remote probe 證據已完成；Support 已有可追蹤的 delivery identity，但舊客服 target 尚未確認 idempotency／人工 replay／rollback，因此 Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
 
 4. **P4 — 本地 provider readiness（G）**
    - [x] Visit inbound：本地 LINE signature、parsing、route、application 與 delivery failure contracts 已重跑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。
@@ -422,6 +532,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
 7. **P7 — 核准需求與證據驅動的可靠性／架構收斂（A）**
    - 先把 P0 核准的功能逐條做成垂直 slice；每條都沿既有 domain owner 實作，不把 upstream 舊架構帶回來。
    - 只修 P2／P4／P6 暴露的 retry、idempotency、partial failure、observability 或契約問題；不再推測式搬檔。
+   - 依 W1 結論處理可變流程：若 explicit use case 已足夠就停止；只有 W1 證明第二 consumer／共同故障模式時，才抽出最小 typed policy。不得把 W1 擴成 generic workflow engine。
    - [x] 共用 Agent 後台的設定／活動／真實狀態讀取已改為「成功才更新、失敗留診斷」；demo fallback 只在 demo 模式保留，PATCH 失敗會回復本地 optimistic state，不改 UI 結構或 API payload。
    - [x] Knowledge Base 的搜尋／索引失敗已改為「失敗就明示、空結果才代表真的沒有命中」；reindex／publish 的 failure response 與 Agent live context 均可診斷，沒有新增 generic layer。
    - [x] Agent 連線狀態卡片已共用 `integrationConnectionState`；載入中／查詢失敗不再以 `INTEGRATION_SEEDS` 的 presentation status 冒充 provider connectivity，UI 與 API contract 不變。
@@ -445,10 +556,13 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
 
 ## 8. Readiness verdict
 
-- **現在不是卡死**：P1、P2、P4 以及 P3 的決策草案都能自主往前；Primary LINE、Main／Teaching DB、OpenAI、Firecrawl、Google 已可用，內部 cron／support log secret 可自行產生。
-- **現在也不是「只差測試」**：骨架與主要 domain ownership 已就位，但 Visit／Teachify／Support 的 recovery／replay 語意仍需決策；過細 wrapper 要在真實 evidence 後收斂，不能直接宣告 architecture 完成。
+- **Verdict：`Needs Revision`（完整產品化計畫）**：不是因為目前不能工作，而是 P0 產品範圍、P3 stale／out-of-order 與 Support recovery 語意、P5 外部 ownership、P1 護欄收口，以及 W1 可變流程決策仍會影響下游的 P6／P8。
+- **Scoped delivery 狀態仍成立**：現有 modular monolith 可承接已知 KV 需求；Main／Teaching DB、OpenAI、Firecrawl、Google、Primary LINE 與多數本地 contracts 已有證據。這不代表 Agent 已可任意配置，也不代表可直接當 multi-tenant SaaS。
+- **第一個可執行 package：** P1。先補齊 allowlist、fixture、snapshot／restore 與 side-effect 停止條件；完成後立即跑 W1。P1／W1 都不需要新的外部 key。
+- **可平行處理的 gate：** 產品 owner 可整理 P0；可靠性 owner 可裁決 P3；外部協作者可取得 P5。這三條未完成前，不猜 public contract、不把 local fixture 寫成 provider truth。
+- **完成後的唯一順序：** `P1 → W1`；同時整理 `P0／P3／P5` → `P4` 重驗 → `P6` 真實 provider journeys → `P7` 只修實際暴露問題 → `P8` deploy／migration／rollback → `P9` cleanup／handoff。
+- **若 W1 沒有第二 consumer：** 保留現有 explicit workflow，正式記錄 STOP；不建立 `WorkflowDefinition` registry。只有新需求真的出現，才重新開 W2／W3 gate。
 - **真正外部 gate**：Support 專用 LINE、Teachify 真實簽章素材、Support relay target、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及 9 月底產品 scope／release owner。
-- **建議立即順序**：P2 先停在 evidence boundary；先核准 P3 recovery／replay 語意並取得 P5 外部資產，資產到齊後只跑 P6。P7 只修 P6 暴露的可靠性問題，最後做 P8、P9。
 - **禁止誤判**：本地自簽 fixture 只證明我們的 contract；可回 200 的 `kva.zeabur.app` 只證明 domain 存活。兩者都不能替代 provider receipt、commit identity、隔離 staging 或 rollback truth。
 
 ## 9. 文件政策
