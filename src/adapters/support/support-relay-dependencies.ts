@@ -1,7 +1,11 @@
 import { logConversationMessage } from "@/lib/support-conversations";
 import type { getMainSupabase } from "@/lib/supabase";
 import { supabaseSubscribersRepository } from "@/adapters/subscribers/supabase-subscribers-repository";
-import type { SupportRelayPorts } from "@/modules/support/relay";
+import {
+  deriveSupportRelayDeliveryKey,
+  SupportRelayForwardError,
+  type SupportRelayPorts,
+} from "@/modules/support/relay";
 
 type SupportSupabaseClient = ReturnType<typeof getMainSupabase>;
 
@@ -13,19 +17,36 @@ export function createSupportRelayDependencies(
       async forward(request) {
         const targetUrl = process.env.SUPPORT_RELAY_TARGET_URL;
         if (!targetUrl) {
-          throw new Error("Missing SUPPORT_RELAY_TARGET_URL environment variable");
+          throw new SupportRelayForwardError(
+            "Missing SUPPORT_RELAY_TARGET_URL environment variable",
+            "configuration"
+          );
         }
 
-        const response = await fetch(targetUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": request.contentType,
-            "X-Line-Signature": request.signature,
-          },
-          body: request.rawBody,
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!response.ok) throw new Error(`舊系統回應 ${response.status}`);
+        const deliveryKey = request.deliveryKey ?? deriveSupportRelayDeliveryKey(request.rawBody);
+        let response: Response;
+        try {
+          response = await fetch(targetUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": request.contentType,
+              "X-Line-Signature": request.signature,
+              "X-KV-Support-Relay-Key": deliveryKey,
+            },
+            body: request.rawBody,
+            signal: AbortSignal.timeout(8000),
+          });
+        } catch (error) {
+          const isTimeout = error instanceof DOMException && error.name === "TimeoutError";
+          throw new SupportRelayForwardError(
+            isTimeout ? "舊客服系統轉送逾時" : error instanceof Error ? error.message : "舊客服系統轉送網路錯誤",
+            isTimeout ? "timeout" : "network",
+            { cause: error }
+          );
+        }
+        if (!response.ok) {
+          throw new SupportRelayForwardError(`舊系統回應 ${response.status}`, "rejected");
+        }
       },
     },
     repository: {

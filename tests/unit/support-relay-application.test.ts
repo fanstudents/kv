@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseSupportRelayPayload, processSupportRelay } from "@/modules/support/relay";
+import {
+  deriveSupportRelayDeliveryKey,
+  parseSupportRelayPayload,
+  processSupportRelay,
+} from "@/modules/support/relay";
 import type {
   SupportRelayActivity,
   SupportRelayForwardRequest,
@@ -53,7 +57,17 @@ const request = {
   contentType: "application/json; charset=utf-8",
 };
 
+const deliveryKey = deriveSupportRelayDeliveryKey(request.rawBody);
+
 describe("Amber LINE legacy relay application", () => {
+  it("derives the same delivery key for an exact webhook replay", () => {
+    expect(deriveSupportRelayDeliveryKey(request.rawBody)).toBe(deliveryKey);
+    expect(deriveSupportRelayDeliveryKey(request.rawBody)).toBe(
+      deriveSupportRelayDeliveryKey(request.rawBody)
+    );
+    expect(deriveSupportRelayDeliveryKey(request.rawBody + " ")).not.toBe(deliveryKey);
+  });
+
   it("keeps only object events and rejects a malformed event collection", () => {
     expect(parseSupportRelayPayload('{"events":[{"type":"message"},null,42]}')).toEqual({
       type: "parsed",
@@ -72,8 +86,12 @@ describe("Amber LINE legacy relay application", () => {
         events: [{ type: "follow" }],
         ports: fixture.ports,
       })
-    ).resolves.toEqual({ capturedConversations: 0, issues: [] });
-    expect(fixture.forwards).toEqual([request]);
+    ).resolves.toEqual({
+      capturedConversations: 0,
+      issues: [],
+      forward: { deliveryKey, status: "forwarded" },
+    });
+    expect(fixture.forwards).toEqual([{ ...request, deliveryKey }]);
     expect(fixture.activities).toEqual([]);
     expect(fixture.touches).toEqual([]);
     expect(fixture.conversations).toEqual([]);
@@ -98,14 +116,18 @@ describe("Amber LINE legacy relay application", () => {
     expect(fixture.activities).toEqual([
       {
         summary:
-          "收到客戶 U123 的訊息：「請問訂單進度」（已轉發給既有客服系統處理，這裡只記錄）",
+          "收到客戶 U123 的訊息：「請問訂單進度」（KV 只記錄、不回覆；轉送狀態另見活動紀錄）",
         status: "success",
       },
     ]);
     expect(fixture.conversations).toEqual([
       { userId: "U123", text: "請問訂單進度" },
     ]);
-    expect(result).toEqual({ capturedConversations: 1, issues: [] });
+    expect(result).toEqual({
+      capturedConversations: 1,
+      issues: [],
+      forward: { deliveryKey, status: "forwarded" },
+    });
   });
 
   it("records relay failure while still capturing customer messages", async () => {
@@ -128,10 +150,11 @@ describe("Amber LINE legacy relay application", () => {
     ).resolves.toMatchObject({
       capturedConversations: 1,
       issues: [{ operation: "forward", message: "legacy unavailable" }],
+      forward: { deliveryKey, status: "not_confirmed", failureKind: "unknown" },
     });
     expect(fixture.activities).toContainEqual({
       summary:
-        "轉發給舊客服系統失敗：legacy unavailable（客戶仍會由舊系統處理，只是這筆沒轉發成功）",
+        `轉發給舊客服系統未確認成功：legacy unavailable（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由舊系統 owner 依 key 確認）`,
       status: "failed",
     });
     expect(fixture.conversations).toEqual([
@@ -147,13 +170,14 @@ describe("Amber LINE legacy relay application", () => {
     expect(fixture.activities).toEqual([
       {
         summary:
-          "轉發給舊客服系統失敗：轉發失敗（客戶仍會由舊系統處理，只是這筆沒轉發成功）",
+          `轉發給舊客服系統未確認成功：轉發失敗（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由舊系統 owner 依 key 確認）`,
         status: "failed",
       },
     ]);
     expect(result).toEqual({
       capturedConversations: 0,
       issues: [{ operation: "forward", message: "轉發失敗" }],
+      forward: { deliveryKey, status: "not_confirmed", failureKind: "unknown" },
     });
   });
 
@@ -183,6 +207,7 @@ describe("Amber LINE legacy relay application", () => {
         { operation: "activity", message: "activity unavailable", userId: "U123" },
         { operation: "conversation", message: "conversation unavailable", userId: "U123" },
       ],
+      forward: { deliveryKey, status: "forwarded" },
     });
     expect(fixture.touches).toEqual(["U123"]);
     expect(fixture.activities).toHaveLength(1);

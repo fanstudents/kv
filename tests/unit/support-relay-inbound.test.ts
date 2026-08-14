@@ -46,7 +46,7 @@ describe("Amber LINE relay inbound rules", () => {
       text: "請問訂單進度",
       conversationRole: "customer",
       activitySummary:
-        "收到客戶 U123 的訊息：「請問訂單進度」（已轉發給既有客服系統處理，這裡只記錄）",
+        "收到客戶 U123 的訊息：「請問訂單進度」（KV 只記錄、不回覆；轉送狀態另見活動紀錄）",
     });
   });
 

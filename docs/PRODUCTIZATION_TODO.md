@@ -167,7 +167,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 135 files／692 tests、93-page build；本批 timeout recovery focused contracts + remote migration probe；Chrome `/agents/visit` 前後 DOM／screenshot 維持原畫面且 app error 0；2026-08-15 CodeGraph 473 files／4,117 nodes／10,350 edges |
+| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 135 files／694 tests、93-page build；本批 timeout recovery + Support relay delivery-key contracts；Chrome `/agents/support` 顯示原有後台畫面、DOM／screenshot 正常且 app error 0；2026-08-15 CodeGraph 473 files／4,124 nodes／10,377 edges |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
 | LINE webhook payload guard | `parseVisitLineWebhookPayload`／`parseSupportRelayPayload` + 28 focused contracts（2026-08-15） | `events` 非陣列會在 route dispatch 前被拒絕；陣列中的 null／primitive 不會進入 application `.map`；正常空 payload 與既有 signature／relay contract 保持不變。未改 UI 或 provider side-effect policy |
@@ -290,6 +290,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [x] KB index replacement 已採 transaction 原子替換，provider／RPC 失敗不再清空可用索引；草稿／封存仍以空 replacement 清除既有 chunks，維持原產品契約。
 - [x] Teachify exact replay／並行 claim 已按 provider-specific ledger 實作，不引入 generic retry／queue；stale／out-of-order 仍保留給 provider truth 與產品決策。
 - [x] Visit public respond 與 timeout 多副作用 phase 已按 provider-specific contract 實作；不引入 generic retry／queue。Teachify stale／out-of-order 與 Support relay retry 仍需 provider truth／產品語意後處理。
+- [x] Support relay 已為每個 raw webhook 建立穩定的 `body:<sha256>` delivery key，轉送時附上 `X-KV-Support-Relay-Key`，並將設定缺失、網路錯誤、逾時與非 2xx 回應分成可診斷的 failure kind；有效 webhook 仍回 200。這只建立 replay identity 與觀測契約，不假裝舊客服已支援 idempotency，也不在未取得 owner 契約前自動重送。
 
 ### WP-21 CI／deploy／rollback `[!]`
 
@@ -386,7 +387,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - [x] Visit timeout：以 `timeout_phase`／`timeout_error` 保存逾時判定、activity checkpoint、LINE notification 與完成狀態；partial failure 只重試缺少步驟，並以 legacy `declined` status 保持相容。
    - [x] Teachify exact replay／並行重送：以 `(order_id,event_key)` durable claim 記錄 `sending`／`delivered`／`failed`，claim 進行中回 202，不再第二次 LINE push；delivery state 寫入失敗回 `delivery_unrecorded`，避免假裝完整成功。
    - Teachify stale／out-of-order：仍需官方 event ID／timestamp／狀態轉移契約與產品核准；目前 fingerprint 只保護相同 normalized event 的 exact replay。
-   - **Exit**：Visit public respond、Visit timeout phase 與 Teachify exact replay 的 approved local behavior、idempotency／checkpoint、失敗狀態與 focused／remote probe 證據已完成；Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
+- **Exit**：Visit public respond、Visit timeout phase 與 Teachify exact replay 的 approved local behavior、idempotency／checkpoint、失敗狀態與 focused／remote probe 證據已完成；Support 已有可追蹤的 delivery identity，但舊客服 target 尚未確認 idempotency／人工 replay／rollback，因此 Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
 
 4. **P4 — 本地 provider readiness（G）**
    - [x] Visit inbound：本地 LINE signature、parsing、route、application 與 delivery failure contracts 已重跑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。

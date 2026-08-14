@@ -13,6 +13,7 @@ vi.mock("@/adapters/subscribers/supabase-subscribers-repository", () => ({
 }));
 
 import { createSupportRelayDependencies } from "@/adapters/support/support-relay-dependencies";
+import { deriveSupportRelayDeliveryKey } from "@/modules/support/relay";
 
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => {
@@ -47,6 +48,7 @@ describe("Support relay dependencies", () => {
         headers: {
           "Content-Type": "application/json",
           "X-Line-Signature": "line-signature",
+          "X-KV-Support-Relay-Key": deriveSupportRelayDeliveryKey('{"events":[]}'),
         },
         body: '{"events":[]}',
         signal: expect.any(AbortSignal),
@@ -59,13 +61,27 @@ describe("Support relay dependencies", () => {
     const ports = createSupportRelayDependencies(client);
     await expect(
       ports.relay.forward({ rawBody: "{}", signature: "sig", contentType: "application/json" })
-    ).rejects.toThrow("Missing SUPPORT_RELAY_TARGET_URL");
+    ).rejects.toMatchObject({
+      kind: "configuration",
+      message: "Missing SUPPORT_RELAY_TARGET_URL environment variable",
+    });
 
     vi.stubEnv("SUPPORT_RELAY_TARGET_URL", "https://legacy.example.test/line");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 }));
     await expect(
       ports.relay.forward({ rawBody: "{}", signature: "sig", contentType: "application/json" })
-    ).rejects.toThrow("503");
+    ).rejects.toMatchObject({ kind: "rejected", message: "舊系統回應 503" });
+  });
+
+  it("classifies relay transport failures without retrying the legacy POST", async () => {
+    vi.stubEnv("SUPPORT_RELAY_TARGET_URL", "https://legacy.example.test/line");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("socket closed")));
+    const { client } = createSupabase();
+    const ports = createSupportRelayDependencies(client);
+
+    await expect(
+      ports.relay.forward({ rawBody: "{}", signature: "sig", contentType: "application/json" })
+    ).rejects.toMatchObject({ kind: "network", message: "socket closed" });
   });
 
   it("delegates subscriber and conversation ownership while surfacing activity failures", async () => {
