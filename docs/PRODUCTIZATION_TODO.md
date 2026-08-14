@@ -10,7 +10,7 @@
 
 ### 換機接續 checkpoint（2026-08-15）
 
-- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `0d9261a`（integration probe failure truth）。CodeGraph 為 475 files／4,153 nodes／10,430 edges，無 pending drift。
+- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `ebddc5f`（goal trend failure truth）。CodeGraph 為 476 files／4,158 nodes／10,441 edges，無 pending drift。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
@@ -168,7 +168,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 136 files／701 tests、93-page build；本批 Agent integration probe failure contract；Chrome `/integrations` 維持 9 個服務連線中、`/agents/today` 真實模式顯示 `0/1` 與未連線服務、版面與 console 0 error；2026-08-15 CodeGraph 475 files／4,153 nodes／10,430 edges |
+| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 137 files／703 tests、93-page build；本批 goal trend failure contract；Chrome `/goals` 仍顯示目標卡與「累積資料中」狀態、版面與 console 0 error；2026-08-15 CodeGraph 476 files／4,158 nodes／10,441 edges |
 | Google partial calendar truth | `b0376b7` + `google-read-direct` + Chrome `/agents/schedule` | 共享日曆讀取失敗不再靜默變成空行程；既有 warnings 區塊會指出哪個 calendar 未納入；正常 Google 行程、API payload、UI 結構與任何寫入不變 |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
@@ -176,6 +176,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Agent admin live-error truth | `agent-page-state` contracts + shared `AgentPageShell`／`RealStatusPanel`／`agent-status` changes（2026-08-15） | 既有版面與 API 不變；demo 模式保留展示 fallback；live 模式設定／活動／真實狀態讀取失敗會留下可見 failed activity／狀態錯誤，空陣列不再被補成靜態執行紀錄；PATCH 失敗會回復 toggle、儲存按鈕不再誤顯示成功 |
 | Agent integration projection truth | `6e7e204` + `integration-status-projection`／Agent page contracts + Chrome `/agents/today`（2026-08-15） | `RealStatusPanel`／`ConnectionStatusList` 共用 live projection；載入中／讀取失敗不再把 `INTEGRATION_SEEDS` 的靜態 connected 當成連線證據；UI、API 與正常 live 結果不變 |
 | Integration probe failure truth | `0d9261a` + `integration-status-projection` + Chrome `/integrations`、`/agents/today`（2026-08-15） | `/api/integrations/status` 非 2xx／格式錯誤會明確進入「查詢失敗」，不再永久停在「查詢中」或被誤判為未連線；正常 live 結果與 UI 結構不變 |
+| Goal trend failure truth | `ebddc5f` + `goal-history`／goals route contracts + Chrome `/goals`（2026-08-15） | 趨勢 API 非 2xx／格式錯誤不再靜默變成「累積資料中」；會保留可診斷錯誤並顯示短狀態，正常空資料仍維持原本的「累積資料中」；目標卡與頁面版面不變 |
 
 ## 5. Active TODO
 
@@ -425,6 +426,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - [x] Knowledge Base 的搜尋／索引失敗已改為「失敗就明示、空結果才代表真的沒有命中」；reindex／publish 的 failure response 與 Agent live context 均可診斷，沒有新增 generic layer。
    - [x] Agent 連線狀態卡片已共用 `integrationConnectionState`；載入中／查詢失敗不再以 `INTEGRATION_SEEDS` 的 presentation status 冒充 provider connectivity，UI 與 API contract 不變。
    - [x] 共用 integration status query 已區分 loading／success／probe failure；非 2xx 或 malformed response 會顯示「查詢失敗」，不把 provider 讀取錯誤當成「未連線」或無限 loading。
+   - [x] Goal trend query 已區分 loading／valid empty／failure；趨勢讀取錯誤不再被顯示成「累積資料中」，正常不足兩筆仍維持原本文案。
    - 把重複 route wrappers、過細 rules／ports／application／adapter 收斂到 domain owner；保留確實隔離 provider／DB 的 adapter，不保留只轉呼叫的儀式層。
    - 以成熟 npm 套件取代已盤點、測試成本高且無產品差異的自造輪；每項先比較 bundle、維護度、契約與 migration cost，不做整包換框架。
    - **Exit**：新增抽象有至少兩個真實 consumer；刪除或合併的模組有 caller evidence；LOC／檔案數不因儀式層持續膨脹。
