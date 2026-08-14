@@ -1,7 +1,7 @@
 "use client";
 
 import BrandLogo from "@/components/integrations/BrandLogo";
-import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
+import { useIntegrationStatusState } from "@/components/integrations/useIntegrationStatus";
 import { INTEGRATION_SEEDS, integrationConnectionState } from "@/lib/integrations-data";
 import type { AgentSlug } from "@/lib/types";
 
@@ -12,7 +12,11 @@ import type { AgentSlug } from "@/lib/types";
 // 這裡永遠顯示，不受示範模式影響——可能有多個帳號時，這是唯一能一眼看到
 // 「目前接的是哪一組」的地方。
 export default function ConnectionStatusList({ slug }: { slug: AgentSlug }) {
-  const live = useIntegrationStatus();
+  const {
+    status: live,
+    loading: integrationStatusLoading,
+    error: integrationStatusError,
+  } = useIntegrationStatusState();
 
   const services = INTEGRATION_SEEDS.filter((s) => s.uses.some((u) => u.agent === slug));
   if (services.length === 0) return null;
@@ -23,7 +27,8 @@ export default function ConnectionStatusList({ slug }: { slug: AgentSlug }) {
       <ul className="grid gap-1.5 sm:grid-cols-2">
         {services.map((s) => {
           const status = live?.[s.id];
-          const connected = integrationConnectionState(s, live) === "connected";
+          const connectionState = integrationConnectionState(s, live, Boolean(integrationStatusError));
+          const connected = connectionState === "connected";
           return (
             <li
               key={s.id}
@@ -41,7 +46,7 @@ export default function ConnectionStatusList({ slug }: { slug: AgentSlug }) {
                   connected ? "bg-[#06C755]/12 text-[#06C755]" : "bg-amber-400/12 text-amber-500"
                 }`}
               >
-                {live === null ? "查詢中…" : connected ? "已連線" : "待連線"}
+                {integrationStatusError ? "查詢失敗" : integrationStatusLoading ? "查詢中…" : connected ? "已連線" : "待連線"}
               </span>
             </li>
           );

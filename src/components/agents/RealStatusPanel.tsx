@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CircleDashed, Plug, Radio } from "lucide-react";
 import BrandLogo from "@/components/integrations/BrandLogo";
-import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
+import { useIntegrationStatusState } from "@/components/integrations/useIntegrationStatus";
 import { INTEGRATION_SEEDS, integrationConnectionState } from "@/lib/integrations-data";
 import { getAgent } from "@/lib/agent-data";
 import type { AgentSlug } from "@/lib/types";
@@ -44,7 +44,11 @@ export default function RealStatusPanel({
   // render 才是純函式、也不會因為重繪而數字跳動。
   const [stats, setStats] = useState<{ total: number; week: number; latest: string | null } | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const liveStatus = useIntegrationStatus();
+  const {
+    status: liveStatus,
+    loading: integrationStatusLoading,
+    error: integrationStatusError,
+  } = useIntegrationStatusState();
 
   useEffect(() => {
     let alive = true;
@@ -84,7 +88,8 @@ export default function RealStatusPanel({
   // 人手維護的種子資料，改個環境變數、金鑰過期，那份資料不會自己更新。liveStatus
   // 還沒回來時沿用共用 projection 的 loading 語意，不把種子資料先算成已連線。
   const liveOf = (id: string) => liveStatus?.[id];
-  const isConnected = (s: (typeof services)[number]) => integrationConnectionState(s, liveStatus) === "connected";
+  const isConnected = (s: (typeof services)[number]) =>
+    integrationConnectionState(s, liveStatus, Boolean(integrationStatusError)) === "connected";
   const connected = services.filter(isConnected);
 
   const dark = tone === "dark";
@@ -141,7 +146,7 @@ export default function RealStatusPanel({
                     ok ? "bg-[#06C755]/12 text-[#06C755]" : "bg-white/10 text-amber-400"
                   }`}
                 >
-                  {liveStatus === null ? "查詢中…" : ok ? "已連線" : "待連線"}
+                  {integrationStatusError ? "查詢失敗" : integrationStatusLoading ? "查詢中…" : ok ? "已連線" : "待連線"}
                 </span>
               </li>
             );

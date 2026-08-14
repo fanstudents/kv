@@ -28,6 +28,11 @@ describe("integration status projection", () => {
     expect(integrationConnectionState(builtin, {})).toBe("disconnected");
   });
 
+  it("keeps a failed live probe distinct from a verified disconnected service", () => {
+    expect(integrationConnectionState(builtin, null, true)).toBe("error");
+    expect(integrationConnectionState(builtin, { firecrawl: { connected: false } }, true)).toBe("error");
+  });
+
   it("does not claim a custom localStorage service is connected without a live probe", () => {
     expect(integrationConnectionState({
       ...builtin,

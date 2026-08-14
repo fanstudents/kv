@@ -27,7 +27,7 @@ export interface Integration {
   builtin?: boolean;
 }
 
-export type IntegrationConnectionState = "loading" | "connected" | "disconnected";
+export type IntegrationConnectionState = "loading" | "connected" | "disconnected" | "error";
 
 /**
  * Built-in service badges are projections of the live status endpoint. The
@@ -36,9 +36,11 @@ export type IntegrationConnectionState = "loading" | "connected" | "disconnected
  */
 export function integrationConnectionState(
   item: Integration,
-  liveStatus: IntegrationStatusMap | null
+  liveStatus: IntegrationStatusMap | null,
+  queryFailed = false
 ): IntegrationConnectionState {
   if (!item.builtin) return "disconnected";
+  if (queryFailed) return "error";
   if (liveStatus === null) return "loading";
   return liveStatus[item.id]?.connected ? "connected" : "disconnected";
 }

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import Avatar from "@/components/agents/Avatar";
 import BrandLogo from "@/components/integrations/BrandLogo";
-import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
+import { useIntegrationStatusState } from "@/components/integrations/useIntegrationStatus";
 import { AGENTS, getAgent } from "@/lib/agent-data";
 import {
   INTEGRATION_CATEGORIES,
@@ -67,7 +67,7 @@ function IntegrationCard({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-neutral-900 dark:text-white">{item.name}</h2>
             <Badge tone={connectionState === "connected" ? "success" : connectionState === "loading" ? "neutral" : "warning"}>
-              {connectionState === "loading" ? "查詢中" : connectionState === "connected" ? "連線中" : "未連線"}
+              {connectionState === "loading" ? "查詢中" : connectionState === "error" ? "查詢失敗" : connectionState === "connected" ? "連線中" : "未連線"}
             </Badge>
           </div>
           <p className="mt-0.5 text-xs text-neutral-400">
@@ -220,7 +220,7 @@ function IntegrationCard({
 /* ── 頁面 ── */
 export default function IntegrationsPage() {
   const [items, setItems] = useState<Integration[]>(INTEGRATION_SEEDS);
-  const liveStatus = useIntegrationStatus();
+  const { status: liveStatus, error: integrationStatusError } = useIntegrationStatusState();
   const [loaded, setLoaded] = useState(false);
   const [filterAgent, setFilterAgent] = useState<AgentSlug | null>(null);
   const [adding, setAdding] = useState(false);
@@ -262,7 +262,7 @@ export default function IntegrationsPage() {
   }, [items]);
 
   const connectedCount = items.filter(
-    (item) => integrationConnectionState(item, liveStatus) === "connected"
+    (item) => integrationConnectionState(item, liveStatus, Boolean(integrationStatusError)) === "connected"
   ).length;
 
   const updateItem = (next: Integration) =>
@@ -390,7 +390,7 @@ export default function IntegrationsPage() {
           <IntegrationCard
             key={item.id}
             item={item}
-            connectionState={integrationConnectionState(item, liveStatus)}
+            connectionState={integrationConnectionState(item, liveStatus, Boolean(integrationStatusError))}
             highlightAgent={filterAgent}
             onChange={updateItem}
             onRemove={() => removeItem(item.id)}
