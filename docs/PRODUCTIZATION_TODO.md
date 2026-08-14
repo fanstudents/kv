@@ -6,11 +6,11 @@
 
 目標：在原 repository 內漸進整理 KV，使工程團隊能理解、驗證、修改、部署與擴充；既有 UI／UX、API、資料格式與外部 side effects 除非另有產品需求，全部保持不變。
 
-狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Architecture ready for scoped KV delivery; needs external acceptance and release truth`
+狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Modular monolith ready for scoped KV delivery; transitional seams remain; not SaaS-ready`
 
 ### 換機接續 checkpoint（2026-08-15）
 
-- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `267a467`（Support delivery identity + Agent admin live-error truth）。CodeGraph 為 475 files／4,144 nodes／10,425 edges，無 pending drift。
+- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `d71de3c`（Knowledge Base failure truth）。CodeGraph 為 475 files／4,152 nodes／10,437 edges，無 pending drift。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
@@ -57,10 +57,10 @@
 
 #### P2-3 change contract：Knowledge index ownership
 
-- **範圍：** 只移動 `indexDocs`／`indexStats` 的 implementation owner；保留 `/api/knowledge-base/reindex`、發布／編輯自動重建索引、`replace_kb_chunks` atomic RPC、embedding 維度與錯誤回傳行為。
-- **入口與 consumer：** `supabaseKnowledgeIndexRepository`、`supabase-knowledge-store` 的 publish/update side effect、`kb-search` 的 query search；不改 API JSON、頁面文案或資料表。
-- **不變條件：** 空 doc id 不呼叫 DB/provider；草稿／封存會以空 chunks 清除舊索引；embedding／RPC 失敗不清空上一版；index stats 仍回 `{ chunks, docs }`。
-- **驗收證據：** focused KB contracts（含 source-store 28 tests）、完整 676 tests、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`。
+- **範圍：** 只移動 `indexDocs`／`indexStats` 的 implementation owner，並把 provider／DB 失敗明確化；保留 `/api/knowledge-base/reindex`、發布／編輯自動重建索引、`replace_kb_chunks` atomic RPC、embedding 維度與成功回傳行為。
+- **入口與 consumer：** `supabaseKnowledgeIndexRepository`、`supabase-knowledge-store` 的 publish/update side effect、`kb-search` 的 query search；成功 API JSON、頁面文案、資料表與 UI 不變，失敗改以結構化非 2xx 回報。
+- **不變條件：** 空 doc id 不呼叫 DB/provider；草稿／封存會以空 chunks 清除舊索引；embedding／RPC 失敗不清空上一版，並以結構化非 2xx 回應呈現；成功時 index stats 仍回 `{ chunks, docs }`。
+- **驗收證據：** focused KB contracts（含 source-store 28 tests）、完整 700 tests、lint/typecheck/build、CodeGraph up-to-date、Chrome `/knowledge-base` 與 `/goals`；本批另以 Chrome 點擊「重建索引」驗證成功 envelope。
 - **非目標：** 不搬 `searchKnowledge`／`formatHits`、`knowledgeContext`、PDF／Firecrawl ingestion；不新增 generic search／workflow framework。
 
 #### P2-4 change contract：Context persistence boundary
@@ -158,6 +158,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Main Agent seed recovery | `20260813170350_seed_line_agents.sql` + online migration／insert-delete probe | clean schema 具備 12 個 canonical deployment rows；保留既有 settings／enabled，Visit activity 外鍵可寫入 |
 | KB ownership repair | `firecrawl-client.ts` + `kb-crawl.ts` + `supabase-knowledge-store.ts` + `supabase-knowledge-index.ts` + `supabase-knowledge-source-store.ts` + focused contracts | Firecrawl protocol／quota／retry、URL／site `kb_sources` persistence、`knowledge_base`／`knowledge_access` persistence、embedding／atomic index 與 workflow orchestration 分責；未新增 route-specific layer；PDF source／ingestion 仍標示 transitional |
 | KB atomic index replacement | `replace_kb_chunks` migration + focused unit／Main staging rollback acceptance + Chrome（2026-08-14） | OpenAI／RPC 失敗保留上一版可搜尋 index；成功時整批 transaction replace；service-role-only，fixture cleanup 0，UI/UX 未改 |
+| KB failure truth | `d71de3c` + KB focused contracts + Chrome `/knowledge-base` | embedding、資料庫查詢、atomic RPC、index stats 失敗不再回傳空陣列／`0,0` 假成功；reindex／publish 回結構化 503，Agent live context 帶明確不可用指示；成功 payload、UI、atomic rollback 不變 |
 | Integrations live truth | `/integrations` + `integrationConnectionState` + Chrome（2026-08-14） | 原 UI/UX 下顯示 4 個 live connected：Teachify、Supabase、OpenAI、Firecrawl；Google／LINE／Meta 如實未連線，自訂 demo 不再冒充 connected |
 | Google read real acceptance | `npm run acceptance:google:read` + Chrome `/integrations`（2026-08-14） | 專用 `KV Staging` OAuth client、Calendar／GA4／GSC production providers 4 tests passed；GA4 `524303407`、GSC `sc-domain:cablate.com` 可讀，Gmail／Calendar／GA4／GSC live connected；未建立行程或寄信 |
 | Google write real acceptance | `npm run acceptance:google:write`（2026-08-14） | 唯一 allowlist `reahtuoo310109@gmail.com`；Calendar 建立／回讀／刪除與 Gmail send production providers 2 tests passed；測試行程已清除，測試信不可回收 |
@@ -167,7 +168,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 136 files／698 tests、93-page build；本批 Support relay delivery-key + Agent 後台 live-error contracts；Chrome `/agents/support` 版面與 console 0 error，live 模式不再把空資料誤當靜態成功；2026-08-15 CodeGraph 475 files／4,144 nodes／10,425 edges |
+| Current verification | focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Chrome | 136 files／700 tests、93-page build；本批 KB failure-truth contracts；Chrome `/knowledge-base` 載入與「重建索引」成功操作、版面與 console 0 error；2026-08-15 CodeGraph 475 files／4,152 nodes／10,437 edges |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
 | LINE webhook payload guard | `parseVisitLineWebhookPayload`／`parseSupportRelayPayload` + 28 focused contracts（2026-08-15） | `events` 非陣列會在 route dispatch 前被拒絕；陣列中的 null／primitive 不會進入 application `.map`；正常空 payload 與既有 signature／relay contract 保持不變。未改 UI 或 provider side-effect policy |
@@ -201,6 +202,7 @@ Preparation 已完成：crawl／import／draft／publish／discard／search／re
 - [x] 依唯一 acceptance URL／source ID 精確清除 `kb_sources`、`knowledge_base`、`kb_chunks`；線上查詢三者殘留 0。Firecrawl 使用 1 credit，OpenAI 保留 3 筆 usage audit。
 - [x] 依真實 journey 收斂：`firecrawl-client.ts` 負責 HTTP／quota／retry，`kb-crawl.ts` 保留 Main source state／shared ingestion；API、資料格式與 UI 不變，沒有 generic crawler、route-specific layers 或轉送介面。
 - [x] source lookup／check-in／refresh／reviewing／recheck 的 Main DB error 全部被檢查；單一來源 recheck 失敗仍不阻塞其他來源，但不再被計入 checked／changed 成功，並留下 server diagnostic。
+- [x] KB retrieval／index failure truth：embedding、`match_kb_chunks`、`replace_kb_chunks`、index stats 失敗不再被轉成空結果或 `0,0`；reindex／publish 以 503 回報，`meeting-context` 對 Agent 明示知識庫暫時不可用；成功 payload 與既有 UI 不變。
 
 ### WP-12 Visit AI journey `[x]`
 
@@ -307,7 +309,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [~] Main／OpenAI／Firecrawl／Google／Primary LINE 與 Support Main 自主 journeys 已達標；Support LINE、Teachify provider truth、Visit inbound、hosted schedule／deploy 仍有明確外部 gate，replay decisions 仍依 P3。
 - [x] `/integrations` badge／計數已改綁 `/api/integrations/status` live truth並維持原 UI/UX；localStorage 僅保留管理連結、Agent 用途與自訂服務 demo，自訂項無 live probe 時顯示未連線。
 - [~] 本輪 CodeGraph 沒找到可安全刪除的無 caller 模組；Visit `legacy-*` adapters 仍被 webhook／cron 真實呼叫，保留為外部／舊 schema 邊界。最後 transitional cleanup 要等 P6 evidence，不為減檔名硬刪。
-- [~] 全量 verify、CodeGraph、135-file／690-test contracts、8-page Chrome matrix、Main residue audit 與 136-test staging browser matrix 已完成；staging cutover／rollback rehearsal 仍待 deploy ownership。
+- [~] 全量 verify、CodeGraph、136-file／700-test contracts、8-page Chrome matrix、Main residue audit 與 136-test staging browser matrix 已完成；staging cutover／rollback rehearsal 仍待 deploy ownership。
 - [x] 穩定的安裝、verify、staging read-path 與 opt-in write/cleanup 邊界已補進 README；細節只由本 TODO 維護，不新增重複架構／runbook 文件。
 
 ## 6. 自主邊界與仍需外部取得的資產
@@ -416,6 +418,7 @@ P7 核准需求／證據驅動修復與收斂（A） -> P8 CI／deploy／rollbac
    - 先把 P0 核准的功能逐條做成垂直 slice；每條都沿既有 domain owner 實作，不把 upstream 舊架構帶回來。
    - 只修 P2／P4／P6 暴露的 retry、idempotency、partial failure、observability 或契約問題；不再推測式搬檔。
    - [x] 共用 Agent 後台的設定／活動／真實狀態讀取已改為「成功才更新、失敗留診斷」；demo fallback 只在 demo 模式保留，PATCH 失敗會回復本地 optimistic state，不改 UI 結構或 API payload。
+   - [x] Knowledge Base 的搜尋／索引失敗已改為「失敗就明示、空結果才代表真的沒有命中」；reindex／publish 的 failure response 與 Agent live context 均可診斷，沒有新增 generic layer。
    - 把重複 route wrappers、過細 rules／ports／application／adapter 收斂到 domain owner；保留確實隔離 provider／DB 的 adapter，不保留只轉呼叫的儀式層。
    - 以成熟 npm 套件取代已盤點、測試成本高且無產品差異的自造輪；每項先比較 bundle、維護度、契約與 migration cost，不做整包換框架。
    - **Exit**：新增抽象有至少兩個真實 consumer；刪除或合併的模組有 caller evidence；LOC／檔案數不因儀式層持續膨脹。
