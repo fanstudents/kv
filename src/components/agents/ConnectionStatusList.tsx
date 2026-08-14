@@ -2,7 +2,7 @@
 
 import BrandLogo from "@/components/integrations/BrandLogo";
 import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
-import { INTEGRATION_SEEDS } from "@/lib/integrations-data";
+import { INTEGRATION_SEEDS, integrationConnectionState } from "@/lib/integrations-data";
 import type { AgentSlug } from "@/lib/types";
 
 // 「Agent 設定」裡的串接狀態：這位 Agent 實際接了哪些外部服務、連的是哪個帳號／
@@ -23,7 +23,7 @@ export default function ConnectionStatusList({ slug }: { slug: AgentSlug }) {
       <ul className="grid gap-1.5 sm:grid-cols-2">
         {services.map((s) => {
           const status = live?.[s.id];
-          const connected = status?.connected ?? s.status === "connected";
+          const connected = integrationConnectionState(s, live) === "connected";
           return (
             <li
               key={s.id}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CircleDashed, Plug, Radio } from "lucide-react";
 import BrandLogo from "@/components/integrations/BrandLogo";
 import { useIntegrationStatus } from "@/components/integrations/useIntegrationStatus";
-import { INTEGRATION_SEEDS } from "@/lib/integrations-data";
+import { INTEGRATION_SEEDS, integrationConnectionState } from "@/lib/integrations-data";
 import { getAgent } from "@/lib/agent-data";
 import type { AgentSlug } from "@/lib/types";
 import { readAgentApiResponse } from "@/components/agents/agent-page-state";
@@ -81,10 +81,10 @@ export default function RealStatusPanel({
   const agent = getAgent(slug);
   const services = INTEGRATION_SEEDS.filter((s) => s.uses.some((u) => u.agent === slug));
   // 連線與否、連的是誰，一律以即時查到的結果為準——INTEGRATION_SEEDS 的 status 只是
-  // 人手維護的種子資料，改個環境變數、金鑰過期，那份資料不會自己更新。查不到（liveStatus
-  // 還沒回來）時暫時沿用種子狀態，避免畫面在載入瞬間全部閃成「待連線」。
+  // 人手維護的種子資料，改個環境變數、金鑰過期，那份資料不會自己更新。liveStatus
+  // 還沒回來時沿用共用 projection 的 loading 語意，不把種子資料先算成已連線。
   const liveOf = (id: string) => liveStatus?.[id];
-  const isConnected = (s: (typeof services)[number]) => liveOf(s.id)?.connected ?? s.status === "connected";
+  const isConnected = (s: (typeof services)[number]) => integrationConnectionState(s, liveStatus) === "connected";
   const connected = services.filter(isConnected);
 
   const dark = tone === "dark";
