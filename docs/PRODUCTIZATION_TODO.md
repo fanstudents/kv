@@ -8,9 +8,9 @@
 
 狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Architecture ready for scoped KV delivery; needs external acceptance and release truth`
 
-### 換機接續 checkpoint（2026-08-14）
+### 換機接續 checkpoint（2026-08-15）
 
-- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `734379e`（P2-5）。CodeGraph 為 471 files／4,080 nodes／10,184 edges，無 pending drift。
+- Git snapshot：`codex/kv-wp0-toolchain`，目前 tip 為 `267a467`（Support delivery identity + Agent admin live-error truth）。CodeGraph 為 475 files／4,144 nodes／10,425 edges，無 pending drift。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
