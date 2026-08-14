@@ -17,7 +17,7 @@ import {
   listKnowledgeDocs,
   removeKnowledgeDoc,
   updateKnowledgeDoc,
-} from "@/lib/knowledge-base";
+} from "@/adapters/knowledge-base/supabase-knowledge-store";
 
 beforeEach(() => vi.clearAllMocks());
 

@@ -5,7 +5,7 @@ import {
   mapSite,
 } from "@/adapters/knowledge-base/firecrawl-client";
 import { importUrl, recheckUrlSources } from "@/lib/kb-crawl";
-import { listKnowledgeDocs } from "@/lib/knowledge-base";
+import { listKnowledgeDocs } from "@/adapters/knowledge-base/supabase-knowledge-store";
 import type { KnowledgeCrawlProvider } from "@/modules/knowledge-base/crawl-source";
 
 export function createFirecrawlKnowledgeSource(): KnowledgeCrawlProvider {

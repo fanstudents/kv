@@ -10,7 +10,7 @@ import {
   removeKnowledgeDoc,
   setAgentAccess,
   updateKnowledgeDoc,
-} from "@/lib/knowledge-base";
+} from "@/adapters/knowledge-base/supabase-knowledge-store";
 import type { KnowledgeAccessPolicyRepository } from "@/modules/knowledge-base/access-policy";
 import type { KnowledgeDocumentRepository } from "@/modules/knowledge-base/documents";
 import type { KnowledgeIngestionRepository } from "@/modules/knowledge-base/ingestion";
@@ -20,9 +20,9 @@ import type { KnowledgeIndexRepository } from "@/modules/knowledge-base/search-i
  * Transitional composition boundary for the KB domain.
  *
  * These ports are stateless, so exporting stable objects avoids a per-request
- * forwarding factory. The implementations still delegate to the legacy
- * `src/lib` stores; a future KB journey may move that ownership, but must not
- * add another wrapper around this boundary.
+ * forwarding factory. Document/access persistence now lives in the explicit
+ * Supabase store; ingestion and indexing remain transitional `src/lib`
+ * compositions until a real KB journey justifies moving them.
  */
 export const supabaseKnowledgeRepository: KnowledgeDocumentRepository & KnowledgeAccessPolicyRepository = {
   listDocs: listKnowledgeDocs,

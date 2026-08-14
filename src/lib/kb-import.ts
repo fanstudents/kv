@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { extractText, getDocumentProxy } from "unpdf";
 import { requestKnowledgeJson } from "@/adapters/knowledge-base/openai-knowledge-provider";
 import { getMainSupabase } from "@/lib/supabase";
-import { addKnowledgeDocs } from "@/lib/knowledge-base";
+import { addKnowledgeDocs } from "@/adapters/knowledge-base/supabase-knowledge-store";
 import type { KnowledgeKind, KnowledgeLevel } from "@/lib/knowledge-base-data";
 
 // PDF → 知識條目的匯入管線：

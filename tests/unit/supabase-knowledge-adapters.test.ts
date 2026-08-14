@@ -22,7 +22,7 @@ vi.mock("@/lib/kb-search", () => ({
   indexDocs: helpers.indexDocs,
   indexStats: helpers.indexStats,
 }));
-vi.mock("@/lib/knowledge-base", () => ({
+vi.mock("@/adapters/knowledge-base/supabase-knowledge-store", () => ({
   addKnowledgeDoc: helpers.addKnowledgeDoc,
   listAgentAccess: helpers.listAgentAccess,
   listKnowledgeDocs: helpers.listKnowledgeDocs,

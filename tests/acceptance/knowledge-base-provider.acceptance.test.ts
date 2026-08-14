@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getCreditUsage } from "@/adapters/knowledge-base/firecrawl-client";
+import { listKnowledgeDocs, publishKnowledgeDocs } from "@/adapters/knowledge-base/supabase-knowledge-store";
 import { importUrl } from "@/lib/kb-crawl";
 import { searchKnowledge } from "@/lib/kb-search";
-import { listKnowledgeDocs, publishKnowledgeDocs } from "@/lib/knowledge-base";
 import { getMainSupabase } from "@/lib/supabase";
 import { requireStagingMainDatabaseEnvironment } from "../integration/staging-main-db";
 

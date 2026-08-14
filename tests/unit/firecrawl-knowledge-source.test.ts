@@ -21,7 +21,9 @@ vi.mock("@/lib/kb-crawl", () => ({
   importUrl: helpers.importUrl,
   recheckUrlSources: helpers.recheckUrlSources,
 }));
-vi.mock("@/lib/knowledge-base", () => ({ listKnowledgeDocs: helpers.listKnowledgeDocs }));
+vi.mock("@/adapters/knowledge-base/supabase-knowledge-store", () => ({
+  listKnowledgeDocs: helpers.listKnowledgeDocs,
+}));
 
 import { createFirecrawlKnowledgeSource } from "@/adapters/knowledge-base/firecrawl-knowledge-source";
 

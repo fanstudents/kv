@@ -9,7 +9,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/adapters/knowledge-base/openai-knowledge-provider", () => ({
   requestKnowledgeJson: mocks.requestKnowledgeJson,
 }));
-vi.mock("@/lib/knowledge-base", () => ({ addKnowledgeDocs: mocks.addKnowledgeDocs }));
+vi.mock("@/adapters/knowledge-base/supabase-knowledge-store", () => ({
+  addKnowledgeDocs: mocks.addKnowledgeDocs,
+}));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase: mocks.getMainSupabase }));
 
 import { ingestPages } from "@/lib/kb-import";
