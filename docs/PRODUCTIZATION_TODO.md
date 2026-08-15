@@ -576,6 +576,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - [x] Agent 連線狀態卡片已共用 `integrationConnectionState`；載入中／查詢失敗不再以 `INTEGRATION_SEEDS` 的 presentation status 冒充 provider connectivity，UI 與 API contract 不變。
    - [x] 共用 integration status query 已區分 loading／success／probe failure；非 2xx 或 malformed response 會顯示「查詢失敗」，不把 provider 讀取錯誤當成「未連線」或無限 loading。
    - [x] Goal trend query 已區分 loading／valid empty／failure；趨勢讀取錯誤不再被顯示成「累積資料中」，正常不足兩筆仍維持原本文案。
+   - [x] 2026-08-15 CodeGraph ownership recheck：`getMainSupabase`、Agent live context 與 `src/lib` 的 adapter／DB orchestration 都有跨 domain 或 provider／presentation consumer；未找到可在不改 contract 的情況下安全合併的單 caller 純轉發層，因此本批不做機械式搬檔。
    - 把重複 route wrappers、過細 rules／ports／application／adapter 收斂到 domain owner；保留確實隔離 provider／DB 的 adapter，不保留只轉呼叫的儀式層。
    - 以成熟 npm 套件取代已盤點、測試成本高且無產品差異的自造輪；每項先比較 bundle、維護度、契約與 migration cost，不做整包換框架。
    - **Exit**：新增抽象有至少兩個真實 consumer；刪除或合併的模組有 caller evidence；LOC／檔案數不因儀式層持續膨脹。
