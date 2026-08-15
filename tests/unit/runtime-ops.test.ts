@@ -45,6 +45,18 @@ describe("runtime operations routes", () => {
     expect(JSON.stringify(body)).not.toContain("server-secret");
   });
 
+  it("degrades readiness when Main Supabase only has an anon key", async () => {
+    vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("SUPABASE_ANON_KEY", "anon-key");
+
+    const response = await getHealth();
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "degraded",
+      checks: { mainSupabase: "configured", mainSupabasePrivileged: "missing" },
+    });
+  });
+
   it("fails readiness when Main Supabase configuration is absent", async () => {
     const response = await getHealth();
     expect(response.status).toBe(503);

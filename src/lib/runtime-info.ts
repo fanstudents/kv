@@ -22,13 +22,14 @@ export function getRuntimeReadiness() {
   const hasMainUrl = Boolean(process.env.SUPABASE_URL);
   const hasMainKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY);
   const hasPrivilegedKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const ready = hasMainUrl && hasMainKey;
+  const configured = hasMainUrl && hasMainKey;
+  const ready = configured && hasPrivilegedKey;
 
   return {
     ...getRuntimeInfo(),
     status: ready ? "ok" : "degraded",
     checks: {
-      mainSupabase: ready ? "configured" : "missing",
+      mainSupabase: configured ? "configured" : "missing",
       mainSupabasePrivileged: hasPrivilegedKey ? "configured" : "missing",
     },
   } as const;
