@@ -40,6 +40,10 @@
     "doctor": "node --env-file-if-exists=.env.local scripts/doctor.mjs",
     "doctor:staging": "node --env-file-if-exists=.env.local scripts/doctor.mjs --profile=staging --strict",
     "doctor:live": "node --env-file-if-exists=.env.local scripts/doctor.mjs --profile=live --strict",
+    "release:preflight": "node --env-file-if-exists=.env.local scripts/release.mjs preflight",
+    "release:migrations:plan": "node --env-file-if-exists=.env.local scripts/release.mjs migration-plan",
+    "release:migrations:apply": "node --env-file-if-exists=.env.local scripts/release.mjs migration-apply",
+    "release:verify": "node --env-file-if-exists=.env.local scripts/release.mjs verify-remote",
     "verify:config": "npm run doctor -- --profile=demo --strict",
     "verify": "npm run lint && npm run typecheck && npm test && npm run build",
     "verify:full": "npm run verify && npm run test:e2e:run:smoke"

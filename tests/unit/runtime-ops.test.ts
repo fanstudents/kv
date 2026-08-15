@@ -5,6 +5,7 @@ import { GET as getVersion } from "@/app/api/version/route";
 beforeEach(() => {
   vi.stubEnv("KV_APP_VERSION", "");
   vi.stubEnv("KV_COMMIT_SHA", "");
+  vi.stubEnv("KV_SCHEMA_VERSION", "");
   vi.stubEnv("KV_RUNTIME_ENV", "");
   vi.stubEnv("SUPABASE_URL", "");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
@@ -16,6 +17,7 @@ afterEach(() => vi.unstubAllEnvs());
 describe("runtime operations routes", () => {
   it("reports version metadata without exposing configuration values", async () => {
     vi.stubEnv("KV_COMMIT_SHA", "abc123");
+    vi.stubEnv("KV_SCHEMA_VERSION", "20260814164718");
     vi.stubEnv("KV_RUNTIME_ENV", "staging");
 
     const response = await getVersion();
@@ -24,6 +26,7 @@ describe("runtime operations routes", () => {
       service: "agent-kv",
       version: "0.1.0",
       commit: "abc123",
+      schemaVersion: "20260814164718",
       environment: "staging",
     });
   });
@@ -32,6 +35,8 @@ describe("runtime operations routes", () => {
     vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "server-secret");
     vi.stubEnv("KV_COMMIT_SHA", "staging-commit");
+    vi.stubEnv("KV_SCHEMA_VERSION", "20260814164718");
+    vi.stubEnv("KV_RUNTIME_ENV", "staging");
 
     const response = await getHealth();
     expect(response.status).toBe(200);
@@ -40,7 +45,12 @@ describe("runtime operations routes", () => {
       service: "agent-kv",
       status: "ok",
       commit: "staging-commit",
-      checks: { mainSupabase: "configured", mainSupabasePrivileged: "configured" },
+      schemaVersion: "20260814164718",
+      checks: {
+        mainSupabase: "configured",
+        mainSupabasePrivileged: "configured",
+        deploymentIdentity: "configured",
+      },
     });
     expect(JSON.stringify(body)).not.toContain("server-secret");
   });
@@ -54,6 +64,19 @@ describe("runtime operations routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       status: "degraded",
       checks: { mainSupabase: "configured", mainSupabasePrivileged: "missing" },
+    });
+  });
+
+  it("degrades a release environment when commit or schema identity is absent", async () => {
+    vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "server-secret");
+    vi.stubEnv("KV_RUNTIME_ENV", "staging");
+
+    const response = await getHealth();
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "degraded",
+      checks: { deploymentIdentity: "missing" },
     });
   });
 
