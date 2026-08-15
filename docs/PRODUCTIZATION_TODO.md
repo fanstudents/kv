@@ -16,6 +16,7 @@
 - 連線限制與處置：Supabase Connect UI 不會回傳既有資料庫密碼；本批經明確授權重設 `kv-staging` password，secret 只寫入 Git ignored `.env.local`，未寫入 repo。Direct connection 的 IPv6 路徑在本機連線失敗，改用 Session Pooler `:5432` 後 migration plan 成功；CLI linked session 仍可安全完成 history／dry-run／no-op apply 驗證。
 - 現行 HEAD 的 Chromium smoke：`npm run test:e2e:run:smoke` 共 147/147 通過（含公開頁、後台互動、訂閱者標籤與 broadcast）；缺少 Supabase env 的訊息是 hermetic failure-contract 測試的預期診斷，不代表測試失敗。
 - Main staging Chromium read／functional matrix：重設 DB password 並改用 Session Pooler 後，首次執行為 146/147；唯一失敗是 staging latency 造成 Agent 設定摺疊測試早於 hydration 點擊。`f61a82f` 補上 ready guard 後完整重跑 147/147 通過；只改測試等待，不改 UI／API／schema，也沒有開啟 provider write gate。
+- 使用者 Chrome 實機：`http://localhost:3000/agents/orders` 載入正常，點開「Agent 設定」後「通知對象 LINE User ID」欄位可見；欄位 disabled 與 staging 真實 `orders.enabled=false` 一致，沒有執行任何 write。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
