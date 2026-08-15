@@ -76,11 +76,34 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Fetch schema comparison base
+        env:
+          CI_SCOPE_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$CI_SCOPE_BASE_SHA" ] && [ "$CI_SCOPE_BASE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            git fetch --no-tags --depth=1 origin "$CI_SCOPE_BASE_SHA" || echo "Unable to fetch comparison base; schema classifier will fail closed."
+          fi
+
+      - name: Classify schema gate scope
+        id: schema-scope
+        env:
+          CI_SCOPE_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          CI_SCOPE_HEAD_SHA: ${{ github.sha }}
+        run: node scripts/ci-scope.mjs
+
+      - name: Report schema gate skip
+        if: steps.schema-scope.outputs.schema-required != 'true'
+        run: |
+          echo "Schema replay skipped: ${{ steps.schema-scope.outputs.reason }}"
+
       - name: Install locked dependencies
+        if: steps.schema-scope.outputs.schema-required == 'true'
         run: npm ci
 
       - name: Rehearse local migrations
+        if: steps.schema-scope.outputs.schema-required == 'true'
         run: npm run schema:rehearse
 
       - name: Check generated database types
+        if: steps.schema-scope.outputs.schema-required == 'true'
         run: npm run schema:types:check

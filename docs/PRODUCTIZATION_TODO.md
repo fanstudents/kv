@@ -611,6 +611,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 
 8. **P8 — CI／deploy／migration／rollback（E）**
    - [x] Repo CI 已有 quality／schema jobs並支援 manual dispatch；install、config、lint、typecheck、unit、build、Playwright smoke、migration replay、generated types drift 皆有固定命令。
+   - [x] 2026-08-16 CI 效率收斂：schema job 先以 `scripts/ci-scope.mjs` 比對 base／head；純文件、UI、domain、一般 unit／browser 變更跳過 Docker migration replay，migration／generated types／package／script／未知路徑與無法解析比較範圍一律 fail-closed 跑完整 gate；保留既有 `schema` check 名稱與 quality／schema 護欄。`tests/unit/ci-scope.test.ts` 4 tests、YAML parse、`npm run verify`（139 files／721 tests／93-page build）與 `npm run verify:full`（147/147 hermetic browser smoke）通過。
    - [x] Release preflight 產生並驗證 service／version／commit／schema version／environment／migration inventory；dirty tree、Doctor blocked、commit/schema/profile mismatch 都會停止。
    - [x] Migration plan/apply 已使用單一 release CLI：DB URL 必須命中 staging／live project ref；plan 只比對 history＋dry-run；apply 另需 backup confirmation、explicit apply 與 project ref confirmation。
    - [x] `/api/version` 與 `/api/health` 支援 deployment identity；remote verify 必須比對 exact release commit、schema、environment 與 ready health，才可 promotion。
