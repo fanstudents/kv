@@ -43,8 +43,15 @@ test("agent settings save preserves the existing API contract", async ({ page })
   });
 
   await page.goto("/agents/orders", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: /Agent 設定/ }).click();
-  await page.getByLabel("通知對象 LINE User ID").fill("U-new");
+  const settingsToggle = page.getByRole("button", { name: /Agent 設定/ });
+  // Staging has real API latency; wait for the shared shell's initial fetch
+  // and hydration before clicking the otherwise server-rendered toggle.
+  await expect(settingsToggle).toBeVisible();
+  await expect(settingsToggle).not.toContainText("載入中");
+  await settingsToggle.click();
+  const recipientInput = page.getByLabel("通知對象 LINE User ID");
+  await expect(recipientInput).toBeVisible();
+  await recipientInput.fill("U-new");
   await page.getByRole("button", { name: "儲存設定" }).click();
 
   await expect.poll(() => savedBody).not.toBeNull();
