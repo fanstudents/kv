@@ -620,6 +620,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - [x] 使用 Chrome 登入 staging 後驗證 `/agents-catalog`、`/dashboard`、`/agents/orders`、`/agents/visit`、`/knowledge-base`、`/integrations`、`/goals`；UI 可載入，未執行 provider write。API JSON 端點另以 read-only remote probe 驗證，避免把瀏覽器擴充套件對 raw JSON 的阻擋誤判成服務失敗。
    - [x] README 已固定 additive migration、deploy、verify、application rollback、DB forward-fix／PITR recovery；禁止以 remote reset 當 rollback。
    - [!] 本機沒有 Docker／Podman，因此此次 local schema replay 無法重跑；不是 migration SQL failure。canonical hosted schema job可執行，但仍需在 canonical repo留下本 commit 的 run evidence。
+   - [!] 2026-08-16 hosted CI run `31913647638`：quality job 3m40s 全數通過，schema replay 通過；generated types 於拉取 `public.ecr.aws/supabase/postgres-meta:v0.96.6` 時遇到公共 ECR `toomanyrequests` 而停止。這是 runner／image registry gate，不是 migration 或 generated diff 證據；需由 release owner 補可重現的 image access／重跑證據，不能把該 run 標為全綠。
    - [~] Hosted staging deploy／remote verify 已完成；仍需 release owner 補 `SUPABASE_DB_URL`／backup evidence、scheduled failure 通知目的地與 application rollback rehearsal。DB rollback 維持 forward-fix／PITR，不做 remote reset。
    - **Exit `[~]`**：repo 內 P8 procedure／guards／contracts、hosted staging deploy 與 exact remote verification 已完成；migration promotion、backup evidence、scheduled failure owner 與 rollback rehearsal仍是外部 release gate，未冒充已完成。
 
