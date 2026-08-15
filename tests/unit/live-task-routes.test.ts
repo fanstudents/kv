@@ -74,6 +74,18 @@ describe("Live task route contracts", () => {
     expect(repository.listContacts).toHaveBeenCalledWith(8);
   });
 
+  it("returns a diagnosable 503 when Visit history cannot be read", async () => {
+    createSupabaseVisitLiveTaskHistoryRepository.mockReturnValueOnce({
+      listContacts: vi.fn(async () => { throw new Error("database down"); }),
+      listOffers: vi.fn(),
+      listInvites: vi.fn(),
+    });
+
+    const response = await getHistory(new NextRequest("http://localhost/api/live-task/history?agent=visit"));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Live task history unavailable" });
+  });
+
   it("keeps body-less image 404 and image response headers", async () => {
     const missing = await getImage(new NextRequest("http://localhost/api/live-task/image?agent=visit"));
     expect(missing.status).toBe(404);

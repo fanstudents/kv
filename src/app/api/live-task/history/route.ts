@@ -7,9 +7,14 @@ import {
 
 // 近期處理過的名片（真實資料）：contacts(line_card) + visit_offers / pending_invites 的結果
 export async function GET(req: NextRequest) {
-  const result = await readVisitLiveTaskHistory(
-    parseVisitLiveTaskHistoryRequest(req.nextUrl.searchParams.get("agent")),
-    createSupabaseVisitLiveTaskHistoryRepository(),
-  );
-  return NextResponse.json(result);
+  try {
+    const result = await readVisitLiveTaskHistory(
+      parseVisitLiveTaskHistoryRequest(req.nextUrl.searchParams.get("agent")),
+      createSupabaseVisitLiveTaskHistoryRepository(),
+    );
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("[live-task] history read failed", error);
+    return NextResponse.json({ error: "Live task history unavailable" }, { status: 503 });
+  }
 }

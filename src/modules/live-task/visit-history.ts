@@ -81,17 +81,13 @@ export async function readVisitLiveTaskHistory(
 ): Promise<VisitLiveTaskHistoryResult> {
   if (input.agentSlug !== "visit") return { items: [] };
 
-  try {
-    const contacts = await repository.listContacts(8);
-    if (!contacts.length) return { items: [] };
+  const contacts = await repository.listContacts(8);
+  if (!contacts.length) return { items: [] };
 
-    const ids = contacts.map((contact) => contact.id);
-    const [offers, invites] = await Promise.all([
-      repository.listOffers(ids),
-      repository.listInvites(ids),
-    ]);
-    return { items: summarizeVisitLiveTaskHistory(contacts, offers, invites) };
-  } catch {
-    return { items: [] };
-  }
+  const ids = contacts.map((contact) => contact.id);
+  const [offers, invites] = await Promise.all([
+    repository.listOffers(ids),
+    repository.listInvites(ids),
+  ]);
+  return { items: summarizeVisitLiveTaskHistory(contacts, offers, invites) };
 }

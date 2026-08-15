@@ -54,12 +54,12 @@ describe("Visit live task history projection", () => {
     expect(repository.listInvites).toHaveBeenCalledWith(["c1"]);
   });
 
-  it("swallows provider failure and keeps the empty fallback", async () => {
+  it("propagates provider failure instead of treating it as empty history", async () => {
     const repository = {
       listContacts: vi.fn(async () => { throw new Error("database down"); }),
       listOffers: vi.fn(),
       listInvites: vi.fn(),
     };
-    await expect(readVisitLiveTaskHistory({ agentSlug: "visit" }, repository)).resolves.toEqual({ items: [] });
+    await expect(readVisitLiveTaskHistory({ agentSlug: "visit" }, repository)).rejects.toThrow("database down");
   });
 });
