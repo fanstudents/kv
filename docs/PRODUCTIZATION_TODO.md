@@ -546,6 +546,8 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - **Exit `[~]`**：既有 22 files／106 tests 加上本批 4 files／36 focused tests 與 remote claim probe，證明本地 provider contracts 與 exact replay ledger；Teachify provider event／stale／out-of-order、Support LINE 與 Visit inbound 仍有外部 gate。
 
 5. **P5 — 外部資產（E，可與 P1–P4 平行取得）**
+   - [x] `npm run doctor:staging`（2026-08-15）確認 Main／Teaching／OpenAI／Primary LINE／Google／Firecrawl／Cron 已配置且未呼叫外部服務；目前只列缺少的名稱。
+   - [!] 目前明確缺少：`LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN`、`TEACHIFY_WEBHOOK_SECRET`、`SUPPORT_RELAY_TARGET_URL`。這些只阻塞對應 P6 真實 journey，不阻塞本地 contracts、文件、測試與其他 domain。
    - Support LINE：專用 channel ID／secret／access token、測試 user／room，以及可安全改 webhook 的 owner。
    - Teachify：官方實際 signing spec／secret，加一筆 sandbox 或去識別可重播事件。
    - Support relay：既有客服 webhook target、owner 與 failure／rollback 聯絡人。
