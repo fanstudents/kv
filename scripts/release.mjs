@@ -122,8 +122,9 @@ function projectTarget(env, profile) {
 }
 
 function runSupabase(args) {
-  const command = process.platform === "win32" ? "npx.cmd" : "npx";
-  const result = spawnSync(command, ["--no-install", "supabase", ...args], {
+  const cli = join(process.cwd(), "node_modules", "supabase", "dist", "supabase.js");
+  if (!existsSync(cli)) throw new Error("Pinned Supabase CLI is not installed; run npm ci");
+  const result = spawnSync(process.execPath, [cli, ...args], {
     stdio: "inherit",
     shell: false,
   });
