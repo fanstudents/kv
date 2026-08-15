@@ -47,4 +47,17 @@ describe("doctor command contract", () => {
     expect(result.stdout).toContain("Result: ready");
     expect(result.stdout).not.toContain("server-secret");
   });
+
+  it("blocks strict staging when Main Supabase only has an anon key", () => {
+    const result = runDoctor(["--profile=staging", "--strict"], {
+      AUTH_SECRET: "auth-secret",
+      ADMIN_PASSWORD: "admin-password",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_ANON_KEY: "anon-key",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("server-side writes 尚未開啟");
+    expect(result.stdout).toContain("Result: blocked (main-supabase)");
+    expect(result.stdout).not.toContain("anon-key");
+  });
 });

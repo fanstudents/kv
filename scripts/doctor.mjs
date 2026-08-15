@@ -87,11 +87,17 @@ export function buildDoctorReport(env = process.env, profile = "demo", cwd = pro
   }
 
   const required = new Set(REQUIRED_GROUPS[profile]);
-  const normalized = checks.map((check) => ({
-    ...check,
-    required: required.has(check.id),
-  }));
-  const failures = normalized.filter((check) => check.required && check.status !== "configured");
+  const normalized = checks.map((check) => {
+    const requiredCheck = required.has(check.id);
+    const ready = check.status === "configured" &&
+      (!requiredCheck || check.id !== "main-supabase" || check.writeEnabled);
+    return {
+      ...check,
+      required: requiredCheck,
+      ready,
+    };
+  });
+  const failures = normalized.filter((check) => check.required && !check.ready);
 
   return {
     profile,
@@ -114,7 +120,7 @@ function parseArgs(args) {
 function printReport(report) {
   console.log(`KV doctor | profile=${report.profile} | provider calls=disabled`);
   for (const check of report.checks) {
-    const icon = check.status === "configured" ? "OK" : check.required ? "FAIL" : "WARN";
+    const icon = check.ready ? "OK" : check.required ? "FAIL" : "WARN";
     const suffix = check.missing?.length ? `；缺少 ${check.missing.join("、")}` : "";
     console.log(`${icon} ${check.label}: ${check.detail}${suffix}`);
   }
