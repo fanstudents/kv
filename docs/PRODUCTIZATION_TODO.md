@@ -8,10 +8,10 @@
 
 狀態：`Active`｜Repo：`F:/ownproject/kv`｜Branch：`codex/kv-wp0-toolchain`｜環境：Main `kv-staging` + 獨立唯讀 Teaching DB｜判定：`Modular monolith ready for scoped KV delivery; transitional seams remain; not SaaS-ready`
 
-### 換機接續 checkpoint（2026-08-15）
+### 換機接續 checkpoint（2026-08-16）
 
-- Code snapshot：`fecd8d3`（將 canonical baseline migration 檔名對齊 `kv-staging` 實際 history；SQL 內容未變）；本次 smoke／preflight 的 evidence baseline：`47e9caf`（僅文件／交接紀錄更新）。CodeGraph 為 483 files／4,222 nodes／10,620 edges，無 pending drift。
-- 本文件 revision 的輸入 snapshot：`1e85bb4`；本批進入 P8，補齊 commit／schema／environment deployment identity、Supabase project allowlist、migration plan/apply gates 與 remote promotion verification，不改 UI、資料 schema 或 provider side effects。
+- Code snapshot：`85bb453`（CI scope classifier contract、focused tests 與 package／架構判斷文件已固定）；此前 migration／staging evidence 仍以 `fecd8d3`、`47e9caf` 為歷史基線。CodeGraph 最近一次為 483 files／4,222 nodes／10,620 edges，無 pending drift。
+- 本文件 revision 的輸入 snapshot：`85bb453`；本批完成 schema gate scope 分類、hosted CI quality／schema replay 證據與 P9 交接同步，不改 UI、資料 schema 或 provider side effects。
 - Supabase Chrome evidence：已核對 `kv-staging`（ref `gizswqvyavkfrtndfzsb`、Healthy），Migration history 六筆與 repo 完全一致；最新 migration 是 `20260814164718_visit_offer_timeout_recovery`。Scheduled backup 頁面顯示每日 backup，最近一筆為 2026-08-14 17:23:38 UTC。
 - 連線限制與處置：Supabase Connect UI 不會回傳既有資料庫密碼；本批經明確授權重設 `kv-staging` password，secret 只寫入 Git ignored `.env.local`，未寫入 repo。Direct connection 的 IPv6 路徑在本機連線失敗，改用 Session Pooler `:5432` 後 migration plan 成功；CLI linked session 仍可安全完成 history／dry-run／no-op apply 驗證。
 - 現行 HEAD 的 Chromium smoke：`npm run test:e2e:run:smoke` 共 147/147 通過（含公開頁、後台互動、訂閱者標籤與 broadcast）；缺少 Supabase env 的訊息是 hermetic failure-contract 測試的預期診斷，不代表測試失敗。
@@ -625,7 +625,8 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - **Exit `[~]`**：repo 內 P8 procedure／guards／contracts、hosted staging deploy 與 exact remote verification 已完成；migration promotion、backup evidence、scheduled failure owner 與 rollback rehearsal仍是外部 release gate，未冒充已完成。
 
 9. **P9 — Final cleanup 與交接（A）**
-   - 刪除確定無 caller 的 dead code、誤用 demo data 與已完成使命的 transitional adapters；不清理未知 upstream 功能。
+   - [x] 2026-08-16 CodeGraph／caller audit：沒有可在不改 API／UI／資料契約下安全刪除的 dead code；Visit `legacy-*`、provider／DB adapters 與 transitional KB islands 都有真實 consumer 或明確邊界理由，手動 avatar／Google credential scripts 也保留為明確用途工具。不為減檔名硬刪未知 upstream 功能。
+   - [x] 2026-08-16 非 provider 交接證據：`85bb453` 後 worktree clean；`npm test` 139 files／721 tests、lint、typecheck、`npm run verify:full` 147/147 hermetic browser smoke、Chrome staging `/agents-catalog` 與 `/dashboard` read-only 載入均通過。
    - 跑完整 lint／typecheck／test／build／browser／provider matrix，更新 CodeGraph 與最小必要 README／runbook／本 TODO。
    - 列出已驗、未驗、已接受風險、營運 owner 與下一批需求入口。
    - **Exit**：乾淨 worktree、可追溯 commits、零遺留 fixture、文件與實際 revision 一致，可由另一位工程師依文件重現。
