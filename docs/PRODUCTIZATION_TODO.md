@@ -457,7 +457,9 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 ### 7.4 Work packages 與退出條件
 
 0. **P0 — Scope control（D，不阻塞 P1／P2／P4／W1）**
-   - 確認 9 月底推廣版的使用者、必含能力、明確不做項、驗收 journey 與 release owner。
+   - [~] 已記錄的產品輸入：Dennis 預計 9 月底開始推廣，與互動簡報系統一起走企業合作／分潤；主要交付是企業導入或內訓專案，對象包含工場／製造／半導體背景，資訊業可先聚焦辦公室資安。這是 scope input，不等於已核准的 release contract。
+   - [~] 依上述輸入先形成三個候選能力包：① Visit／企業拜訪（名片→研究→邀約→Calendar／Gmail／LINE）；② Teachify／課程或電商訂單通知（webhook→Orders→Primary LINE）；③ Knowledge／客服內訓（知識庫→審核／搜尋→Support relay）。第一版建議採固定能力包＋每企業獨立部署，不承諾任意 Agent／workflow 編排。
+   - [ ] 由產品 owner 確認 9 月底首發要 accept／defer／reject 哪些能力包、每包的必跑 journey、品牌／合作分潤邊界與 release owner；在確認前不把候選包當商業承諾。
    - 逐項裁決 upstream 候選：名片轉正、LINE 寄出／取消卡片、Firecrawl fallback、社群連結、劇院圖文／hold state；只把核准項目沿現有 Visit／KB owner 手工移植，不 merge 整包 upstream。
    - 品牌改名與 Super Agent 展示是產品／UI 需求，另立 change contract，不混入保持 UI 不變的結構整理。
    - **Exit**：每個候選有 accept／defer／reject、owner、journey 與 guardrail；未決項不阻塞下面不相依的 acceptance。
