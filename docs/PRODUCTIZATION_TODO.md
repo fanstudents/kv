@@ -10,10 +10,11 @@
 
 ### 換機接續 checkpoint（2026-08-15）
 
-- Last code snapshot：`fecd8d3`（將 canonical baseline migration 檔名對齊 `kv-staging` 實際 history；SQL 內容未變）。CodeGraph 為 483 files／4,222 nodes／10,620 edges，無 pending drift。
+- Code snapshot：`fecd8d3`（將 canonical baseline migration 檔名對齊 `kv-staging` 實際 history；SQL 內容未變）；本次 smoke／preflight 的 evidence baseline：`47e9caf`（僅文件／交接紀錄更新）。CodeGraph 為 483 files／4,222 nodes／10,620 edges，無 pending drift。
 - 本文件 revision 的輸入 snapshot：`1e85bb4`；本批進入 P8，補齊 commit／schema／environment deployment identity、Supabase project allowlist、migration plan/apply gates 與 remote promotion verification，不改 UI、資料 schema 或 provider side effects。
 - Supabase Chrome evidence：已核對 `kv-staging`（ref `gizswqvyavkfrtndfzsb`、Healthy），Migration history 六筆與 repo 完全一致；最新 migration 是 `20260814164718_visit_offer_timeout_recovery`。Scheduled backup 頁面顯示每日 backup，最近一筆為 2026-08-14 17:23:38 UTC。
 - 連線限制：Supabase Connect UI 只顯示含 `[YOUR-PASSWORD]` 的 placeholder，不會回傳資料庫密碼；未重設密碼、未把 secret 寫入 Git。CLI linked session 可安全完成 history／dry-run／no-op apply 驗證。
+- 現行 HEAD 的 Chromium smoke：`npm run test:e2e:run:smoke` 共 147/147 通過（含公開頁、後台互動、訂閱者標籤與 broadcast）；缺少 Supabase env 的訊息是 hermetic failure-contract 測試的預期診斷，不代表測試失敗。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
@@ -390,7 +391,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。`https://kva.zeabur.app` 的 `/api/version` 於 2026-08-15 回 401，`/api/health` 雖回 HTTP 200，但 body 是 `degraded` 且 service／version／commit／schema／environment 全空；它明確不是本 branch 可驗證的 release target，只能判定 domain 存活，不得拿來做破壞性驗收或改 webhook。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
-- [~] 本 branch `npm run verify` 已通過 lint、typecheck、138 files／717 tests 與 93-page production build；既有 147-test hermetic browser smoke 與 136-test Main staging read matrix仍有效。release preflight 已在 clean `fecd8d3` 通過；locked install、hosted artifacts／flaky 分類仍待 canonical repo。
+- [~] 本 branch `npm run verify` 已通過 lint、typecheck、138 files／717 tests 與 93-page production build；evidence baseline `47e9caf` 重新跑 147-test hermetic browser smoke 並全數通過，136-test Main staging read matrix仍有效。release preflight 亦在該 baseline 通過；locked install、hosted artifacts／flaky 分類仍待 canonical repo。
 - [x] `.github/workflows/ci.yml` 支援 PR／main 與手動 dispatch，quality job 跑 install／config／lint／typecheck／unit／build／browser smoke，schema job clean replay migrations 並檢查 generated types。
 - [x] `release:preflight` 綁定 Doctor、clean worktree、checked-out commit、latest migration 與 staging／live runtime identity；`/api/version` 暴露非敏感 commit／schema／environment，`/api/health` 對 release identity 缺失 fail-closed。
 - [x] `release:migrations:plan` 先做 migration history compare 與 `db push --dry-run`；`release:migrations:apply` 要求 DB URL 命中 allowlisted project ref、backup 已確認、explicit apply gate 與相同 project confirmation。沒有 `SUPABASE_DB_URL` 時已證明安全停止，未碰遠端資料庫。
