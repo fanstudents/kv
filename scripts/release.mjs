@@ -22,7 +22,7 @@ export function inspectMigrationInventory(cwd = process.cwd()) {
     ? readdirSync(directory).filter((name) => name.endsWith(".sql")).sort()
     : [];
   if (files.length === 0) throw new Error("No Supabase migrations found");
-  if (files[0] !== "20260801000000_live_baseline.sql") {
+  if (files[0] !== "20260801105708_live_baseline.sql") {
     throw new Error("Canonical baseline migration must be first");
   }
 

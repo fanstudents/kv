@@ -62,7 +62,7 @@ function migrationCheck(cwd) {
   const files = existsSync(directory)
     ? readdirSync(directory).filter((name) => name.endsWith(".sql")).sort()
     : [];
-  const hasBaseline = files[0] === "20260801000000_live_baseline.sql";
+  const hasBaseline = files[0] === "20260801105708_live_baseline.sql";
   return {
     id: "schema",
     label: "Main migrations",
