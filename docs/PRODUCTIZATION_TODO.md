@@ -24,6 +24,8 @@
 - **完整計畫 readiness：** `Needs Revision`。九月底產品範圍已決定為現有 KV 功能全部納入；尚未關閉的是 P3 部分 recovery 語意、P5 外部 ownership，以及 P1／部署 release gate。W1 可變流程 proof 已完成，結論是保留 explicit use case、W2 deferred。
 - **架構交付狀態：** `Modular monolith ready for scoped KV delivery; transitional seams remain; not SaaS-ready`。這是目前可交付範圍的判定，不等於完整產品化計畫已 Ready。
 
+**Owner 用語：** 本文件的 owner 是「對一項工作負責、能做決定並完成驗收的角色」，不等於檔案作者或法律上的擁有者。`domain owner` 負責某個業務模組的規則、契約與測試；`release owner` 負責部署、版本驗證與 rollback；`product owner` 負責範圍與需求取捨。若尚未填入實際人名／團隊，該項仍視為交接未完成。
+
 | Actor／consumer | Job／outcome | Product intent／why now |
 |---|---|---|
 | 工程團隊 | 在不複製客戶專案的前提下維護、驗證、擴充與部署 KV | 讓 Dennis 的 vibe-coded 原作可長期承接需求，而不是每次再拆一輪或另寫一套 |
