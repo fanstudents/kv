@@ -89,6 +89,9 @@ describe("agent admin compatibility", () => {
     });
 
     const unavailable = repository({ listStatuses: vi.fn(async () => { throw new Error("unavailable"); }) });
-    await expect(readAgentStatuses(unavailable, catalog)).resolves.toEqual({ enabled: { active: true, draft: false } });
+    await expect(readAgentStatuses(unavailable, catalog)).rejects.toThrow("unavailable");
+
+    const failed = repository({ listStatuses: vi.fn(async () => ({ data: null, error: { message: "database down" } })) });
+    await expect(readAgentStatuses(failed, catalog)).rejects.toThrow("database down");
   });
 });

@@ -36,6 +36,16 @@ describe("agent admin route contracts", () => {
     await expect(response.json()).resolves.toMatchObject({ enabled: { operations: true } });
   });
 
+  it("does not return static status when the live status read fails", async () => {
+    createSupabaseAgentAdminRepository.mockReturnValueOnce({
+      listStatuses: vi.fn(async () => ({ data: null, error: { message: "database down" } })),
+    });
+
+    const response = await getStatuses();
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Agent status unavailable" });
+  });
+
   it("keeps GET not-found and PATCH JSON/error mappings", async () => {
     createSupabaseAgentAdminRepository.mockReturnValueOnce({
       getBySlug: vi.fn(async () => ({ data: null, errorMessage: "not found" })),

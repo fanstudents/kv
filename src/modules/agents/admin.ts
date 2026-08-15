@@ -128,10 +128,13 @@ export async function readAgentStatuses(
   repository: AgentAdminRepository,
   catalog: readonly AgentStatusCatalogEntry[],
 ): Promise<{ enabled: AgentStatusMap }> {
-  try {
-    const { data } = await repository.listStatuses();
-    return { enabled: buildAgentStatusMap(catalog, data) };
-  } catch {
-    return { enabled: buildAgentStatusMap(catalog, null) };
+  const { data, error } = await repository.listStatuses();
+  if (error) {
+    const message =
+      typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
+        ? error.message
+        : "Agent status read failed";
+    throw new Error(message);
   }
+  return { enabled: buildAgentStatusMap(catalog, data) };
 }

@@ -9,6 +9,11 @@ import { readAgentStatuses } from "@/modules/agents/admin";
 // line_agents.enabled 才是後台開關真正寫入的地方。側欄那顆綠燈、劇院模式的
 // 「值勤中」數字都讀常數，所以你在 Agent 頁面按下停用，畫面其他地方毫無反應。
 export async function GET() {
-  const result = await readAgentStatuses(createSupabaseAgentAdminRepository(), getLegacyAgentStatusCatalog());
-  return NextResponse.json(result);
+  try {
+    const result = await readAgentStatuses(createSupabaseAgentAdminRepository(), getLegacyAgentStatusCatalog());
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("[agents] status read failed", error);
+    return NextResponse.json({ error: "Agent status unavailable" }, { status: 503 });
+  }
 }
