@@ -10,7 +10,7 @@
 
 ### 換機接續 checkpoint（2026-08-15）
 
-- Last code snapshot：`a3d515c`（Agent settings functional browser journey）。CodeGraph 為 478 files／4,179 nodes／10,500 edges，無 pending drift。
+- Last code snapshot：`301bfed`（Checklist／Subscribers functional browser journeys）。CodeGraph 為 480 files／4,192 nodes／10,535 edges，無 pending drift。
 - 本文件 revision 的輸入 snapshot：`be62051`（docs: record goal trend checkpoint）；本輪只整理計畫，不改 runtime code。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
@@ -233,7 +233,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current verification | `verify:config`、focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Playwright smoke | `verify:config` 通過並只顯示缺少變數名稱；137 files／704 tests、93-page build、141-test hermetic browser smoke；本批新增 Agent settings save／toggle rollback functional contracts；未改 UI／API／schema／provider side effects；2026-08-15 CodeGraph 478 files／4,179 nodes／10,500 edges，無 pending drift |
+| Current verification | `verify:config`、focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Playwright smoke | `verify:config` 通過並只顯示缺少變數名稱；137 files／704 tests、93-page build、145-test hermetic browser smoke；本批新增 Checklist toggle／rollback 與 Subscribers tag／broadcast functional contracts；未改 UI／API／schema／provider side effects；2026-08-15 CodeGraph 480 files／4,192 nodes／10,535 edges，無 pending drift |
 | Google partial calendar truth | `b0376b7` + `google-read-direct` + Chrome `/agents/schedule` | 共享日曆讀取失敗不再靜默變成空行程；既有 warnings 區塊會指出哪個 calendar 未納入；正常 Google 行程、API payload、UI 結構與任何寫入不變 |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
@@ -244,6 +244,8 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | P6 staging browser read-path recheck | `npm run test:e2e:run:staging`（2026-08-15） | 136/136 通過：API anonymous guards、login、所有 protected／public pages、live projection contracts；沒有 assertion failure，未執行 provider write |
 | Goals functional browser contract | `tests/e2e/goals-functional.spec.ts` + focused／full Playwright Chromium（2026-08-15） | 3/3 通過：建立目標保留 PUT payload、儲存失敗回滾 optimistic card、DELETE 確認後移除卡片；API 以 route interception 驗證，沒有外部寫入；UI／API／schema 未改 |
 | Agent settings functional browser contract | `tests/e2e/agent-settings-functional.spec.ts` + focused／full Playwright Chromium（2026-08-15） | 2/2 通過：Orders 後台設定保留既有 PATCH payload、啟用切換遭 API 503 時回復原狀；共用 `AgentPageShell` UI／API／schema 未改，沒有外部寫入 |
+| Checklist functional browser contract | `tests/e2e/checklist-functional.spec.ts` + focused／full Playwright Chromium（2026-08-15） | 2/2 通過：待辦勾選保留 PATCH payload、持久化失敗回復未完成狀態；API 以 route interception 驗證，沒有外部寫入；UI／schema 未改 |
+| Subscribers／Broadcast functional browser contract | `tests/e2e/subscribers-functional.spec.ts` + focused／full Playwright Chromium（2026-08-15） | 2/2 通過：標籤編輯保留更新 payload、推播保留 audience/style/text payload 並顯示 provider 結果；API 以 route interception 驗證，沒有 LINE 外部寫入；UI／schema 未改 |
 | Agent admin live-error truth | `agent-page-state` contracts + shared `AgentPageShell`／`RealStatusPanel`／`agent-status` changes（2026-08-15） | 既有版面與 API 不變；demo 模式保留展示 fallback；live 模式設定／活動／真實狀態讀取失敗會留下可見 failed activity／狀態錯誤，空陣列不再被補成靜態執行紀錄；PATCH 失敗會回復 toggle、儲存按鈕不再誤顯示成功 |
 | Agent integration projection truth | `6e7e204` + `integration-status-projection`／Agent page contracts + Chrome `/agents/today`（2026-08-15） | `RealStatusPanel`／`ConnectionStatusList` 共用 live projection；載入中／讀取失敗不再把 `INTEGRATION_SEEDS` 的靜態 connected 當成連線證據；UI、API 與正常 live 結果不變 |
 | Integration probe failure truth | `0d9261a` + `integration-status-projection` + Chrome `/integrations`、`/agents/today`（2026-08-15） | `/api/integrations/status` 非 2xx／格式錯誤會明確進入「查詢失敗」，不再永久停在「查詢中」或被誤判為未連線；正常 live 結果與 UI 結構不變 |
@@ -376,7 +378,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。`https://kva.zeabur.app` 於 2026-08-14 已回 200，LINE／Teachify GET health routes 也存在，但頁面品牌為 MixAgent，無版本／commit 證據；因此它是「存活但 ownership／revision／staging 身分未知」，不得直接拿來做破壞性驗收或改 webhook。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
-- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、137 files／704 tests、93-page production build與 141-test hermetic browser smoke；本批新增共用 Agent settings functional browser contracts，未改 UI／runtime。另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無 assertion failure；141-test full smoke 的缺 Supabase 日誌來自未攔截的無憑證 read surfaces，並非測試失敗。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
+- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、137 files／704 tests、93-page production build與 145-test hermetic browser smoke；本批新增 Checklist／Subscribers functional browser contracts，未改 UI／runtime。另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無 assertion failure；145-test full smoke 的缺 Supabase 日誌來自未攔截的無憑證 read surfaces，並非測試失敗。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
 - [ ] 指定 scheduled failure 通知目的地／owner。
 - [ ] 明確 deploy command、migration ordering、health check、promotion、app／secret／migration rollback與 release owner。
 
@@ -385,7 +387,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [~] Main／OpenAI／Firecrawl／Google／Primary LINE 與 Support Main 自主 journeys 已達標；Support LINE、Teachify provider truth、Visit inbound、hosted schedule／deploy 仍有明確外部 gate，replay decisions 仍依 P3。
 - [x] `/integrations` badge／計數已改綁 `/api/integrations/status` live truth並維持原 UI/UX；localStorage 僅保留管理連結、Agent 用途與自訂服務 demo，自訂項無 live probe 時顯示未連線。
 - [~] 本輪 CodeGraph 沒找到可安全刪除的無 caller 模組；Visit `legacy-*` adapters 仍被 webhook／cron 真實呼叫，保留為外部／舊 schema 邊界。最後 transitional cleanup 要等 P6 evidence，不為減檔名硬刪。
-- [~] 全量 verify、CodeGraph、137-file／704-test contracts、8-page Chrome matrix、Main residue audit 與 141-test browser smoke 已完成；本批未改 UI，Goals 與共用 Agent settings 的 create／failure／delete／save／toggle 互動由 hermetic Chromium contract 覆蓋；staging cutover／rollback rehearsal 仍待 deploy ownership。
+- [~] 全量 verify、CodeGraph、137-file／704-test contracts、8-page Chrome matrix、Main residue audit 與 145-test browser smoke 已完成；本批未改 UI，Goals／Agent settings／Checklist／Subscribers 的 create／failure／delete／save／toggle／broadcast 互動由 hermetic Chromium contract 覆蓋；staging cutover／rollback rehearsal 仍待 deploy ownership。
 - [x] 穩定的安裝、verify、staging read-path 與 opt-in write/cleanup 邊界已補進 README；細節只由本 TODO 維護，不新增重複架構／runbook 文件。
 
 ## 6. 自主邊界與仍需外部取得的資產
