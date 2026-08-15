@@ -19,7 +19,7 @@
 ### 執行計畫身份與 GORE（2026-08-15）
 
 - **Profile：** Master；這份文件同時管理產品範圍、架構收斂、真實旅程、部署與交接，不另建第二份計畫。
-- **完整計畫 readiness：** `Needs Revision`。原因不是不能工作，而是 P0 產品範圍、P3 部分 recovery 語意、P5 外部 ownership，以及 P1／部署 release gate 尚未關閉；W1 可變流程 proof 已完成，但只得出「保留 explicit use case、W2 deferred」的結論。
+- **完整計畫 readiness：** `Needs Revision`。九月底產品範圍已決定為現有 KV 功能全部納入；尚未關閉的是 P3 部分 recovery 語意、P5 外部 ownership，以及 P1／部署 release gate。W1 可變流程 proof 已完成，結論是保留 explicit use case、W2 deferred。
 - **架構交付狀態：** `Modular monolith ready for scoped KV delivery; transitional seams remain; not SaaS-ready`。這是目前可交付範圍的判定，不等於完整產品化計畫已 Ready。
 
 | Actor／consumer | Job／outcome | Product intent／why now |
@@ -239,6 +239,7 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
 | LINE webhook payload guard | `parseVisitLineWebhookPayload`／`parseSupportRelayPayload` + 28 focused contracts（2026-08-15） | `events` 非陣列會在 route dispatch 前被拒絕；陣列中的 null／primitive 不會進入 application `.map`；正常空 payload 與既有 signature／relay contract 保持不變。未改 UI 或 provider side-effect policy |
 | W1 Visit workflow variation proof | `tests/unit/visit-line-offer-application.test.ts`（2026-08-15） | 同一個 Visit explicit use case 以既有 `requireApproval` 設定覆蓋「先產生草稿」與「直接寄送」兩條行為；輸出、寄信、回覆、run telemetry 與 lock release 均有 focused contract。沒有新增 registry／wrapper／schema／provider key；W2 deferred |
+| P0 September scope decision | 本 TODO 產品決策（2026-08-15） | 九月底不刪減現有 KV 功能；既有 Agent／Visit／Orders／KB／Support／Meeting／Reporting／Operations／Subscribers／Live Task／TV／integrations 全部納入，未驗證 provider 與部署責任仍列為 release gate |
 | Agent admin live-error truth | `agent-page-state` contracts + shared `AgentPageShell`／`RealStatusPanel`／`agent-status` changes（2026-08-15） | 既有版面與 API 不變；demo 模式保留展示 fallback；live 模式設定／活動／真實狀態讀取失敗會留下可見 failed activity／狀態錯誤，空陣列不再被補成靜態執行紀錄；PATCH 失敗會回復 toggle、儲存按鈕不再誤顯示成功 |
 | Agent integration projection truth | `6e7e204` + `integration-status-projection`／Agent page contracts + Chrome `/agents/today`（2026-08-15） | `RealStatusPanel`／`ConnectionStatusList` 共用 live projection；載入中／讀取失敗不再把 `INTEGRATION_SEEDS` 的靜態 connected 當成連線證據；UI、API 與正常 live 結果不變 |
 | Integration probe failure truth | `0d9261a` + `integration-status-projection` + Chrome `/integrations`、`/agents/today`（2026-08-15） | `/api/integrations/status` 非 2xx／格式錯誤會明確進入「查詢失敗」，不再永久停在「查詢中」或被誤判為未連線；正常 live 結果與 UI 結構不變 |
@@ -442,7 +443,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 
 | ID | Outcome | Depends on | Produces | 可平行 | Serial owner／integration point |
 |---|---|---|---|---|---|
-| P0 | 9 月底能力包與驗收範圍定案 | 產品 owner 輸入 | accept／defer／reject、journey、release owner | P1、P4、W1、P5 | 產品 owner |
+| P0 | 9 月底現有功能全納入與驗收範圍定案 | 已記錄產品決策；仍需 owner 分派 | 每個既有能力的 journey、guardrail、release owner | P1、P4、W1、P5 | 產品 owner |
 | P1 | 所有 side effect 都有測試護欄 | 現有 staging／env | allowlist、fixture、snapshot／restore、停止條件 | P0、P3、P4、P5 | 工程團隊 |
 | P2 | Primary composite evidence 可重跑 | P1 | DB diff、provider receipt、Chrome、cleanup | P0、P3、P4、W1 | acceptance owner |
 | P3 | Visit／Teachify／Support recovery 語意核准 | 現有 local contracts、provider input | retry／replay／stale／rollback decisions | P0、P1、P4、P5、W1 | 產品＋可靠性 owner |
@@ -457,12 +458,14 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 ### 7.4 Work packages 與退出條件
 
 0. **P0 — Scope control（D，不阻塞 P1／P2／P4／W1）**
-   - [~] 已記錄的產品輸入：Dennis 預計 9 月底開始推廣，與互動簡報系統一起走企業合作／分潤；主要交付是企業導入或內訓專案，對象包含工場／製造／半導體背景，資訊業可先聚焦辦公室資安。這是 scope input，不等於已核准的 release contract。
-   - [~] 依上述輸入先形成三個候選能力包：① Visit／企業拜訪（名片→研究→邀約→Calendar／Gmail／LINE）；② Teachify／課程或電商訂單通知（webhook→Orders→Primary LINE）；③ Knowledge／客服內訓（知識庫→審核／搜尋→Support relay）。第一版建議採固定能力包＋每企業獨立部署，不承諾任意 Agent／workflow 編排。
-   - [ ] 由產品 owner 確認 9 月底首發要 accept／defer／reject 哪些能力包、每包的必跑 journey、品牌／合作分潤邊界與 release owner；在確認前不把候選包當商業承諾。
+   - [~] 背景輸入：Dennis 預計 9 月底開始推廣，與互動簡報系統一起走企業合作／分潤；主要交付是企業導入或內訓專案，對象包含工場／製造／半導體背景，資訊業可先聚焦辦公室資安。這些背景已由下方產品決策轉成 release scope。
+   - [x] **產品決策（2026-08-15）：九月底不刪減現有功能；目前 KV 已存在的功能面全部列入首發 scope。** 至少包含 Agent／Chat、Visit、Orders、Knowledge Base、Support、Meeting、Reporting、Goals／Checklist／Operations、Subscribers／Broadcast、Live Task／TV 與現有 integrations／後台頁面。
+   - [x] 以上功能沿現有 domain owner 交付：① Visit／企業拜訪（名片→研究→邀約→Calendar／Gmail／LINE）；② Teachify／課程或電商訂單通知（webhook→Orders→Primary LINE）；③ Knowledge／客服內訓（知識庫→審核／搜尋→Support relay）；其餘既有頁面與能力維持 UI／API 相容並納入同一 release checklist。
+   - [~] Scope 已定，但每個功能的 provider acceptance journey、部署 owner、品牌／合作分潤細節仍要補齊；未驗證的外部 provider 不得被寫成已上線，只能標示為 release gate。
+   - [x] Scope 邊界同步確認：不把 upstream 尚未存在的候選功能、W2／W3 generic workflow runtime、multi-tenant SaaS 或 UI redesign 偷塞進九月底版本；既有 demo／sales projection 保留相容，但不當作 live provider truth。
    - 逐項裁決 upstream 候選：名片轉正、LINE 寄出／取消卡片、Firecrawl fallback、社群連結、劇院圖文／hold state；只把核准項目沿現有 Visit／KB owner 手工移植，不 merge 整包 upstream。
    - 品牌改名與 Super Agent 展示是產品／UI 需求，另立 change contract，不混入保持 UI 不變的結構整理。
-   - **Exit**：每個候選有 accept／defer／reject、owner、journey 與 guardrail；未決項不阻塞下面不相依的 acceptance。
+   - **Exit**：現有每個能力都有對應 acceptance journey、guardrail 與 release owner；scope 不再用 accept／defer／reject 取捨，未完成的 provider／部署證據仍標為 release gate。
 
 1. **P1 — 驗收護欄（A，尚未封口）**
    - [x] 本地已產生並設定 Git ignored 的 `CRON_SECRET`、`SUPPORT_LOG_SECRET`；它們不是外部 blocker，也未寫入文件或 commit。
@@ -529,7 +532,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - Teachify：官方實際 signing spec／secret，加一筆 sandbox 或去識別可重播事件。
    - Support relay：既有客服 webhook target、owner 與 failure／rollback 聯絡人。
    - Deploy：canonical GitHub repo／branch、Zeabur project ownership、獨立 staging URL、revision／commit 可見性、secret store 與 release owner。`kva.zeabur.app` 現在可回 200 且有 webhook routes，但尚不能證明它是本 branch、隔離 staging 或可安全覆寫的環境。
-   - Security／產品：輪替曾貼入對話的 OpenAI key；確認 9 月底 scope／acceptance journeys、品牌與 super-agent 範圍。
+   - Security／產品：輪替曾貼入對話的 OpenAI key；補齊既有全功能的 acceptance journeys、品牌／super-agent 邊界與 release owner。
    - **Exit**：每項都能指出 owner、環境、用途、允許副作用、撤回方法；只取得真正缺少的資產。
 
 6. **P6 — 真實 provider journeys（G + E）**
@@ -567,13 +570,13 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 
 ## 8. Readiness verdict
 
-- **Verdict：`Needs Revision`（完整產品化計畫）**：不是因為目前不能工作，而是 P0 產品範圍、P3 stale／out-of-order 與 Support recovery 語意、P5 外部 ownership、P1／部署 release gate 仍會影響下游的 P6／P8；W1 已完成且明確 deferred W2。
+- **Verdict：`Needs Revision`（完整產品化計畫）**：不是因為目前不能工作；九月底 scope 已固定為現有功能全納入。仍會影響 P6／P8 的是 P3 stale／out-of-order 與 Support recovery 語意、P5 外部 ownership、P1／部署 release gate；W1 已完成且明確 deferred W2。
 - **Scoped delivery 狀態仍成立**：現有 modular monolith 可承接已知 KV 需求；Main／Teaching DB、OpenAI、Firecrawl、Google、Primary LINE 與多數本地 contracts 已有證據。這不代表 Agent 已可任意配置，也不代表可直接當 multi-tenant SaaS。
 - **第一個可執行 package：** P1 的本地驗收護欄已審核，W1 也已完成；兩者都不需要新的外部 key。P1 的 canonical deploy／migration promotion／rollback owner 仍是 release gate。
-- **可平行處理的 gate：** 產品 owner 可整理 P0；可靠性 owner 可裁決 P3；外部協作者可取得 P5。這三條未完成前，不猜 public contract、不把 local fixture 寫成 provider truth。
+- **可平行處理的 gate：** P0 scope 已固定，產品 owner 仍需補每個既有功能的 acceptance journey／release owner；可靠性 owner 可裁決 P3；外部協作者可取得 P5。這些未完成前，不猜 public contract、不把 local fixture 寫成 provider truth。
 - **完成後的唯一順序：** `P0／P3／P5`（可平行）→ `P4` 重驗 → `P6` 真實 provider journeys → `P7` 只修實際暴露問題 → `P8` deploy／migration／rollback → `P9` cleanup／handoff。W1 已 STOP 在 explicit workflow，除非新 consumer 觸發 W2。
 - **若 W1 沒有第二 consumer：** 保留現有 explicit workflow，正式記錄 STOP；不建立 `WorkflowDefinition` registry。只有新需求真的出現，才重新開 W2／W3 gate。
-- **真正外部 gate**：Support 專用 LINE、Teachify 真實簽章素材、Support relay target、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及 9 月底產品 scope／release owner。
+- **真正外部 gate**：Support 專用 LINE、Teachify 真實簽章素材、Support relay target、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及既有全功能的 acceptance owner／release owner。
 - **禁止誤判**：本地自簽 fixture 只證明我們的 contract；可回 200 的 `kva.zeabur.app` 只證明 domain 存活。兩者都不能替代 provider receipt、commit identity、隔離 staging 或 rollback truth。
 
 ## 9. 文件政策
