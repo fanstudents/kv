@@ -133,6 +133,44 @@ describe("Visit LINE offer application", () => {
     expect(dependencies.lock.release).not.toHaveBeenCalled();
   });
 
+  it("uses the same explicit workflow to send immediately when approval is disabled", async () => {
+    const { dependencies } = makeDependencies();
+    vi.mocked(dependencies.settings.get).mockResolvedValue({
+      rangeStartDays: 1,
+      rangeEndDays: 14,
+      meetingDuration: 60,
+      meetingType: "咖啡",
+      workingHoursStart: "09:00",
+      workingHoursEnd: "18:00",
+      senderName: "Dennis",
+      requireApproval: false,
+    });
+    const handler = createVisitLineOfferReplyHandler(dependencies);
+
+    await expect(handler({ replyToken: "reply-immediate" }, "line-user-immediate", "要", "https://kv.test"))
+      .resolves.toBe(true);
+
+    expect(dependencies.workflow.createPendingInvite).toHaveBeenCalledWith("line-user-immediate", expect.objectContaining({
+      requiresApproval: false,
+    }));
+    expect(dependencies.providers.sendEmail).toHaveBeenCalledWith({
+      to: "dennis@example.test",
+      subject: "Meeting",
+      body: "<html>invite</html>",
+      html: true,
+    });
+    expect(dependencies.runtime.endVisitRun).toHaveBeenCalledWith({
+      userId: "line-user-immediate",
+      status: "success",
+      summary: "已寄出邀約信給 Dennis",
+    });
+    expect(dependencies.delivery.replyText).toHaveBeenCalledWith(
+      "reply-immediate",
+      expect.stringContaining("已寄出邀約信給 Dennis"),
+    );
+    expect(dependencies.lock.release).toHaveBeenCalledWith("line-user-immediate", "visit");
+  });
+
   it("releases the Visit lock when workflow failure telemetry also fails", async () => {
     const { dependencies } = makeDependencies({
       classifyDecisionText: vi.fn().mockReturnValue({ type: "confirm" }),
