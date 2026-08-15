@@ -106,4 +106,13 @@ describe("Live task store", () => {
     await expect(getLiveTaskState("visit")).resolves.toBeNull();
     await expect(getLiveImage("visit")).resolves.toBeNull();
   });
+
+  it("propagates live-task read failures instead of treating them as inactive", async () => {
+    getMainSupabase.mockImplementation(() => {
+      throw new Error("missing database");
+    });
+
+    await expect(getLiveTaskState("visit")).rejects.toThrow("missing database");
+    await expect(getLiveImage("visit")).rejects.toThrow("missing database");
+  });
 });

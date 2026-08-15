@@ -12,7 +12,12 @@ export const maxDuration = 120;
 const research = createVisitResearchDependencies();
 
 export async function GET() {
-  return NextResponse.json(await runVisitResearchRead(research.repository));
+  try {
+    return NextResponse.json(await runVisitResearchRead(research.repository));
+  } catch (error) {
+    console.error("[visit] research profile read failed", error);
+    return NextResponse.json({ error: "Visit research unavailable" }, { status: 503 });
+  }
 }
 
 export async function POST(req: NextRequest) {

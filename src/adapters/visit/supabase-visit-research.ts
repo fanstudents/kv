@@ -100,29 +100,21 @@ export function createSupabaseVisitResearchRepository(): VisitResearchRepository
     },
 
     async listProfiles(limit) {
-      try {
-        const { data, error } = await getClient()
-          .from("contact_profiles")
-          .select(
-            "id,person_name,company,company_summary,person_summary,links,highlights,talking_points,sources,confidence,status,created_at"
-          )
-          .order("created_at", { ascending: false })
-          .limit(limit);
-        if (error) throw new Error(`Visit research profile list failed: ${error.message}`);
-        return (data ?? []).map((row): ContactProfileRow => ({
-          ...row,
-          links: profileLinks(row.links),
-          highlights: stringList(row.highlights),
-          talking_points: stringList(row.talking_points),
-          sources: stringList(row.sources),
-        }));
-      } catch (error) {
-        console.error(
-          "[visit] research profile list unavailable",
-          error instanceof Error ? error.message : "unknown error",
-        );
-        return [];
-      }
+      const { data, error } = await getClient()
+        .from("contact_profiles")
+        .select(
+          "id,person_name,company,company_summary,person_summary,links,highlights,talking_points,sources,confidence,status,created_at"
+        )
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw new Error(`Visit research profile list failed: ${error.message}`);
+      return (data ?? []).map((row): ContactProfileRow => ({
+        ...row,
+        links: profileLinks(row.links),
+        highlights: stringList(row.highlights),
+        talking_points: stringList(row.talking_points),
+        sources: stringList(row.sources),
+      }));
     },
 
     async recordActivity(activity) {

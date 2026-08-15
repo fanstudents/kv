@@ -13,11 +13,16 @@ import {
 // 所以畫面上亮起來的節點與資料庫裡記下來的那一步是同一個東西。
 // agent_live_task 仍然負責「現正處理的照片」與兩分鐘 TTL 的活著判斷（畫面用）。
 export async function GET(req: NextRequest) {
-  const result = await readLiveTask(
-    parseLiveTaskReadRequest(req.nextUrl.searchParams.get("agent")),
-    createLiveTaskStateRepository(),
-  );
-  return NextResponse.json(result.kind === "inactive" ? { active: false } : result.response);
+  try {
+    const result = await readLiveTask(
+      parseLiveTaskReadRequest(req.nextUrl.searchParams.get("agent")),
+      createLiveTaskStateRepository(),
+    );
+    return NextResponse.json(result.kind === "inactive" ? { active: false } : result.response);
+  } catch (error) {
+    console.error("[live-task] state read failed", error);
+    return NextResponse.json({ error: "Live task unavailable" }, { status: 503 });
+  }
 }
 
 // 示範用觸發（登入牆保護）：展示時可手動帶動畫，或供測試不經 LINE 觸發

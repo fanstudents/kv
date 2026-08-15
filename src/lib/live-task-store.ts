@@ -50,41 +50,35 @@ export async function setLiveTask(agentSlug: string, patch: Patch): Promise<void
 
 /** 讀取狀態（不含圖片本體）；超過 TTL 未更新視為「待命中」回傳 null。 */
 export async function getLiveTaskState(agentSlug: string): Promise<LiveTaskState | null> {
-  try {
-    const supabase = getMainSupabase();
-    const { data } = await supabase
-      .from("agent_live_task")
-      .select("step,status,caption,image_version,updated_at")
-      .eq("agent_slug", agentSlug)
-      .maybeSingle();
-    if (!data) return null;
-    const updatedAt = new Date(data.updated_at).getTime();
-    if (Date.now() - updatedAt > TTL_MS) return null;
-    return {
-      agentSlug,
-      step: data.step ?? 0,
-      status: data.status === "done" ? "done" : data.status === "waiting" ? "waiting" : "active",
-      caption: data.caption ?? null,
-      hasImage: (data.image_version ?? 0) > 0,
-      imageVersion: data.image_version ?? 0,
-      updatedAt,
-    };
-  } catch {
-    return null;
-  }
+  const supabase = getMainSupabase();
+  const { data, error } = await supabase
+    .from("agent_live_task")
+    .select("step,status,caption,image_version,updated_at")
+    .eq("agent_slug", agentSlug)
+    .maybeSingle();
+  if (error) throw new Error(`Live task state read failed: ${error.message}`);
+  if (!data) return null;
+  const updatedAt = new Date(data.updated_at).getTime();
+  if (Date.now() - updatedAt > TTL_MS) return null;
+  return {
+    agentSlug,
+    step: data.step ?? 0,
+    status: data.status === "done" ? "done" : data.status === "waiting" ? "waiting" : "active",
+    caption: data.caption ?? null,
+    hasImage: (data.image_version ?? 0) > 0,
+    imageVersion: data.image_version ?? 0,
+    updatedAt,
+  };
 }
 
 /** 讀取目前處理中的實際圖片（data URL）。 */
 export async function getLiveImage(agentSlug: string): Promise<string | null> {
-  try {
-    const supabase = getMainSupabase();
-    const { data } = await supabase
-      .from("agent_live_task")
-      .select("image")
-      .eq("agent_slug", agentSlug)
-      .maybeSingle();
-    return (data?.image as string | null) ?? null;
-  } catch {
-    return null;
-  }
+  const supabase = getMainSupabase();
+  const { data, error } = await supabase
+    .from("agent_live_task")
+    .select("image")
+    .eq("agent_slug", agentSlug)
+    .maybeSingle();
+  if (error) throw new Error(`Live task image read failed: ${error.message}`);
+  return (data?.image as string | null) ?? null;
 }

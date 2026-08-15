@@ -162,6 +162,15 @@ describe("Visit AI route contracts", () => {
     expect(mocks.runVisitResearchRead).toHaveBeenCalledWith(mocks.researchDependencies.repository);
   });
 
+  it("returns a diagnosable 503 when the research read cannot be completed", async () => {
+    mocks.runVisitResearchRead.mockRejectedValue(new Error("database down"));
+
+    const response = await getResearch();
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Visit research unavailable" });
+  });
+
   it("keeps the research success envelope", async () => {
     const response = await postResearch(postRequest("/api/agents/visit/research", { name: "Dennis" }));
 

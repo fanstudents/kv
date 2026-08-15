@@ -46,6 +46,16 @@ describe("Live task route contracts", () => {
     });
   });
 
+  it("returns a diagnosable 503 when live state cannot be read", async () => {
+    createLiveTaskStateRepository.mockReturnValueOnce(stateRepository({
+      getTaskState: vi.fn(async () => { throw new Error("database down"); }),
+    }));
+
+    const response = await getLiveTask(new NextRequest("http://localhost/api/live-task?agent=visit"));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Live task unavailable" });
+  });
+
   it("keeps POST missing-agent and successful state update responses", async () => {
     const missing = await postLiveTask(new NextRequest("http://localhost/api/live-task", { method: "POST", body: "{}" }));
     expect(missing.status).toBe(400);
@@ -97,5 +107,15 @@ describe("Live task route contracts", () => {
     expect(image.headers.get("content-type")).toBe("image/png");
     expect(image.headers.get("cache-control")).toBe("no-store");
     expect(Array.from(new Uint8Array(await image.arrayBuffer()))).toEqual([0, 1, 2]);
+  });
+
+  it("returns a diagnosable 503 when live image cannot be read", async () => {
+    createLiveTaskStateRepository.mockReturnValueOnce(stateRepository({
+      getImage: vi.fn(async () => { throw new Error("database down"); }),
+    }));
+
+    const response = await getImage(new NextRequest("http://localhost/api/live-task/image?agent=visit"));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: "Live task image unavailable" });
   });
 });

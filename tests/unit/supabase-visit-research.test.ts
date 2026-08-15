@@ -167,15 +167,12 @@ describe("Supabase Visit research repository", () => {
     expect(getMainSupabase).toHaveBeenCalledOnce();
   });
 
-  it("keeps profile-list failures as the existing empty projection", async () => {
-    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  it("propagates profile-list failures instead of treating them as empty history", async () => {
     getMainSupabase.mockImplementation(() => {
       throw new Error("missing database");
     });
 
-    await expect(createSupabaseVisitResearchRepository().listProfiles(10)).resolves.toEqual([]);
-    expect(errorLog).toHaveBeenCalledWith("[visit] research profile list unavailable", "missing database");
-    errorLog.mockRestore();
+    await expect(createSupabaseVisitResearchRepository().listProfiles(10)).rejects.toThrow("missing database");
   });
 
   it("surfaces required read failures and diagnoses best-effort activity failures", async () => {
