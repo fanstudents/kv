@@ -614,10 +614,13 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - [x] Release preflight 產生並驗證 service／version／commit／schema version／environment／migration inventory；dirty tree、Doctor blocked、commit/schema/profile mismatch 都會停止。
    - [x] Migration plan/apply 已使用單一 release CLI：DB URL 必須命中 staging／live project ref；plan 只比對 history＋dry-run；apply 另需 backup confirmation、explicit apply 與 project ref confirmation。
    - [x] `/api/version` 與 `/api/health` 支援 deployment identity；remote verify 必須比對 exact release commit、schema、environment 與 ready health，才可 promotion。
+   - [x] 2026-08-16 已完成 Zeabur isolated staging deploy：project `kv-staging`／service `kv-app`，來源 `fanstudents/kv` 的 `codex/kv-wp0-toolchain`，容器建置成功，服務 `1/1` 運作中；公開服務埠校正為 `8080`，`kv-staging.zeabur.app` 已 `PROVISIONED`。
+   - [x] Staging runtime identity 已對齊 commit `4f0a7f7211d4d8474510bacfea1ad49efe214acb`、schema `20260814164718`、environment `staging`；remote `/api/version` 與 `/api/health` 回傳 exact identity，health status 為 `ok`，Main Supabase privileged readiness 為 `configured`。
+   - [x] 使用 Chrome 登入 staging 後驗證 `/agents-catalog`、`/dashboard`、`/agents/orders`、`/agents/visit`、`/knowledge-base`、`/integrations`、`/goals`；UI 可載入，未執行 provider write。API JSON 端點另以 read-only remote probe 驗證，避免把瀏覽器擴充套件對 raw JSON 的阻擋誤判成服務失敗。
    - [x] README 已固定 additive migration、deploy、verify、application rollback、DB forward-fix／PITR recovery；禁止以 remote reset 當 rollback。
    - [!] 本機沒有 Docker／Podman，因此此次 local schema replay 無法重跑；不是 migration SQL failure。canonical hosted schema job可執行，但仍需在 canonical repo留下本 commit 的 run evidence。
-   - [!] 仍需 release owner 提供 `SUPABASE_DB_URL`／backup evidence、canonical GitHub／Zeabur isolated staging與 scheduled failure通知目的地，才能實際 apply、deploy、verify與 rollback rehearsal。
-   - **Exit `[~]`**：repo 內 P8 procedure／guards／contracts 已完成；實際 hosted staging deploy、migration promotion、remote verification與 rollback rehearsal仍是外部 release gate，未冒充已完成。
+   - [~] Hosted staging deploy／remote verify 已完成；仍需 release owner 補 `SUPABASE_DB_URL`／backup evidence、scheduled failure 通知目的地與 application rollback rehearsal。DB rollback 維持 forward-fix／PITR，不做 remote reset。
+   - **Exit `[~]`**：repo 內 P8 procedure／guards／contracts、hosted staging deploy 與 exact remote verification 已完成；migration promotion、backup evidence、scheduled failure owner 與 rollback rehearsal仍是外部 release gate，未冒充已完成。
 
 9. **P9 — Final cleanup 與交接（A）**
    - 刪除確定無 caller 的 dead code、誤用 demo data 與已完成使命的 transitional adapters；不清理未知 upstream 功能。
@@ -627,14 +630,14 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 
 ## 8. Readiness verdict
 
-- **Verdict：`Needs Revision`（完整產品化計畫）**：不是因為目前不能工作；九月底 scope 已固定為現有功能全納入。Repo 內已一路完成到 P8 release gates；仍會影響完整產品化的是 P3 stale／out-of-order 與 Support recovery 語意、P5 外部 assets，以及 P8 hosted deploy／rollback ownership。W1 已完成且明確 deferred W2。
+- **Verdict：`Needs Revision`（完整產品化計畫）**：不是因為目前不能工作；九月底 scope 已固定為現有功能全納入。Repo 內的 P8 procedure 與 isolated staging deploy／remote identity verify 已完成；仍會影響完整產品化的是 P3 stale／out-of-order 與 Support recovery 語意、P5 外部 assets、backup／migration promotion owner，以及 application rollback rehearsal。W1 已完成且明確 deferred W2。
 - **Scoped delivery 狀態仍成立**：現有 modular monolith 可承接已知 KV 需求；Main／Teaching DB、OpenAI、Firecrawl、Google、Primary LINE 與多數本地 contracts 已有證據。這不代表 Agent 已可任意配置，也不代表可直接當 multi-tenant SaaS。
-- **第一個可執行 package：** P8 repo-local gate 已完成；下一個 package 是 release owner 在 isolated staging 依 README 執行 migration plan／backup confirmation／apply、部署 exact commit、remote verify 與 application rollback rehearsal。缺 owner／DB URL 時只能安全停止，不碰遠端資料。
+- **第一個可執行 package：** P8 isolated staging 已部署並以 exact commit／schema／health 驗證；下一個 package 是 release owner 補 backup／migration promotion evidence、scheduled failure owner 與 application rollback rehearsal。缺 owner／DB URL 時只能安全停止，不碰遠端資料。
 - **可平行處理的 gate：** P0 scope 已固定，產品 owner 仍需補每個既有功能的 acceptance journey／release owner；可靠性 owner 可裁決 P3；外部協作者可取得 P5。這些未完成前，不猜 public contract、不把 local fixture 寫成 provider truth。
-- **目前位置與唯一順序：** 已到 `P8 repo-local gates` → 等 external release owner 完成 `P8 hosted staging／rollback rehearsal` → `P9 cleanup／handoff`。P3／P5／P6 的 Support／Teachify external gates仍平行保留；W1 已 STOP 在 explicit workflow，除非新 consumer 觸發 W2。
+- **目前位置與唯一順序：** 已完成 `P8 repo-local gates + hosted staging／remote verify` → 進行 `P8 backup／rollback rehearsal` → `P9 cleanup／handoff`。P3／P5／P6 的 Support／Teachify external gates仍平行保留；W1 已 STOP 在 explicit workflow，除非新 consumer 觸發 W2。
 - **若 W1 沒有第二 consumer：** 保留現有 explicit workflow，正式記錄 STOP；不建立 `WorkflowDefinition` registry。只有新需求真的出現，才重新開 W2／W3 gate。
 - **真正外部 gate**：Support 專用 LINE、Teachify 真實簽章素材、Support relay target、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及既有全功能的 acceptance owner／release owner。
-- **禁止誤判**：本地自簽 fixture 只證明我們的 contract；可回 200 的 `kva.zeabur.app` 只證明 domain 存活。兩者都不能替代 provider receipt、commit identity、隔離 staging 或 rollback truth。
+- **禁止誤判**：本地自簽 fixture 只證明我們的 contract；`kv-staging.zeabur.app` 本批已證明隔離 staging、exact commit identity、health 與 Chrome UI 載入，但仍不能替代 Support／Teachify provider receipt、backup evidence 或 rollback truth。
 
 ## 9. 文件政策
 
