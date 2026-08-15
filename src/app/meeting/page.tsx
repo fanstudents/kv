@@ -666,6 +666,7 @@ export default function MeetingPage() {
   const startMeeting = useCallback(async () => {
     setError(null);
     setStarting(true);
+    let createdMeetingId: string | null = null;
     try {
       const res = await fetch("/api/meeting/start", {
         method: "POST",
@@ -674,6 +675,7 @@ export default function MeetingPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.id) throw new Error(data.error || "無法建立會議");
+      createdMeetingId = data.id;
       setMeetingId(data.id);
       meetingIdRef.current = data.id;
 
@@ -724,6 +726,20 @@ export default function MeetingPage() {
       connectAgent(0);
     } catch (err: unknown) {
       const e = err as { name?: string; message?: string };
+      if (createdMeetingId) {
+        const form = new FormData();
+        form.set("meetingId", createdMeetingId);
+        try {
+          const cleanup = await fetch("/api/meeting/finish", { method: "POST", body: form });
+          if (!cleanup.ok) {
+            console.warn("[meeting] 啟動失敗後的空會議封存未成功", cleanup.status);
+          }
+        } catch (cleanupError) {
+          console.warn("[meeting] 啟動失敗後的空會議封存無法連線", cleanupError);
+        }
+        setMeetingId(null);
+        meetingIdRef.current = null;
+      }
       setError(
         e?.name === "NotAllowedError"
           ? "需要鏡頭與麥克風權限才能開會，請允許授權後再試一次。"

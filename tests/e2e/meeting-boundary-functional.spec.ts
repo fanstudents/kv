@@ -24,6 +24,7 @@ test("meeting start failure is shown instead of entering a phantom live state", 
 
 test("meeting media permission failure explains the required recovery", async ({ page }) => {
   await authenticate(page);
+  let cleanupCalled = false;
   await page.addInitScript(() => {
     const rejectMedia = async () => {
       throw new DOMException("Permission denied", "NotAllowedError");
@@ -40,6 +41,10 @@ test("meeting media permission failure explains the required recovery", async ({
   await page.route("**/api/meeting/start", async (route) => {
     await fulfillJson(route, { id: "meeting-e2e" });
   });
+  await page.route("**/api/meeting/finish", async (route) => {
+    cleanupCalled = true;
+    await fulfillJson(route, { ok: true, recordingSaved: false });
+  });
 
   await page.goto("/meeting", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "開會", exact: true }).click();
@@ -47,5 +52,6 @@ test("meeting media permission failure explains the required recovery", async ({
   await expect(
     page.getByText("需要鏡頭與麥克風權限才能開會，請允許授權後再試一次。", { exact: true })
   ).toBeVisible();
+  await expect.poll(() => cleanupCalled).toBe(true);
   await expect(page.getByText("LIVE", { exact: false })).toHaveCount(0);
 });
