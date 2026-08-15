@@ -534,8 +534,10 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - [x] Visit delivery：`pending_invites.fulfilment_phase`／`fulfilment_error` 記錄 Calendar／Gmail／LINE／完成 checkpoint；重試只補未完成副作用，不重建已記錄 Calendar、不重寄已完成 Gmail。外部副作用成功但 checkpoint 寫入失敗仍列入人工 reconciliation，不宣稱 exactly-once。
    - [x] Visit timeout：以 `timeout_phase`／`timeout_error` 保存逾時判定、activity checkpoint、LINE notification 與完成狀態；partial failure 只重試缺少步驟，並以 legacy `declined` status 保持相容。
    - [x] Teachify exact replay／並行重送：以 `(order_id,event_key)` durable claim 記錄 `sending`／`delivered`／`failed`，claim 進行中回 202，不再第二次 LINE push；delivery state 寫入失敗回 `delivery_unrecorded`，避免假裝完整成功。
-   - Teachify stale／out-of-order：仍需官方 event ID／timestamp／狀態轉移契約與產品核准；目前 fingerprint 只保護相同 normalized event 的 exact replay。
-   - **Exit**：Visit public respond、Visit timeout phase 與 Teachify exact replay 的 approved local behavior、idempotency／checkpoint、失敗狀態與 focused／remote probe 證據已完成；Support 已有可追蹤的 delivery identity，但舊客服 target 尚未確認 idempotency／人工 replay／rollback，因此 Teachify stale／out-of-order、Support retry 仍未達 P3 exit。
+   - [!] Teachify stale／out-of-order：仍需官方 event ID／timestamp／狀態轉移契約與產品核准；目前 fingerprint 只保護相同 normalized event 的 exact replay。未取得契約前，不對同一 order 的不同狀態自動猜順序，也不新增會改變通知結果的 fallback。
+   - [x] Support relay local policy：`deriveSupportRelayDeliveryKey(rawBody)` 保留 exact raw-body identity；legacy relay 未確認成功時記錄 `not_confirmed` 與 delivery key、仍捕捉 Main conversation，但明確不自動重送，交由 legacy owner 依 key 人工確認。
+   - [!] Support provider replay：要把上述 local policy 升級成真實 replay／dedupe，仍需 Support LINE event identity、relay target owner 與可撤回的重播方式；在此之前不宣稱 exactly-once，也不引入通用 retry。
+   - **Exit**：Visit public respond、Visit timeout phase、Teachify exact replay 與 Support relay local policy 已有 approved local behavior、idempotency／checkpoint、失敗狀態與 focused／remote probe 證據；Teachify stale／out-of-order、Support provider replay／rollback 仍等外部契約，未達 P3 full exit。
 
 4. **P4 — 本地 provider readiness（G）**
    - [x] Visit inbound：本地 LINE signature、parsing、route、application 與 delivery failure contracts 已重跑；不宣稱已驗真實 reply token、媒體下載或 LINE callback。
