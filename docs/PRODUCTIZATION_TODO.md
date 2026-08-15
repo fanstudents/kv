@@ -466,7 +466,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 
 1. **P1 — 驗收護欄（A，尚未封口）**
    - [x] 本地已產生並設定 Git ignored 的 `CRON_SECRET`、`SUPPORT_LOG_SECRET`；它們不是外部 blocker，也未寫入文件或 commit。
-   - [ ] 建立 acceptance recipient allowlist、具名 fixture、資料／設定 snapshot 與精確 restore；不得使用正式客戶 recipient。
+   - [x] 既有 opt-in acceptance 已分別具備 recipient／host allowlist、具名 marker fixture、資料／設定 snapshot／restore 與精確 cleanup；不得使用正式客戶 recipient。這些護欄維持各 provider 的窄契約，不另造 generic framework。
    - 固定每批流程：CodeGraph 找 owner／consumer → 固定契約 → 完成同批修改 → focused tests → affected Chrome journey → heavy verify → cleanup → coherent commit。
    - **Exit**：所有後續 side effect 都有 allowlist、前後 snapshot、cleanup 與失敗停止條件。
 
