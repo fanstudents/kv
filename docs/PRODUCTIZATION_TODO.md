@@ -10,8 +10,8 @@
 
 ### 換機接續 checkpoint（2026-08-15）
 
-- Last code snapshot：`9b773d0`（Meeting aborted-session cleanup）。CodeGraph 為 481 files／4,196 nodes／10,540 edges，無 pending drift。
-- 本文件 revision 的輸入 snapshot：`be62051`（docs: record goal trend checkpoint）；本輪只整理計畫，不改 runtime code。
+- Last code snapshot：`37322d5`（Doctor staging write-readiness guard）。CodeGraph 為 481 files／4,196 nodes／10,541 edges，無 pending drift。
+- 本文件 revision 的輸入 snapshot：`37322d5`；本批補強部署前置判定與回歸證據，不改 UI、API payload、schema 或 provider side effects。
 - Remote：`origin` 仍是已無法解析的 `cablate/kv`；可用的作者 repo 已登記為 `upstream = https://github.com/fanstudents/kv.git`。作者 `main` 截至 `d958a0b`，相對共同基底有 13 個 commits，尚未合併。
 - 新電腦先讀：本文件 → `AGENTS.md`／`CLAUDE.md` → `README.md` → `.env.example`；不要重做全 repo 掃描或再建平行 TODO。
 - 恢復順序：clone `fanstudents/kv` → switch `codex/kv-wp0-toolchain` → `npm ci` → 以安全管道重建 `.env.local` → `npm run verify`。`.env.local` 被 Git 忽略，必須另用 password manager／secret store 轉移，絕對不要 commit。
@@ -72,7 +72,7 @@
 
 ### P1 安裝與運維基礎（2026-08-14，進行中）
 
-- [x] `npm run doctor`：以 `demo`／`staging`／`live` profile 檢查環境變數、Main migration inventory 與 server-write key；只顯示缺少的變數名稱，不呼叫外部服務。
+- [x] `npm run doctor`：以 `demo`／`staging`／`live` profile 檢查環境變數、Main migration inventory 與 server-write key；staging／live 僅有 anon key 時明確 blocked，demo 仍允許 read-only；只顯示缺少的變數名稱，不呼叫外部服務。
 - [x] `/api/version`：回傳 service、package version、commit 與 runtime environment；不回傳 secrets。
 - [x] `/api/health`：回傳 Main Supabase 設定 readiness；缺設定時回 503；不執行 DB/provider side effect。
 - [x] CI 執行 `npm run verify:config`，確保 doctor command 在乾淨環境可執行。
@@ -233,7 +233,8 @@ Agent 是產品角色／執行設定；webhook、cron、postback 是事件；研
 | Overdesign cleanup | `b16512f` | KB adapters 三檔合一、forwarding tests 三檔合一、移除單 caller 轉送與 source-string tests；淨少 111 行 |
 | KB provider-disabled UI | `f0dff54` + Chrome evidence | 缺 Firecrawl key 時頁面可理解失敗並恢復操作；UI 未改 |
 | Atomic Agent run usage | `logStep` + `add_run_cost` + online staging acceptance | 20 次並行 usage 更新完整保留：60 tokens／US$0.20、20 steps；fixture cleanup 0 |
-| Current verification | `verify:config`、focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Playwright smoke | `verify:config` 通過並只顯示缺少變數名稱；137 files／704 tests、93-page build、147-test hermetic browser smoke；本批新增 Checklist toggle／rollback、Subscribers tag／broadcast 與 Meeting start/media boundary functional contracts，並修正權限失敗後的空會議封存；未改 UI／schema／provider side effects；2026-08-15 CodeGraph 481 files／4,196 nodes／10,540 edges，無 pending drift |
+| Doctor write-readiness guard | `37322d5` + `tests/unit/doctor-script.test.ts`（2026-08-15） | staging／live 僅有 anon key 時明確 blocked；service-role 才算 server-side writes ready；demo profile 行為不變，且不輸出 secret；未改 UI／API／schema／provider side effects |
+| Current verification | `verify:config`、focused contracts、`npm test`、lint/typecheck/build、CodeGraph、Playwright smoke | `verify:config` 通過並只顯示缺少變數名稱；137 files／705 tests、93-page build、147-test hermetic browser smoke；本批新增 Doctor write-readiness guard，並保留前批 Checklist toggle／rollback、Subscribers tag／broadcast、Meeting start/media boundary 與 aborted-session cleanup 證據；未改 UI／schema／provider side effects；2026-08-15 CodeGraph 481 files／4,196 nodes／10,541 edges，無 pending drift |
 | Google partial calendar truth | `b0376b7` + `google-read-direct` + Chrome `/agents/schedule` | 共享日曆讀取失敗不再靜默變成空行程；既有 warnings 區塊會指出哪個 calendar 未納入；正常 Google 行程、API payload、UI 結構與任何寫入不變 |
 | Primary composite acceptance | `npm run acceptance:primary:composites` + Main cleanup query + Chrome（2026-08-14） | Broadcast、Orders、Team Lead 依序完成 Main／OpenAI／Primary LINE；兩次各 3 則 allowlisted staging 訊息，第二次驗證 ID-diff cleanup；orders、broadcast logs、activities、subscriber tags、暫存 recipients 全數 0／還原 |
 | Teachify delivery claim slice | `20260814153820_teachify_order_delivery_claim` + focused Orders contracts + remote claim probe（2026-08-14） | `teachify_order_deliveries` 以 `(order_id,event_key)` claim exact replay；`claimed`／`in_progress`／`delivery_complete` 與 LINE delivery failure／delivered-but-unrecorded contracts 通過；staging probe 三態驗證後 fixture 0 殘留。尚未宣稱 Teachify provider truth、stale 或 out-of-order 已完成 |
@@ -379,7 +380,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 本地 CI、scheduled workflows、Playwright diagnostics 已存在；作者 repo 已確認為 `upstream/fanstudents/kv`，但 `origin` 已失效、canonical remote／branch policy 尚未定案。`https://kva.zeabur.app` 於 2026-08-14 已回 200，LINE／Teachify GET health routes 也存在，但頁面品牌為 MixAgent，無版本／commit 證據；因此它是「存活但 ownership／revision／staging 身分未知」，不得直接拿來做破壞性驗收或改 webhook。
 
 - [ ] 恢復／確認 canonical GitHub repo、權限、branch policy；不 force-push。
-- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、137 files／704 tests、93-page production build與 147-test hermetic browser smoke；本批新增 Checklist／Subscribers functional browser contracts、Meeting start／media boundary contracts，並修正權限失敗後封存空會議，未改 UI／schema。另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無 assertion failure；147-test full smoke 的缺 Supabase 日誌來自未攔截的無憑證 read surfaces，並非測試失敗。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
+- [~] 本 branch `npm run verify:full` 已通過 lint、typecheck、137 files／705 tests、93-page production build與 147-test hermetic browser smoke；本批補強 staging／live 需要 service-role 的 Doctor write-readiness guard，並保留 Checklist／Subscribers functional browser contracts、Meeting start／media boundary contracts與 aborted-session cleanup，未改 UI／schema。另以 `npm run test:e2e:run:staging` 對真實 Main read paths 跑同一批 136 tests，無 assertion failure；147-test full smoke 的缺 Supabase 日誌來自未攔截的無憑證 read surfaces，並非測試失敗。locked install、hosted artifacts／flaky 分類仍待 canonical repo。
 - [ ] 指定 scheduled failure 通知目的地／owner。
 - [ ] 明確 deploy command、migration ordering、health check、promotion、app／secret／migration rollback與 release owner。
 
@@ -388,7 +389,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 - [~] Main／OpenAI／Firecrawl／Google／Primary LINE 與 Support Main 自主 journeys 已達標；Support LINE、Teachify provider truth、Visit inbound、hosted schedule／deploy 仍有明確外部 gate，replay decisions 仍依 P3。
 - [x] `/integrations` badge／計數已改綁 `/api/integrations/status` live truth並維持原 UI/UX；localStorage 僅保留管理連結、Agent 用途與自訂服務 demo，自訂項無 live probe 時顯示未連線。
 - [~] 本輪 CodeGraph 沒找到可安全刪除的無 caller 模組；Visit `legacy-*` adapters 仍被 webhook／cron 真實呼叫，保留為外部／舊 schema 邊界。最後 transitional cleanup 要等 P6 evidence，不為減檔名硬刪。
-- [~] 全量 verify、CodeGraph、137-file／704-test contracts、8-page Chrome matrix、Main residue audit 與 147-test browser smoke 已完成；本批未改 UI，Goals／Agent settings／Checklist／Subscribers 的 create／failure／delete／save／toggle／broadcast，以及 Meeting start／media failure boundary 與 aborted-session cleanup 互動由 hermetic Chromium contract 覆蓋；staging cutover／rollback rehearsal 仍待 deploy ownership。
+- [~] 全量 verify、CodeGraph、137-file／705-test contracts、8-page Chrome matrix、Main residue audit 與 147-test browser smoke 已完成；本批未改 UI，除既有 Goals／Agent settings／Checklist／Subscribers／Meeting 邊界證據外，新增 staging／live anon-only 會被 Doctor 擋下的設定契約；staging cutover／rollback rehearsal 仍待 deploy ownership。
 - [x] 穩定的安裝、verify、staging read-path 與 opt-in write/cleanup 邊界已補進 README；細節只由本 TODO 維護，不新增重複架構／runbook 文件。
 
 ## 6. 自主邊界與仍需外部取得的資產
@@ -522,7 +523,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 **本輪 W1 結果（2026-08-15）：**
 
 - [x] 以 `Visit` 的既有 `line_agents.settings.requireApproval` 作為最小變化：`true` 維持人工核准／草稿路徑，`false` 走同一個 `createVisitLineOfferReplyHandler` 的直接寄送路徑。
-- [x] focused contract 已覆蓋設定輸入、pending invite、Gmail provider 呼叫、LINE 回覆、run telemetry 與 conversation lock release；完整 verify 亦通過 137 files／704 tests、93-page build、136-test hermetic browser smoke。
+- [x] focused contract 已覆蓋設定輸入、pending invite、Gmail provider 呼叫、LINE 回覆、run telemetry 與 conversation lock release；目前完整 verify 已通過 137 files／705 tests、93-page build、147-test hermetic browser smoke。
 - [x] CodeGraph／caller review 未發現需要複製 route、建立單 caller wrapper 或新增跨域 registry 的證據；本批只增加一個 behavior contract test，沒有 production／UI／API／schema／provider side-effect 變更。
 - [x] **決策：保留 explicit domain-owned workflow；W2 deferred。** 只有第二個獨立 consumer 或明確產品需求需要同一行為的選擇／版本化，才重新開 W2；在那之前不建立 `WorkflowDefinition` registry、binding runtime 或 JSON DSL。
 
@@ -553,7 +554,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - **Exit `[~]`**：既有 22 files／106 tests 加上本批 4 files／36 focused tests 與 remote claim probe，證明本地 provider contracts 與 exact replay ledger；Teachify provider event／stale／out-of-order、Support LINE 與 Visit inbound 仍有外部 gate。
 
 5. **P5 — 外部資產（E，可與 P1–P4 平行取得）**
-   - [x] `npm run doctor:staging`（2026-08-15）確認 Main／Teaching／OpenAI／Primary LINE／Google／Firecrawl／Cron 已配置且未呼叫外部服務；目前只列缺少的名稱。
+   - [x] `npm run doctor:staging`（2026-08-15）確認 Main 的 server-side write readiness、Teaching／OpenAI／Primary LINE／Google／Firecrawl／Cron 的設定狀態且未呼叫外部服務；目前只列缺少的名稱。
    - [!] 目前明確缺少：`LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN`、`TEACHIFY_WEBHOOK_SECRET`、`SUPPORT_RELAY_TARGET_URL`。這些只阻塞對應 P6 真實 journey，不阻塞本地 contracts、文件、測試與其他 domain。
    - Support LINE：專用 channel ID／secret／access token、測試 user／room，以及可安全改 webhook 的 owner。
    - Teachify：官方實際 signing spec／secret，加一筆 sandbox 或去識別可重播事件。
