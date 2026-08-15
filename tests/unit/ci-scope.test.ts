@@ -27,7 +27,7 @@ describe("CI schema scope policy", () => {
   });
 
   it("runs the full gate when the comparison range cannot be resolved", () => {
-    expect(evaluateSchemaScope({ paths: null })).toMatchObject({
+    expect(evaluateSchemaScope({ base: "", head: "abc1234" })).toMatchObject({
       required: true,
       reason: expect.stringContaining("fail closed"),
     });

@@ -25,10 +25,16 @@ const SCHEMA_EXEMPTIONS = [
   /^\.github\/workflows\/(?:daily-support-report|daily-team-lead-report|scheduled-jobs)\.yml$/i,
 ];
 
+/**
+ * @typedef {{ required: boolean, paths: string[], reason: string }} SchemaScopeResult
+ * @typedef {{ base?: string | null, head?: string | null, paths?: string[] | null }} SchemaScopeInput
+ */
+
 function normalizePath(path) {
   return path.trim().replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
+/** @param {string[]} paths @returns {SchemaScopeResult} */
 export function classifySchemaScope(paths) {
   const normalized = paths.map(normalizePath).filter(Boolean);
   if (normalized.length === 0) {
@@ -68,6 +74,7 @@ function changedFiles(base, head) {
   }
 }
 
+/** @param {SchemaScopeInput} input @returns {SchemaScopeResult} */
 export function evaluateSchemaScope({ base, head, paths = null } = {}) {
   const changed = paths ?? changedFiles(base, head);
   if (changed === null) {

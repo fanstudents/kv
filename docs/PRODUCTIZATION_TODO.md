@@ -606,7 +606,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - [x] Visit research、Live task state 與 live image 的 live reads 已由 route 明確回 503／generic client-safe error；成功 payload 與 UI 不變，避免資料庫故障被誤報為沒有歷史／沒有任務。
    - [x] 2026-08-15 CodeGraph ownership recheck：`getMainSupabase`、Agent live context 與 `src/lib` 的 adapter／DB orchestration 都有跨 domain 或 provider／presentation consumer；未找到可在不改 contract 的情況下安全合併的單 caller 純轉發層，因此本批不做機械式搬檔。
    - 把重複 route wrappers、過細 rules／ports／application／adapter 收斂到 domain owner；保留確實隔離 provider／DB 的 adapter，不保留只轉呼叫的儀式層。
-   - 以成熟 npm 套件取代已盤點、測試成本高且無產品差異的自造輪；每項先比較 bundle、維護度、契約與 migration cost，不做整包換框架。
+   - [x] 2026-08-16 依現有 package／CodeGraph evidence 完成 npm 依賴盤點：Next／React／Supabase／OpenAI／googleapis／Zod／unpdf／Recharts／Vitest／Playwright 已覆蓋目前需求；LINE signature、AI budget／usage、KB atomic RPC 是窄協定或業務一致性，不以套件硬換。暫不引入通用 workflow／queue／retry／plugin framework；只有真實第二 consumer 或正式多人產品需求出現時再評估成熟套件。
    - **Exit**：新增抽象有至少兩個真實 consumer；刪除或合併的模組有 caller evidence；LOC／檔案數不因儀式層持續膨脹。
 
 8. **P8 — CI／deploy／migration／rollback（E）**
