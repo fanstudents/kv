@@ -467,6 +467,22 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - 品牌改名與 Super Agent 展示是產品／UI 需求，另立 change contract，不混入保持 UI 不變的結構整理。
    - **Exit**：現有每個能力都有對應 acceptance journey、guardrail 與 release owner；scope 不再用 accept／defer／reject 取捨，未完成的 provider／部署證據仍標為 release gate。
 
+   **P0 功能驗收矩陣（以現況為準，不新增架構）：** 精確 API 入口以 `tests/fixtures/api-surfaces.ts` 為索引；domain owner／資料與 provider 由目前 `src/modules`、`src/adapters` 與既有 outcome ledger 對照。每列都要在 P6 留下 provider receipt、DB diff、Chrome evidence、cleanup 與 owner sign-off。
+
+   | 功能面 | 目前入口／owner | 主要資料與 provider | 目前證據／下一個 gate |
+   |---|---|---|---|
+   | Auth／Runtime／Integrations | `/login`、`/api/auth/*`、`/api/health`、`/api/version`、`/api/integrations/status`；`modules/auth`、`proxy`／doctor | Main env、HMAC session、各 provider preflight | doctor、health/version、status contracts 已有；P8 需 canonical deploy／revision |
+   | Agent／Chat | `/agents/*`、`/api/agent-chat`、`/api/agents/[slug]/*`；`modules/agents`、`modules/agent-chat` | Main、OpenAI、LINE test-push | OpenAI／後台 live-error evidence 已有；P6 補每個既有 Agent page 的關鍵操作矩陣 |
+   | Visit | `/api/line/webhook`、`/api/agents/visit/*`、`/api/cron/visit-timeout`；`modules/visit`、Visit adapters／lock | Main、OpenAI、LINE、Google Calendar／Gmail | AI、public respond、delivery、timeout 已有；P6 補真實 LINE inbound／image／postback |
+   | Orders／Teachify | `/api/webhooks/teachify-order`、`/api/agents/orders/test-notify`；`modules/orders`、Orders adapters | Main、Teachify、Primary LINE | claim／exact replay／Primary composite 已有；P5/P6 需真實簽章與可重播 event |
+   | Knowledge Base | `/api/knowledge-base/*`、`/api/cron/kb-recheck`；`modules/knowledge-base`、KB adapters | Main、OpenAI embeddings、Firecrawl | crawl→draft→publish→index→search 已有；PDF/context transitional 只在真實需求觸碰時收斂 |
+   | Support／Subscribers／Broadcast | `/api/line/webhook/support`、`/api/agents/support/*`、`/api/subscribers/*`、support cron；`modules/support`、`modules/subscribers` | Main、Support LINE、OpenAI、relay target | Support Main／Primary composite 已有；P5/P6 需獨立 Support LINE 與 relay owner |
+   | Meeting／Realtime／Media | `/api/meeting/*`、`/meeting`；`modules/meeting`、Meeting adapters | Main、OpenAI realtime／TTS／STT、Google context | provider contracts／OpenAI acceptance 已有；P6 補完整 browser round／voice／finish journey |
+   | Reporting／Operations | Team Lead／Support report routes、`/api/agents/operations/pipeline`、report cron；`modules/reporting`、`modules/operations` | Main、Teaching read-only、OpenAI、LINE | Primary Team Lead、Teaching read bridge 已有；P5/P8 補 hosted schedule owner |
+   | Goals／Checklist | `/api/goals/*`、`/api/goals/history`、`/api/checklist*`、`/goals`；`modules/goals`、`modules/checklist` | Main Supabase | failure-truth／Chrome `/goals` 已有；P6 補完整 create／update／history／cleanup |
+   | Live Task／TV／展示 projection | `/api/live-task*`、`/api/tv/idle`、`/tv`、`/universe`；`modules/live-task`、`modules/tv` | Main、Google read、demo projection | GA4／GSC live projection 與 browser evidence 已有；P6 確認 live／demo 標示與失敗語意 |
+   | Public catalog／static surfaces | `/agents-catalog/**`、`public/*.html`；presentation／static assets | 無 durable provider truth | 136-test public smoke 已有；保持 UI，不把展示資料算成業務成功證據 |
+
 1. **P1 — 驗收護欄（A，尚未封口）**
    - [x] 本地已產生並設定 Git ignored 的 `CRON_SECRET`、`SUPPORT_LOG_SECRET`；它們不是外部 blocker，也未寫入文件或 commit。
    - [x] 既有 opt-in acceptance 已分別具備 recipient／host allowlist、具名 marker fixture、資料／設定 snapshot／restore 與精確 cleanup；不得使用正式客戶 recipient。這些護欄維持各 provider 的窄契約，不另造 generic framework。
