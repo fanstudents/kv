@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BarChart3,
@@ -34,6 +34,8 @@ import RealStatusPanel from "@/components/agents/RealStatusPanel";
 import type { AgentSlug } from "@/lib/types";
 
 type Agent = (typeof AGENTS)[number];
+
+const LIVE_TASK_HOLD_MS = 5_000;
 
 const OUTPUT_ICON: Record<OutputKind, React.ReactNode> = {
   report: <FileBarChart size={15} />,
@@ -956,22 +958,65 @@ function AgentDetail({ agent, onClose }: { agent: Agent; onClose: () => void }) 
   const fullReport = `${brief.greeting}${brief.report}`;
   const { shown, done, skip } = useTypewriter(fullReport);
 
-  // 真實現正處理：每 1.5 秒輪詢；有真實任務就用真圖 + 真進度取代示意動畫
+  // 真實現正處理：每 1.5 秒輪詢；有真實任務就用真圖 + 真進度取代示意動畫。
+  // 完成後保留最後一個同 run/node 的 response 一小段時間，讓摘要不會在下一次輪詢
+  // 因 run 結束而立刻跳回待命；這是瀏覽器端 projection hold，不會阻塞 server worker。
   const [live, setLive] = useState<LiveInfo | null>(null);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestLiveRef = useRef<{ runId: string | null; updatedAt: number } | null>(null);
+  const requestSeqRef = useRef(0);
   useEffect(() => {
     let alive = true;
-    const load = () =>
+    const clearHold = () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+    const load = () => {
+      const requestSeq = ++requestSeqRef.current;
       fetch(`/api/live-task?agent=${agent.slug}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
-          if (alive) setLive(d && d.active ? (d as LiveInfo) : null);
+          if (!alive || requestSeq !== requestSeqRef.current) return;
+          if (d && d.active) {
+            const next = d as LiveInfo;
+            const latest = latestLiveRef.current;
+            if (
+              latest &&
+              typeof next.updatedAt === "number" &&
+              next.updatedAt > 0 &&
+              latest.updatedAt > 0 &&
+              next.updatedAt < latest.updatedAt
+            ) {
+              return;
+            }
+            clearHold();
+            latestLiveRef.current = {
+              runId: next.runId ?? null,
+              updatedAt: next.updatedAt ?? 0,
+            };
+            setLive(next);
+          } else if (!holdTimerRef.current) {
+            holdTimerRef.current = setTimeout(() => {
+              if (alive) {
+                setLive(null);
+                latestLiveRef.current = null;
+              }
+              holdTimerRef.current = null;
+            }, LIVE_TASK_HOLD_MS);
+          }
         })
         .catch(() => {});
+    };
     load();
     const id = setInterval(load, 1500);
     return () => {
       alive = false;
       clearInterval(id);
+      clearHold();
+      latestLiveRef.current = null;
+      requestSeqRef.current += 1;
     };
   }, [agent.slug]);
 

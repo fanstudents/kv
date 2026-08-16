@@ -66,6 +66,8 @@ export interface CrawledPage {
   url: string;
   title: string;
   markdown: string;
+  /** 公開頁面 metadata 的代表圖；沒有設定時維持 undefined。 */
+  imageUrl?: string;
 }
 
 /** 查目前剩餘額度；狀態查不到時維持既有 null fallback。 */
@@ -86,12 +88,16 @@ export async function getCreditUsage(): Promise<CreditUsage | null> {
 
 export async function scrapeUrl(url: string): Promise<CrawledPage> {
   const data = await requestFirecrawl<{
-    data?: { markdown?: string; metadata?: { title?: string; sourceURL?: string } };
+    data?: {
+      markdown?: string;
+      metadata?: { title?: string; sourceURL?: string; ogImage?: string };
+    };
   }>("/scrape", { url, formats: ["markdown"], onlyMainContent: true });
   return {
     url: data.data?.metadata?.sourceURL ?? url,
     title: data.data?.metadata?.title ?? url,
     markdown: data.data?.markdown ?? "",
+    imageUrl: data.data?.metadata?.ogImage || undefined,
   };
 }
 

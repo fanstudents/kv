@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getLiveTaskState, currentStep, setLiveTask, getLiveImage } = vi.hoisted(() => ({
+const { getLiveTaskState, currentStep, currentStepImage, setLiveTask, getLiveImage } = vi.hoisted(() => ({
   getLiveTaskState: vi.fn(),
   currentStep: vi.fn(),
+  currentStepImage: vi.fn(),
   setLiveTask: vi.fn(),
   getLiveImage: vi.fn(),
 }));
 
 vi.mock("@/lib/live-task-store", () => ({ getLiveTaskState, setLiveTask, getLiveImage }));
-vi.mock("@/lib/agent-runs", () => ({ currentStep }));
+vi.mock("@/lib/agent-runs", () => ({ currentStep, currentStepImage }));
 
 import { createLiveTaskStateRepository } from "@/adapters/live-task/live-task-state-repository";
 
@@ -26,6 +27,21 @@ describe("Live task state repository", () => {
     await expect(repository.getCurrentStep("visit")).resolves.toEqual(step);
     expect(getLiveTaskState).toHaveBeenCalledWith("visit");
     expect(currentStep).toHaveBeenCalledWith("visit");
+  });
+
+  it("binds research image reads to the step run and node", async () => {
+    currentStepImage.mockResolvedValue("https://cdn.example.test/research.png");
+    const step = {
+      runId: "run-1",
+      nodeId: "research-store",
+      status: "done",
+      outputSummary: "summary",
+      startedAt: "2023-11-14T22:13:20.000Z",
+    };
+    const repository = createLiveTaskStateRepository();
+
+    await expect(repository.getStepImage?.(step)).resolves.toBe("https://cdn.example.test/research.png");
+    expect(currentStepImage).toHaveBeenCalledWith("run-1", "research-store");
   });
 
   it("keeps state writer arguments for both route and cron consumers", async () => {

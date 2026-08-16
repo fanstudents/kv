@@ -27,6 +27,8 @@ export interface LiveTaskUpdatePatch {
 export interface LiveTaskStateRepository {
   getTaskState(agentSlug: string): Promise<LiveTaskStateSnapshot | null>;
   getCurrentStep(agentSlug: string): Promise<LiveTaskStepSnapshot | null>;
+  /** Optional run/node-scoped image projection; never read from another run's shared state. */
+  getStepImage?(step: LiveTaskStepSnapshot): Promise<string | null>;
   setState(agentSlug: string, patch: LiveTaskUpdatePatch): Promise<void>;
   getImage(agentSlug: string): Promise<string | null>;
 }
@@ -53,6 +55,8 @@ export type LiveTaskReadResult =
         hasImage: boolean;
         imageVersion: number;
         updatedAt: number;
+        /** Trusted remote image attached to the same run/node as the current step. */
+        imageUrl?: string;
       };
     };
 
@@ -62,7 +66,7 @@ function normalizeStepStatus(status: string): LiveTaskStatus {
 
 export async function readLiveTask(
   input: LiveTaskReadRequest,
-  repository: Pick<LiveTaskStateRepository, "getTaskState" | "getCurrentStep">,
+  repository: Pick<LiveTaskStateRepository, "getTaskState" | "getCurrentStep" | "getStepImage">,
 ): Promise<LiveTaskReadResult> {
   const [task, step] = await Promise.all([
     repository.getTaskState(input.agentSlug),
@@ -71,6 +75,23 @@ export async function readLiveTask(
   if (!task && !step) return { kind: "inactive" };
 
   const status = step ? normalizeStepStatus(step.status) : task?.status;
+  let imageUrl: string | null = null;
+  if (step && repository.getStepImage) {
+    try {
+      imageUrl = await repository.getStepImage(step);
+    } catch {
+      // A projection image is optional; keep the text/status response available.
+    }
+  }
+  // agent_live_task is one shared row per Agent and may still contain a business-card
+  // image while a research run is active. Research must never borrow that image.
+  const isResearchStep = step?.nodeId.startsWith("research-") ?? false;
+  const hasImage = isResearchStep ? Boolean(imageUrl) : task?.hasImage ?? false;
+  const imageVersion = isResearchStep ? 0 : task?.imageVersion ?? 0;
+  const stepUpdatedAt = step ? Date.parse(step.startedAt) : Number.NaN;
+  const updatedAt = Number.isFinite(stepUpdatedAt)
+    ? stepUpdatedAt
+    : task?.updatedAt ?? Date.now();
   return {
     kind: "active",
     response: {
@@ -80,9 +101,10 @@ export async function readLiveTask(
       step: task?.step ?? 0,
       status: status ?? "active",
       caption: step?.outputSummary ?? task?.caption ?? null,
-      hasImage: task?.hasImage ?? false,
-      imageVersion: task?.imageVersion ?? 0,
-      updatedAt: task?.updatedAt ?? (step ? Date.parse(step.startedAt) : Date.now()),
+      hasImage,
+      imageVersion,
+      updatedAt,
+      ...(imageUrl ? { imageUrl } : {}),
     },
   };
 }

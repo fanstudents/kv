@@ -143,7 +143,7 @@ describe("Visit research application", () => {
     });
     expect(dependencies.runs.step).toHaveBeenNthCalledWith(3, "run-1", "research-store", {
       status: "done",
-      output: "1 個連結、1 則近況",
+      output: "Company summary\nPerson summary\n近況：Highlight\n1 個連結、1 則近況",
       seq: 2,
     });
     expect(dependencies.runs.finish).toHaveBeenCalledWith("run-1", {
@@ -153,6 +153,25 @@ describe("Visit research application", () => {
     expect(dependencies.repository.recordActivity).toHaveBeenCalledWith({
       summary: "已完成拜訪前背景調查：DB Name（DB Co）——1 個公開連結、1 則近況",
       status: "success",
+    });
+  });
+
+  it("keeps the optional image projection on the same research run and store node", async () => {
+    const dependencies = createDependencies();
+    const resolveProfileImage = vi.fn(async (_input, current) => ({
+      ...current,
+      imageUrl: "https://cdn.example.test/research.png",
+    }));
+    const artifact = vi.fn(async () => undefined);
+    dependencies.provider.resolveProfileImage = resolveProfileImage;
+    dependencies.runs.artifact = artifact;
+
+    await expect(runVisitContactResearch(input, dependencies)).resolves.toBe("profile-1");
+
+    expect(resolveProfileImage).toHaveBeenCalledWith(input, profile);
+    expect(artifact).toHaveBeenCalledWith("run-1", "research-store", {
+      title: "行前功課代表圖：Typed Name",
+      uri: "https://cdn.example.test/research.png",
     });
   });
 

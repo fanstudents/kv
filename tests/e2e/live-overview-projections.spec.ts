@@ -102,3 +102,81 @@ test("TV detail uses the live GA4 projection when demo mode is off", async ({ pa
   await expect(page.getByText("GA4 流量 · 近 7 天")).toBeVisible();
   await expect(page.getByText(/^8,123/)).toBeVisible();
 });
+
+test("TV Visit detail keeps a run-scoped research projection through the bounded hold", async ({ page }) => {
+  const imageUrl = "https://cdn.example.test/visit-research.png";
+  const researchCaption = "公司摘要\n近況：最新動態";
+  const activeLiveTask = {
+    active: true,
+    runId: "run-visit-e2e",
+    nodeId: "research-store",
+    step: 2,
+    status: "active",
+    caption: researchCaption,
+    hasImage: true,
+    imageVersion: 0,
+    imageUrl,
+    updatedAt: new Date("2026-08-17T10:00:00+08:00").getTime(),
+  };
+  let liveActive = true;
+
+  await authenticate(page);
+  await page.clock.install({ time: new Date("2026-08-17T10:00:00+08:00") });
+  await page.route("**/api/agents", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ enabled: { visit: true } }),
+    });
+  });
+  await page.route("**/api/activity*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ rows: [] }),
+    });
+  });
+  await page.route("**/api/live-task?agent=visit", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(liveActive ? activeLiveTask : { active: false }),
+    });
+  });
+  await page.route("**/api/live-task/history?agent=visit", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+  await page.route(imageUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+    });
+  });
+
+  await page.goto("/tv", { waitUntil: "domcontentloaded" });
+  const skipIntro = page.getByRole("button", { name: "略過片頭" });
+  if (await skipIntro.isVisible()) await skipIntro.click();
+  await page.getByRole("button", { name: "值勤團隊" }).click();
+  await page.getByRole("button", { name: /Coco.*可可/ }).click();
+
+  const summary = page.getByText(researchCaption, { exact: true });
+  await expect(summary).toBeVisible();
+  const researchCard = summary.locator("..");
+  await expect(researchCard.getByAltText("查到的公司代表圖")).toBeVisible();
+  await expect(researchCard.getByAltText("查到的公司代表圖")).toHaveAttribute("src", imageUrl);
+
+  liveActive = false;
+  await page.clock.fastForward(1_500);
+  await expect(summary).toBeVisible();
+  await page.clock.fastForward(1_000);
+  await expect(summary).toBeVisible();
+
+  await page.clock.fastForward(4_500);
+  await expect(summary).toHaveCount(0);
+  await expect(page.getByText(/待命中/).first()).toBeVisible();
+});

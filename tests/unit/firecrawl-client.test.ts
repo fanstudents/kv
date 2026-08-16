@@ -28,7 +28,11 @@ describe("Firecrawl client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({
         data: {
           markdown: "Useful content",
-          metadata: { title: "Guide", sourceURL: "https://example.com/guide" },
+          metadata: {
+            title: "Guide",
+            sourceURL: "https://example.com/guide",
+            ogImage: "https://example.com/guide.png",
+          },
         },
       }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -42,6 +46,7 @@ describe("Firecrawl client", () => {
       url: "https://example.com/guide",
       title: "Guide",
       markdown: "Useful content",
+      imageUrl: "https://example.com/guide.png",
     });
     expect(fetchMock).toHaveBeenNthCalledWith(1, expect.stringMatching(/\/team\/credit-usage$/),
       expect.objectContaining({ method: "GET" }));

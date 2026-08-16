@@ -28,6 +28,8 @@ export interface VisitContactProfile {
   talkingPoints: string[];
   sources: string[];
   confidence: number;
+  /** Firecrawl 可信頁面 metadata 的代表圖，只作 TV projection，不寫入 contact_profiles。 */
+  imageUrl?: string;
 }
 
 export interface ContactProfileRow {
@@ -74,6 +76,8 @@ export interface VisitResearchProvider {
   buildSearchInput(input: VisitResearchInput): string;
   search(searchInput: string): Promise<VisitContactProfile>;
   enrichCompanyProfile(input: VisitResearchInput, profile: VisitContactProfile): Promise<VisitContactProfile>;
+  /** Search-only path may use an existing official link's og:image without Firecrawl. */
+  resolveProfileImage?: (input: VisitResearchInput, profile: VisitContactProfile) => Promise<VisitContactProfile>;
 }
 
 export interface VisitResearchRuns {
@@ -98,6 +102,12 @@ export interface VisitResearchRuns {
       | { status: "success"; summary: string }
       | { status: "failed"; errorKind: "external"; errorDetail: string }
   ): Promise<void>;
+  /** 將和特定 run/node 綁定的 projection artifact 寫入既有 runtime store。 */
+  artifact?: (
+    runId: string | null,
+    nodeId: string,
+    artifact: { title: string; uri: string },
+  ) => Promise<void>;
 }
 
 export interface VisitResearchDependencies {
@@ -136,6 +146,12 @@ function hasUsefulProfile(profile: VisitContactProfile): boolean {
     profile.links.length > 0 ||
     profile.highlights.length > 0
   );
+}
+
+function buildResearchSummary(profile: VisitContactProfile): string {
+  const parts = [profile.companySummary, profile.personSummary].filter(Boolean);
+  if (profile.highlights[0]) parts.push(`近況：${profile.highlights[0]}`);
+  return parts.join("\n") || "沒有查到可靠的公開資料";
 }
 
 export async function runVisitContactResearch(
@@ -203,6 +219,13 @@ export async function runVisitContactResearch(
         });
       }
     }
+    if (!profile.imageUrl && provider.resolveProfileImage) {
+      try {
+        profile = await provider.resolveProfileImage(input, profile);
+      } catch {
+        // The optional image lookup is non-fatal and must not change research truth.
+      }
+    }
     const found = hasUsefulProfile(profile);
     const id = await repository.storeProfile({
       input,
@@ -211,9 +234,20 @@ export async function runVisitContactResearch(
       runId,
     });
 
+    if (profile.imageUrl && runs.artifact) {
+      try {
+        await runs.artifact(runId, "research-store", {
+          title: `行前功課代表圖：${input.name}`,
+          uri: profile.imageUrl,
+        });
+      } catch {
+        // 代表圖是 TV projection，投影失敗不應讓已保存的研究結果變成失敗。
+      }
+    }
+
     await runs.step(runId, "research-store", {
       status: "done",
-      output: `${profile.links.length} 個連結、${profile.highlights.length} 則近況`,
+      output: `${buildResearchSummary(profile)}\n${profile.links.length} 個連結、${profile.highlights.length} 則近況`,
       seq: 2,
     });
     await runs.finish(runId, {

@@ -281,6 +281,35 @@ export async function currentStep(agentSlug: AgentSlug, withinMinutes = 30): Pro
   }
 }
 
+/**
+ * 讀取和目前 run/node 綁定的 projection 圖片。
+ *
+ * 研究圖片不是寫進每位 Agent 共用的 agent_live_task 列，而是放在既有
+ * agent_artifacts，並用 meta.nodeId 綁定；因此同時有名片與研究時，不會把
+ * 一條流程的圖片拼到另一條流程的文字上。
+ */
+export async function currentStepImage(runId: string, nodeId: string): Promise<string | null> {
+  try {
+    const { data } = await getMainSupabase()
+      .from("agent_artifacts")
+      .select("uri,meta")
+      .eq("run_id", runId)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    const artifact = (data ?? []).find((row) => {
+      const meta = row.meta && typeof row.meta === "object" && !Array.isArray(row.meta)
+        ? (row.meta as Record<string, unknown>)
+        : null;
+      const uri = typeof row.uri === "string" ? row.uri : "";
+      return meta?.projection === "visit-research" && meta.nodeId === nodeId && /^https?:\/\//.test(uri);
+    });
+    return artifact?.uri ?? null;
+  } catch {
+    // Projection data is best effort; the run step itself remains readable.
+    return null;
+  }
+}
+
 export interface RunRow {
   id: string;
   agent_slug: string;

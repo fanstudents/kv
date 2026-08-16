@@ -327,6 +327,17 @@ P0 文件與設定真相
 
 **U2-A evidence：** focused unit 7 files／36 tests、lint、typecheck、production build 通過。真實 Primary LINE 圖片與按鈕副作用驗收留在 U2 完整批次集中執行，避免重複傳訊與污染 staging。
 
+#### P7A-U2-B outcome（2026-08-17）
+
+| 上游內容 | 結論 | Current owner／理由 |
+|---|---|---|
+| Visit research flow nodes | Integrated | 流程圖使用現行 runtime 的 `research-search／research-firecrawl／research-store`，不複製上游舊 node id |
+| TV 行前功課圖文同步 | Integrated | 研究摘要取自同一個 run step；代表圖沿用 `agent_artifacts`，以 `runId + nodeId` 綁定，不借用 Agent 共用名片圖 |
+| 研究完成後保鮮期 | Integrated | TV client 保留最後投影 5 秒並拒絕過期 response；不在 server worker 加固定 sleep |
+| Firecrawl 社群連結／代表圖 | Integrated | 只保留公開頁面中可信的社群 URL 與 `og:image`；圖片失敗為 best-effort，文字研究結果仍成立 |
+
+**U2-B evidence：** focused unit 6 files／42 tests、typecheck、lint、production build 通過；Playwright TV projection 5／5，包含同 run/node 圖文與 5 秒 bounded hold。Chrome 已確認最新版 `/tv` 受真實登入保護；登入後人工畫面仍需既有 Chrome session 登入才能補證。此項不等於 Primary LINE provider journey 已完成。
+
 **執行規則：**
 
 1. 固定 upstream snapshot `d958a0b`；後續新 commit 另開增量，不讓 scope 持續漂移。

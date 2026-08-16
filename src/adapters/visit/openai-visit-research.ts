@@ -55,6 +55,61 @@ function officialSiteUrl(profile: VisitContactProfile, email: string | null): st
   return `https://${domain}`;
 }
 
+const SOCIAL_PATTERNS: { kind: string; label: string; re: RegExp }[] = [
+  { kind: "linkedin", label: "LinkedIn", re: /https?:\/\/(?:www\.)?linkedin\.com\/[^\s)\]"'<>]+/i },
+  { kind: "facebook", label: "Facebook", re: /https?:\/\/(?:www\.)?facebook\.com\/[^\s)\]"'<>]+/i },
+  { kind: "instagram", label: "Instagram", re: /https?:\/\/(?:www\.)?instagram\.com\/[^\s)\]"'<>]+/i },
+  { kind: "threads", label: "Threads", re: /https?:\/\/(?:www\.)?threads\.net\/[^\s)\]"'<>]+/i },
+];
+
+function extractSocialLinks(markdown: string): VisitProfileLink[] {
+  return SOCIAL_PATTERNS.flatMap(({ kind, label, re }) => {
+    const match = re.exec(markdown);
+    if (!match) return [];
+    const url = match[0].replace(/[.,;]+$/, "");
+    return [{ label, url, kind }];
+  });
+}
+
+function safeImageUrl(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function fetchOgImage(pageUrl: string): Promise<string | undefined> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await fetch(pageUrl, { signal: controller.signal, redirect: "follow" });
+    if (!response.ok || !(response.headers.get("content-type") ?? "").includes("html")) return undefined;
+    const html = await response.text();
+    const match =
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(html) ??
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i.exec(html);
+    if (!match) return undefined;
+    return safeImageUrl(new URL(match[1], pageUrl).toString());
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function mergeResearchLinks(profile: VisitContactProfile, markdown: string): VisitProfileLink[] {
+  const links = [...profile.links];
+  for (const link of extractSocialLinks(markdown)) {
+    if (!links.some((existing) => existing.kind === link.kind || existing.url === link.url)) {
+      links.push(link);
+    }
+  }
+  return links;
+}
+
 function normalizeProfile(raw: Record<string, unknown>): VisitContactProfile {
   return {
     companySummary: String(raw.companySummary ?? "").trim(),
@@ -111,12 +166,27 @@ export const openAiVisitResearchProvider: VisitResearchProvider = {
     return normalizeProfile(raw);
   },
 
+  async resolveProfileImage(_input, profile) {
+    if (profile.imageUrl) return profile;
+    const site = profile.links.find((link) => link.kind === "website" && /^https?:\/\//.test(link.url));
+    if (!site) return profile;
+    const imageUrl = await fetchOgImage(site.url);
+    return imageUrl ? { ...profile, imageUrl } : profile;
+  },
+
   async enrichCompanyProfile(input, profile) {
     const siteUrl = officialSiteUrl(profile, input.email);
     if (!siteUrl) return profile;
 
     const page = await scrapeUrl(siteUrl);
-    if (!page.markdown.trim()) return profile;
+    const links = mergeResearchLinks(profile, page.markdown);
+    const imageUrl = safeImageUrl(page.imageUrl);
+    const pageProfile = {
+      ...profile,
+      ...(links.length !== profile.links.length ? { links } : {}),
+      ...(imageUrl ? { imageUrl } : {}),
+    };
+    if (!page.markdown.trim()) return pageProfile;
 
     const response = await createChatCompletion(
       {
@@ -139,17 +209,17 @@ export const openAiVisitResearchProvider: VisitResearchProvider = {
     try {
       summary = String(JSON.parse(response.choices[0]?.message.content ?? "{}").summary ?? "").trim();
     } catch {
-      return profile;
+      return pageProfile;
     }
-    if (!summary) return profile;
+    if (!summary) return pageProfile;
 
     return {
-      ...profile,
+      ...pageProfile,
       companySummary: summary,
-      sources: profile.sources.includes(page.url) ? profile.sources : [...profile.sources, page.url],
-      links: profile.links.some((link) => link.url === page.url)
-        ? profile.links
-        : [...profile.links, { label: "公司官網", url: page.url, kind: "website" }],
+      sources: pageProfile.sources.includes(page.url) ? pageProfile.sources : [...pageProfile.sources, page.url],
+      links: pageProfile.links.some((link) => link.url === page.url)
+        ? pageProfile.links
+        : [...pageProfile.links, { label: "公司官網", url: page.url, kind: "website" }],
     };
   },
 };

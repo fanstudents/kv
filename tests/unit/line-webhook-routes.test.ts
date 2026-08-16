@@ -39,7 +39,11 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/line", () => ({ verifyLineSignature: mocks.verifyLineSignature }));
-vi.mock("@/lib/visit-line-ui", () => ({ buildDecisionCard: vi.fn(), buildTagQuickReply: vi.fn() }));
+vi.mock("@/lib/visit-line-ui", () => ({
+  buildDecisionCard: vi.fn(),
+  buildInviteApprovalCard: vi.fn(),
+  buildTagQuickReply: vi.fn(),
+}));
 vi.mock("@/lib/email-templates", () => ({ buildInviteEmailHtml: vi.fn() }));
 vi.mock("@/modules/visit/line-inbound", () => ({
   dispatchVisitLineWebhookEvents: mocks.dispatchVisitLineWebhookEvents,

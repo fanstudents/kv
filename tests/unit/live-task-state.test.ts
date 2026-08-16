@@ -46,6 +46,71 @@ describe("Live task state capability", () => {
     });
   });
 
+  it("binds a research image lookup to the current run and node", async () => {
+    const step = {
+      runId: "research-run",
+      nodeId: "research-store",
+      status: "done",
+      outputSummary: "Company summary",
+      startedAt: "2023-11-14T22:13:20.000Z",
+    };
+    const repository = {
+      getTaskState: vi.fn(async () => null),
+      getCurrentStep: vi.fn(async () => step),
+      getStepImage: vi.fn(async (currentStep) => {
+        expect(currentStep).toEqual(step);
+        return "https://cdn.example.test/research.png";
+      }),
+    };
+
+    await expect(readLiveTask({ agentSlug: "visit" }, repository)).resolves.toEqual({
+      kind: "active",
+      response: {
+        active: true,
+        nodeId: "research-store",
+        runId: "research-run",
+        step: 0,
+        status: "done",
+        caption: "Company summary",
+        hasImage: true,
+        imageVersion: 0,
+        updatedAt: Date.parse("2023-11-14T22:13:20.000Z"),
+        imageUrl: "https://cdn.example.test/research.png",
+      },
+    });
+  });
+
+  it("does not borrow a shared business-card image for a research node", async () => {
+    const repository = {
+      getTaskState: vi.fn(async () => ({
+        step: 3,
+        status: "active" as const,
+        caption: "名片圖片",
+        hasImage: true,
+        imageVersion: 9,
+        updatedAt: 1700000000000,
+      })),
+      getCurrentStep: vi.fn(async () => ({
+        runId: "research-run",
+        nodeId: "research-store",
+        status: "done",
+        outputSummary: "研究摘要",
+        startedAt: "2023-11-14T22:13:20.000Z",
+      })),
+      getStepImage: vi.fn(async () => null),
+    };
+
+    await expect(readLiveTask({ agentSlug: "visit" }, repository)).resolves.toMatchObject({
+      kind: "active",
+      response: {
+        nodeId: "research-store",
+        hasImage: false,
+        imageVersion: 0,
+        caption: "研究摘要",
+      },
+    });
+  });
+
   it("falls back to task-only state fields", async () => {
     const repository = {
       getTaskState: vi.fn(async () => ({

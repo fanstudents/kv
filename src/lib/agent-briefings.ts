@@ -664,6 +664,41 @@ export const AGENT_LIVE_TASKS: Record<AgentSlug, AgentLiveDef> = {
           },
         ],
       },
+      {
+        title: "行前功課",
+        nodes: [
+          {
+            id: "research-search",
+            label: "搜尋公開背景",
+            app: "openai",
+            kind: "ai",
+            detail: "官網、新聞、社群先查一輪",
+            data: "研究摘要",
+          },
+        ],
+      },
+      {
+        title: "研究分流",
+        nodes: [
+          {
+            id: "research-store",
+            label: "保存研究摘要",
+            branch: "已有可用摘要",
+            main: true,
+            terminal: true,
+            kind: "store",
+            detail: "保存摘要、來源與近況",
+          },
+          {
+            id: "research-firecrawl",
+            label: "補抓官網正文",
+            branch: "查不到公司簡介才走",
+            app: "firecrawl",
+            kind: "source",
+            detail: "搜尋缺少公司簡介時才啟用，失敗仍保留原研究結果",
+          },
+        ],
+      },
     ],
     idle: "待命中・等待名片上傳",
     ticker: ["名片一傳來就開工", "2 位客戶回覆較慢，已排跟進", "邀約信模板已就緒"],

@@ -125,11 +125,15 @@ export interface LiveInfo {
   active: boolean;
   /** 執行紀錄裡的節點 id（agent_run_steps.node_id）——有值就直接對應流程圖上的節點 */
   nodeId?: string | null;
+  runId?: string | null;
   step: number;
   status: "active" | "waiting" | "done";
   caption: string | null;
   hasImage: boolean;
   imageVersion: number;
+  updatedAt?: number;
+  /** 研究圖片和 nodeId/runId 綁定的可信來源 URL。 */
+  imageUrl?: string;
 }
 
 function Brackets({ color }: { color: string }) {
@@ -189,7 +193,14 @@ export default function LiveTask({
   const flowRun: FlowRun = isLive
     ? { mode: "live", step: live!.step, status: live!.status, nodeId: live!.nodeId ?? undefined }
     : { mode: "idle" };
-  const imageUrl = isLive && live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null;
+  const isResearchNode =
+    live?.nodeId === "research-search" ||
+    live?.nodeId === "research-firecrawl" ||
+    live?.nodeId === "research-store";
+  const imageUrl = isLive
+    ? live!.imageUrl ?? (live!.hasImage ? `/api/live-task/image?agent=${agentSlug}&v=${live!.imageVersion}` : null)
+    : null;
+  const summaryText = isLive && isResearchNode ? live!.caption : null;
 
   return (
     <div>
@@ -216,7 +227,27 @@ export default function LiveTask({
               style={{ background: `linear-gradient(180deg, transparent, ${color}22 60%, ${color}44)` }}
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              {imageUrl ? (
+              {isResearchNode && (imageUrl || summaryText) ? (
+                <div
+                  className="flex max-w-[80%] flex-col items-center gap-4 rounded-xl border border-white/10 bg-white/[0.04] px-6 py-5 shadow-2xl"
+                  style={{ borderColor: `${color}33` }}
+                >
+                  {imageUrl && (
+                    <div className="relative">
+                      <Brackets color={color} />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imageUrl}
+                        alt="查到的公司代表圖"
+                        className="h-28 w-28 rounded-lg object-cover shadow-lg"
+                      />
+                    </div>
+                  )}
+                  {summaryText && (
+                    <p className="whitespace-pre-line text-center text-sm leading-relaxed text-white/80">{summaryText}</p>
+                  )}
+                </div>
+              ) : imageUrl ? (
                 <div className="relative">
                   <Brackets color={color} />
                   {/* eslint-disable-next-line @next/next/no-img-element */}

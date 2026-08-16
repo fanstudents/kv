@@ -60,6 +60,32 @@ describe("OpenAI Visit research provider", () => {
     );
   });
 
+  it("reads an official site's og:image without using Firecrawl", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      '<html><meta property="og:image" content="/brand.png"></html>',
+      { status: 200, headers: { "content-type": "text/html" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const current = {
+      companySummary: "Company",
+      personSummary: "Founder",
+      links: [{ label: "Official", url: "https://example.test", kind: "website" }],
+      highlights: [],
+      talkingPoints: [],
+      sources: [],
+      confidence: 0.8,
+    };
+
+    await expect(
+      openAiVisitResearchProvider.resolveProfileImage?.(
+        { contactId: "contact-1", name: "Dennis", company: "Example", title: null, email: null },
+        current,
+      ),
+    ).resolves.toEqual({ ...current, imageUrl: "https://example.test/brand.png" });
+    expect(fetchMock).toHaveBeenCalledWith("https://example.test", expect.objectContaining({ redirect: "follow" }));
+    vi.unstubAllGlobals();
+  });
+
   it("uses Firecrawl only to fill a missing company summary from an official site", async () => {
     scrapeUrl.mockResolvedValue({
       url: "https://example.test/about",
@@ -92,6 +118,44 @@ describe("OpenAI Visit research provider", () => {
       expect.objectContaining({ model: "gpt-4o-mini", temperature: 0 }),
       { operation: "官網簡介摘要", agentSlug: "visit" },
     );
+  });
+
+  it("keeps usable social links and a trusted Firecrawl image on the same profile", async () => {
+    scrapeUrl.mockResolvedValue({
+      url: "https://example.test/about",
+      title: "About",
+      markdown:
+        "Follow us at https://www.linkedin.com/company/example, https://instagram.com/example and https://threads.net/@example.",
+      imageUrl: "https://cdn.example.test/og.png",
+    });
+    createChatCompletion.mockResolvedValue({ choices: [{ message: { content: '{"summary":"工業自動化公司"}' } }] });
+    const current = {
+      companySummary: "",
+      personSummary: "Founder",
+      links: [{ label: "Official", url: "https://example.test/about", kind: "website" }],
+      highlights: [],
+      talkingPoints: [],
+      sources: [],
+      confidence: 0.8,
+    };
+
+    await expect(
+      openAiVisitResearchProvider.enrichCompanyProfile(
+        { contactId: "contact-1", name: "Dennis", company: "Example", title: null, email: null },
+        current,
+      ),
+    ).resolves.toEqual({
+      ...current,
+      companySummary: "工業自動化公司",
+      links: [
+        ...current.links,
+        { label: "LinkedIn", url: "https://www.linkedin.com/company/example", kind: "linkedin" },
+        { label: "Instagram", url: "https://instagram.com/example", kind: "instagram" },
+        { label: "Threads", url: "https://threads.net/@example", kind: "threads" },
+      ],
+      sources: ["https://example.test/about"],
+      imageUrl: "https://cdn.example.test/og.png",
+    });
   });
 
   it("does not spend Firecrawl credits for public email domains without an official link", async () => {
