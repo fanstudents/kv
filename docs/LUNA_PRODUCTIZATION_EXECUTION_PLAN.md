@@ -139,9 +139,9 @@ P0 文件與設定真相
 - 只有明確 acceptance opt-in、環境限制與 secret guard 全部成立時才能回覆 LINE。
 - 測試 marker、收件人 allowlist 與 cleanup 必須精確；不得影響正式使用者。
 
-**已落地的最小實作：** `scripts/support-relay-simulator.mjs`，以 `npm run support:relay:simulator` 啟動；預設 `ack` 模式，`reply` 模式必須同時設定 `LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_SIMULATOR_TEST_MARKER`。它只保存精簡 receipt，不保存 raw body／user ID；`/receipts` 需要 `SUPPORT_RELAY_SIMULATOR_SECRET`，`/relay` 會驗證原始 LINE signature 與 `body:<sha256>` delivery key。這是獨立 acceptance tooling，不是正式 Support module。
+**已落地的最小實作：** `scripts/support-relay-simulator.mjs`，以 `npm run support:relay:simulator` 啟動；預設 `ack` 模式，`reply` 模式必須同時設定 `LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_SIMULATOR_TEST_MARKER`。它只保存精簡 receipt，不保存 raw body／user ID；`/receipts` 需要 `SUPPORT_RELAY_SIMULATOR_SECRET`，`/relay` 會驗證原始 LINE signature 與 `body:<sha256>` delivery key。`Dockerfile.support-relay-simulator` 可將它獨立部署成 staging service；這是 acceptance tooling，不是正式 Support module。
 
-**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 兩個測試通過；`npm run lint` 通過；`npm run typecheck` 通過。P1 由 `355d1d5` 提交。下一步是 P2；staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
+**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 3 個測試通過；`npm run lint`、`npm run typecheck` 通過。P1 code 由 `355d1d5` 提交，adapter transport 由 `0319a55` 補強。staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
 
 ### P2：完成本機 Support contract 與資料整合 `[done: 0319a55]`
 
@@ -168,14 +168,15 @@ P0 文件與設定真相
 
 **動作：**
 
-1. 部署 P1～P2 exact commit 到隔離 staging。
-2. 同步三個 Support LINE credentials 與 simulator target；不在輸出中顯示值。
-3. 用 `/api/version` 確認 commit，用 `/api/health` 確認環境。
-4. LINE Console Webhook Verify 必須從 `401` 變成 `200`。
-5. 請使用者用 test user／room 傳一則帶唯一 marker 的訊息。
-6. 驗證 LINE inbound receipt、KV DB rows、simulator relay receipt 與真實 LINE reply。
-7. 用 Chrome 檢查 `/agents/support` 的 loading、成功、活動與對話狀態，UI 外觀不變。
-8. 精確清除測試 DB／simulator receipt，確認殘留 0。
+1. 以 `Dockerfile.support-relay-simulator` 建立獨立 staging service；不要覆寫主 `kv-app` service。
+2. 設定 simulator 的 `SUPPORT_RELAY_SIMULATOR_SECRET`、`LINE_SUPPORT_CHANNEL_SECRET`、`SUPPORT_RELAY_SIMULATOR_MODE`；reply mode 另需 Support access token 與唯一 test marker。
+3. 用 simulator `/health` 確認 service；將主 app 的 `SUPPORT_RELAY_TARGET_URL` 設為 simulator `/relay`。
+4. 部署 P1～P2 exact commit 到隔離 staging，並同步三個 Support LINE credentials；不在輸出中顯示值。
+5. 用主 app `/api/version` 與 `/api/health` 確認 commit／環境；LINE Console Webhook Verify 必須從 `401` 變成 `200`。
+6. 請使用者用 test user／room 傳一則帶唯一 marker 的訊息。
+7. 驗證 LINE inbound receipt、KV DB rows、simulator relay receipt 與真實 LINE reply。
+8. 用 Chrome 檢查 `/agents/support` 的 loading、成功、活動與對話狀態，UI 外觀不變。
+9. 精確清除測試 DB／simulator receipt，確認殘留 0。
 
 **失敗處理：** 在真實 receipt 尚未證明前，不新增 generic retry；先定位是 LINE、KV、DB、relay 還是 simulator owner。
 
