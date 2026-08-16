@@ -165,7 +165,7 @@ export async function processSupportRelay(params: {
       const issues: SupportRelayIssue[] = [{ operation: "forward", message }];
       try {
         await ports.repository.recordActivity({
-          summary: `轉發給舊客服系統未確認成功：${message}（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由舊系統 owner 依 key 確認）`,
+          summary: `轉發給下游客服／助理系統未確認成功：${message}（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由下游系統 owner 依 key 確認）`,
           status: "failed",
         });
       } catch (auditError) {

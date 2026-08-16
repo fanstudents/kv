@@ -70,7 +70,7 @@ describe("Support relay dependencies", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 503 }));
     await expect(
       ports.relay.forward({ rawBody: "{}", signature: "sig", contentType: "application/json" })
-    ).rejects.toMatchObject({ kind: "rejected", message: "舊系統回應 503" });
+    ).rejects.toMatchObject({ kind: "rejected", message: "下游客服／助理系統回應 503" });
   });
 
   it("classifies relay transport failures without retrying the legacy POST", async () => {

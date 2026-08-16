@@ -154,7 +154,7 @@ describe("Amber LINE legacy relay application", () => {
     });
     expect(fixture.activities).toContainEqual({
       summary:
-        `轉發給舊客服系統未確認成功：legacy unavailable（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由舊系統 owner 依 key 確認）`,
+        `轉發給下游客服／助理系統未確認成功：legacy unavailable（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由下游系統 owner 依 key 確認）`,
       status: "failed",
     });
     expect(fixture.conversations).toEqual([
@@ -170,7 +170,7 @@ describe("Amber LINE legacy relay application", () => {
     expect(fixture.activities).toEqual([
       {
         summary:
-          `轉發給舊客服系統未確認成功：轉發失敗（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由舊系統 owner 依 key 確認）`,
+        `轉發給下游客服／助理系統未確認成功：轉發失敗（delivery key: ${deliveryKey}；未具備安全重播契約，本次不自動重送，請由下游系統 owner 依 key 確認）`,
         status: "failed",
       },
     ]);

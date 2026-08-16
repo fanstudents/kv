@@ -39,13 +39,13 @@ export function createSupportRelayDependencies(
         } catch (error) {
           const isTimeout = error instanceof DOMException && error.name === "TimeoutError";
           throw new SupportRelayForwardError(
-            isTimeout ? "舊客服系統轉送逾時" : error instanceof Error ? error.message : "舊客服系統轉送網路錯誤",
+            isTimeout ? "下游客服／助理系統轉送逾時" : error instanceof Error ? error.message : "下游客服／助理系統轉送網路錯誤",
             isTimeout ? "timeout" : "network",
             { cause: error }
           );
         }
         if (!response.ok) {
-          throw new SupportRelayForwardError(`舊系統回應 ${response.status}`, "rejected");
+          throw new SupportRelayForwardError(`下游客服／助理系統回應 ${response.status}`, "rejected");
         }
       },
     },

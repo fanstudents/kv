@@ -7,14 +7,14 @@ import {
   processSupportRelay,
 } from "@/modules/support/relay";
 
-// 這支帳號實際上是既有客服機器人（多租戶架構，不方便改它的程式碼）在用的 LINE 官方帳號。
-// 因為 LINE 每個頻道只能設一個 Webhook URL，這裡改成「轉發式」設計：
-// 在 LINE Developers Console 把這支帳號的 Webhook URL 從舊系統改指向這裡；
-// 這裡驗完簽章後，原封不動把 raw body／簽章轉送給舊系統的原始 Webhook URL（讓它完全不知道
-// 中間多了一手，不用改它任何程式碼），同時把訊息記錄下來給客服助手(Amber)看，兩邊互不影響。
-// 這裡「只記錄、不回覆」——回覆客戶的責任還是在舊系統手上，避免搶用同一個 replyToken。
+// 這支帳號由下游客服／助理系統使用；KV 不接管下游的回覆責任。
+// 因為 LINE 每個頻道只能設一個 Webhook URL，這裡採用「轉發式」設計：
+// 在 LINE Developers Console 把頻道的 Webhook URL 指向這裡；
+// 這裡驗完簽章後，原封不動把 raw body／簽章轉送給下游系統，
+// 同時把訊息記錄下來供 KV 的客服功能使用，兩邊互不搶用同一個 replyToken。
+// 這裡只負責 capture／relay；是否回覆由下游系統決定。
 // 需要設定：LINE_SUPPORT_CHANNEL_SECRET（這支帳號真正的 Channel Secret）
-//          SUPPORT_RELAY_TARGET_URL（舊系統原本的 Webhook URL，例如 https://tbrchat.zeabur.app/api/webhooks/line）
+//          SUPPORT_RELAY_TARGET_URL（下游客服／助理系統的 relay endpoint）
 export async function GET() {
   return NextResponse.json({ ok: true, service: "line-support-webhook-relay" });
 }
