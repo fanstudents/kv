@@ -12,11 +12,11 @@
 | Profile | Standard productization handoff |
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
-| Base commit | `355d1d5`（P0、P1 已完成） |
-| Last verified | 2026-08-16；P1 commit `355d1d5` |
+| Base commit | `0319a55`（P0～P2 已完成） |
+| Last verified | 2026-08-16；P2 commit `0319a55` |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Current package | P2：完成本機 Support contract 與資料整合 |
-| Readiness | P0、P1 已完成；P2 可開始；完整 release 仍 Needs Revision，原因見第 9 節 |
+| Current package | P3：Hosted Support LINE 真實流程 |
+| Readiness | P0～P2 已完成；P3 等待 staging simulator URL 與測試 user／room；完整 release仍 Needs Revision，原因見第 9 節 |
 
 開始任何工作前先執行：
 
@@ -143,7 +143,7 @@ P0 文件與設定真相
 
 **驗證證據：** `tests/unit/support-relay-simulator.test.ts` 兩個測試通過；`npm run lint` 通過；`npm run typecheck` 通過。P1 由 `355d1d5` 提交。下一步是 P2；staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
 
-### P2：完成本機 Support contract 與資料整合
+### P2：完成本機 Support contract 與資料整合 `[done: 0319a55]`
 
 **目的：** 在真人 LINE 測試前先關閉可低成本發現的錯誤。
 
@@ -158,7 +158,9 @@ P0 文件與設定真相
 - 使用唯一 marker 寫入 Main staging，驗證後精確清除為 0。
 - 跑 Support focused tests、lint、typecheck；用 CodeGraph 確認沒有多出無理由的 layer。
 
-**Done When：** 不需要 relay stub 的人工修改即可重跑；Main fixture 清理為 0。提交 Support local acceptance commit。
+**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 3 tests passed；`npm run test:unit` 140 files／724 tests passed；`npm run lint`、`npm run typecheck` passed；一次性 `SUPPORT_MAIN_ACCEPTANCE=1 npm run acceptance:support:main` 2 tests passed，Main conversation／subscriber／activity cleanup 為 0。P2 由 `0319a55` 提交。
+
+**Done When：** adapter 已透過真實本機 HTTP simulator 重跑，Main staging fixture 已精確清除；P3 可開始。
 
 ### P3：Hosted Support LINE 真實流程
 
