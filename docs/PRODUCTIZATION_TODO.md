@@ -371,7 +371,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 ### WP-18 Support `[!]`
 
 - [x] **可自主到 gate：**`npm run acceptance:support:main` 以合成 conversation、local relay double 與測試程序內隨機 `SUPPORT_LOG_SECRET` 驗 capture、受保護 callback log、daily report、Main persistence、delivery failure 與精確 cleanup；1 file／2 tests passed，conversation／subscriber／activity 殘留為 0，Chrome `/agents/support` 已確認設定與活動回復。全程未呼叫 LINE、OpenAI 或舊客服 endpoint。
-- [!] **外部 gate：**獨立 Support LINE channel 三項 credentials、測試 user、舊客服 webhook 的 safe relay target／owner，以及 public staging deployment；缺任一項都不能宣稱 Support end-to-end 完成。
+- [~] **外部 gate：**2026-08-16 已用獨立官方帳號 `KV Support Staging` 建立 Messaging API channel（Channel ID `2011130506`），Webhook 已指向隔離 staging 並啟用；三項 credentials 已寫入 Git-ignored `.env.local`，`npm run doctor -- --profile=demo --strict` 顯示 Support LINE OK。仍缺測試 user／room、真實 inbound receipt、舊客服 webhook 的 safe relay target／owner，以及完整 public staging acceptance；因此尚不能宣稱 Support end-to-end 完成。
 
 ### WP-20 Targeted reliability `[?]`
 
@@ -415,7 +415,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 
 Secrets 只放 Git ignored `.env.local` 或正式 secret store；不要貼進 Git、TODO、測試 fixture或聊天回報。
 
-目前不需要再取得 Main Supabase、OpenAI、Firecrawl、Google 或 Primary LINE 才能繼續工程工作。`CRON_SECRET`、`SUPPORT_LOG_SECRET` 是我方內部 secret，可自行安全產生，不應算成外部 blocker。真正仍需外部提供的是 Support LINE、Teachify provider truth、safe relay、部署／canonical repo，以及產品決策；Main Supabase credentials 已設定，不列入待取得數量。
+目前不需要再取得 Main Supabase、OpenAI、Firecrawl、Google、Primary LINE 或 Support LINE channel credentials 才能繼續工程工作。`CRON_SECRET`、`SUPPORT_LOG_SECRET` 是我方內部 secret，可自行安全產生，不應算成外部 blocker。真正仍需外部提供的是 Support 測試 user／room、Teachify provider truth、safe relay、部署／canonical repo，以及產品決策；Main Supabase credentials 已設定，不列入待取得數量。
 
 W1 bounded workflow proof 只使用既有 Main staging fixture、local provider doubles 與目前已存在的設定，不需要再拿新的外部 key；它的輸出是「是否值得抽出最小 policy」的決策，不是新的 runtime 平台。
 
@@ -426,7 +426,7 @@ W1 bounded workflow proof 只使用既有 Main staging fixture、local provider 
 | 3 | Google OAuth | 已配置 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN`；write allowlist 已配置於 Git ignored `.env.local` | Calendar／GA4／GSC read、Calendar／Gmail write provider 與 Visit composite journey 已通過 | WP-13／14 的 Google 範圍完成 |
 | 4 | Google analytics | 已配置 `GA4_PROPERTY_ID`、`GSC_SITE_URL`；`GOOGLE_ADDITIONAL_CALENDAR_IDS` 仍選配 | GA4／GSC production-provider read 已通過 | WP-14 完成；WP-17 已解鎖 |
 | 5 | LINE primary | 已配置 `LINE_CHANNEL_ID`、`LINE_CHANNEL_SECRET`、`LINE_CHANNEL_ACCESS_TOKEN` 與單一 allowlisted user | 每個 acceptance 暫時寫入精確 recipient／fixture，結束後復原；不把 user ID 寫入 Git | WP-13／15／16／17 可自主繼續 |
-| 6 | LINE support | `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` | support 測試 user／channel，不與 primary 混用 | WP-15／18 |
+| 6 | LINE support | 已配置 `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN`（Git-ignored `.env.local`）；Channel ID `2011130506`，Webhook 已接 `kv-staging` | support 測試 user／channel，不與 primary 混用；仍需真實 inbound receipt | WP-15／18 |
 | 7 | Teachify | `TEACHIFY_WEBHOOK_SECRET` | sandbox／去識別 order event、可重播 event ID | WP-16 |
 | 8 | Cron／Support | `CRON_SECRET`、`SUPPORT_LOG_SECRET` 可自行產生；只有 `SUPPORT_RELAY_TARGET_URL` 必須由舊客服系統 owner 確認 | safe relay endpoint、通知 owner；local secret 不進 Git | WP-17 可自主；WP-18 relay／WP-21 hosted schedule 仍有外部 gate |
 | 9 | GitHub／Zeabur | `upstream/fanstudents/kv` 可讀且已有本 branch；`origin/cablate/kv` 失效。需決定 canonical repo、write policy、deploy project／secret owner | `kva.zeabur.app` 存活但 revision／用途未知；需要獨立 staging 身分、health version、rollback owner | WP-21／22 |
@@ -574,8 +574,8 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 
 5. **P5 — 外部資產（E，可與 P1–P4 平行取得）**
    - [x] `npm run doctor:staging`（2026-08-15）確認 Main 的 server-side write readiness、Teaching／OpenAI／Primary LINE／Google／Firecrawl／Cron 的設定狀態且未呼叫外部服務；目前只列缺少的名稱。
-   - [!] 目前明確缺少：`LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN`、`TEACHIFY_WEBHOOK_SECRET`、`SUPPORT_RELAY_TARGET_URL`。這些只阻塞對應 P6 真實 journey，不阻塞本地 contracts、文件、測試與其他 domain。
-   - Support LINE：專用 channel ID／secret／access token、測試 user／room，以及可安全改 webhook 的 owner。
+   - [~] 目前明確缺少：`TEACHIFY_WEBHOOK_SECRET`、`SUPPORT_RELAY_TARGET_URL`，以及 Support LINE 的測試 user／room、真實 provider receipt 與 relay owner。Support channel 三項 credentials 已在 Git-ignored `.env.local` 設定，並已接到 `https://kv-staging.zeabur.app/api/line/webhook/support`；上述剩餘項目只阻塞對應 P6 真實 journey，不阻塞本地 contracts、文件、測試與其他 domain。
+   - [x] Support LINE：已建立獨立 `KV Support Staging` Messaging API channel（ID `2011130506`），Webhook 已啟用並指向隔離 staging；不得與 Primary 混用。下一步只需取得測試 user／room、跑 inbound receipt，並確認 relay owner。
    - Teachify：官方實際 signing spec／secret，加一筆 sandbox 或去識別可重播事件。
    - Support relay：既有客服 webhook target、owner 與 failure／rollback 聯絡人。
    - Deploy：canonical GitHub repo／branch、Zeabur project ownership、獨立 staging URL、revision／commit 可見性、secret store 與 release owner。`kva.zeabur.app` 現在可回 200 且有 webhook routes，但尚不能證明它是本 branch、隔離 staging 或可安全覆寫的環境。
@@ -588,7 +588,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - 部署目前驗證過的 commit 到獨立 staging，health/version 能對應 commit；先套 migration 再切流量。
    - Primary LINE：真實 inbound Visit text／image／postback、Calendar／Gmail／LINE 回覆與 timeout，全部限制測試 recipient。
    - Teachify：真實 provider signature／event → Orders persistence → 去重／replay → Primary LINE。
-   - Support：專用 Support LINE inbound → capture → relay；確認既有客服 bot 回覆 owner，不讓 KV 搶答。
+   - Support：專用 Support LINE inbound → capture → relay；channel 與 webhook 已就緒，下一步是用測試 user／room 驗 provider receipt，並確認既有客服 bot 回覆 owner，不讓 KV 搶答。
    - Reporting：GitHub hosted schedule → cron auth → Team Lead／Support report；Support delivery identity 先確認，不預設使用 Primary channel。
    - **Exit**：每條 journey 有 provider receipt、DB diff、UI evidence、cleanup、failure／retry evidence 與 owner sign-off。
 
@@ -637,9 +637,9 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
 - **Scoped delivery 狀態仍成立**：現有 modular monolith 可承接已知 KV 需求；Main／Teaching DB、OpenAI、Firecrawl、Google、Primary LINE 與多數本地 contracts 已有證據。這不代表 Agent 已可任意配置，也不代表可直接當 multi-tenant SaaS。
 - **第一個可執行 package：** P8 isolated staging 已部署並以 exact commit／schema／health 驗證；下一個 package 是 release owner 補 backup／migration promotion evidence、scheduled failure owner 與 application rollback rehearsal。缺 owner／DB URL 時只能安全停止，不碰遠端資料。
 - **可平行處理的 gate：** P0 scope 已固定，產品 owner 仍需補每個既有功能的 acceptance journey／release owner；可靠性 owner 可裁決 P3；外部協作者可取得 P5。這些未完成前，不猜 public contract、不把 local fixture 寫成 provider truth。
-- **目前位置與唯一順序：** 已完成 `P8 repo-local gates + hosted staging／remote verify` → 進行 `P8 backup／rollback rehearsal` → `P9 cleanup／handoff`。P3／P5／P6 的 Support／Teachify external gates仍平行保留；W1 已 STOP 在 explicit workflow，除非新 consumer 觸發 W2。
+- **目前位置與唯一順序：** 已完成 `P8 repo-local gates + hosted staging／remote verify`；Support LINE channel／webhook 已建立並進入 P6 provider acceptance；下一個 package 是 Support inbound receipt／relay owner、Teachify external gate、`P8 backup／rollback rehearsal`，再進 `P9 cleanup／handoff`。W1 已 STOP 在 explicit workflow，除非新 consumer 觸發 W2。
 - **若 W1 沒有第二 consumer：** 保留現有 explicit workflow，正式記錄 STOP；不建立 `WorkflowDefinition` registry。只有新需求真的出現，才重新開 W2／W3 gate。
-- **真正外部 gate**：Support 專用 LINE、Teachify 真實簽章素材、Support relay target、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及既有全功能的 acceptance owner／release owner。
+- **真正外部 gate**：Support 測試 user／room、Support relay target、Teachify 真實簽章素材、canonical repo／Zeabur staging ownership、OpenAI key rotation，以及既有全功能的 acceptance owner／release owner；Support channel／webhook 本身已完成。
 - **禁止誤判**：本地自簽 fixture 只證明我們的 contract；`kv-staging.zeabur.app` 本批已證明隔離 staging、exact commit identity、health 與 Chrome UI 載入，但仍不能替代 Support／Teachify provider receipt、backup evidence 或 rollback truth。
 
 ## 9. 文件政策
