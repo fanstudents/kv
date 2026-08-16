@@ -1182,54 +1182,6 @@ export type Database = {
         }
         Relationships: []
       }
-      teachify_orders: {
-        Row: {
-          amount: number | null
-          coupon_code: string | null
-          created_at: string
-          currency: string
-          id: string
-          is_refund: boolean
-          item_names: string[]
-          order_id: string
-          paid_at: string | null
-          source: string
-          trade_no: string | null
-          user_email: string | null
-          user_name: string | null
-        }
-        Insert: {
-          amount?: number | null
-          coupon_code?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          is_refund?: boolean
-          item_names?: string[]
-          order_id: string
-          paid_at?: string | null
-          source?: string
-          trade_no?: string | null
-          user_email?: string | null
-          user_name?: string | null
-        }
-        Update: {
-          amount?: number | null
-          coupon_code?: string | null
-          created_at?: string
-          currency?: string
-          id?: string
-          is_refund?: boolean
-          item_names?: string[]
-          order_id?: string
-          paid_at?: string | null
-          source?: string
-          trade_no?: string | null
-          user_email?: string | null
-          user_name?: string | null
-        }
-        Relationships: []
-      }
       teachify_order_deliveries: {
         Row: {
           attempts: number
@@ -1279,6 +1231,54 @@ export type Database = {
             referencedColumns: ["order_id"]
           },
         ]
+      }
+      teachify_orders: {
+        Row: {
+          amount: number | null
+          coupon_code: string | null
+          created_at: string
+          currency: string
+          id: string
+          is_refund: boolean
+          item_names: string[]
+          order_id: string
+          paid_at: string | null
+          source: string
+          trade_no: string | null
+          user_email: string | null
+          user_name: string | null
+        }
+        Insert: {
+          amount?: number | null
+          coupon_code?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          is_refund?: boolean
+          item_names?: string[]
+          order_id: string
+          paid_at?: string | null
+          source?: string
+          trade_no?: string | null
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          amount?: number | null
+          coupon_code?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          is_refund?: boolean
+          item_names?: string[]
+          order_id?: string
+          paid_at?: string | null
+          source?: string
+          trade_no?: string | null
+          user_email?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -1438,12 +1438,6 @@ export type Database = {
           delivery_id: string
           delivery_status: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "teachify_order_deliveries"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       match_kb_chunks: {

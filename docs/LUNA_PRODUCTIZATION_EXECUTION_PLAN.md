@@ -338,6 +338,13 @@ P0 文件與設定真相
 
 **U2-B evidence：** focused unit 6 files／42 tests、typecheck、lint、production build 通過；Playwright TV projection 5／5，包含同 run/node 圖文與 5 秒 bounded hold。Chrome 已確認最新版 `/tv` 受真實登入保護；登入後人工畫面仍需既有 Chrome session 登入才能補證。此項不等於 Primary LINE provider journey 已完成。
 
+#### CI schema gate closure（2026-08-17）
+
+- Run `31954733613` 的 quality job 全綠；schema migration rehearsal 成功。
+- 紅燈來源是 committed `database.types.ts` 與 pinned Supabase CLI `2.110.0` 輸出不同，不是 migration 失敗。
+- 更新 canonical generated types，並將換行正規化成跨 Windows／Linux 可重現的單一格式。
+- migration replay、schema scope classifier 與完整 type drift blocking gate 全部保留；CLI 缺失、生成失敗、空輸出或真實型別差異仍會失敗，禁止用 skip／allow-failure 假綠。
+
 **執行規則：**
 
 1. 固定 upstream snapshot `d958a0b`；後續新 commit 另開增量，不讓 scope 持續漂移。
