@@ -181,7 +181,7 @@ P0 文件與設定真相
 
 **目前狀態：** 本地 deployment prep 由 `2266d5f` 完成，simulator failure modes 由 `e74ca31` 補齊；2026-08-16 已在 Zeabur `kv-staging` 建立獨立 `kv-support-relay-simulator` service（GitHub source `cablate/kv-support-relay-simulator`，public domain `kv-support-relay-staging.zeabur.app`，主 app 實際使用同專案 internal target），並以 `reply` mode 啟動。`kv-app` 已部署 `docs: record support route acceptance` revision、同步 Support credentials；LINE Console Verify 回 `200 Success`，hosted simulator `/health` 回 `200`，`/receipts` 已收到 Verify receipt。P3 尚未完全關閉：目前 receipt 是空事件的 Verify（`received_no_matching_test_marker`），仍等待測試 user／room 傳送帶 marker 的真實訊息，確認真實 LINE reply、KV DB rows 與精確 cleanup。
 
-**P3 hosted evidence：** Zeabur simulator `/health` 回 `200`；`kv-app` 的 `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_TARGET_URL` 已由環境變數設定並重部署；LINE Console Webhook Verify 回 `200 Success`；simulator `/receipts` 回 `200` 且已有 1 筆 Verify receipt，結果為 `received_no_matching_test_marker`。這證明 hosted signature／relay contract；不等同真實使用者 message、reply 或 cleanup 已完成。Teachify 真實 signing secret 仍是獨立 P7 gate。
+**P3 hosted evidence：** Zeabur simulator `/health` 回 `200`；`kv-app` 的 `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_TARGET_URL` 已由環境變數設定並重部署；LINE Console Webhook Verify 回 `200 Success`；simulator `/receipts` 回 `200` 且已有 Verify receipts，結果為 `received_no_matching_test_marker`。這證明 hosted signature／relay contract；不等同真實使用者 message、reply 或 cleanup 已完成。Teachify 真實 signing secret 仍是獨立 P7 gate。
 
 **失敗處理：** 在真實 receipt 尚未證明前，不新增 generic retry；先定位是 LINE、KV、DB、relay 還是 simulator owner。
 
