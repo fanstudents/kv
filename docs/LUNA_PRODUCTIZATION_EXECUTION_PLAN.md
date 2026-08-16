@@ -12,11 +12,11 @@
 | Profile | Standard productization handoff |
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
-| Base commit | `273a024`（P0 文件／env 真相已完成） |
-| Last verified | 2026-08-16；P0 commit `273a024` |
+| Base commit | `355d1d5`（P0、P1 已完成） |
+| Last verified | 2026-08-16；P1 commit `355d1d5` |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Current package | P1：建立隔離的 Support Relay Simulator |
-| Readiness | P0 已完成；P1 可開始；完整 release 仍 Needs Revision，原因見第 9 節 |
+| Current package | P2：完成本機 Support contract 與資料整合 |
+| Readiness | P0、P1 已完成；P2 可開始；完整 release 仍 Needs Revision，原因見第 9 節 |
 
 開始任何工作前先執行：
 
@@ -119,7 +119,7 @@ P0 文件與設定真相
 
 **Done When：** 找不到任何要求移除 relay 或依賴 Dennis Bot 的現行指示。已由 `273a024` 提交；P1 可開始。
 
-### P1：建立隔離的 Support Relay Simulator
+### P1：建立隔離的 Support Relay Simulator `[done: 355d1d5]`
 
 **目的：** 不依賴 Dennis 的系統，也能驗證完整 relay contract。
 
@@ -139,7 +139,9 @@ P0 文件與設定真相
 - 只有明確 acceptance opt-in、環境限制與 secret guard 全部成立時才能回覆 LINE。
 - 測試 marker、收件人 allowlist 與 cleanup 必須精確；不得影響正式使用者。
 
-**Done When：** 本機可穩定模擬四種結果；部署設計有關閉／刪除條件；focused tests 通過。提交 simulator commit。
+**已落地的最小實作：** `scripts/support-relay-simulator.mjs`，以 `npm run support:relay:simulator` 啟動；預設 `ack` 模式，`reply` 模式必須同時設定 `LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_SIMULATOR_TEST_MARKER`。它只保存精簡 receipt，不保存 raw body／user ID；`/receipts` 需要 `SUPPORT_RELAY_SIMULATOR_SECRET`，`/relay` 會驗證原始 LINE signature 與 `body:<sha256>` delivery key。這是獨立 acceptance tooling，不是正式 Support module。
+
+**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 兩個測試通過；`npm run lint` 通過；`npm run typecheck` 通過。P1 由 `355d1d5` 提交。下一步是 P2；staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
 
 ### P2：完成本機 Support contract 與資料整合
 
