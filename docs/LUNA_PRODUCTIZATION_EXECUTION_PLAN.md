@@ -15,8 +15,8 @@
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
 | Last verified | 2026-08-16；P3 hosted Support、P4 驗收矩陣、P5 證據驅動修正與 P6 集中重驗／cleanup 均完成 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Current package | P7：Teachify closure 或產品 waiver |
-| Readiness | P0～P6 已完成；Support hosted evidence 已記錄，P6 已精確清除 Main marker rows 與 simulator receipts；完整 release 仍 Needs Revision，原因見第 9 節 |
+| Current package | P7A：Dennis upstream reconciliation；P7 Teachify gate 可平行處理 |
+| Readiness | P0～P6 已完成；Support hosted evidence 已記錄並清除 fixture。P8 release 目前被 upstream 13 commits／default branch 分歧阻塞，不可直接把產品化 branch 當正式版 |
 
 開始任何工作前先執行：
 
@@ -74,6 +74,9 @@
 | Fact | `kv-support-relay-simulator` 已在 `kv-staging` 建立獨立 Zeabur service；主 app 透過同專案 internal target `:4010/relay` 連線 | 不覆寫 `kv-app`，不依賴公開 TLS relay domain |
 | Verified | 測試者已傳送唯一 marker；simulator receipt 為 `replied`，Main staging 有 1 筆 support activity、1 筆 customer conversation、1 筆 support subscriber，Chrome `/agents/support` 顯示該訊息 | P3 functional acceptance 完成；測試資料暫保留，P6／P9 統一 cleanup |
 | Gap | 尚未取得 Teachify 真實 signing secret／event truth | 只阻塞 P7 Teachify row，不阻塞其他工作 |
+| Fact | canonical GitHub repo 是 `fanstudents/kv`，default branch 是 `main`；產品化成果目前在 `codex/kv-wp0-toolchain` | Zeabur staging 可驗 branch，但正式 cutover 前必須先收斂 branch ownership |
+| Fact | 2026-08-16 snapshot：產品化 branch 對 `main` 為 443 commits ahead／13 commits behind；merge-tree 顯示 26 個實質 conflict，涵蓋 runtime、LINE／Visit、Meeting、Teachify、CI 與 Supabase config | 不做一次性 merge，不把 upstream 舊 `src/lib` ownership 灌回新版架構；先執行 P7A |
+| Fact | default branch 的 hosted `Frequent Jobs` 約每 5 分鐘執行，且所有舊 schedules 指向 `https://kva.zeabur.app`；正確 isolated staging 是 `https://kv-staging.zeabur.app` | P8 必須建立可驗證的 schedule target／owner；未核准前不得直接把正式排程切到 staging |
 
 ### Support 目標流程
 
@@ -97,7 +100,8 @@ P0 文件與設定真相
   -> P4 全功能 staging 驗收
   -> P5 證據驅動修正
   -> P6 集中重新驗證
-  -> P7 Teachify closure 或產品 waiver
+  -> P7 Teachify closure 或產品 waiver（外部／決策 lane）
+  -> P7A Dennis upstream reconciliation（自主 lane，可與 P7 平行）
   -> P8 release / backup / rollback
   -> P9 cleanup / handoff
 ```
@@ -287,6 +291,27 @@ P0 文件與設定真相
 - 此 waiver 必須寫明使用限制、重新開啟條件與 owner；mock 不得標成完成。
 
 **Done When：** 真實 provider 證據完成，或產品 waiver 已核准並反映在 release scope。
+
+### P7A：Dennis upstream reconciliation
+
+**目的：** 把 Dennis 在 merge-base `359d4c9` 之後的 13 個 commits 映射進產品化架構，保留新產品行為，但不恢復已移除的 legacy ownership。
+
+| Slice | Upstream 行為 | 處理方式 |
+|---|---|---|
+| U1 Runtime／Operations | runs 頁、agent tasks、retry、alert、maintenance、cron、runtime hardening migration | 先比對現有 `agent_runs／steps／tasks／locks` baseline 與 modules；只補缺少的 use case、route、projection 與 recovery，不複製舊 `src/lib` runtime |
+| U2 Visit／Research／TV | 名片旋轉、Firecrawl fallback、LINE 點擊卡片、行前功課圖文同步／保鮮期／社群連結 | 依 Visit 與 TV domain owner 逐條移植；每條保留現有 UI contract，跑 Primary LINE／Chrome affected journey |
+| U3 Brand／Showcase | MixAgent／原騰科技名稱、super-agent showcase | 品牌文字需產品決策；展示頁若核准則獨立 UI slice，不與 runtime 合併 |
+| U4 Repo／Deployment | upstream CI、frequent schedules、Supabase config | 保留目前已驗證的 CI／migration baseline；逐項吸收缺口，不覆寫 staging identity 或 migration history |
+
+**執行規則：**
+
+1. 固定 upstream snapshot `d958a0b`；後續新 commit 另開增量，不讓 scope 持續漂移。
+2. 每個 slice 以 upstream commit diff 當 requirement evidence，再用 CodeGraph 映射到 current owner。
+3. 禁止直接 merge／cherry-pick 造成 route 與 `src/lib` 雙 ownership；行為要以 current modules／adapters 重作最小 patch。
+4. 每個 slice 各自跑 contract、affected Chrome、staging cleanup 與 coherent commit。
+5. 所有 slice 收斂後才建立 PR／protected-main cutover；在此之前 staging 仍追蹤產品化 branch。
+
+**Done When：** 13 個 upstream commits 每一個都有 Integrated、Superseded、Rejected 或 Decision required 結論；核准行為已進 current owner 並通過 affected acceptance，merge-base drift 已清楚封存。
 
 ### P8：Release、backup 與 rollback
 
