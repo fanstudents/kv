@@ -13,10 +13,10 @@
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-16；local Support webhook route acceptance verified after `4dbecfb` |
+| Last verified | 2026-08-16；hosted Support Verify、KV relay 與 simulator receipt 已驗證；真實 marker message／reply 尚待測試者 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
 | Current package | P3：Hosted Support LINE 真實流程 |
-| Readiness | P0～P2 已完成；P3 等待 staging simulator URL 與測試 user／room；完整 release仍 Needs Revision，原因見第 9 節 |
+| Readiness | P0～P2 已完成；P3 hosted infrastructure／Verify 已完成，仍等待測試 user／room 的 marker message、真實 reply 與 cleanup；完整 release 仍 Needs Revision，原因見第 9 節 |
 
 開始任何工作前先執行：
 
@@ -70,7 +70,8 @@
 | Decision | Dennis 的個人助理不是我方必要資產 | 用我方 simulator 驗證相同 relay contract |
 | Fact | 已建立獨立 `KV Support Staging` LINE Bot，三個 credentials 位於 Git-ignored `.env.local` | 不需再申請 Support channel；仍需真實 test user／room |
 | Gap | 近期舊 TODO 與 `.env.example` 被誤改成 relay 非必要／待移除 | P0 必須先修正文件與設定真相 |
-| Gap | LINE Console Verify 曾回 `401` | hosted Support secret／部署版本尚未完成驗收 |
+| Resolved | LINE Console Verify 曾回 `401`；2026-08-16 已同步 Support credentials、重部署 `kv-app`，Verify 回 `200 Success` | hosted signature boundary 已通過；仍需真實 marker message／reply |
+| Fact | `kv-support-relay-simulator` 已在 `kv-staging` 建立獨立 Zeabur service；主 app 透過同專案 internal target `:4010/relay` 連線 | 不覆寫 `kv-app`，不依賴公開 TLS relay domain |
 | Gap | 尚未取得 Teachify 真實 signing secret／event truth | 只阻塞 P7 Teachify row，不阻塞其他工作 |
 
 ### Support 目標流程
@@ -141,7 +142,7 @@ P0 文件與設定真相
 
 **已落地的最小實作：** `scripts/support-relay-simulator.mjs`，以 `npm run support:relay:simulator` 啟動；預設 `ack` 模式，`reply` 模式必須同時設定 `LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_SIMULATOR_TEST_MARKER`。它只保存精簡 receipt，不保存 raw body／user ID；`/receipts` 需要 `SUPPORT_RELAY_SIMULATOR_SECRET`，`/relay` 會驗證原始 LINE signature 與 `body:<sha256>` delivery key。`Dockerfile.support-relay-simulator` 可將它獨立部署成 staging service；這是 acceptance tooling，不是正式 Support module。
 
-**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 4 個測試通過；`npm run lint`、`npm run typecheck` 通過。P1 code 由 `355d1d5` 提交，adapter transport 由 `0319a55` 補強。staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
+**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 4 個測試通過；`npm run lint`、`npm run typecheck` 通過。P1 code 由 `355d1d5` 提交，adapter transport 由 `0319a55` 補強。hosted service 的 domain／owner 由 P3 設定，不把 secret 寫入 repo。
 
 ### P2：完成本機 Support contract 與資料整合 `[done: 4dbecfb]`
 
@@ -178,9 +179,9 @@ P0 文件與設定真相
 8. 用 Chrome 檢查 `/agents/support` 的 loading、成功、活動與對話狀態，UI 外觀不變。
 9. 精確清除測試 DB／simulator receipt，確認殘留 0。
 
-**目前狀態：** P3 的本地 deployment prep 已由 `2266d5f` 完成，simulator failure modes 由 `e74ca31` 補齊；`Dockerfile.support-relay-simulator` 已選定為獨立 service 的部署形態，且 `78ad917` 已將程式內 relay 描述統一為「下游客服／助理系統」。本機沒有 Docker，image build 尚未驗證。真正 P3 仍等待 simulator staging service URL／owner、主 app exact deploy、Support secret sync 與 test user／room。
+**目前狀態：** 本地 deployment prep 由 `2266d5f` 完成，simulator failure modes 由 `e74ca31` 補齊；2026-08-16 已在 Zeabur `kv-staging` 建立獨立 `kv-support-relay-simulator` service（GitHub source `cablate/kv-support-relay-simulator`，public domain `kv-support-relay-staging.zeabur.app`，主 app 實際使用同專案 internal target），並以 `reply` mode 啟動。`kv-app` 已部署 `docs: record support route acceptance` revision、同步 Support credentials；LINE Console Verify 回 `200 Success`，hosted simulator `/health` 回 `200`，`/receipts` 已收到 Verify receipt。P3 尚未完全關閉：目前 receipt 是空事件的 Verify（`received_no_matching_test_marker`），仍等待測試 user／room 傳送帶 marker 的真實訊息，確認真實 LINE reply、KV DB rows 與精確 cleanup。
 
-**P3 preflight evidence：** `npm run doctor:staging` 顯示 Main／Teaching／OpenAI／Primary LINE／Support LINE／Google／Firecrawl／Cron 均已設定；唯一 Support 缺口是 `SUPPORT_RELAY_TARGET_URL`，另有既知 `TEACHIFY_WEBHOOK_SECRET` 缺口。`npm run test:unit` 140 files／725 tests、`npm run lint`、`npm run typecheck` 均通過。這些證據不等同 hosted simulator 或真實 LINE receipt。
+**P3 hosted evidence：** Zeabur simulator `/health` 回 `200`；`kv-app` 的 `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_TARGET_URL` 已由環境變數設定並重部署；LINE Console Webhook Verify 回 `200 Success`；simulator `/receipts` 回 `200` 且已有 1 筆 Verify receipt，結果為 `received_no_matching_test_marker`。這證明 hosted signature／relay contract；不等同真實使用者 message、reply 或 cleanup 已完成。Teachify 真實 signing secret 仍是獨立 P7 gate。
 
 **失敗處理：** 在真實 receipt 尚未證明前，不新增 generic retry；先定位是 LINE、KV、DB、relay 還是 simulator owner。
 
