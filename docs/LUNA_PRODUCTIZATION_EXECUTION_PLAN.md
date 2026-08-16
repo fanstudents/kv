@@ -13,7 +13,7 @@
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-16；Support relay contract wording verified after `78ad917` |
+| Last verified | 2026-08-16；local Support webhook route acceptance verified after `4dbecfb` |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
 | Current package | P3：Hosted Support LINE 真實流程 |
 | Readiness | P0～P2 已完成；P3 等待 staging simulator URL 與測試 user／room；完整 release仍 Needs Revision，原因見第 9 節 |
@@ -143,7 +143,7 @@ P0 文件與設定真相
 
 **驗證證據：** `tests/unit/support-relay-simulator.test.ts` 4 個測試通過；`npm run lint`、`npm run typecheck` 通過。P1 code 由 `355d1d5` 提交，adapter transport 由 `0319a55` 補強。staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
 
-### P2：完成本機 Support contract 與資料整合 `[done: 0319a55]`
+### P2：完成本機 Support contract 與資料整合 `[done: 4dbecfb]`
 
 **目的：** 在真人 LINE 測試前先關閉可低成本發現的錯誤。
 
@@ -158,7 +158,7 @@ P0 文件與設定真相
 - 使用唯一 marker 寫入 Main staging，驗證後精確清除為 0。
 - 跑 Support focused tests、lint、typecheck；用 CodeGraph 確認沒有多出無理由的 layer。
 
-**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 3 tests passed；`npm run test:unit` 140 files／724 tests passed；`npm run lint`、`npm run typecheck` passed；一次性 `SUPPORT_MAIN_ACCEPTANCE=1 npm run acceptance:support:main` 2 tests passed，Main conversation／subscriber／activity cleanup 為 0。P2 由 `0319a55` 提交。
+**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 4 tests passed；`npm run test:unit` 140 files／725 tests passed；`npm run lint`、`npm run typecheck` passed；一次性 `SUPPORT_MAIN_ACCEPTANCE=1 npm run acceptance:support:main` 2 tests passed，Main conversation／subscriber／activity cleanup 為 0；再以 `SUPPORT_ROUTE_ACCEPTANCE=1 npm run acceptance:support:route` 實際呼叫 Support webhook route，1 test passed，驗證真實 Support signature、Main staging capture、HTTP simulator receipt／delivery key 與 cleanup residue 0。P2 原始 adapter evidence 由 `0319a55` 提交，route evidence 由 `4dbecfb` 提交。
 
 **Done When：** adapter 已透過真實本機 HTTP simulator 重跑，Main staging fixture 已精確清除；P3 可開始。
 
