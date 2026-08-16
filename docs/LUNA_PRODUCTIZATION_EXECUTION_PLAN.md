@@ -12,10 +12,11 @@
 | Profile | Standard productization handoff |
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
-| Base commit | `a1f502f891c4d6cfa8b412ec184f09043f751dcb` |
-| Last verified | 2026-08-16 |
+| Base commit | `273a024`（P0 文件／env 真相已完成） |
+| Last verified | 2026-08-16；P0 commit `273a024` |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Readiness | 第一個工作包 Ready；完整 release 仍 Needs Revision，原因見第 9 節 |
+| Current package | P1：建立隔離的 Support Relay Simulator |
+| Readiness | P0 已完成；P1 可開始；完整 release 仍 Needs Revision，原因見第 9 節 |
 
 開始任何工作前先執行：
 
@@ -103,7 +104,7 @@ P0 文件與設定真相
 
 ## 5. 工作包
 
-### P0：修正文件與環境設定真相
+### P0：修正文件與環境設定真相 `[done: 273a024]`
 
 **目的：** 所有後續執行者對 Support 使用同一個正確模型。
 
@@ -116,7 +117,7 @@ P0 文件與設定真相
 
 **驗證：** `rg` 檢查所有 Support relay 敘述一致；Markdown UTF-8 正常；`git diff` 只包含文件與範例設定。
 
-**Done When：** 找不到任何要求移除 relay 或依賴 Dennis Bot 的現行指示。提交一個 docs commit。
+**Done When：** 找不到任何要求移除 relay 或依賴 Dennis Bot 的現行指示。已由 `273a024` 提交；P1 可開始。
 
 ### P1：建立隔離的 Support Relay Simulator
 
