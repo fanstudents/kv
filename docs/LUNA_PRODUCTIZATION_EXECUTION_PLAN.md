@@ -15,8 +15,8 @@
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
 | Last verified | 2026-08-16；hosted Support Verify、KV relay 與 simulator receipt 已驗證；真實 marker message／reply 尚待測試者 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Current package | P3：Hosted Support LINE 真實流程 |
-| Readiness | P0～P2 已完成；P3 hosted infrastructure／Verify 已完成，仍等待測試 user／room 的 marker message、真實 reply 與 cleanup；完整 release 仍 Needs Revision，原因見第 9 節 |
+| Current package | P4：集中完成九月全功能矩陣 |
+| Readiness | P0～P3 已完成；P3 的 hosted Support message／reply 已驗證，測試資料與 simulator receipt 暫保留作 acceptance evidence，集中 cleanup 於 P6／P9；完整 release 仍 Needs Revision，原因見第 9 節 |
 
 開始任何工作前先執行：
 
@@ -72,6 +72,7 @@
 | Gap | 近期舊 TODO 與 `.env.example` 被誤改成 relay 非必要／待移除 | P0 必須先修正文件與設定真相 |
 | Resolved | LINE Console Verify 曾回 `401`；2026-08-16 已同步 Support credentials、重部署 `kv-app`，Verify 回 `200 Success` | hosted signature boundary 已通過；仍需真實 marker message／reply |
 | Fact | `kv-support-relay-simulator` 已在 `kv-staging` 建立獨立 Zeabur service；主 app 透過同專案 internal target `:4010/relay` 連線 | 不覆寫 `kv-app`，不依賴公開 TLS relay domain |
+| Verified | 測試者已傳送唯一 marker；simulator receipt 為 `replied`，Main staging 有 1 筆 support activity、1 筆 customer conversation、1 筆 support subscriber，Chrome `/agents/support` 顯示該訊息 | P3 functional acceptance 完成；測試資料暫保留，P6／P9 統一 cleanup |
 | Gap | 尚未取得 Teachify 真實 signing secret／event truth | 只阻塞 P7 Teachify row，不阻塞其他工作 |
 
 ### Support 目標流程
@@ -163,7 +164,7 @@ P0 文件與設定真相
 
 **Done When：** adapter 已透過真實本機 HTTP simulator 重跑，Main staging fixture 已精確清除；P3 可開始。
 
-### P3：Hosted Support LINE 真實流程
+### P3：Hosted Support LINE 真實流程 `[done]`
 
 **目的：** 證明真實 LINE event 可以經 KV relay 到模擬下游並回覆測試者。
 
@@ -179,13 +180,13 @@ P0 文件與設定真相
 8. 用 Chrome 檢查 `/agents/support` 的 loading、成功、活動與對話狀態，UI 外觀不變。
 9. 精確清除測試 DB／simulator receipt，確認殘留 0。
 
-**目前狀態：** 本地 deployment prep 由 `2266d5f` 完成，simulator failure modes 由 `e74ca31` 補齊；2026-08-16 已在 Zeabur `kv-staging` 建立獨立 `kv-support-relay-simulator` service（GitHub source `cablate/kv-support-relay-simulator`，public domain `kv-support-relay-staging.zeabur.app`，主 app 實際使用同專案 internal target），並以 `reply` mode 啟動。`kv-app` 已部署 `docs: record support route acceptance` revision、同步 Support credentials；LINE Console Verify 回 `200 Success`，hosted simulator `/health` 回 `200`，`/receipts` 已收到 Verify receipt。P3 尚未完全關閉：目前 receipt 是空事件的 Verify（`received_no_matching_test_marker`），仍等待測試 user／room 傳送帶 marker 的真實訊息，確認真實 LINE reply、KV DB rows 與精確 cleanup。
+**目前狀態：** 本地 deployment prep 由 `2266d5f` 完成，simulator failure modes 由 `e74ca31` 補齊；2026-08-16 已在 Zeabur `kv-staging` 建立獨立 `kv-support-relay-simulator` service（GitHub source `cablate/kv-support-relay-simulator`，public domain `kv-support-relay-staging.zeabur.app`，主 app 實際使用同專案 internal target），並以 `reply` mode 啟動。`kv-app` 已部署 `docs: record support route acceptance` revision、同步 Support credentials；LINE Console Verify 回 `200 Success`，hosted simulator `/health` 回 `200`。測試者已傳送 `KV-RELAY-20260816`，simulator receipt 回 `replied`；Main staging 查到 1 筆 support success activity、1 筆 customer conversation 與 1 筆 support subscriber；Chrome `/agents/support` 已顯示該訊息。P3 的功能驗收完成；測試資料與 receipt 暫保留作證據，集中由 P6／P9 cleanup。
 
-**P3 hosted evidence：** Zeabur simulator `/health` 回 `200`；`kv-app` 的 `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_TARGET_URL` 已由環境變數設定並重部署；LINE Console Webhook Verify 回 `200 Success`；simulator `/receipts` 回 `200` 且已有 Verify receipts，結果為 `received_no_matching_test_marker`。這證明 hosted signature／relay contract；不等同真實使用者 message、reply 或 cleanup 已完成。Teachify 真實 signing secret 仍是獨立 P7 gate。
+**P3 hosted evidence：** Zeabur simulator `/health` 回 `200`；`kv-app` 的 `LINE_SUPPORT_CHANNEL_ID`、`LINE_SUPPORT_CHANNEL_SECRET`、`LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_TARGET_URL` 已由環境變數設定並重部署；LINE Console Webhook Verify 回 `200 Success`；真實 marker message 進入 KV webhook，simulator `/receipts` 回 `200` 且最後結果為 `replied`；Main staging 與 Chrome evidence 已對上。測試資料／receipt 暫保留到 P6／P9 統一清理；Teachify 真實 signing secret 仍是獨立 P7 gate。
 
 **失敗處理：** 在真實 receipt 尚未證明前，不新增 generic retry；先定位是 LINE、KV、DB、relay 還是 simulator owner。
 
-**Done When：** provider receipt、DB diff、Chrome、reply 與 cleanup 五項證據齊全。提交 evidence／必要修正 commit。
+**Done When：** provider receipt、DB diff、Chrome 與 reply 四項功能證據齊全；測試資料／receipt 已標記為 P6／P9 的集中 cleanup，不阻塞 P3 功能完成。提交 evidence commit。
 
 ### P4：集中完成九月全功能矩陣
 
@@ -198,7 +199,7 @@ P0 文件與設定真相
 | Visit | Primary LINE inbound、名片、研究、邀約、Calendar、Gmail、postback／timeout | 測試 LINE user |
 | Orders | normalize、Main persistence、claim／replay、Primary LINE | Teachify 真實 signature 延至 P7 |
 | Knowledge Base | crawl、import、review／publish、index、search | Firecrawl／OpenAI 已有 credentials |
-| Support／Subscribers／Broadcast | Support relay、subscriber、conversation、broadcast／report | P3 test user／room |
+| Support／Subscribers／Broadcast | Support relay、subscriber、conversation、broadcast／report | P3 test user／room 已完成；P6 重驗與 cleanup |
 | Meeting | session、turn、realtime／audio、finish、context | OpenAI／Google |
 | Goals／Checklist | create、update、history、cleanup | Main staging |
 | Reporting／Operations | Teaching read-only、report、hosted cron auth | schedule owner 延至 P8 |
