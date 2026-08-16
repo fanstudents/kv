@@ -33,6 +33,7 @@
     "acceptance:line:primary": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts tests/acceptance/line-primary-provider.acceptance.test.ts",
     "acceptance:primary:composites": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts tests/acceptance/primary-composites-provider.acceptance.test.ts",
     "acceptance:support:main": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts tests/acceptance/support-main-provider.acceptance.test.ts",
+    "acceptance:support:route": "node --env-file-if-exists=.env.local ./node_modules/vitest/vitest.mjs run --config vitest.acceptance.config.mts tests/acceptance/support-webhook-route.acceptance.test.ts",
     "support:relay:simulator": "node --env-file-if-exists=.env.local scripts/support-relay-simulator.mjs",
     "schema:start": "npx --no-install supabase db start --yes",
     "schema:rehearse": "npx --no-install supabase db start --yes && npx --no-install supabase db reset --local --no-seed --yes",
