@@ -13,7 +13,7 @@
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-16；hosted Support Verify、KV relay 與 simulator receipt 已驗證；真實 marker message／reply 尚待測試者 |
+| Last verified | 2026-08-16；P3 hosted Support 完成；P4 本機、staging DB、OpenAI／Google／Firecrawl／LINE 與 Chrome 第一輪證據已更新至本文件 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
 | Current package | P4：集中完成九月全功能矩陣 |
 | Readiness | P0～P3 已完成；P3 的 hosted Support message／reply 已驗證，測試資料與 simulator receipt 暫保留作 acceptance evidence，集中 cleanup 於 P6／P9；完整 release 仍 Needs Revision，原因見第 9 節 |
@@ -206,6 +206,27 @@ P0 文件與設定真相
 | Live Task／TV／Projection | live／demo 顯示、失敗不冒充空資料 | Chrome staging |
 
 **Done When：** 每列為 Done、Blocked 或 Not required，且 Blocked 有精確外部輸入與安全可繼續工作。提交 acceptance ledger commit。
+
+#### P4 第一輪 acceptance ledger（2026-08-16）
+
+本表只記錄可重跑的證據。Unit、fixture 或 mock 只能證明 contract，不等於真實 provider；`Done` 代表該列在本輪核准範圍內已有 input、API／DB、provider 或 Chrome 證據及 cleanup 結果，並不等於整個 release 已完成。
+
+| 能力 | 狀態 | 本輪證據 | Cleanup／仍缺輸入 | Failure owner |
+|---|---|---|---|---|
+| Auth／Integrations | Blocked | current HEAD production build 通過；Playwright smoke 147／147；Chrome 本機 production build 可登入；正確 staging `https://kv-staging.zeabur.app/api/health` 為 `ok`，Main privileged 與 deployment identity 皆 configured | Zeabur deployment 顯示 revision `35e829c`，runtime `KV_COMMIT_SHA` 卻回 `4f0a7f7`；需由 P8 deploy owner 校正 exact-commit truth。舊 `kva.zeabur.app` 不是本 staging canonical host | Auth／proxy、integration status、Zeabur deploy owner |
+| Agent／Chat | Done | 57 個 focused tests 通過；OpenAI acceptance 1／1；Chrome 以 current local production build＋staging Main＋真實 OpenAI 從 dashboard 對 Vivian 發訊息並收到唯一 P4 回覆 | 無 chat fixture；AI usage audit 依產品紀錄保留 | Agent chat route、OpenAI adapter、context owner |
+| Visit | Blocked | Visit／Orders／Meeting batch 229 tests 通過；Google write 2／2、Visit delivery 1／1、Primary LINE 1／1；Calendar event 與 staging DB fixture 已清除，Gmail／LINE receipt 不可逆且以唯一 marker 識別 | 還缺 Primary LINE 真實 image/card、postback 與 hosted timeout trigger；需測試 LINE user／room | Visit workflow、Primary LINE、Google、cron owner |
+| Orders | Blocked | Orders staging DB 1／1；Primary composites 3／3，包含 normalize、Main persistence、delivery ledger、Primary LINE 與 cleanup | 缺 Teachify 官方 signing secret、header／algorithm、去識別真實 event 與 replay ordering；由 P7 closure 或 waiver | Teachify contract、Orders ledger、Primary LINE |
+| Knowledge Base | Done | KB focused tests 通過；staging atomic index 2／2；Firecrawl＋OpenAI acceptance 1／1 完成 crawl、draft、publish、index、semantic search；Chrome KB 頁正常 | DB fixture 已清除；Firecrawl credit／OpenAI usage不可逆但受 gate 限制；PDF／site crawl 屬後續擴充驗收 | KB domain、Firecrawl、OpenAI、Main RPC |
+| Support／Subscribers／Broadcast | Done | P3 hosted Support marker／reply、simulator receipt、Main rows 與 Chrome 已完成；本輪 Primary composites 真實 broadcast 通過；Chrome Support／Subscribers 頁正常 | P3 evidence 暫保留，P6／P9 集中清除；不可逆 LINE receipt 以 marker 識別 | Support relay、subscriber/broadcast、Primary／Support LINE |
+| Meeting | Blocked | Meeting contract 與 failure-boundary tests 通過；OpenAI、Google read／write provider primitives 通過；Chrome Meeting 頁正常 | 缺真實 Chrome mic／WebRTC、realtime、TTS／STT、finish／recording cleanup；需測試者允許媒體權限 | Meeting session／storage、OpenAI realtime、Chrome media |
+| Goals／Checklist | Done | Goals／Checklist focused tests 通過；Chrome 對 staging Main 建立唯一 Goal 後刪除，residue 0；Checklist 由 0／16 切為 1／16 再還原 0／16，class 與 DB 狀態回復 | Goal fixture residue 0；Checklist 已還原原值 | Goals／Checklist service、Main repository |
+| Reporting／Operations | Blocked | Google read 4／4；Primary composite 含 Team Lead report；Chrome 顯示 GA4 live projection與 Teaching read-only 真實專案資料 | 缺 hosted cron schedule、通知與失敗 owner；`metric-snapshot` 仍是 demo source，不得冒充 GA4／GSC pipeline | Reporting、Teaching adapter、cron／schedule owner |
+| Live Task／TV／Projection | Done | 47 個 focused tests與 live/demo/failure projection E2E 通過；Chrome Live／TV／Outputs／AI usage surfaces 正常渲染 | 無新增 fixture；P5 仍需 source-review TV idle fallback 是否把 provider failure 顯示成 demo | Live Task repository、TV projection owner |
+
+**共同證據：** CodeGraph 483 files／4,222 nodes／10,620 edges，無 drift；Luna Max 唯讀盤點後，focused unit 共 129 file runs／703 test runs 全通過，另一次完整 unit 為 140 files／725 tests 全通過；production build 通過；Playwright smoke 147／147；四組 staging DB integration 共 6 tests 全通過；OpenAI、Google read／write、Visit delivery、Primary LINE、Primary composites、KB provider acceptance 全通過。Chrome 以 current HEAD production build 巡覽 dashboard、integrations、Visit、Orders、KB、Support、Meeting、Goals、Todos、Subscribers、Operations、Reporting、TV、Outputs 與 AI usage。
+
+**P4 結論：** 5 列 Done、5 列 Blocked。Blocked 都有精確外部 gate；可安全平行進入 P5 的只有 TV failure truth、canonical host／commit identity 文件與實際 P4 failure 所指向的修正，不能把缺外部素材改寫成假完成。
 
 ### P5：只修 P2～P4 暴露的問題
 
