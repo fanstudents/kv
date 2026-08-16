@@ -13,7 +13,7 @@
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-17；P3 hosted Support、P4 驗收矩陣、P5 證據驅動修正、P6 集中重驗／cleanup、P7A U2 與真實 Primary LINE Visit happy path 均完成 |
+| Last verified | 2026-08-17；P3 hosted Support、P4 驗收矩陣、P5 證據驅動修正、P6 集中重驗／cleanup、P7A U2、真實 Primary LINE Visit happy path 與 terminal step ledger 修復均完成 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
 | Current package | P7 Teachify closure／waiver；P8 canonical release、backup／restore 與 rollback ownership |
 | Readiness | P0～P6 已完成；Support hosted evidence、真實 marker reply 與 cleanup 均完成；Primary LINE Visit 已完成 image、決策卡、兩段 postback、Gmail、Calendar、LINE 通知、背景研究與 Chrome TV happy path。Visit 只剩 hosted timeout／recovery；另有 P7 Teachify truth／waiver 與 P8 canonical repo／deploy、backup／restore、schedule／rollback owner，仍不可直接把產品化 branch 當正式版 |
@@ -219,7 +219,7 @@ P0 文件與設定真相
 |---|---|---|---|---|
 | Auth／Integrations | Done | current HEAD production build 通過；Playwright smoke 147／147；Chrome 本機 production build 可登入；正確 staging `https://kv-staging.zeabur.app/api/health` 為 `ok`；P5 部署 `48f8d95` 後 `/api/version` 精確回傳完整 SHA，Main privileged 與 deployment identity 皆 configured；Chrome 顯示 9 個已連線服務，缺 secret 的 Teachify 為「未連線」 | 舊 `kva.zeabur.app` 不是本 staging canonical host；Teachify 真實 provider gate 仍由 P7 關閉 | Auth／proxy、integration status、Zeabur deploy owner |
 | Agent／Chat | Done | 57 個 focused tests 通過；OpenAI acceptance 1／1；Chrome 以 current local production build＋staging Main＋真實 OpenAI 從 dashboard 對 Vivian 發訊息並收到唯一 P4 回覆 | 無 chat fixture；AI usage audit 依產品紀錄保留 | Agent chat route、OpenAI adapter、context owner |
-| Visit | Blocked | Visit／Orders／Meeting batch 229 tests 通過；Google write 2／2、Visit delivery 1／1、Primary LINE 1／1；2026-08-17 真實 Primary LINE 名片完成 OCR、contact／offer、決策與核准卡、Gmail、公開時段回覆、Calendar、感謝信、LINE 通知、背景研究及 Chrome TV 投影 | Happy path 已完成；只剩 hosted timeout／recovery trigger 與本次 fixture／Calendar cleanup。Step ledger 仍會把已完成前置節點留為 `running／waiting`，需以真實證據修正 | Visit workflow、Primary LINE、Google、cron owner |
+| Visit | Blocked | Visit／Orders／Meeting batch 229 tests 通過；Google write 2／2、Visit delivery 1／1、Primary LINE 1／1；2026-08-17 真實 Primary LINE 名片完成 OCR、contact／offer、決策與核准卡、Gmail、公開時段回覆、Calendar、感謝信、LINE 通知、背景研究及 Chrome TV 投影；terminal step ledger 已修復並回填 | Happy path 與 ledger truth 已完成；只剩 hosted timeout／recovery trigger 與本次 fixture／Calendar cleanup | Visit workflow、Primary LINE、Google、cron owner |
 | Orders | Blocked | Orders staging DB 1／1；Primary composites 3／3，包含 normalize、Main persistence、delivery ledger、Primary LINE 與 cleanup | 缺 Teachify 官方 signing secret、header／algorithm、去識別真實 event 與 replay ordering；由 P7 closure 或 waiver | Teachify contract、Orders ledger、Primary LINE |
 | Knowledge Base | Done | KB focused tests 通過；staging atomic index 2／2；Firecrawl＋OpenAI acceptance 1／1 完成 crawl、draft、publish、index、semantic search；Chrome KB 頁正常 | DB fixture 已清除；Firecrawl credit／OpenAI usage不可逆但受 gate 限制；PDF／site crawl 屬後續擴充驗收 | KB domain、Firecrawl、OpenAI、Main RPC |
 | Support／Subscribers／Broadcast | Done | P3 hosted Support marker／reply、simulator receipt、Main rows 與 Chrome 已完成；本輪 Primary composites 真實 broadcast 通過；Chrome Support／Subscribers 頁正常 | P6 已清除 marker、Main rows 與 simulator receipt，residue 為 0；不可逆 LINE receipt 以 marker 識別 | Support relay、subscriber/broadcast、Primary／Support LINE |
@@ -340,11 +340,11 @@ P0 文件與設定真相
 
 #### Primary LINE Visit real journey（2026-08-17）
 
-- `kv-staging.zeabur.app` 已精確對齊 commit `467b6c8ac83eed85084971e63900299f3ba6c016`、schema `20260814164718`，health 為 `ok`；Primary channel webhook 指向 `/api/line/webhook`、Verify 200 且 Use webhook 已啟用。
+- 真實 journey 執行時，`kv-staging.zeabur.app` 精確對齊 commit `467b6c8ac83eed85084971e63900299f3ba6c016`、schema `20260814164718`，health 為 `ok`；Primary channel webhook 指向 `/api/line/webhook`、Verify 200 且 Use webhook 已啟用。後續 terminal step backfill migration 已將 staging schema 推進到 `20260816175456`。
 - 真實 LINE 圖片建立唯一 `line-card:*` run，OCR 寫入 contact／pending offer；LINE 決策卡「要」建立 `awaiting_approval` invite。為避免接觸名片第三方，寄送前把 staging contact 與 invite 收件人改成核准測試信箱，主旨加 `[KV Staging Acceptance]`。
 - 使用者核准後 Gmail 真實送達；公開回覆選擇 `8/20（四）09:00`、地點「公司」，Google Calendar event `mkj7dletaoeqk8dr3iu8flbsl4` 為 confirmed，時區 `Asia/Taipei`，invite `fulfilment_phase=completed` 且沒有 fulfilment error；使用者收到 Primary LINE 完成通知。
 - 背景研究 run 成功，保存 5 個公開連結、2 則近況與 4 個 talking points；Chrome TV ticker／Coco 詳情顯示名片、已寄邀約、行事曆／感謝信與研究完成。
-- 本次暴露的修正項：`agent_run_steps` 在整個 run 成功後，`scan／write／confirm／match／draft` 仍保留 `running／waiting`；測試中途替換收件人時，先前 activity 仍保留舊 Email。前者是 runtime ledger truth defect，應修；後者屬 staging fixture 操作紀錄，cleanup 時一併移除，不應以全域歷史重寫解決。
+- 本次暴露並修正的 runtime ledger defect：`finishRun` 現在會把同一 run 的 open steps 依 terminal run status 映射為 `done／failed／skipped`，step cleanup 失敗仍不阻斷 run 結案；focused 57 tests、完整 unit 751 tests、typecheck、build 與真實 Main staging integration 2／2 通過。Migration `20260816175456_backfill_terminal_agent_run_steps.sql` 已回填既有 terminal runs，三筆 Visit run 的 open step 均為 0；Chrome `/runs/[id]` before 顯示 `running／waiting`，after 七步全為 `done`。測試中途替換收件人所留下的舊 Email activity 屬 staging fixture 操作紀錄，cleanup 時一併移除，不以全域歷史重寫處理。
 
 #### CI schema gate closure（2026-08-17）
 

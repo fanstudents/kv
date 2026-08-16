@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/database.types";
-import { logStep } from "@/lib/agent-runs";
+import { finishRun, logStep } from "@/lib/agent-runs";
 import {
   createStagingMainDatabaseClient,
   requireStagingMainDatabaseEnvironment,
@@ -92,5 +92,45 @@ afterAll(async () => {
       .eq("run_id", fixtureRunId);
     expect(stepsReadError).toBeNull();
     expect(count).toBe(increments);
+  });
+
+  it("closes open steps when the run reaches a terminal status", async () => {
+    const client = stagingClient;
+    const fixtureRunId = runId;
+    if (!client || !fixtureRunId) {
+      throw new Error("Agent run cost staging fixture did not initialize");
+    }
+
+    await Promise.all([
+      logStep(fixtureRunId, "terminal-running", { status: "running" }),
+      logStep(fixtureRunId, "terminal-waiting", { status: "waiting" }),
+    ]);
+    await finishRun(fixtureRunId, { status: "success", summary: "Codex terminal ledger staging fixture" });
+
+    const [{ data: run, error: runReadError }, { data: steps, error: stepsReadError }] = await Promise.all([
+      client
+        .from("agent_runs")
+        .select("status,summary,ended_at")
+        .eq("id", fixtureRunId)
+        .single(),
+      client
+        .from("agent_run_steps")
+        .select("node_id,status,ended_at")
+        .eq("run_id", fixtureRunId)
+        .in("node_id", ["terminal-running", "terminal-waiting"]),
+    ]);
+
+    expect(runReadError).toBeNull();
+    expect(run).toMatchObject({ status: "success", summary: "Codex terminal ledger staging fixture" });
+    expect(run?.ended_at).toBeTruthy();
+    expect(stepsReadError).toBeNull();
+    expect(steps).toHaveLength(2);
+    expect(steps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ node_id: "terminal-running", status: "done" }),
+        expect.objectContaining({ node_id: "terminal-waiting", status: "done" }),
+      ]),
+    );
+    expect(steps?.every((step) => Boolean(step.ended_at))).toBe(true);
   });
 });

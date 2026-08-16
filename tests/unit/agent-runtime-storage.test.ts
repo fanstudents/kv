@@ -5,7 +5,7 @@ const { getMainSupabase } = vi.hoisted(() => ({ getMainSupabase: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getMainSupabase }));
 
 import { recall, remember } from "@/lib/agent-memory";
-import { logStep, startRun } from "@/lib/agent-runs";
+import { finishRun, logStep, startRun } from "@/lib/agent-runs";
 
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => vi.useRealTimers());
@@ -105,6 +105,97 @@ describe("Agent runtime persistence", () => {
       }),
     );
     expect(runId).toBe("run-new");
+  });
+
+  it("closes only open steps with the run's terminal timestamp", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-02T05:00:00.000Z"));
+    const stepQuery = {
+      update: vi.fn(),
+      eq: vi.fn(),
+      in: vi.fn().mockResolvedValue({ error: null }),
+    };
+    stepQuery.update.mockReturnValue(stepQuery);
+    stepQuery.eq.mockReturnValue(stepQuery);
+    const runQuery = {
+      update: vi.fn(),
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    };
+    runQuery.update.mockReturnValue(runQuery);
+    const from = vi.fn((table: string) => (table === "agent_run_steps" ? stepQuery : runQuery));
+    getMainSupabase.mockReturnValue({ from });
+
+    await finishRun("run-1", { status: "success", summary: "complete" });
+
+    expect(stepQuery.update).toHaveBeenCalledWith({
+      status: "done",
+      ended_at: "2026-08-02T05:00:00.000Z",
+    });
+    expect(stepQuery.eq).toHaveBeenCalledWith("run_id", "run-1");
+    expect(stepQuery.in).toHaveBeenCalledWith("status", ["running", "waiting"]);
+    expect(runQuery.update).toHaveBeenCalledWith({
+      status: "success",
+      summary: "complete",
+      error_kind: null,
+      error_detail: null,
+      ended_at: "2026-08-02T05:00:00.000Z",
+    });
+    expect(runQuery.eq).toHaveBeenCalledWith("id", "run-1");
+  });
+
+  it.each([
+    { runStatus: "failed" as const, stepStatus: "failed" },
+    { runStatus: "cancelled" as const, stepStatus: "skipped" },
+  ])("maps $runStatus to $stepStatus for open steps", async ({ runStatus, stepStatus }) => {
+    const stepQuery = {
+      update: vi.fn(),
+      eq: vi.fn(),
+      in: vi.fn().mockResolvedValue({ error: null }),
+    };
+    stepQuery.update.mockReturnValue(stepQuery);
+    stepQuery.eq.mockReturnValue(stepQuery);
+    const runQuery = {
+      update: vi.fn(),
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    };
+    runQuery.update.mockReturnValue(runQuery);
+    getMainSupabase.mockReturnValue({
+      from: vi.fn((table: string) => (table === "agent_run_steps" ? stepQuery : runQuery)),
+    });
+
+    await finishRun("run-1", { status: runStatus });
+
+    expect(stepQuery.update).toHaveBeenCalledWith(expect.objectContaining({ status: stepStatus }));
+    expect(runQuery.update).toHaveBeenCalledWith(expect.objectContaining({ status: runStatus }));
+  });
+
+  it("still terminalizes the run when closing steps rejects", async () => {
+    const stepQuery = {
+      update: vi.fn(),
+      eq: vi.fn(),
+      in: vi.fn().mockRejectedValue(new Error("step update failed")),
+    };
+    stepQuery.update.mockReturnValue(stepQuery);
+    stepQuery.eq.mockReturnValue(stepQuery);
+    const runQuery = {
+      update: vi.fn(),
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    };
+    runQuery.update.mockReturnValue(runQuery);
+    getMainSupabase.mockReturnValue({
+      from: vi.fn((table: string) => (table === "agent_run_steps" ? stepQuery : runQuery)),
+    });
+
+    await expect(finishRun("run-1", { status: "success" })).resolves.toBeUndefined();
+
+    expect(stepQuery.update).toHaveBeenCalled();
+    expect(runQuery.update).toHaveBeenCalledWith(expect.objectContaining({ status: "success" }));
+  });
+
+  it("does not call the database for a null run id", async () => {
+    await finishRun(null, { status: "success" });
+
+    expect(getMainSupabase).not.toHaveBeenCalled();
   });
 
   it("keeps terminal-step timestamps and atomically accumulates run usage", async () => {

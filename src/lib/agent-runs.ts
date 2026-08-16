@@ -121,15 +121,39 @@ export async function finishRun(
   params: { status: RunStatus; summary?: string; errorKind?: RunErrorKind; errorDetail?: string }
 ): Promise<void> {
   if (!runId) return;
+  const endedAt = new Date().toISOString();
+  const stepStatus =
+    params.status === "success"
+      ? "done"
+      : params.status === "failed"
+        ? "failed"
+        : params.status === "cancelled"
+          ? "skipped"
+          : null;
+
   try {
-    await getMainSupabase()
+    const supabase = getMainSupabase();
+
+    if (stepStatus) {
+      try {
+        await supabase
+          .from("agent_run_steps")
+          .update({ status: stepStatus, ended_at: endedAt })
+          .eq("run_id", runId)
+          .in("status", ["running", "waiting"]);
+      } catch {
+        /* Step audit is best effort; terminalizing the run still matters. */
+      }
+    }
+
+    await supabase
       .from("agent_runs")
       .update({
         status: params.status,
         summary: params.summary ?? null,
         error_kind: params.errorKind ?? null,
         error_detail: params.errorDetail ?? null,
-        ended_at: new Date().toISOString(),
+        ended_at: endedAt,
       })
       .eq("id", runId);
   } catch {
