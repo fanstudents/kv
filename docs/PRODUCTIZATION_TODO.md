@@ -371,6 +371,7 @@ signature、payload mapping、Orders repository 線上 staging、upsert、cleanu
 ### WP-18 Support `[!]`
 
 - [x] **可自主到 gate：**`npm run acceptance:support:main` 以合成 conversation、local relay double 與測試程序內隨機 `SUPPORT_LOG_SECRET` 驗 capture、受保護 callback log、daily report、Main persistence、delivery failure 與精確 cleanup；1 file／2 tests passed，conversation／subscriber／activity 殘留為 0，Chrome `/agents/support` 已確認設定與活動回復。全程未呼叫 LINE、OpenAI 或舊客服 endpoint。
+- [x] **本機真實 channel smoke（2026-08-16）：**使用 `.env.local` 的 Support channel secret 產生真實 HMAC，對本機 `/api/line/webhook/support` 發送一次去識別文字事件；回 `200 {"ok":true}`，Main `line_support_conversations`／`line_agent_activity` 各寫入 1 筆，local relay stub 收到 raw body，清理後三類資料殘留皆為 0。另以 Support access token 呼叫 LINE Bot Info（唯讀）回 `200` 且名稱為 `KV Support Staging`；未發送 LINE 訊息。
 - [~] **外部 gate：**2026-08-16 已用獨立官方帳號 `KV Support Staging` 建立 Messaging API channel（Channel ID `2011130506`），Webhook 已指向隔離 staging 並啟用；三項 credentials 已寫入 Git-ignored `.env.local`，`npm run doctor -- --profile=demo --strict` 顯示 Support LINE OK。LINE Console `Verify` 實測回 `401 Unauthorized`，表示 hosted staging 尚未同步 Support secret/token（或尚未部署新 env），所以仍缺 hosted provider receipt、測試 user／room、舊客服 webhook 的 safe relay target／owner，以及完整 public staging acceptance；因此尚不能宣稱 Support end-to-end 完成。
 
 ### WP-20 Targeted reliability `[?]`
@@ -588,7 +589,7 @@ P6 真實 provider journeys（G+E） -> P7 證據驅動修復／收斂（A）
    - 部署目前驗證過的 commit 到獨立 staging，health/version 能對應 commit；先套 migration 再切流量。
    - Primary LINE：真實 inbound Visit text／image／postback、Calendar／Gmail／LINE 回覆與 timeout，全部限制測試 recipient。
    - Teachify：真實 provider signature／event → Orders persistence → 去重／replay → Primary LINE。
-   - Support：專用 Support LINE inbound → capture → relay；channel 與 webhook 已就緒，但 LINE Console `Verify` 目前因 hosted env 尚未同步而回 401；下一步先安全同步 Zeabur secrets、重跑 Verify，再用測試 user／room 驗 provider receipt，並確認既有客服 bot 回覆 owner，不讓 KV 搶答。
+   - Support：專用 Support LINE inbound → capture → relay；本機真實 secret／token smoke 已通過並清理乾淨，但 LINE Console `Verify` 目前因 hosted env 尚未同步而回 401；下一步先安全同步 Zeabur secrets、重跑 Verify，再用測試 user／room 驗 provider receipt，並確認既有客服 bot 回覆 owner，不讓 KV 搶答。
    - Reporting：GitHub hosted schedule → cron auth → Team Lead／Support report；Support delivery identity 先確認，不預設使用 Primary channel。
    - **Exit**：每條 journey 有 provider receipt、DB diff、UI evidence、cleanup、failure／retry evidence 與 owner sign-off。
 
