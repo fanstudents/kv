@@ -21,6 +21,7 @@ import {
   Target,
   Presentation,
   Workflow,
+  History,
 } from "lucide-react";
 import { Crown } from "lucide-react";
 import { AGENTS, agentTeam } from "@/lib/agent-data";
@@ -285,6 +286,17 @@ export default function Sidebar() {
         >
           <Table2 size={18} />
           產出總覽
+        </Link>
+        <Link
+          href="/runs"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            isActive("/runs")
+              ? "bg-[#06C755]/10 text-[#06C755]"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+          }`}
+        >
+          <History size={18} />
+          執行紀錄
         </Link>
         <Link
           href="/ai-usage"

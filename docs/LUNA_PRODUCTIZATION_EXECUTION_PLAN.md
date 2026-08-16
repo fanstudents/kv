@@ -15,7 +15,7 @@
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
 | Last verified | 2026-08-16；P3 hosted Support、P4 驗收矩陣、P5 證據驅動修正與 P6 集中重驗／cleanup 均完成 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Current package | P7A：Dennis upstream reconciliation；P7 Teachify gate 可平行處理 |
+| Current package | P7A-U2：Visit／Research／TV reconciliation；P7 Teachify gate 可平行處理 |
 | Readiness | P0～P6 已完成；Support hosted evidence 已記錄並清除 fixture。P8 release 目前被 upstream 13 commits／default branch 分歧阻塞，不可直接把產品化 branch 當正式版 |
 
 開始任何工作前先執行：
@@ -302,6 +302,19 @@ P0 文件與設定真相
 | U2 Visit／Research／TV | 名片旋轉、Firecrawl fallback、LINE 點擊卡片、行前功課圖文同步／保鮮期／社群連結 | 依 Visit 與 TV domain owner 逐條移植；每條保留現有 UI contract，跑 Primary LINE／Chrome affected journey |
 | U3 Brand／Showcase | MixAgent／原騰科技名稱、super-agent showcase | 品牌文字需產品決策；展示頁若核准則獨立 UI slice，不與 runtime 合併 |
 | U4 Repo／Deployment | upstream CI、frequent schedules、Supabase config | 保留目前已驗證的 CI／migration baseline；逐項吸收缺口，不覆寫 staging identity 或 migration history |
+
+#### P7A-U1 outcome（2026-08-16）
+
+| 上游內容 | 結論 | Current owner／理由 |
+|---|---|---|
+| runtime hardening migration | Superseded | 現有 baseline 已包含 `agent_runs／steps／tasks`、AI usage `run_id`、原子成本 RPC、task claim／stale requeue 與 retry 欄位，不重複新增 migration |
+| 全隊執行紀錄與單次細節 | Integrated | 新增 `modules/agent-runtime/history.ts` 與 Supabase adapter；`/runs`、`/runs/[id]` 用 server-rendered read model 顯示步驟、產出與 AI 用量，DB 錯誤明確顯示，不偽裝成空資料 |
+| `/api/runs*` read routes | Superseded | 目前只有後台頁 consumer；server page 直接經 module／adapter 讀取，避免再造一組單 caller API forwarding layer |
+| 手動／自動 replay registry | Rejected for now | Support／LINE／報表等副作用尚未各自證明 replay-safe；不得用通用 retry 造成重複通知。Orders 已有自己的 delivery claim／reconciliation owner |
+| agent task worker／maintenance | Rejected for now | CodeGraph 顯示 `delegate`、`claimTasks`、`remember`、`forgetExpired` 目前沒有 production caller；先不部署無 producer 的 worker／cron |
+| cron alert endpoint | Deferred to U4 | 必須先決定外部通知通道、schedule target 與 release owner；主 app 掛掉時同 app alert route 也不可用 |
+
+**U1 evidence：** CodeGraph 確認 `startRun` 只有 Visit research／Visit runtime 兩條 production caller，`delegate`、`claimTasks` 與 `forgetExpired` 為 0 caller；focused unit 8／8、UI inventory 6／6、lint、typecheck、production build 通過；Playwright `/runs` 與 `/runs/[id]` anonymous／authenticated 4／4。Chrome 已確認 protected redirect 到真實 `/login`；登入後 live DB 畫面待既有 Chrome session 完成登入後補驗，不影響 U2 純程式工作。
 
 **執行規則：**
 

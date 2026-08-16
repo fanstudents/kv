@@ -35,6 +35,8 @@ export const APP_PAGE_SURFACES: AppPageSurface[] = [
   { source: "src/app/(dashboard)/knowledge-base/page.tsx", route: "/knowledge-base", testPath: "/knowledge-base", access: "protected", family: "knowledge", visualBaseline: true },
   { source: "src/app/(dashboard)/knowledge-base/import/page.tsx", route: "/knowledge-base/import", testPath: "/knowledge-base/import", access: "protected", family: "knowledge" },
   { source: "src/app/(dashboard)/outputs/page.tsx", route: "/outputs", testPath: "/outputs", access: "protected", family: "operations" },
+  { source: "src/app/(dashboard)/runs/page.tsx", route: "/runs", testPath: "/runs", access: "protected", family: "operations" },
+  { source: "src/app/(dashboard)/runs/[id]/page.tsx", route: "/runs/[id]", testPath: "/runs/00000000-0000-0000-0000-000000000000", access: "protected", family: "operations" },
   { source: "src/app/(dashboard)/settings/page.tsx", route: "/settings", testPath: "/settings", access: "protected", family: "operations" },
   { source: "src/app/(dashboard)/subscribers/page.tsx", route: "/subscribers", testPath: "/subscribers", access: "protected", family: "operations" },
   { source: "src/app/(dashboard)/todos/page.tsx", route: "/todos", testPath: "/todos", access: "protected", family: "operations" },
