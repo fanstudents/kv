@@ -42,6 +42,7 @@ export interface VisitLineCardPersistencePort {
 
 export interface VisitLineImagePort {
   getImageDataUrl(messageId: string): Promise<string>;
+  prepareImageDataUrl(imageDataUrl: string): Promise<string>;
   parseBusinessCard(imageDataUrl: string): Promise<VisitBusinessCard>;
 }
 

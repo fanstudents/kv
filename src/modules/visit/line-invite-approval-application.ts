@@ -30,13 +30,14 @@ export interface VisitLineInviteApprovalDependencies {
     VisitLineWorkflowPersistencePort,
     "findPendingApprovalInvite" | "updateInviteStatus" | "updateInviteDraft"
   >;
-  delivery: Pick<VisitLineDeliveryPort, "replyText">;
+  delivery: Pick<VisitLineDeliveryPort, "replyText" | "replyMessages">;
   providers: Pick<VisitProviderPort, "reviseInviteEmail" | "sendEmail">;
   settings: VisitSettingsPort;
   runtime: Pick<VisitRuntimePort, "reportVisitStep" | "saveVisitArtifact" | "endVisitRun">;
   activity: VisitLineActivityPort;
   lock: ConversationLockPort;
   renderInviteEmail: VisitInviteEmailHtmlBuilder;
+  renderInviteApprovalCard: (params: { inviteId: string; name: string }) => unknown;
   classifyApprovalText?: (text: string) => VisitApprovalTextIntent;
 }
 
@@ -58,6 +59,12 @@ export function createVisitLineInviteApprovalHandler(
 
     const contact = invite.contact;
     if (!contact) return false;
+
+    const expectedInviteId = new URLSearchParams(event.postback?.data ?? "").get("invite");
+    if (expectedInviteId && expectedInviteId !== invite.id) {
+      await dependencies.delivery.replyText(event.replyToken, "這張操作卡已經過期，請以最新的邀約草稿為準。");
+      return true;
+    }
 
     const approvalIntent = classifyApproval(text);
 
@@ -149,10 +156,13 @@ export function createVisitLineInviteApprovalHandler(
         instruction: text,
       });
       await dependencies.workflow.updateInviteDraft(invite.id, revised.subject, revised.body);
-      await dependencies.delivery.replyText(
-        event.replyToken,
-        `已依您的要求調整 ✏️\n\n主旨：${revised.subject}\n內文：\n${revised.body}\n\n提議時段：${invite.slot1} 或 ${invite.slot2}\n\n這樣可以的話請回覆「寄出」，還要調整請繼續告訴我，不寄了請回覆「取消」。`,
-      );
+      await dependencies.delivery.replyMessages(event.replyToken, [
+        {
+          type: "text",
+          text: `已依您的要求調整 ✏️\n\n主旨：${revised.subject}\n內文：\n${revised.body}\n\n提議時段：${invite.slot1} 或 ${invite.slot2}`,
+        },
+        dependencies.renderInviteApprovalCard({ inviteId: invite.id, name: contact.name }),
+      ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "修改邀約信失敗";
       await dependencies.activity.record({

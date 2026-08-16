@@ -15,6 +15,7 @@ function makeDependencies() {
   const dependencies: VisitLineImageDependencies = {
     image: {
       getImageDataUrl: vi.fn().mockResolvedValue("data:image/png;base64,abc"),
+      prepareImageDataUrl: vi.fn().mockResolvedValue("data:image/png;base64,upright"),
       parseBusinessCard: vi.fn().mockResolvedValue(contact),
     },
     delivery: {
@@ -58,6 +59,11 @@ describe("Visit LINE image application", () => {
       messageId: "message-1",
       summary: "LINE 傳入名片，開始辨識",
     });
+    expect(dependencies.image.prepareImageDataUrl).toHaveBeenCalledWith("data:image/png;base64,abc");
+    expect(dependencies.image.parseBusinessCard).toHaveBeenCalledWith("data:image/png;base64,upright");
+    expect(dependencies.runtime.reportVisitStep).toHaveBeenCalledWith(
+      expect.objectContaining({ nodeId: "scan", image: "data:image/png;base64,upright" }),
+    );
     expect(dependencies.workflow.createContact).toHaveBeenCalledWith(
       {
         name: "Dennis",

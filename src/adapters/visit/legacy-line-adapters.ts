@@ -14,6 +14,7 @@ import type {
 } from "@/modules/visit/line-contracts";
 import type { VisitBusinessCard } from "@/modules/visit/provider-port";
 import { legacyVisitProviders } from "./legacy-provider-adapter";
+import { prepareBusinessCardImage } from "./business-card-image";
 
 /**
  * Legacy LINE/Supabase translations used by the Visit workflow.
@@ -25,6 +26,7 @@ import { legacyVisitProviders } from "./legacy-provider-adapter";
 export function createLegacyVisitLineImageAdapter(): VisitLineImagePort {
   return {
     getImageDataUrl: getLineMessageContentAsDataUrl,
+    prepareImageDataUrl: prepareBusinessCardImage,
     parseBusinessCard: legacyVisitProviders.parseBusinessCard,
   };
 }

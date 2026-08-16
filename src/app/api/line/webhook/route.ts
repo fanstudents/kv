@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   verifyLineSignature,
 } from "@/lib/line";
-import { buildDecisionCard, buildTagQuickReply } from "@/lib/visit-line-ui";
+import { buildDecisionCard, buildInviteApprovalCard, buildTagQuickReply } from "@/lib/visit-line-ui";
 import { buildInviteEmailHtml } from "@/lib/email-templates";
 import {
   dispatchVisitLineWebhookEvents,
@@ -46,6 +46,7 @@ const handleInviteApprovalReply = createVisitLineInviteApprovalHandler({
   activity: lineActivityPort,
   lock: conversationLockPort,
   renderInviteEmail: buildInviteEmailHtml,
+  renderInviteApprovalCard: buildInviteApprovalCard,
 });
 const handleVisitOfferReply = createVisitLineOfferReplyHandler({
   workflow: lineWorkflowPersistencePort,
@@ -59,6 +60,7 @@ const handleVisitOfferReply = createVisitLineOfferReplyHandler({
   formatCardReply,
   renderDecisionCard: buildDecisionCard,
   renderTagQuickReply: buildTagQuickReply,
+  renderInviteApprovalCard: buildInviteApprovalCard,
   renderInviteEmail: buildInviteEmailHtml,
 });
 
@@ -98,6 +100,7 @@ const handleImageMessage = createVisitLineImageHandler({
 });
 
 const handlePostback = createVisitLinePostbackHandler({
+  handleInviteApprovalReply,
   handleVisitOfferReply,
   tags: contactTagPort,
   delivery: lineDeliveryPort,

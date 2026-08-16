@@ -52,16 +52,18 @@ export function createVisitLineImageHandler(
 
       // 一張名片＝一次執行。messageId 當冪等鍵：LINE webhook 重送不會變成第二次執行。
       await dependencies.runtime.startVisitRun({ userId, messageId, summary: "LINE 傳入名片，開始辨識" });
-      // 劇院螢幕：名片一進來就進入「辨識中」，並帶上真實照片。
+      // LINE 轉傳後通常沒有可靠的 EXIF；先用低解析度方向判斷轉正，
+      // 再把同一張正向圖片交給劇院畫面與欄位辨識，避免文圖方向不一致。
+      const preparedImageDataUrl = await dependencies.image.prepareImageDataUrl(imageDataUrl);
       await dependencies.runtime.reportVisitStep({
         userId,
         nodeId: "scan",
         step: 0,
         status: "active",
         caption: "辨識名片中…",
-        image: imageDataUrl,
+        image: preparedImageDataUrl,
       });
-      contact = await dependencies.image.parseBusinessCard(imageDataUrl);
+      contact = await dependencies.image.parseBusinessCard(preparedImageDataUrl);
     } catch (err) {
       const message = err instanceof Error ? err.message : "名片辨識失敗";
       await dependencies.activity.record({

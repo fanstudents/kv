@@ -6,6 +6,7 @@ import {
 
 function makeDependencies() {
   const dependencies: VisitLinePostbackDependencies = {
+    handleInviteApprovalReply: vi.fn().mockResolvedValue(true),
     handleVisitOfferReply: vi.fn().mockResolvedValue(true),
     tags: { add: vi.fn().mockResolvedValue(["潛在客戶"]) },
     delivery: { replyText: vi.fn().mockResolvedValue(undefined) },
@@ -48,6 +49,31 @@ describe("Visit LINE postback application", () => {
       "https://kv.test",
     );
     expect(dependencies.delivery.replyText).not.toHaveBeenCalled();
+  });
+
+  it("maps invite approval buttons to the existing approval workflow", async () => {
+    const dependencies = makeDependencies();
+    const handler = createVisitLinePostbackHandler(dependencies);
+
+    const sendEvent = { replyToken: "reply-send", postback: { data: "action=send_invite&invite=invite-1" } };
+    const cancelEvent = { replyToken: "reply-cancel", postback: { data: "action=cancel_invite&invite=invite-1" } };
+    await handler(sendEvent, "line-user-approval", "https://kv.test");
+    await handler(cancelEvent, "line-user-approval", "https://kv.test");
+
+    expect(dependencies.handleInviteApprovalReply).toHaveBeenNthCalledWith(
+      1,
+      sendEvent,
+      "line-user-approval",
+      "寄出",
+      "https://kv.test",
+    );
+    expect(dependencies.handleInviteApprovalReply).toHaveBeenNthCalledWith(
+      2,
+      cancelEvent,
+      "line-user-approval",
+      "取消",
+      "https://kv.test",
+    );
   });
 
   it("adds a tag and replies with the updated tag list", async () => {

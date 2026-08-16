@@ -316,6 +316,17 @@ P0 文件與設定真相
 
 **U1 evidence：** CodeGraph 確認 `startRun` 只有 Visit research／Visit runtime 兩條 production caller，`delegate`、`claimTasks` 與 `forgetExpired` 為 0 caller；focused unit 8／8、UI inventory 6／6、lint、typecheck、production build 通過；Playwright `/runs` 與 `/runs/[id]` anonymous／authenticated 4／4。Chrome 已確認 protected redirect 到真實 `/login`；登入後 live DB 畫面待既有 Chrome session 完成登入後補驗，不影響 U2 純程式工作。
 
+#### P7A-U2-A outcome（2026-08-16）
+
+| 上游內容 | 結論 | Current owner／理由 |
+|---|---|---|
+| LINE 邀約點擊卡片 | Integrated | `modules/visit` 持有核准／取消流程；LINE UI builder 只負責訊息格式，並以 pending invite id 擋下過期卡片 |
+| 名片方向校正 | Integrated | OCR 前先用便宜的獨立視覺判取得 0／90／180／270，再由 `sharp` 校正同一張圖片；不把方向猜測塞回業務規則 |
+| 公司研究 Firecrawl fallback | Integrated | OpenAI 搜尋缺少公司摘要時才啟用 Firecrawl；失敗保持 non-fatal，仍保存既有研究結果；提示詞改為近期 7 天且排除資本額 |
+| TV 行前功課圖文同步／保鮮期／社群連結 | Delegated to U2-B | 與 TV projection 共用狀態與畫面 ownership，下一批由單一 Luna Max worker 完成，避免和本批 Visit workflow 重疊修改 |
+
+**U2-A evidence：** focused unit 7 files／36 tests、lint、typecheck、production build 通過。真實 Primary LINE 圖片與按鈕副作用驗收留在 U2 完整批次集中執行，避免重複傳訊與污染 staging。
+
 **執行規則：**
 
 1. 固定 upstream snapshot `d958a0b`；後續新 commit 另開增量，不讓 scope 持續漂移。

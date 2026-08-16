@@ -58,6 +58,7 @@ function makeDependencies(overrides?: Partial<VisitLineOfferDependencies>) {
     formatCardReply: vi.fn().mockReturnValue("名片辨識完成 ✅"),
     renderDecisionCard: vi.fn().mockReturnValue({ type: "flex" }),
     renderTagQuickReply: vi.fn().mockReturnValue({ type: "quick-reply" }),
+    renderInviteApprovalCard: vi.fn().mockReturnValue({ type: "approval-card" }),
     renderInviteEmail: vi.fn().mockReturnValue("<html>invite</html>"),
   };
   return { dependencies: { ...dependencies, ...overrides }, contact };
@@ -122,10 +123,14 @@ describe("Visit LINE offer application", () => {
       ],
       requiresApproval: true,
     });
-    expect(dependencies.delivery.replyText).toHaveBeenCalledWith(
-      "reply-2",
-      expect.stringContaining("邀約信草稿已經準備好"),
-    );
+    expect(dependencies.delivery.replyMessages).toHaveBeenCalledWith("reply-2", [
+      expect.objectContaining({ type: "text", text: expect.stringContaining("邀約信草稿已經準備好") }),
+      { type: "approval-card" },
+    ]);
+    expect(dependencies.renderInviteApprovalCard).toHaveBeenCalledWith({
+      inviteId: "invite-1",
+      name: "Dennis",
+    });
     expect(dependencies.activity.record).toHaveBeenCalledWith(
       expect.objectContaining({ agent_slug: "visit", status: "pending" }),
     );

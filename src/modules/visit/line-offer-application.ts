@@ -41,6 +41,7 @@ export interface VisitLineOfferDependencies {
   formatCardReply: (contact: VisitBusinessCard) => string;
   renderDecisionCard: VisitDecisionCardBuilder;
   renderTagQuickReply: VisitTagQuickReplyBuilder;
+  renderInviteApprovalCard: (params: { inviteId: string; name: string }) => unknown;
   renderInviteEmail: VisitInviteEmailHtmlBuilder;
   classifyDecisionText?: (text: string) => VisitDecisionTextIntent;
 }
@@ -210,10 +211,13 @@ export function createVisitLineOfferReplyHandler(
           status: "active",
           caption: `邀約信草稿已備妥：${finalContact.name}`,
         });
-        await dependencies.delivery.replyText(
-          event.replyToken,
-          `邀約信草稿已經準備好，寄出前想先讓您過目：\n\n收件人：${finalContact.name}（${finalContact.email}）\n主旨：${draft.subject}\n內文：\n${draft.body}\n\n提議時段：${slots[0].label} 或 ${slots[1].label}\n\n內容 OK 的話請回覆「寄出」，不想寄了請回覆「取消」，想調整的話直接告訴我要怎麼改（例如「語氣正式一點」）。`,
-        );
+        await dependencies.delivery.replyMessages(event.replyToken, [
+          {
+            type: "text",
+            text: `邀約信草稿已經準備好，寄出前想先讓您過目：\n\n收件人：${finalContact.name}（${finalContact.email}）\n主旨：${draft.subject}\n內文：\n${draft.body}\n\n提議時段：${slots[0].label} 或 ${slots[1].label}`,
+          },
+          dependencies.renderInviteApprovalCard({ inviteId: invite.id, name: finalContact.name }),
+        ]);
         await dependencies.activity.record({
           agent_slug: "visit",
           summary: `已產生邀約信草稿給 ${finalContact.name}（${finalContact.email}），待使用者核准後才會寄出`,

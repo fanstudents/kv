@@ -26,7 +26,10 @@ function makeDependencies() {
       updateInviteStatus: vi.fn().mockResolvedValue(undefined),
       updateInviteDraft: vi.fn().mockResolvedValue(undefined),
     },
-    delivery: { replyText: vi.fn().mockResolvedValue(undefined) },
+    delivery: {
+      replyText: vi.fn().mockResolvedValue(undefined),
+      replyMessages: vi.fn().mockResolvedValue(undefined),
+    },
     providers: {
       reviseInviteEmail: vi.fn().mockResolvedValue({ subject: "Revised", body: "Revised body" }),
       sendEmail: vi.fn().mockResolvedValue(undefined),
@@ -40,6 +43,7 @@ function makeDependencies() {
     activity: { record: vi.fn().mockResolvedValue(undefined) },
     lock: { acquire: vi.fn(), release: vi.fn().mockResolvedValue(undefined) },
     renderInviteEmail: vi.fn().mockReturnValue("<html>invite</html>"),
+    renderInviteApprovalCard: vi.fn().mockReturnValue({ type: "approval-card" }),
   };
   return { dependencies, invite };
 }
@@ -98,6 +102,26 @@ describe("Visit LINE invite approval application", () => {
       expect.objectContaining({ agent_slug: "visit", status: "pending" }),
     );
     expect(dependencies.lock.release).toHaveBeenCalledWith("line-user-2", "visit");
+  });
+
+  it("rejects a stale approval card instead of acting on a newer invite", async () => {
+    const { dependencies } = makeDependencies();
+    const handler = createVisitLineInviteApprovalHandler(dependencies);
+
+    await expect(
+      handler(
+        { replyToken: "reply-stale", postback: { data: "action=send_invite&invite=invite-old" } },
+        "line-user-stale",
+        "寄出",
+        "https://kv.test",
+      ),
+    ).resolves.toBe(true);
+
+    expect(dependencies.delivery.replyText).toHaveBeenCalledWith(
+      "reply-stale",
+      "這張操作卡已經過期，請以最新的邀約草稿為準。",
+    );
+    expect(dependencies.providers.sendEmail).not.toHaveBeenCalled();
   });
 
   it("releases the Visit lock even when approval failure cleanup also fails", async () => {

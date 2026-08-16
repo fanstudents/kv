@@ -73,6 +73,7 @@ export interface VisitResearchRepository {
 export interface VisitResearchProvider {
   buildSearchInput(input: VisitResearchInput): string;
   search(searchInput: string): Promise<VisitContactProfile>;
+  enrichCompanyProfile(input: VisitResearchInput, profile: VisitContactProfile): Promise<VisitContactProfile>;
 }
 
 export interface VisitResearchRuns {
@@ -180,6 +181,28 @@ export async function runVisitContactResearch(
       output: "公開資料搜尋完成",
       seq: 0,
     });
+    if (!profile.companySummary && input.company) {
+      await runs.step(runId, "research-firecrawl", {
+        status: "running",
+        input: input.company,
+        seq: 1,
+      });
+      try {
+        profile = await provider.enrichCompanyProfile(input, profile);
+        await runs.step(runId, "research-firecrawl", {
+          status: "done",
+          output: profile.companySummary ? "已用官網補齊公司簡介" : "沒有可用的官網內容",
+          seq: 1,
+        });
+      } catch (error) {
+        const errorDetail = error instanceof Error ? error.message : "unknown";
+        await runs.step(runId, "research-firecrawl", {
+          status: "failed",
+          output: errorDetail.slice(0, 200),
+          seq: 1,
+        });
+      }
+    }
     const found = hasUsefulProfile(profile);
     const id = await repository.storeProfile({
       input,
@@ -191,7 +214,7 @@ export async function runVisitContactResearch(
     await runs.step(runId, "research-store", {
       status: "done",
       output: `${profile.links.length} 個連結、${profile.highlights.length} 則近況`,
-      seq: 1,
+      seq: 2,
     });
     await runs.finish(runId, {
       status: "success",

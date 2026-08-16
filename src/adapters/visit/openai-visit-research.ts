@@ -1,6 +1,7 @@
 import "server-only";
 
-import { requestWebSearchJson } from "@/adapters/openai/client";
+import { createChatCompletion, requestWebSearchJson } from "@/adapters/openai/client";
+import { scrapeUrl } from "@/adapters/knowledge-base/firecrawl-client";
 import type {
   VisitContactProfile,
   VisitProfileLink,
@@ -17,6 +18,7 @@ const SYSTEM_PROMPT = `你是業務行前準備助理。使用者要去拜訪一
 3. 只找公開的專業資訊：公司官網、新聞報導、公開演講、專業社群帳號（LinkedIn／官方 Facebook／IG 等）、
    得獎或作品。**不要找私人生活、家庭、住址、私人聯絡方式。**
 4. 如果搜尋結果裡有同名不同人的情況，寧可保守——把不確定的排除，並把 confidence 調低。
+5. 近期動態優先找最近 7 天；沒有可靠的新資料就保留較舊但可驗證的內容。不要輸出資本額。
 
 回傳 JSON：
 {
@@ -28,6 +30,30 @@ const SYSTEM_PROMPT = `你是業務行前準備助理。使用者要去拜訪一
   "sources": ["https://實際引用到的完整網址"],
   "confidence": 0.0
 }`;
+
+const PUBLIC_EMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "yahoo.com",
+  "yahoo.com.tw",
+  "hotmail.com",
+  "outlook.com",
+  "icloud.com",
+  "me.com",
+  "msn.com",
+  "qq.com",
+  "163.com",
+  "126.com",
+  "live.com",
+  "aol.com",
+]);
+
+function officialSiteUrl(profile: VisitContactProfile, email: string | null): string | null {
+  const site = profile.links.find((link) => link.kind === "website" && /^https?:\/\//.test(link.url));
+  if (site) return site.url;
+  const domain = email?.split("@")[1]?.trim().toLowerCase();
+  if (!domain || !domain.includes(".") || PUBLIC_EMAIL_DOMAINS.has(domain)) return null;
+  return `https://${domain}`;
+}
 
 function normalizeProfile(raw: Record<string, unknown>): VisitContactProfile {
   return {
@@ -83,5 +109,47 @@ export const openAiVisitResearchProvider: VisitResearchProvider = {
       { operation: "拜訪前背景調查", agentSlug: "visit" }
     );
     return normalizeProfile(raw);
+  },
+
+  async enrichCompanyProfile(input, profile) {
+    const siteUrl = officialSiteUrl(profile, input.email);
+    if (!siteUrl) return profile;
+
+    const page = await scrapeUrl(siteUrl);
+    if (!page.markdown.trim()) return profile;
+
+    const response = await createChatCompletion(
+      {
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "根據公司官網正文，用 2 到 3 句繁體中文摘要公司業務、規模或近期重點。" +
+              "看不出來就回空字串，不要猜測，也不要輸出資本額。只回傳 JSON：{\"summary\":\"...\"}",
+          },
+          { role: "user", content: page.markdown.slice(0, 6000) },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0,
+      },
+      { operation: "官網簡介摘要", agentSlug: "visit" },
+    );
+    let summary = "";
+    try {
+      summary = String(JSON.parse(response.choices[0]?.message.content ?? "{}").summary ?? "").trim();
+    } catch {
+      return profile;
+    }
+    if (!summary) return profile;
+
+    return {
+      ...profile,
+      companySummary: summary,
+      sources: profile.sources.includes(page.url) ? profile.sources : [...profile.sources, page.url],
+      links: profile.links.some((link) => link.url === page.url)
+        ? profile.links
+        : [...profile.links, { label: "公司官網", url: page.url, kind: "website" }],
+    };
   },
 };

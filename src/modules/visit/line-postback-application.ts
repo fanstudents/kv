@@ -10,6 +10,7 @@ export type VisitLinePostbackOfferHandler = (
 ) => Promise<boolean>;
 
 export interface VisitLinePostbackDependencies {
+  handleInviteApprovalReply: VisitLinePostbackOfferHandler;
   handleVisitOfferReply: VisitLinePostbackOfferHandler;
   tags: Pick<ContactTagPort, "add">;
   delivery: Pick<VisitLineDeliveryPort, "replyText">;
@@ -34,6 +35,14 @@ export function createVisitLinePostbackHandler(
     }
     if (action === "cancel") {
       await dependencies.handleVisitOfferReply(event, userId, "不要", baseUrl);
+      return;
+    }
+    if (action === "send_invite") {
+      await dependencies.handleInviteApprovalReply(event, userId, "寄出", baseUrl);
+      return;
+    }
+    if (action === "cancel_invite") {
+      await dependencies.handleInviteApprovalReply(event, userId, "取消", baseUrl);
       return;
     }
     if (action === "tag") {

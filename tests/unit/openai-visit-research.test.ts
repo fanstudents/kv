@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 
-const requestWebSearchJson = vi.hoisted(() => vi.fn());
-vi.mock("@/adapters/openai/client", () => ({ requestWebSearchJson }));
+const { requestWebSearchJson, createChatCompletion, scrapeUrl } = vi.hoisted(() => ({
+  requestWebSearchJson: vi.fn(),
+  createChatCompletion: vi.fn(),
+  scrapeUrl: vi.fn(),
+}));
+vi.mock("@/adapters/openai/client", () => ({ requestWebSearchJson, createChatCompletion }));
+vi.mock("@/adapters/knowledge-base/firecrawl-client", () => ({ scrapeUrl }));
 
 import { openAiVisitResearchProvider } from "@/adapters/visit/openai-visit-research";
 
@@ -53,5 +58,59 @@ describe("OpenAI Visit research provider", () => {
       expect.objectContaining({ input: "search input", model: "gpt-4o" }),
       { operation: "拜訪前背景調查", agentSlug: "visit" }
     );
+  });
+
+  it("uses Firecrawl only to fill a missing company summary from an official site", async () => {
+    scrapeUrl.mockResolvedValue({
+      url: "https://example.test/about",
+      title: "About",
+      markdown: "Example builds industrial automation systems.",
+    });
+    createChatCompletion.mockResolvedValue({ choices: [{ message: { content: '{"summary":"工業自動化公司"}' } }] });
+    const current = {
+      companySummary: "",
+      personSummary: "Founder",
+      links: [{ label: "Official", url: "https://example.test/about", kind: "website" }],
+      highlights: [],
+      talkingPoints: [],
+      sources: [],
+      confidence: 0.8,
+    };
+
+    await expect(
+      openAiVisitResearchProvider.enrichCompanyProfile(
+        { contactId: "contact-1", name: "Dennis", company: "Example", title: null, email: "dennis@example.test" },
+        current,
+      ),
+    ).resolves.toEqual({
+      ...current,
+      companySummary: "工業自動化公司",
+      sources: ["https://example.test/about"],
+    });
+    expect(scrapeUrl).toHaveBeenCalledWith("https://example.test/about");
+    expect(createChatCompletion).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "gpt-4o-mini", temperature: 0 }),
+      { operation: "官網簡介摘要", agentSlug: "visit" },
+    );
+  });
+
+  it("does not spend Firecrawl credits for public email domains without an official link", async () => {
+    const current = {
+      companySummary: "",
+      personSummary: "",
+      links: [],
+      highlights: [],
+      talkingPoints: [],
+      sources: [],
+      confidence: 0.4,
+    };
+
+    await expect(
+      openAiVisitResearchProvider.enrichCompanyProfile(
+        { contactId: null, name: "Dennis", company: "Unknown", title: null, email: "dennis@gmail.com" },
+        current,
+      ),
+    ).resolves.toBe(current);
+    expect(scrapeUrl).not.toHaveBeenCalled();
   });
 });

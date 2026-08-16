@@ -61,6 +61,7 @@ function createDependencies(
     provider: {
       buildSearchInput: vi.fn(() => "search input"),
       search: vi.fn(async () => profile),
+      enrichCompanyProfile: vi.fn(async (_input, current) => current),
     },
     runs: {
       start: vi.fn(async () => "run-1"),
@@ -143,7 +144,7 @@ describe("Visit research application", () => {
     expect(dependencies.runs.step).toHaveBeenNthCalledWith(3, "run-1", "research-store", {
       status: "done",
       output: "1 個連結、1 則近況",
-      seq: 1,
+      seq: 2,
     });
     expect(dependencies.runs.finish).toHaveBeenCalledWith("run-1", {
       status: "success",
@@ -194,6 +195,28 @@ describe("Visit research application", () => {
     expect(dependencies.repository.recordActivity).toHaveBeenCalledWith({
       summary: "拜訪前背景調查：Typed Name 沒有查到可靠的公開資料",
       status: "pending",
+    });
+  });
+
+  it("keeps web-search results when the optional Firecrawl enrichment fails", async () => {
+    const dependencies = createDependencies();
+    const partialProfile = { ...profile, companySummary: "" };
+    vi.mocked(dependencies.provider.search).mockResolvedValue(partialProfile);
+    vi.mocked(dependencies.provider.enrichCompanyProfile).mockRejectedValue(new Error("Firecrawl quota"));
+
+    await expect(runVisitContactResearch(input, dependencies)).resolves.toBe("profile-1");
+
+    expect(dependencies.provider.enrichCompanyProfile).toHaveBeenCalledWith(input, partialProfile);
+    expect(dependencies.repository.storeProfile).toHaveBeenCalledWith({
+      input,
+      profile: partialProfile,
+      status: "done",
+      runId: "run-1",
+    });
+    expect(dependencies.runs.step).toHaveBeenCalledWith("run-1", "research-firecrawl", {
+      status: "failed",
+      output: "Firecrawl quota",
+      seq: 1,
     });
   });
 
