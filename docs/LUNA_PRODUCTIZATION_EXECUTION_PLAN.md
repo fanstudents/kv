@@ -13,10 +13,10 @@
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-16；P3 hosted Support 完成；P4 驗收矩陣完成；P5 修正 Teachify 狀態真相並完成 TV fallback source review，staging exact commit 與 Chrome 已驗證 |
+| Last verified | 2026-08-16；P3 hosted Support、P4 驗收矩陣、P5 證據驅動修正與 P6 集中重驗／cleanup 均完成 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Current package | P6：集中重新驗證 |
-| Readiness | P0～P5 已完成；P3 的 hosted Support message／reply 已驗證，測試資料與 simulator receipt 暫保留作 acceptance evidence，集中 cleanup 於 P6／P9；完整 release 仍 Needs Revision，原因見第 9 節 |
+| Current package | P7：Teachify closure 或產品 waiver |
+| Readiness | P0～P6 已完成；Support hosted evidence 已記錄，P6 已精確清除 Main marker rows 與 simulator receipts；完整 release 仍 Needs Revision，原因見第 9 節 |
 
 開始任何工作前先執行：
 
@@ -259,6 +259,19 @@ P0 文件與設定真相
 5. 更新本文件的 evidence 與未完成 gate，不新增執行日誌文件。
 
 **Done When：** 修正沒有破壞 UI／API／data contract，且失敗能追到明確 owner。
+
+#### P6 execution ledger（2026-08-16）
+
+| 證據 | 結果 |
+|---|---|
+| Complete repo verification | lint、typecheck、production build 通過；140 unit files／726 tests 全通過；Playwright smoke 147／147 |
+| Main staging integration | 4 個 suites／6 tests 全通過：Agent run atomic cost、Orders persistence、conversation lock、KB atomic replacement |
+| Safe integration entrypoint | P6 發現 generic `npm run test:integration` 會把未開 opt-in gate 誤報為失敗；`a49c787` 修正為無 gate 時 4 suites／6 tests 明確 skip，有 gate 時仍 6／6 真跑通過，不降低 allowlist 或 cleanup 護欄 |
+| Hosted application | `kv-staging.zeabur.app` health／version、authenticated Chrome `/integrations` 與 `/agents/support` 正常；Teachify 持續如實顯示未連線 |
+| Support cleanup | 只匹配 `KV-RELAY-20260816`：conversation、activity、support subscriber 各由 1 筆刪至 residue 0；Chrome 不再顯示 marker |
+| Simulator cleanup | hosted simulator 重啟後 `/health` 為 `ok`、`reply` mode，receiptCount 由 3 歸零 |
+
+**P6 結論：** repo、Main staging、瀏覽器與 cleanup 證據一致。沒有新的產品行為回歸；下一個停止點是 P7 的 Teachify 外部資產或產品 waiver。
 
 ### P7：關閉 Teachify 外部 gate
 
