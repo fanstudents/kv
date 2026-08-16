@@ -122,11 +122,11 @@ async function resolveStatus(): Promise<IntegrationStatusMap> {
     openai: { connected: Boolean(process.env.OPENAI_API_KEY) },
     supabase: { connected: Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY)) },
     firecrawl: { connected: Boolean(process.env.FIRECRAWL_API_KEY) },
-    // Teachify 是被動接收 webhook，沒有「打得通／打不通」的憑證可驗——有沒有簽章
-    // 密鑰只影響安不安全，不影響收不收得到單，兩種狀態都算「連著」。
+    // Teachify 是被動接收 webhook，無法由這裡主動探測連線；至少要有簽章
+    // secret，才表示這個 deployment 已具備可辨識的 Teachify 接收設定。
     teachify: {
-      connected: true,
-      detail: process.env.TEACHIFY_WEBHOOK_SECRET ? "已設定簽章驗證" : "簽章未設定（先放行）",
+      connected: Boolean(process.env.TEACHIFY_WEBHOOK_SECRET),
+      detail: process.env.TEACHIFY_WEBHOOK_SECRET ? "已設定簽章驗證" : "缺少 TEACHIFY_WEBHOOK_SECRET",
     },
     "meta-ads": { connected: false, detail: "尚未授權" },
   };

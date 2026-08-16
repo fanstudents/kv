@@ -8,7 +8,7 @@ const { calendar, getGoogleOAuthClient } = vi.hoisted(() => ({
 vi.mock("googleapis", () => ({ google: { calendar } }));
 vi.mock("@/lib/google-auth", () => ({ getGoogleOAuthClient }));
 
-import { getIntegrationPreflight } from "@/lib/integration-status";
+import { getIntegrationPreflight, getIntegrationStatus } from "@/lib/integration-status";
 
 const ENVIRONMENT_KEYS = [
   "SUPABASE_URL",
@@ -90,6 +90,19 @@ describe("integration configuration preflight", () => {
       teachify: { configured: true },
     });
     expect(JSON.stringify(preflight)).not.toMatch(/secret|token|refresh|google-client/i);
+    expect(calendar).not.toHaveBeenCalled();
+    expect(getGoogleOAuthClient).not.toHaveBeenCalled();
+  });
+});
+
+describe("integration live status", () => {
+  it("does not claim Teachify is connected without its webhook secret", async () => {
+    const status = await getIntegrationStatus();
+
+    expect(status.teachify).toEqual({
+      connected: false,
+      detail: "缺少 TEACHIFY_WEBHOOK_SECRET",
+    });
     expect(calendar).not.toHaveBeenCalled();
     expect(getGoogleOAuthClient).not.toHaveBeenCalled();
   });
