@@ -9,11 +9,13 @@ import {
 } from "./staging-main-db";
 
 const FIXTURE_PREFIX = "codex-agent-run-cost-staging-db:";
+const acceptanceEnabled = process.env.AGENT_RUN_COST_STAGING_DB_ACCEPTANCE === "1";
 const triggerRef = `${FIXTURE_PREFIX}${randomUUID()}`;
 let stagingClient: SupabaseClient<Database> | null = null;
 let runId: string | null = null;
 
 beforeAll(async () => {
+  if (!acceptanceEnabled) return;
   const environment = requireStagingMainDatabaseEnvironment(
     "AGENT_RUN_COST_STAGING_DB_ACCEPTANCE",
     "npm run test:integration:agent-run-cost:staging",
@@ -56,7 +58,7 @@ afterAll(async () => {
   }
 });
 
-describe("Agent run cost staging Main DB behavior", () => {
+(acceptanceEnabled ? describe : describe.skip)("Agent run cost staging Main DB behavior", () => {
   it("preserves every concurrent usage increment without losing a write", async () => {
     const client = stagingClient;
     const fixtureRunId = runId;

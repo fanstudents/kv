@@ -9,11 +9,13 @@ import {
 } from "./staging-main-db";
 
 const FIXTURE_PREFIX = "codex-lock-staging-db:";
+const acceptanceEnabled = process.env.CONVERSATION_LOCK_STAGING_DB_ACCEPTANCE === "1";
 const lifecycleUserId = `${FIXTURE_PREFIX}lifecycle:${randomUUID()}`;
 const raceUserId = `${FIXTURE_PREFIX}race:${randomUUID()}`;
 let stagingClient: SupabaseClient<Database> | null = null;
 
 beforeAll(() => {
+  if (!acceptanceEnabled) return;
   const environment = requireStagingMainDatabaseEnvironment(
     "CONVERSATION_LOCK_STAGING_DB_ACCEPTANCE",
     "npm run test:integration:conversation-lock:staging",
@@ -30,7 +32,7 @@ afterAll(async () => {
   if (error) throw new Error(`Conversation lock staging cleanup failed: ${error.message}`);
 });
 
-describe("Conversation lock staging Main DB behavior", () => {
+(acceptanceEnabled ? describe : describe.skip)("Conversation lock staging Main DB behavior", () => {
   it("preserves one owner across renewal, contention, expiry takeover, and release", async () => {
     const client = stagingClient;
     if (!client) throw new Error("Conversation lock staging fixture did not initialize");

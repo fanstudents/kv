@@ -10,6 +10,7 @@ import {
 } from "./staging-main-db";
 
 const FIXTURE_PREFIX = "codex-orders-staging-db:";
+const acceptanceEnabled = process.env.ORDERS_STAGING_DB_ACCEPTANCE === "1";
 const ORDERS_AGENT_SLUG = "orders";
 const ORDERS_AGENT_FIXTURE_NAME = "Codex staging Orders DB acceptance fixture";
 const orderId = `${FIXTURE_PREFIX}order:${randomUUID()}`;
@@ -20,6 +21,7 @@ let repository: OrdersRepository | null = null;
 let createdOrdersAgentFixture = false;
 
 beforeAll(async () => {
+  if (!acceptanceEnabled) return;
   const environment = requireStagingMainDatabaseEnvironment(
     "ORDERS_STAGING_DB_ACCEPTANCE",
     "npm run test:integration:orders:staging",
@@ -86,7 +88,7 @@ afterAll(async () => {
   }
 });
 
-describe("Orders staging Main DB persistence", () => {
+(acceptanceEnabled ? describe : describe.skip)("Orders staging Main DB persistence", () => {
   it("persists the repository's current order and activity row shapes", async () => {
     const stagingRepository = repository;
     const client = stagingClient;

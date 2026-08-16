@@ -8,6 +8,7 @@ import {
 } from "./staging-main-db";
 
 const docId = `codex-kb-atomicity:${randomUUID()}`;
+const acceptanceEnabled = process.env.KB_INDEX_STAGING_DB_ACCEPTANCE === "1";
 const embedding: number[] = Array.from({ length: 1536 }, (_, index) => (index === 0 ? 1 : 0));
 let stagingClient: SupabaseClient<Database> | null = null;
 
@@ -25,6 +26,7 @@ function chunk(index: number, content: string, vector = embedding): Json {
 }
 
 beforeAll(async () => {
+  if (!acceptanceEnabled) return;
   const environment = requireStagingMainDatabaseEnvironment(
     "KB_INDEX_STAGING_DB_ACCEPTANCE",
     "npm run test:integration:kb-index:staging",
@@ -49,7 +51,7 @@ afterAll(async () => {
   if (error) throw new Error(`KB atomicity fixture cleanup failed: ${error.message}`);
 });
 
-describe.sequential("Knowledge Base atomic index replacement on staging Main DB", () => {
+(acceptanceEnabled ? describe.sequential : describe.skip)("Knowledge Base atomic index replacement on staging Main DB", () => {
   it("rolls the deletion back when any replacement chunk is invalid", async () => {
     const client = stagingClient;
     if (!client) throw new Error("KB atomicity fixture did not initialize");
