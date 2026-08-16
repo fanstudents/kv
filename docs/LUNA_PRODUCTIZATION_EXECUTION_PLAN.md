@@ -344,6 +344,7 @@ P0 文件與設定真相
 - 紅燈來源是 committed `database.types.ts` 與 pinned Supabase CLI `2.110.0` 輸出不同，不是 migration 失敗。
 - 更新 canonical generated types，並將換行正規化成跨 Windows／Linux 可重現的單一格式。
 - migration replay、schema scope classifier 與完整 type drift blocking gate 全部保留；CLI 缺失、生成失敗、空輸出或真實型別差異仍會失敗，禁止用 skip／allow-failure 假綠。
+- Hosted CI run `31958177873` 已在 commit `44ccb9b` 驗證：schema 2m19s 全綠；quality 3m18s 全綠，包含 152 個 test files／browser smoke。
 
 **執行規則：**
 
