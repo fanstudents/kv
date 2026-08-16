@@ -336,7 +336,7 @@ P0 文件與設定真相
 | 研究完成後保鮮期 | Integrated | TV client 保留最後投影 5 秒並拒絕過期 response；不在 server worker 加固定 sleep |
 | Firecrawl 社群連結／代表圖 | Integrated | 只保留公開頁面中可信的社群 URL 與 `og:image`；圖片失敗為 best-effort，文字研究結果仍成立 |
 
-**U2-B evidence：** focused unit 6 files／42 tests、typecheck、lint、production build 通過；Playwright TV projection 5／5，包含同 run/node 圖文與 5 秒 bounded hold。Chrome 已確認最新版 `/tv` 受真實登入保護；登入後人工畫面仍需既有 Chrome session 登入才能補證。此項不等於 Primary LINE provider journey 已完成。
+**U2-B evidence：** focused unit 6 files／42 tests、typecheck、lint、production build 通過；Playwright TV projection 5／5，包含同 run/node 圖文與 5 秒 bounded hold。Chrome 已以真實登入 session 進入 dashboard、`/agents/visit` 與 `/tv`；TV 可暫停輪播、開啟值勤團隊並進入 Coco 詳情，顯示 Gmail／Calendar／Primary LINE 3／3 已連線、研究節點存在，當時無真實 run。此項不等於 Primary LINE provider journey 已完成。
 
 #### CI schema gate closure（2026-08-17）
 
@@ -345,6 +345,30 @@ P0 文件與設定真相
 - 更新 canonical generated types，並將換行正規化成跨 Windows／Linux 可重現的單一格式。
 - migration replay、schema scope classifier 與完整 type drift blocking gate 全部保留；CLI 缺失、生成失敗、空輸出或真實型別差異仍會失敗，禁止用 skip／allow-failure 假綠。
 - Hosted CI run `31958177873` 已在 commit `44ccb9b` 驗證：schema 2m19s 全綠；quality 3m18s 全綠，包含 152 個 test files／browser smoke。
+
+#### P7A upstream snapshot ledger（2026-08-17）
+
+以下逐一封存 `359d4c9..d958a0b` 的 13 個 upstream commits。`Integrated` 只表示行為已由 U1／U2 以 current owner 重作並有對應證據；同一 commit 若包含不同責任，按行為拆記，不直接合併或 cherry-pick。
+
+| Commit | Upstream scope | Verdict | Current evidence／owner／next action |
+|---|---|---|---|
+| `a1305dc` | 全站品牌由 TBR 改為 MixAgent | Decision required | Current dashboard／catalog／TV／登入仍保留既有 TBR／原騰標籤；品牌與公司名稱不是工程推定，等待產品決策。 |
+| `831ae02` | Runtime、runs、retry／task／maintenance／alert、CI 與 schedules | Mixed：Integrated／Superseded／Rejected／Decision required | Runs read model 已由 `ab75fa` 在 `modules/agent-runtime` 接管；migration、單 caller `/api/runs*` 與無 producer task worker 依 U1 Superseded／Rejected。上游 CI 已被 current quality＋schema blocking workflow supersede；frequent／daily schedules 仍缺 canonical target、外部通知與 owner，留待 U4／P8 決策。 |
+| `db22f74` | 品牌補上「原騰科技 MixAgent」 | Decision required | 與 `a1305dc` 同屬公開文字／公司抬頭變更；不改現有 TBR／原騰標籤，等待同一產品決策。 |
+| `6aff549` | EXIF 圖片轉正、Realtime 計價、Super Agent showcase | Mixed：Superseded／Rejected／Decision required | EXIF 顯示已由 Visit `prepareBusinessCardImage` 在寫入 live projection 前處理，避免再於 image route 重轉；Realtime 2.1 文字價格是已確認錯誤，依歷史 TODO Rejected；`/super-agent-showcase` 是獨立公開 UI，等待產品核准後另開 slice。 |
+| `7ac549c` | 名片方向由視覺判斷後校正 | Integrated | `modules/visit`／Visit image adapter 先判斷 0／90／180／270，再以 `sharp` 校正同一張圖片；U2-A 36 focused tests 通過。 |
+| `aad8332` | 公司研究缺摘要時 Firecrawl fallback | Integrated | 現行 Visit research owner 只在摘要不足時啟用 Firecrawl，失敗保持 non-fatal；U2-A 已驗證。 |
+| `b0fb87a` | Firecrawl 轉為明確分流節點 | Integrated | 現行 run 使用 `research-search` → `research-firecrawl` → `research-store`；U2-B 以 current node ids 封口。 |
+| `fa9da32` | LINE 點擊邀約卡、名片回歸修正、TV 行前功課接線 | Integrated | Invite approval／cancel 由 `modules/visit` 持有；TV projection 由 current run／artifact owner 持有；U2-A／U2-B focused evidence 已完成。 |
+| `6ac0d7d` | TV 行前功課圖文一起顯示 | Integrated | 摘要與代表圖以同一 run／node projection 顯示；U2-B Playwright 5／5 通過。 |
+| `6efca34` | TV 文字與 nodeId 綁定，修正競態 | Integrated | `LiveTask` 以 current step 的 `runId + nodeId` 綁定文字與圖片，拒絕舊 response；U2-B 已驗證。 |
+| `70170ae` | 行前功課完成後 hold，後端收尾等待 | Superseded | Current TV client 使用 bounded 5 秒 hold 與 stale-response guard；不採上游 server 固定 sleep，避免 worker 佔用與跨部署 timing 假設。 |
+| `98bcafc` | 修正文圖對應並補社群連結 | Integrated | Visit research 只保留可信公開社群 URL／`og:image`，代表圖以 run／node artifact 投影；圖片失敗不影響文字結果。 |
+| `d958a0b` | 預設 Supabase CLI `config.toml`／`.gitignore` | Superseded | Upstream `agent-kv` 與預設 5432x／seed 設定會混淆 project identity；current `supabase/config.toml` 是 local-only `project_id = "kv"`、隔離 5442x ports、seed disabled，migration history 與 staging identity 保持不變。 |
+
+**U3 conclusion：** `a1305dc`、`db22f74` 與 `6aff549` 的 showcase hunk 全部 Decision required；沒有品牌或公開 UI code churn。
+
+**U4 conclusion：** upstream CI 行為已由 current `.github/workflows/ci.yml` 的 quality／schema gates 覆蓋；upstream frequent／daily schedule 的 `https://kva.zeabur.app` target 與同 app alert fallback 沒有 current release owner／failure channel 證據，不能直接改指向 `kv-staging.zeabur.app`，也不新增無 owner 的 workflow。`supabase/config.toml` 已有更安全的 current local rehearsal 形狀，不覆寫。
 
 **執行規則：**
 
