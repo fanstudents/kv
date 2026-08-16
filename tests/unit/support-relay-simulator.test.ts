@@ -2,7 +2,9 @@ import { createHmac, createHash } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { createSupportRelayDependencies } from "@/adapters/support/support-relay-dependencies";
 
 const scriptPath = fileURLToPath(new URL("../../scripts/support-relay-simulator.mjs", import.meta.url));
 const children: ChildProcess[] = [];
@@ -109,5 +111,25 @@ describe("support relay simulator", () => {
 
     const receipts = await fetch(`${baseUrl}/receipts`, { headers: { "x-simulator-secret": "simulator-secret" } });
     await expect(receipts.json()).resolves.toMatchObject({ receipts: [] });
+  });
+
+  it("accepts the real Support relay adapter transport", async () => {
+    const { baseUrl } = await startSimulator();
+    vi.stubEnv("SUPPORT_RELAY_TARGET_URL", `${baseUrl}/relay`);
+    const body = JSON.stringify({ events: [{ type: "message", message: { type: "text", text: "adapter acceptance" } }] });
+    const signature = createHmac("sha256", "support-channel-secret").update(body).digest("base64");
+
+    await expect(
+      createSupportRelayDependencies({} as never).relay.forward({
+        rawBody: body,
+        signature,
+        contentType: "application/json",
+      })
+    ).resolves.toBeUndefined();
+
+    const receipts = await fetch(`${baseUrl}/receipts`, { headers: { "x-simulator-secret": "simulator-secret" } });
+    await expect(receipts.json()).resolves.toMatchObject({
+      receipts: [{ eventCount: 1, outcome: "received" }],
+    });
   });
 });
