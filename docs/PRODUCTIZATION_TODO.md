@@ -1,6 +1,7 @@
 # KV 產品化控制清單
 
-> 這是唯一的產品化 TODO、現況索引與 readiness 判定。Git 保存歷史，不另建 TODO v2、重構日誌或重複 architecture 文件。
+> 本文件保留 2026-08-16 前的產品化盤點、測試數據與 commit 證據，不再作為後續執行順序的 source of truth。
+> 後續唯一執行主計畫是 `docs/LUNA_PRODUCTIZATION_EXECUTION_PLAN.md`；若兩份文件衝突，以新主計畫與 current source／runtime evidence 為準。
 
 ## 1. 目標、邊界與完成條件
 
