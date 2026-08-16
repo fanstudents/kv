@@ -12,8 +12,8 @@
 | Profile | Standard productization handoff |
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
-| Base commit | `2266d5f`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-16；P3 prep commit `2266d5f` |
+| Base commit | `e74ca31`（P0～P2 完成，P3 deployment prep 完成） |
+| Last verified | 2026-08-16；simulator failure-mode commit `e74ca31` |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
 | Current package | P3：Hosted Support LINE 真實流程 |
 | Readiness | P0～P2 已完成；P3 等待 staging simulator URL 與測試 user／room；完整 release仍 Needs Revision，原因見第 9 節 |
@@ -133,7 +133,7 @@ P0 文件與設定真相
 **Simulator contract：**
 
 - 接收 KV 轉送的 raw LINE body、`X-Line-Signature`、content type 與 `X-KV-Support-Relay-Key`。
-- 可模擬 `200`、timeout、network failure 與 non-2xx。
+- 可用 `SUPPORT_RELAY_SIMULATOR_OUTCOME=success|reject|timeout` 模擬 `200`、timeout 與 non-2xx；network failure 以停止 simulator 或錯誤 target URL 模擬。
 - 保存有界、可清理的 acceptance receipt；不得保存 channel secret 或 access token。
 - 完整模式可取出 `replyToken`，使用 Support channel 回覆唯一測試文字。
 - 只有明確 acceptance opt-in、環境限制與 secret guard 全部成立時才能回覆 LINE。
@@ -141,7 +141,7 @@ P0 文件與設定真相
 
 **已落地的最小實作：** `scripts/support-relay-simulator.mjs`，以 `npm run support:relay:simulator` 啟動；預設 `ack` 模式，`reply` 模式必須同時設定 `LINE_SUPPORT_CHANNEL_ACCESS_TOKEN` 與 `SUPPORT_RELAY_SIMULATOR_TEST_MARKER`。它只保存精簡 receipt，不保存 raw body／user ID；`/receipts` 需要 `SUPPORT_RELAY_SIMULATOR_SECRET`，`/relay` 會驗證原始 LINE signature 與 `body:<sha256>` delivery key。`Dockerfile.support-relay-simulator` 可將它獨立部署成 staging service；這是 acceptance tooling，不是正式 Support module。
 
-**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 3 個測試通過；`npm run lint`、`npm run typecheck` 通過。P1 code 由 `355d1d5` 提交，adapter transport 由 `0319a55` 補強。staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
+**驗證證據：** `tests/unit/support-relay-simulator.test.ts` 4 個測試通過；`npm run lint`、`npm run typecheck` 通過。P1 code 由 `355d1d5` 提交，adapter transport 由 `0319a55` 補強。staging simulator 的實際部署 URL 仍是 P3 的環境輸入。
 
 ### P2：完成本機 Support contract 與資料整合 `[done: 0319a55]`
 
@@ -178,7 +178,7 @@ P0 文件與設定真相
 8. 用 Chrome 檢查 `/agents/support` 的 loading、成功、活動與對話狀態，UI 外觀不變。
 9. 精確清除測試 DB／simulator receipt，確認殘留 0。
 
-**目前狀態：** P3 的本地 deployment prep 已由 `2266d5f` 完成；本機沒有 Docker，image build 尚未驗證。真正 P3 仍等待 simulator staging service URL／owner、主 app exact deploy、Support secret sync 與 test user／room。
+**目前狀態：** P3 的本地 deployment prep 已由 `2266d5f` 完成，simulator failure modes 由 `e74ca31` 補齊；本機沒有 Docker，image build 尚未驗證。真正 P3 仍等待 simulator staging service URL／owner、主 app exact deploy、Support secret sync 與 test user／room。
 
 **失敗處理：** 在真實 receipt 尚未證明前，不新增 generic retry；先定位是 LINE、KV、DB、relay 還是 simulator owner。
 
