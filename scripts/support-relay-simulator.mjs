@@ -4,6 +4,7 @@ import http from "node:http";
 const host = process.env.SUPPORT_RELAY_SIMULATOR_HOST ?? "127.0.0.1";
 const port = Number(process.env.SUPPORT_RELAY_SIMULATOR_PORT ?? "4010");
 const mode = process.env.SUPPORT_RELAY_SIMULATOR_MODE ?? "ack";
+const outcome = process.env.SUPPORT_RELAY_SIMULATOR_OUTCOME ?? "success";
 const simulatorSecret = process.env.SUPPORT_RELAY_SIMULATOR_SECRET;
 const lineSecret = process.env.LINE_SUPPORT_CHANNEL_SECRET;
 const lineAccessToken = process.env.LINE_SUPPORT_CHANNEL_ACCESS_TOKEN;
@@ -20,6 +21,11 @@ if (!(mode === "ack" || mode === "reply")) {
   process.exit(1);
 }
 
+if (!(outcome === "success" || outcome === "reject" || outcome === "timeout")) {
+  console.error(`Unsupported SUPPORT_RELAY_SIMULATOR_OUTCOME: ${outcome}`);
+  process.exit(1);
+}
+
 if (mode === "reply" && (!lineAccessToken || !replyMarker)) {
   console.error("Reply mode requires LINE_SUPPORT_CHANNEL_ACCESS_TOKEN and SUPPORT_RELAY_SIMULATOR_TEST_MARKER");
   process.exit(1);
@@ -28,8 +34,10 @@ if (mode === "reply" && (!lineAccessToken || !replyMarker)) {
 const receipts = [];
 
 function safeEqual(left, right) {
-  const leftBuffer = Buffer.from(left ?? "");
-  const rightBuffer = Buffer.from(right ?? "");
+  const leftValue = Array.isArray(left) ? left[0] : left;
+  const rightValue = Array.isArray(right) ? right[0] : right;
+  const leftBuffer = Buffer.from(leftValue ?? "");
+  const rightBuffer = Buffer.from(rightValue ?? "");
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
@@ -70,6 +78,7 @@ function compactReceipt(receipt) {
     eventCount: receipt.eventCount,
     eventTypes: receipt.eventTypes,
     mode,
+    configuredOutcome: outcome,
     outcome: receipt.outcome,
     receivedAt: receipt.receivedAt,
   };
@@ -134,6 +143,15 @@ async function handleRelay(request, response) {
     receivedAt: new Date().toISOString(),
   };
 
+  if (outcome === "reject" || outcome === "timeout") {
+    if (outcome === "timeout") await new Promise((resolve) => setTimeout(resolve, 9000));
+    receipt.outcome = outcome === "reject" ? "forced_rejection" : "forced_timeout";
+    receipts.push(receipt);
+    console.error(JSON.stringify({ simulator: "support-relay", ...compactReceipt(receipt) }));
+    writeJson(response, outcome === "reject" ? 503 : 504, { ok: false, receipt: compactReceipt(receipt) });
+    return;
+  }
+
   if (mode === "reply") {
     const replyEvents = events.filter((event) =>
       event.type === "message" &&
@@ -161,7 +179,7 @@ async function handleRelay(request, response) {
 
 const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/health") {
-    writeJson(response, 200, { ok: true, service: "support-relay-simulator", mode, receiptCount: receipts.length });
+    writeJson(response, 200, { ok: true, service: "support-relay-simulator", mode, outcome, receiptCount: receipts.length });
     return;
   }
 
@@ -185,7 +203,7 @@ const server = http.createServer(async (request, response) => {
 server.listen(port, host, () => {
   const address = server.address();
   const boundPort = typeof address === "object" && address ? address.port : port;
-  console.log(JSON.stringify({ ready: true, service: "support-relay-simulator", host, port: boundPort, mode }));
+  console.log(JSON.stringify({ ready: true, service: "support-relay-simulator", host, port: boundPort, mode, outcome }));
 });
 
 function shutdown() {

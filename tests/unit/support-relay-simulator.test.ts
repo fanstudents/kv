@@ -9,13 +9,14 @@ import { createSupportRelayDependencies } from "@/adapters/support/support-relay
 const scriptPath = fileURLToPath(new URL("../../scripts/support-relay-simulator.mjs", import.meta.url));
 const children: ChildProcess[] = [];
 
-async function startSimulator() {
+async function startSimulator(options?: { outcome?: string }) {
   const child = spawn(process.execPath, [scriptPath], {
     env: {
       ...process.env,
       SUPPORT_RELAY_SIMULATOR_HOST: "127.0.0.1",
       SUPPORT_RELAY_SIMULATOR_PORT: "0",
       SUPPORT_RELAY_SIMULATOR_MODE: "ack",
+      SUPPORT_RELAY_SIMULATOR_OUTCOME: options?.outcome ?? "success",
       SUPPORT_RELAY_SIMULATOR_SECRET: "simulator-secret",
       LINE_SUPPORT_CHANNEL_SECRET: "support-channel-secret",
     },
@@ -130,6 +131,17 @@ describe("support relay simulator", () => {
     const receipts = await fetch(`${baseUrl}/receipts`, { headers: { "x-simulator-secret": "simulator-secret" } });
     await expect(receipts.json()).resolves.toMatchObject({
       receipts: [{ eventCount: 1, outcome: "received" }],
+    });
+  });
+
+  it("can return a controlled downstream rejection", async () => {
+    const { baseUrl } = await startSimulator({ outcome: "reject" });
+    const body = JSON.stringify({ events: [] });
+    const response = await fetch(`${baseUrl}/relay`, { method: "POST", headers: relayHeaders(body), body });
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      receipt: { outcome: "forced_rejection" },
     });
   });
 });
