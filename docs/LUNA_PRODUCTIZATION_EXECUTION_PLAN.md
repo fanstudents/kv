@@ -12,8 +12,8 @@
 | Profile | Standard productization handoff |
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
-| Base commit | `0319a55`（P0～P2 已完成） |
-| Last verified | 2026-08-16；P2 commit `0319a55` |
+| Base commit | `2266d5f`（P0～P2 完成，P3 deployment prep 完成） |
+| Last verified | 2026-08-16；P3 prep commit `2266d5f` |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
 | Current package | P3：Hosted Support LINE 真實流程 |
 | Readiness | P0～P2 已完成；P3 等待 staging simulator URL 與測試 user／room；完整 release仍 Needs Revision，原因見第 9 節 |
@@ -177,6 +177,8 @@ P0 文件與設定真相
 7. 驗證 LINE inbound receipt、KV DB rows、simulator relay receipt 與真實 LINE reply。
 8. 用 Chrome 檢查 `/agents/support` 的 loading、成功、活動與對話狀態，UI 外觀不變。
 9. 精確清除測試 DB／simulator receipt，確認殘留 0。
+
+**目前狀態：** P3 的本地 deployment prep 已由 `2266d5f` 完成；本機沒有 Docker，image build 尚未驗證。真正 P3 仍等待 simulator staging service URL／owner、主 app exact deploy、Support secret sync 與 test user／room。
 
 **失敗處理：** 在真實 receipt 尚未證明前，不新增 generic retry；先定位是 LINE、KV、DB、relay 還是 simulator owner。
 
