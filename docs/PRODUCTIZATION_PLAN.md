@@ -10,9 +10,9 @@
 | Profile／release intent | Standard／production slice |
 | Owner | CabLate engineering；產品範圍由 CabLate product owner 決定 |
 | Repository／branch | `F:\ownproject\kv`／`codex/kv-wp0-toolchain` |
-| Planning base | `69132b9`（P0-P9 收尾基準） |
-| Last verified | 2026-08-17；source、CodeGraph、P0～P9 handoff evidence |
-| Readiness | Ready；先執行 N1，不得跳過設定真相直接建立 runtime platform |
+| Planning base | `33e8eed`（P0-P9／Loopwise contract 收尾基準） |
+| Last verified | 2026-08-18；source、CodeGraph、設定 consumer map、P0～P9 handoff evidence |
+| Readiness | Ready for N2；N1 source-level truth 已完成，仍須由 N2 驗證實際資料列與 typed boundary |
 
 開始或恢復工作時：
 
@@ -66,26 +66,28 @@
 ```text
 Agent pages / AgentPageShell
   -> PATCH /api/agents/[slug]
-  -> modules/agents/admin（只確認 settings 是 object）
+  -> modules/agents/admin（只判斷 truthy object；沒有 slug schema）
   -> Supabase agent repository（只確認可序列化 JSON）
   -> line_agents.settings
 
 Runtime consumers
-  -> Visit / Orders / Support / Reporting 各自手動讀 key、套預設值
+  -> Visit adapter 讀 availability／identity／approval keys 並套預設值
+  -> Orders / Support / Team Lead 讀各自 workflow 的 reportTo／pushStyle
+  -> 其他頁面目前只把 UI 設定保存回 JSON，沒有 server runtime consumer
   -> domain use case
   -> provider / repository adapter
 ```
 
 | Fact | Stable anchor | 對下一步的影響 |
 |---|---|---|
-| `line_agents.settings` 是目前 deployment setting truth，型別為任意 JSON | `modules/agents/admin.ts`、`supabase-agent-admin-repository.ts`、`database.types.ts` | 先保留 storage；在 read／write boundary 加 schema，不先改 DB |
-| Agent pages 以 `Record<string, unknown>` 傳設定，各頁自行載入與判斷欄位 | `AgentPageShell.tsx`、`app/(dashboard)/agents/*/page.tsx` | N1 必須盤點實際 keys、defaults、consumer，避免 schema 猜測 |
+| `line_agents.settings` 是目前 deployment setting truth，資料庫型別為 `jsonb`／`Json`、預設 `{}`；目前 write boundary 只保證可序列化 JSON，admin parser 會接受 truthy object（陣列也會通過） | `modules/agents/admin.ts`、`supabase-agent-admin-repository.ts`、`database.types.ts` | 先保留 storage；在 read／write boundary 加 schema，不先改 DB |
+| Agent pages 以 `Record<string, unknown>` 傳設定，各頁自行載入與判斷欄位；儲存時只送該頁目前 state 加上 `pushStyle`，未被該頁載入的未知 key 可能在下一次儲存時消失 | `AgentPageShell.tsx`、`app/(dashboard)/agents/*/page.tsx` | N1 已完成 source matrix；N2 必須決定 unknown-key policy |
 | Visit 已有獨立 `VisitSettingsPort`，但 adapter 仍手動轉型與預設 | `modules/visit/settings-ports.ts`、`adapters/visit/supabase-visit-settings.ts` | 可作第一個 typed-config slice；不再包一層 forwarding interface |
 | Orders、Support、Team Lead 直接把 settings cast 成 record 後讀 `reportTo`／`pushStyle` | `modules/orders/orders.ts`、`modules/support/report.ts`、`modules/reporting/team-lead.ts` | 共享 field 名稱不代表共享 workflow；schema 依 domain 持有，可重用窄 field schema |
 | role／instance／binding 模型已存在，但目前 deployment 固定為 `legacy-static-registry`，bindings／capabilities 為空 | `modules/agents/identity.ts` | 這是 compatibility seam，不得宣稱已可動態編排；N3 才加入真實 bindings |
 | domain modules／provider adapters 主幹已就位；`src/lib` 與 KB forwarding facade 仍有過渡 ownership | `src/modules`、`src/adapters`、`src/lib/kb-*` | 只在 N2／N3 或新需求碰到時 touch-and-migrate |
 | Main DB、provider credentials 與 app runtime 都是 deployment-global | `lib/supabase.ts`、provider env readers、`.env.example` | 先採每客戶隔離部署；只加 `tenant_id` 不會變成 SaaS |
-| P0～P9 已完成 staging、migration、backup／restore、Supabase Cron、CI、Chrome 與 rollback compatibility | README release runbook、CI run `31987861315`、commit `69132b9` | 下一階段不重做基礎建設；Teachify contract 已對齊，仍待真實 provider event |
+| P0～P9 已完成 staging、migration、backup／restore、Supabase Cron、CI、Chrome 與 rollback compatibility | README release runbook、CI run `31987861315`、commit `69132b9`；Loopwise contract alignment 在 `33e8eed` | 下一階段不重做基礎建設；Teachify staging signed／malformed smoke 已驗證 200／400 且無 DB／LINE side effect，仍待真實 provider event |
 
 ## 5. 目標概念與責任
 
@@ -116,11 +118,105 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 
 ## 7. 六個工作包
 
-### N1：建立設定真相與企業變化矩陣 `[next]`
+### N1：建立設定真相與企業變化矩陣 `[done]`
 
 **Contribution：** G-01、G-02、G-03。
 
 **Scope anchors：** `line_agents.settings`、所有 Agent settings pages、Visit／Orders／Support／Reporting consumers、現有 unit／browser contracts。
+
+#### N1 source truth：先分清楚「真的會影響 runtime」與「目前只是 UI 可保存」
+
+這份矩陣是依目前 source 的實際讀寫整理，不是依欄位名稱猜共用語意。
+
+- `P` 是設定頁首次載入時的 page default；`R` 是 server runtime 缺值／錯值時的 fallback。
+- `runtime read` 只列真正讀取 `line_agents.settings` 的 server consumer。只在 page 中保存、預覽或回載的欄位標成 `UI-only`，不能宣稱已經能驅動產品流程。
+- `Class` 只使用五類：`config`（deployment-safe config）、`provider`（provider connection/reference）、`secret`、`presentation`、`policy`（domain policy）。目前沒有發現任何應放進 `line_agents.settings` 的 secret。
+- `identifier` 代表 LINE User ID 或顯示名稱等敏感度較高的資料，但不是 credential；`secret` 只放 deployment secret store／環境變數。
+
+#### Visit（`slug=visit`）
+
+| Key | Type／default | Allowed values／current normalization | Write owner／UI | Runtime read／target schema owner | Current failure behavior | Class／sensitivity |
+|---|---|---|---|---|---|---|
+| `inputSources` | `string[]`; P=`名片圖片`, `轉寄 Email` | UI 目前只提供這兩個 label；page 只做 array cast | Visit page → `AgentPageShell` PATCH | 無 server consumer；若日後啟用，應由 Visit trigger contract 持有 | 非 array 不回載，保留 page default；現在不影響 webhook | config（目前 UI-only）／public |
+| `calendarSource` | `string`; P=`google` | `google`／`outlook`／`none` | Visit page | 無 server consumer；實際 Calendar provider 目前由 provider adapter／環境設定決定 | 任意字串可被保存與回載，但不改實際 provider | provider（目前 UI-only）／public |
+| `rangeStartDays` | page 是 `string` P=`"3"`; runtime canonical `number` R=`3` | UI `min=0`；adapter 使用 `Number(value) || 3`，沒有上下限或整數驗證 | Visit page；runtime default owner 是 `supabase-visit-settings` | `createSupabaseVisitSettings` → Visit offer → Google free-slot lookup | 非數字、空字串、`0` → 3；負數會通過；DB read error 直接拋錯 | policy／public |
+| `rangeEndDays` | page `string` P=`"7"`; runtime `number` R=`7` | UI `min=1`；adapter 同樣只做 `Number(...) || 7`，沒有與 start 的關係驗證 | Visit page；`supabase-visit-settings` | Visit offer → provider `findFreeSlots` | 非數字、空字串、`0` → 7；負數或 start > end 未在 settings boundary 阻擋 | policy／public |
+| `slotCount` | `string`; P=`"2"` | UI `1..5`；Visit offer 目前把 provider input 寫死為 `slotCount: 2` | Visit page | 無；目前不會被 runtime 讀取 | 可保存與回載，但改值沒有產品效果 | presentation（unwired）／public |
+| `meetingDuration` | page `string` P=`"60"`; runtime `number` R=`60` | UI `min=15, step=15`；adapter 沒有真正 range validation | Visit page；`supabase-visit-settings` | Visit offer → Calendar free-slot lookup | 非數字、空字串、`0` → 60；負數可能通過 provider input | policy／public |
+| `meetingType` | `string`; P/R=`喝咖啡` | 非空字串；沒有 enum | Visit page；`supabase-visit-settings` | Visit offer／approval → AI draft、Calendar description | 空字串或非 string → 喝咖啡；其他文字原樣進 prompt／Calendar description | policy／public |
+| `workingHoursStart` | `string`; P/R=`09:00` | UI `time` 欄位預期 `HH:mm`；server 不驗格式 | Visit page；`supabase-visit-settings` | Visit offer → Google free-slot lookup | 非 string → 09:00；格式錯誤的 string 會繼續流到 provider，可能造成無時段或 provider error | policy／public |
+| `workingHoursEnd` | `string`; P/R=`18:00` | UI `time` 欄位預期 `HH:mm`；server 不驗格式 | Visit page；`supabase-visit-settings` | Visit offer → Google free-slot lookup | 非 string → 18:00；格式錯誤或 end 小於 start 未在 settings boundary 阻擋 | policy／public |
+| `requireApproval` | `boolean`; P/R=`true` | `true`／`false` | Visit page；`supabase-visit-settings` | Visit offer → pending invite／是否先走 LINE approval branch | 非 boolean → true；會改變寄信前的人工作業分支 | policy／public |
+| `senderName` | `string`; P/R=`樊松蒲 Dennis` | 非空字串才被 adapter 接受 | Visit page；`supabase-visit-settings` | Visit offer／approval／respond → email、Calendar、活動摘要；outputs page 也讀取 | 空字串或非 string →預設名稱；其他文字會進外部訊息與 Calendar | config（sender identity）／display identifier |
+| `emailSubject` | `string`; P=`{{myName}} 想與您約時間{{meetingType}} ☕` | 自由文字；page 只做 placeholder preview | Visit page | 無 server consumer；實際 draft 由 AI provider 生成 subject | 可保存／回載，但目前不改實寄 email | presentation（unwired）／public |
+| `emailBody` | `string`; P=`{{contactName}} 您好，\n\n很高興認識您！不知道您接下來方便的話，是否能約個時間{{meetingType}}聊聊？` | 自由文字；page 只做 placeholder preview | Visit page | 無 server consumer；實際 draft 由 AI provider 生成 body | 可保存／回載，但目前不改實寄 email | presentation（unwired）／public |
+| `lineConfirmTemplate` | `string`; P=`已為您寄出邀約信給 {{contactName}}，提議 {{slot1}} 或 {{slot2}} 見面，等候對方回覆。` | 自由文字；page 只做 placeholder preview | Visit page | 無 server consumer；LINE confirmation 目前由 workflow／route contract 產生 | 可保存／回載，但目前不改實際 LINE 回覆 | presentation（unwired）／public |
+
+#### Orders、Support、Team Lead：同名 `reportTo` 不代表同一個設定語意
+
+| Workflow／key | Type／default | Allowed values／current normalization | Write owner／UI | Runtime read／failure | Target／class／sensitivity |
+|---|---|---|---|---|---|
+| Orders `reportTo` | `string`; P=`""`; R=`trim()` 後需非空 | UI 提示 U 開頭，但沒有格式驗證 | Orders page + shared `AgentPageShell` | `orders.ts`；空白／缺值 → `missing_recipient`，不送 LINE | Orders settings schema；config／LINE identifier |
+| Support `autoReplyText` | `string`; P=`已收到您的訊息...` | 自由文字 | Support page | KV relay 不回覆，無 server consumer；目前改值不影響下游助理 | 若未來 KV 接管回覆才進 Support schema，否則應 retire；presentation／public |
+| Support `reportTo` | `string`; P=`""`; R=`trim()` 後需非空 | UI 提示 U 開頭，沒有格式驗證 | Support page + shared shell | `support/report.ts`；空白／缺值 → `missing_recipient`，不送每日彙報 | Support report schema（不可與 Orders 共用語意）；config／LINE identifier |
+| Support `reportTime` | `string`; P=`09:00` | UI `time`；沒有 server validation | Support page | 無；實際排程由 Supabase Cron／既有 schedule 設定控制 | Cron schedule owner；目前不應放在 Agent workflow schema；policy（UI-only）／public |
+| Team Lead `reportTo` | `string`; P=`""`; R=`trim()` 後需非空 | UI 提示 U 開頭，沒有格式驗證 | Team Lead page + shared shell | `modules/reporting/team-lead.ts`；空白／缺值 → `missing_recipient`，不送晨報 | Team Lead report schema（不可與 Orders／Support 共用語意）；config／LINE identifier |
+| Team Lead `reportTime` | `string`; P=`09:00` | UI `time`；沒有 server validation | Team Lead page | 無；實際排程由 Supabase Cron／既有 schedule 設定控制 | Cron schedule owner；目前 UI-only；policy／public |
+
+#### `pushStyle`：shared presentation key，不是 shared workflow policy
+
+`AgentPageShell` 對全部 12 個 Agent page（`teamlead`、`notify`、`report`、`schedule`、`card`、`expense`、`visit`、`today`、`competitor`、`operations`、`support`、`orders`）都會寫入 `pushStyle`。
+
+| Key | Type／default | Allowed | Write／read owner | Current runtime behavior | Target／class／sensitivity |
+|---|---|---|---|---|---|
+| `pushStyle` | `string`; page shell P=`text`；Orders／Support／Team Lead runtime R=`flex` | `text`／`flex`／`confirm`／`buttons` | shared `AgentPageShell`；server rules 各自持有窄型別 | shell 用於預覽／test push；只有 Orders、Support report、Team Lead report 讀 DB 設定；其他 Agent 沒有 durable runtime consumer | 可共用窄 presentation value schema，不共用 workflow schema；presentation／public |
+
+#### 其他可保存設定頁：目前都是 UI projection，不能當成已完成的 workflow 配置
+
+| Agent／keys | Type／default | Allowed／write owner | Runtime read／failure | Target／class／sensitivity |
+|---|---|---|---|---|
+| Schedule `calendarSource` | `string`; P=`google` | `google`／`outlook`／`none`；Schedule page + shared shell | 無 server consumer；修改不改 Calendar provider | 若日後有真正排程 consumer，再由 Schedule workflow schema 持有；provider（目前 UI-only）／public |
+| Schedule `slots` | `string`; P=`週一至週五 10:00–18:00，每次諮詢 30 分鐘` | 自由文字；Schedule page | 無 server consumer；只改預覽 | presentation（unwired）／public |
+| Schedule `reminderMinutes` | `string`; P=`30` | UI number；無 server validation | 無 server consumer；只改預覽文字 | policy（目前 UI-only）／public |
+| Schedule `allowReschedule` | `boolean`; P=`true` | `true`／`false`；Schedule page | 無 server consumer；不會改 LINE flow | policy（unwired）／public |
+| Schedule `template` | `string`; P=page literal（含 `{{minutes}}`） | 自由文字；Schedule page | 無 server consumer；只改預覽 | presentation（unwired）／public |
+| Operations `lines` | `ProductLine[]`; P=page 的 5 筆產品線 seed | 每筆 `{name, status, owner, nextStep}`；status=`進行中`／`規劃中`／`暫停`／`已完成`；Operations page | 無 server consumer；上方 pipeline panel 讀 Teaching system，不讀這個 key | Operations presentation projection；presentation／可能含人名但非 credential |
+| Notify `triggerType` | `string`; P=`threshold` | `threshold`／`event`／`scheduled`；Notify page | 無 server consumer；不會真的建立 trigger | 未來 Notify workflow schema 或 retire；policy（unwired）／public |
+| Notify `metric` | `string`; P=`問卷完成率` | 自由文字；Notify page | 無 server consumer；只改預覽 | policy（unwired）／public |
+| Notify `operator` | `string`; P=`<` | `<`／`>`／`=`；Notify page | 無 server consumer；只改預覽 | policy（unwired）／public |
+| Notify `value` | `string`; P=`65` | UI 文字欄，沒有數字驗證；Notify page | 無 server consumer；只改預覽 | policy（unwired）／public |
+| Notify `target` | `string`; P=`行銷群組` | `行銷群組`／`全體管理員`／`承辦人個人`；Notify page | 無 server consumer；只改預覽 | config／目前 UI-only／public |
+| Notify `template` | `string`; P=page literal（含 `{{metric}}`、`{{value}}`） | 自由文字；Notify page | 無 server consumer；只改預覽 | presentation（unwired）／public |
+| Notify `quietStart` | `string`; P=`22:00` | UI `time`；無 server validation | 無 server consumer；不會真的靜音排程 | policy（unwired）／public |
+| Notify `quietEnd` | `string`; P=`08:00` | UI `time`；無 server validation | 無 server consumer；不會真的靜音排程 | policy（unwired）／public |
+| Marketing `dataSource`（`report`／`card`／`expense`／`today`／`competitor`） | `string`; P=`""` | 自由文字；共用 `MarketingAgentShell` | 無 server consumer；提示中的 GA4／GSC／Meta 等串接仍由 integration status／專用 API 決定 | 各 integration 的 config owner；provider（目前 UI-only）／可能含帳號識別碼 |
+| Marketing `template`（`report`／`card`／`expense`／`today`／`competitor`） | `string`; P=各頁 `previewText` literal | 自由文字；共用 MarketingAgentShell | 無 server consumer；只改預覽／test push | 各 Agent presentation projection；presentation／public |
+
+#### Write boundary、unknown keys 與實際 schema owner
+
+目前沒有一個真正的共用 `AgentSettings` schema：
+
+1. `line_agents.settings` 在 DB 是 `jsonb not null default '{}'`，TypeScript 只生成寬鬆 `Json`。
+2. `enabled` 是 `line_agents` 的獨立 deployment state，不是 settings key；`PATCH /api/agents/[slug]` 另外處理它。
+3. 同一個 PATCH 只要 `settings` 是 truthy object 就會被接受，陣列也會通過，沒有依 slug 驗證 key。
+4. Supabase adapter 只檢查可序列化 JSON，沒有欄位、型別、unknown-key 或 secret policy。
+5. `AgentPageShell` 儲存的是頁面目前 state 加 `pushStyle`；頁面沒有載入的舊 key 不會自動 merge，因此目前 unknown-key policy 實際上是「可能在下次 page save 被丟掉」。
+6. N2 應由每個真正的 workflow owner 持有 schema；只有 `pushStyle` 這種已證明的窄 presentation value 可以共享。`reportTo`、`reportTime`、`template` 等同名欄位不得因名稱相同就共用一個 workflow schema。
+
+#### Enterprise variation matrix
+
+| 企業差異 | 現在可否用設定表達 | N1 判定 | N2／N3 target owner | 不應怎麼做 |
+|---|---|---|---|---|
+| Visit 可預約天數、時段、會面時長 | 部分可以；runtime 只讀 Visit 的 8 個欄位 | 可作 typed config，需補範圍與 cross-field validation | Visit settings schema／Visit workflow | 不把 UI-only `slotCount` 當成已生效功能 |
+| 是否需要人工核准 | 可以；`requireApproval` 真的改變 workflow branch | domain policy | Visit workflow | 不放進 presentation catalog |
+| 寄件人名稱 | 可以；會進 email／Calendar／活動摘要 | deployment-safe sender identity | Visit settings schema | 不當 secret，也不與 Agent role name 混用 |
+| 訂單／客服／晨報通知對象 | 可以；各 workflow 各自讀 `reportTo` | 可作 routing config，但語意分開 | Orders／Support／Team Lead 各自 schema | 不建立一個跨 workflow `reportTo` abstraction |
+| LINE 訊息外觀 | 可以；`pushStyle` 有共用四值 | 可共享窄 presentation schema | shared presentation value + workflow delivery rule | 不把 message style 當成 workflow engine |
+| 每日執行時間 | 頁面有 `reportTime`，但目前不生效 | 目前不能宣稱可配置 | Cron schedule owner；日後另有需求再接 workflow | 不把 UI 欄位當成排程已完成 |
+| Calendar／GA4／GSC／Meta／Teachify 連線 | 部分頁面有選擇或識別碼欄位，但實際連線不是由這些 JSON key 驅動 | provider connection 必須分開 | deployment profile／provider adapter | 不把 API key、refresh token、webhook secret 放進 JSON |
+| 新增企業流程或新的 Agent | 目前不能由 settings JSON 表達 | 需要 N3 code-owned versioned binding | workflow definition + domain owner | 不先建 JSON DSL、通用 runner 或複製 customer fork |
+
+**N1 結論：** source-level settings truth 已完成。這證明 N2 可以開始設計 typed boundary；它不宣稱目前所有 UI 欄位已接上 runtime，也不宣稱 live DB 每一列都已通過新 schema。live row parse、invalid／unknown tests 與 Chrome save/reload 是 N2 的驗證責任。
 
 **步驟：**
 
@@ -131,7 +227,7 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 
 **不改：** UI、DB schema、runtime side effect、provider credentials。
 
-**驗證／Done When：** 每個被 runtime 使用的 key 都能指到一個 owner、consumer、default 與 failure behavior；沒有 secret 被歸進 Agent settings；N2 不需再猜 schema。
+**驗證／Done When：** 每個被 runtime 使用的 key 都能指到一個 owner、consumer、default 與 failure behavior；每個 settings page 的 UI-only key 也有明確標記；沒有 secret 被歸進 Agent settings；N2 不需再猜 schema。N1 的完成證據是本矩陣與 source anchors，不包含 live row parse 或 provider acceptance。
 
 ### N2：建立 workflow-owned Zod settings boundary `[pending]`
 
@@ -218,7 +314,7 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 
 | 項目 | 決定／狀態 | 阻塞什麼 | 不阻塞什麼 |
 |---|---|---|---|
-| Teachify provider truth | 官方 Loopwise header／payload contract 已確認並接入；secret 已由 owner 提供但本地／deployment configuration 尚未在此驗證；仍待真實 `payment.paid`／`payment.refund` event | Teachify 真實 provider 驗收與對客啟用 | N1～N6 其餘工作 |
+| Teachify provider truth | 官方 Loopwise header／payload contract 已確認並接入；secret 已設定於 `kv-staging`；staging signed／malformed smoke 已分別得到 200／400，且沒有 DB／LINE side effect；仍待真實 `payment.paid`／`payment.refund` event | Teachify 真實 provider 驗收與對客啟用 | N1～N6 其餘工作 |
 | 第一個新產業客製需求 | 尚未提供；以 feature intake 加入 | 尚未定義的新 workflow 行為 | 現有 settings schema／workflow mapping |
 | Multi-tenant | Deferred；需至少兩個活躍客戶＋共享營運需求 | shared SaaS runtime | per-customer isolated deployment |
 | Generic workflow／queue／plugin | Rejected until proven | 任意平台能力 | versioned code definitions、domain use cases |
@@ -234,15 +330,17 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 | P7A upstream reconciliation | current-owner implementations 與 commit ledger，Git history 保存細節 | Done；不直接 merge legacy ownership |
 | P8 release infrastructure | migration `20260817015215`、backup／restore rehearsal、Supabase Cron、rollback compatibility | Done |
 | P9 handoff | CI run `31987861315`、staging commit `69132b9`、README runbook | Done |
+| N1 settings truth | `docs/PRODUCTIZATION_PLAN.md` 的 source-level settings matrix、CodeGraph snapshot、current page／runtime consumer anchors | Done；live row parse、typed validation 與 real provider acceptance 留在 N2／provider gates |
 
 ## 11. Readiness verdict
 
-### Verdict：Ready for N1
+### Verdict：Ready for N2
 
 - **Healthy enough now：** 隔離 staging、核心 journeys、migration、backup／restore、schedule、CI、deploy 與 rollback compatibility 已就位。
-- **真正缺口：** settings 沒有 canonical schema；identity bindings 仍是 compatibility placeholder；企業差異尚未形成 deployment profile；provider／cron observability 尚未完整。
-- **第一步：** N1 設定真相與企業變化矩陣。它只整理已存在的 keys／consumers／defaults，不改 UI、DB 或 side effect。
-- **重新評估點：** N1 若發現同一 key 在不同 consumer 具有衝突語意，先修 target design 與 N2／N3，不建立模糊共用 schema。
+- **真正缺口：** settings 尚未有 workflow-owned canonical schema；identity bindings 仍是 compatibility placeholder；企業差異尚未形成 deployment profile；provider／cron observability 尚未完整。
+- **N1 已完成：** 已逐一標出 runtime-used keys、UI-only keys、defaults、讀寫 owner、failure behavior、schema target、分類與敏感度；也確認 `reportTo` 等同名欄位不能直接共用。
+- **下一步：** N2 先把 Visit 的 runtime-used settings 轉成 typed boundary，再依 evidence 處理 Orders、Support／Team Lead；不要先替 UI-only 欄位建立假的 runtime schema。
+- **重新評估點：** N2 若讀到 live row 含未列出的 key，先決定保留／棄用／移除條件，不要讓 AgentPageShell 在無意間刪除未知設定。
 
 ## 12. 文件政策
 
