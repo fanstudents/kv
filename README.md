@@ -72,16 +72,34 @@ npm run release:verify -- --profile=staging
 
 `release:verify` 會比對 `/api/version` 的 commit、schema version、environment，並要求 `/api/health` 回 ready。任何一項不一致都停止 promotion。
 
+Main Supabase 的 logical backup、restore rehearsal 與應用排程使用同一支 release CLI。Backup 必須放在 repo 外；Storage object bytes 不包含在 `pg_dump`，若環境開始使用 Supabase Storage，必須另外驗證 platform backup／PITR 與 object recovery。
+
+```powershell
+$backup = "F:\ownproject\kv-backups\kv-staging-$(Get-Date -Format yyyyMMdd).dump"
+npm run release:backup:create -- --profile=staging --output=$backup
+npm run release:backup:verify -- --input=$backup
+npm run release:backup:rehearse -- --profile=staging --input=$backup
+
+npm run release:schedules:plan -- --profile=staging
+$env:KV_RELEASE_SCHEDULE_APPLY = "1"
+npm run release:schedules:apply -- --profile=staging --confirm-project=$env:KV_STAGING_PROJECT_REF
+npm run release:schedules:verify -- --profile=staging
+```
+
+正式 recurring jobs 由 Supabase Cron 執行；`.github/workflows/frequent-jobs.yml` 只是人工 fallback，不會自動排程。排程失敗由 CabLate release owner 先查 Supabase Cron history、`kv_ops.schedule_dispatches` 與 `pg_net` response；目前沒有另外建立通用告警框架。
+
 Rollback 分成兩件事：
 
 - Application rollback：重新部署上一個已驗證的 immutable commit，再重跑 `release:verify`。
 - Database recovery：目前 migration 是 additive／forward-only；一般錯誤用新的 forward-fix migration，不執行 remote `db reset` 或擅自 migration down。只有資料受損時，才由 DB owner 使用已確認的 backup／PITR 還原，並部署與該 schema 相符的 commit。
+
+Zeabur 免費方案若不提供一鍵 rollback，application rollback 仍以同一 service 重新部署指定 immutable commit 完成；不得把手動修改 `/api/version` metadata 當成 rollback。每次正式發版前，至少在隔離程序驗證「上一版 app + 新 additive schema」的 build、health 與 version contract。
 
 若未來 migration 會刪欄位、改型別或破壞舊版相容性，這套順序不適用，必須先另訂 coexistence、backfill、cutover 與 restore rehearsal。
 
 ## 重構文件
 
 - [產品化接續執行計畫](./docs/LUNA_PRODUCTIZATION_EXECUTION_PLAN.md)：唯一執行計畫、進度表與 acceptance ledger。
-- [歷史產品化盤點](./docs/PRODUCTIZATION_TODO.md)：只保留過去證據，不再決定後續順序。
+- [歷史產品化盤點](./docs/PRODUCTIZATION_TODO.md)：精簡封存指標；完整歷史由 Git 保存，不再決定後續順序。
 
 不要新增逐 route contract、micro-checkpoint 或平行計畫。行為契約放在 tests，symbol/consumer 影響以 CodeGraph 即時查詢。

@@ -8,15 +8,15 @@
 
 | 欄位 | 內容 |
 |---|---|
-| Lifecycle | Active |
+| Lifecycle | P0～P9 closing；下一階段另行規劃 |
 | Profile | Standard productization handoff |
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-17；P0～P7A、Primary LINE Visit、Meeting 真人 WebRTC／錄音與對話持久化均完成；Teachify 已由產品負責人核准暫時 waiver |
+| Last verified | 2026-08-17；P0～P7A journeys 完成，P8 migration／backup／restore／schedule／deploy／rollback compatibility 完成；Teachify 維持產品 waiver |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能；Teachify 程式契約保留，但未取得官方素材前不得宣稱 provider 已驗證或對客啟用 |
-| Current package | P8 canonical release、CI budget、backup／restore、schedule 與 rollback ownership |
-| Readiness | Support、Primary LINE Visit、Meeting、KB、Agent Chat、Goals／Checklist 等已完成真實 journey 與 cleanup。Teachify 以明確限制、owner 與重啟條件關閉 P7，不再阻塞本次 P8；Visit 另剩既有 happy-path fixture／Calendar cleanup。P8 canonical repo／deploy、backup／restore、schedule／rollback owner 尚未關閉，仍不可直接把產品化 branch 當正式版 |
+| Current package | P9 final verification、文件收斂與 handoff |
+| Readiness | 隔離 staging 的現有功能、Main migration、backup／restore、Supabase Cron、exact deploy identity 與 rollback compatibility 已有證據。可結束本輪基礎建設；這不代表 Teachify provider 已驗證、default `main` 已 cutover，或系統已成為 multi-tenant／任意 workflow 平台 |
 
 開始任何工作前先執行：
 
@@ -77,6 +77,10 @@
 | Fact | canonical GitHub repo 是 `fanstudents/kv`，default branch 是 `main`；產品化成果目前在 `codex/kv-wp0-toolchain` | Zeabur staging 可驗 branch，但正式 cutover 前必須先收斂 branch ownership |
 | Fact | 2026-08-16 snapshot：產品化 branch 對 `main` 為 443 commits ahead／13 commits behind；merge-tree 顯示 26 個實質 conflict，涵蓋 runtime、LINE／Visit、Meeting、Teachify、CI 與 Supabase config | 不做一次性 merge，不把 upstream 舊 `src/lib` ownership 灌回新版架構；先執行 P7A |
 | Fact | default branch 的 hosted `Frequent Jobs` 約每 5 分鐘執行，且所有舊 schedules 指向 `https://kva.zeabur.app`；正確 isolated staging 是 `https://kv-staging.zeabur.app` | P8 必須建立可驗證的 schedule target／owner；未核准前不得直接把正式排程切到 staging |
+| Verified | `fanstudents/kv` 為 canonical repo；Zeabur `kv-staging/kv-app` 追蹤 `codex/kv-wp0-toolchain`，release owner 為 CabLate engineering | default `main` 的 Dennis 歷史線不直接 merge；產品化 release line 先維持明確 branch ownership |
+| Verified | Main migration history 為 8／8，最新 `20260817015215_kv_schedule_runtime.sql` 已套用；backup archive 已驗證並在隔離 DB 完成 restore rehearsal | DB migration 採 forward-fix；restore rehearsal 不碰 staging 主 DB |
+| Verified | recurring jobs 已移至 Supabase Cron；6 個 jobs active，首次自動 `visit-timeout` 為 HTTP 200；四個舊 GitHub scheduled workflows 已 disabled，CI 保持 active | 避免 GitHub Actions 額度被高頻 cron 消耗；manual fallback 仍可用 |
+| Constraint | Zeabur 免費方案的一鍵 rollback 受方案限制；上一個 immutable commit `21e2a267` 已在新 schema 上完成 production build、隔離啟動、health／version 驗證 | 實際 app rollback 使用重新部署指定 immutable commit；不把 metadata 切換冒充 rollback |
 
 ### Support 目標流程
 
@@ -400,15 +404,16 @@ P0 文件與設定真相
 
 **Done When：** 13 個 upstream commits 每一個都有 Integrated、Superseded、Rejected 或 Decision required 結論；核准行為已進 current owner 並通過 affected acceptance，merge-base drift 已清楚封存。
 
-### P8：Release、backup 與 rollback
+### P8：Release、backup 與 rollback `[done: 968d6cb..8d00d8e]`
 
-- 決定 canonical GitHub repo、protected branch 與 deploy owner。
-- hosted CI 對 exact commit 執行 install、lint、typecheck、unit、build、schema replay 與 Playwright smoke。
-- 保存 migration promotion／history 證據。
-- 建立 Main Supabase backup，實際驗證 restore path。
-- 分開演練 app rollback 與 DB forward-fix；不得對不明 Zeabur target 做破壞性操作。
-- 確認 scheduled workflows 的 secret、部署 URL、通知與失敗 owner。
-- 輪替曾在聊天中出現過的 OpenAI key。
+- [x] Canonical repo 為 `fanstudents/kv`；本輪 release branch 為 `codex/kv-wp0-toolchain`，Zeabur deploy owner 為 CabLate engineering。default `main` cutover 不在本輪假裝完成。
+- [ ] Hosted CI 對 final P8／P9 source commit 執行 install、lint、typecheck、unit、build、schema replay 與 Playwright smoke；本項在 P9 唯一一次 hosted run 關閉。
+- [x] Main migration promotion 完成：remote history 8／8，latest schema `20260817015215`。
+- [x] Backup `F:\ownproject\kv-backups\kv-staging-pre-schedule-20260817.dump` 已建立、archive verify 通過；隔離 restore DB 比對 33 tables 與關鍵 row counts 後已刪除。
+- [x] App／DB rollback 分離：DB 保持 additive forward-fix；上一版 app `21e2a267` 已對新 schema 完成 93-page production build、隔離 health `ok` 與 version contract。Zeabur 一鍵 rollback 因免費方案受限，正式回退改為重新部署 immutable commit。
+- [x] recurring jobs 移至 Supabase Cron；Vault 保存 URL／cron secret，6 jobs active，自動 dispatch HTTP 200。失敗證據目的地為 Cron history、`kv_ops.schedule_dispatches` 與 `pg_net` response，owner 為 CabLate release owner。
+- [x] 四個舊 GitHub scheduled workflows 已 disabled；CI 保留 active；manual-only fallback 讀 repo variable `KV_APP_BASE_URL` 與 secret `CRON_SECRET`。
+- [x] 依產品負責人本輪指示，key rotation 明確不在 P8／P9 範圍，也不是 closure blocker。
 
 #### CI budget change contract（2026-08-17）
 
@@ -417,17 +422,19 @@ P0 文件與設定真相
 - **保留責任：** 非文件變更仍由原 `quality` check 持有 install、config、lint、typecheck、unit、build、browser smoke；schema-sensitive 變更仍由 `schema` check 持有 migration replay 與 generated type drift。
 - **拒絕的假優化：** 不移除 browser／schema gate、不用 `continue-on-error`、不快取約 2.1 GB Playwright runtime（實測安裝約 20 秒，storage／transfer 成本不划算）。
 - **執行策略：** 本地完成整個 P8 coherent batch 後只觸發一次 hosted CI；post-change 再以同類 change 比較 cold／warm wall time 與 job-sum。
-- **本機證據：** quality／schema classifier 7／7、完整 unit 145 files／763 tests、lint、typecheck、93-page production build 與 152 個 browser smoke 全通過。此工作站沒有 Docker CLI，local schema rehearsal 在 migration 前即停止；workflow／classifier 會 fail-closed，留待 P8 唯一一次乾淨 hosted run 執行 schema replay，不把本機環境缺件記成 migration 通過。
+- **本機證據：** quality／schema classifier 7／7、完整 unit 145 files／765 tests、lint、typecheck、93-page production build 與 152 個 browser smoke 全通過。此工作站沒有 Docker CLI；remote migration promotion 8／8 與 restore rehearsal 已完成，hosted schema replay 仍由 P9 唯一一次乾淨 run 證明。
 
-**Done When：** 另一位工程師只靠 release artifact／runbook 可部署、辨認版本、診斷並回退。
+**Done When：** 另一位工程師只靠 README／release CLI 可備份、還原演練、套 migration、配置排程、部署、辨認版本、診斷並以 immutable commit 回退。除 hosted CI final run 外已達成。
 
-### P9：Cleanup 與交接
+### P9：Cleanup 與交接 `[closing]`
 
-- 移除已到 exit condition 的 simulator flag、fixture、暫時 allowlist、stale docs、dead code 與測試。
-- 保留仍屬產品 contract 的 Support relay；不得為減檔案刪除。
-- 更新 CodeGraph、source map、環境變數表、runbook 與最後 readiness。
-- 跑完整 CI、provider matrix、Chrome matrix 與 cleanup query。
-- 確認 worktree 乾淨，所有 commit 可追溯到本文件 work package。
+- [x] 保留仍屬產品 contract 的 Support relay；未為減檔案刪除真實 adapter／fixture。
+- [x] 舊 `PRODUCTIZATION_TODO.md` 收斂為 archive pointer；本文件維持唯一狀態與後續入口。
+- [x] README 補齊 backup／restore／schedule／rollback runbook，不重複 acceptance ledger。
+- [x] Final local verify 通過：lint、typecheck、145 files／765 tests、93-page build、152 browser smoke；Chrome 登入後實機載入 dashboard、integrations、goals、KB、Visit、Support、Meeting。
+- [x] CodeGraph status 可用：483 files／4,222 nodes／10,620 edges；唯一 pending 是本輪 migration inventory test，不是 production source architecture drift。
+- [ ] 推送 coherent handoff commit，執行唯一一次 hosted CI，確認 worktree／commit 可追溯。
+- [ ] 寫入 final CI run 與下一階段入口後關閉本輪。
 
 **Done When：** 下一位工程師能定位 owner、重跑核心 journey、發布、診斷和回退；沒有無 owner 的 transitional path。
 
@@ -456,8 +463,8 @@ P0 文件與設定真相
 |---|---|---|---|
 | Support test user／room | 已完成；不再阻塞 | P7 Teachify、P8 release／owner work | LINE receipt + DB + simulator + Chrome + cleanup 已完成 |
 | Teachify secret／event truth | 已由 P7 temporary waiver 關閉；只阻塞 Teachify 對客啟用 | P8／P9 與其餘九月 release scope | 取得官方素材後重開 P7；真實 signature／event／replay evidence |
-| Canonical repo／Zeabur owner | P8 promotion／rollback | 所有本機與隔離 staging 工作 | exact commit deploy + owner sign-off |
-| Backup／schedule owner | P8 release closure | code、tests、acceptance | restore／failure notification rehearsal |
+| Canonical repo／Zeabur owner | 已完成；default `main` cutover 是下一個 repository governance 決策 | P9 與下一階段 codebase work | `fanstudents/kv`＋產品化 branch＋exact Zeabur deploy identity |
+| Backup／schedule owner | 已完成本輪 operational contract | P9 與下一階段 codebase work | public-schema restore rehearsal＋Cron history／dispatch ledger＋CabLate release owner |
 
 ## 8. 最終驗收與回復原則
 
@@ -473,15 +480,25 @@ P0 文件與設定真相
 
 ## 9. Readiness Verdict
 
-### Verdict：Needs Revision（完整 release）；P8 active
+### Verdict：Infrastructure Ready（isolated staging）；P9 closing
 
-**下一個可執行工作包：** P8 canonical release／CI budget／backup／rollback／schedule owner package。P7 Teachify 已由 temporary waiver 關閉；P7A U3／U4 已完成 current-source reconciliation，沒有待做的 runtime patch。
+**本輪只剩：** final local／Chrome／hosted CI 證據與 clean handoff。P7 Teachify 維持 temporary waiver，不阻塞 P8／P9 closure。
 
-**完整 release 尚未 Ready 的原因：**
+**本判定的邊界：**
 
 - Support hosted flow 已完成：simulator URL／owner、真實 test user／room marker receipt、DB／Chrome evidence 與 P6 cleanup 均已確認，不再是 release blocker。
 - Primary LINE Visit 的真實 image、兩段 postback、Gmail、Calendar、LINE 通知、背景研究、Chrome TV happy path、hosted timeout no-duplicate 與受控 recovery contract 已完成；只剩既有 happy-path fixture／Calendar cleanup。
 - Teachify 缺 provider truth，但已有明確 temporary waiver、使用限制與重啟條件，不再阻塞本次 P8；仍不得宣稱已完成真實 provider acceptance。
-- P8 缺 canonical repo／deploy owner、Main Supabase backup／restore、schedule failure notification 與 app rollback owner evidence。
+- Main Supabase、schedule、backup／restore、exact deploy identity 與 app rollback compatibility 已完成；自動告警整合留待下一階段 observability，不建立無需求證據的通用 framework。
+- Default `main` cutover、Zeabur 付費 rollback 功能與 Teachify 真實 provider acceptance 不在本輪完成宣稱內。
 
-這些剩餘缺口不阻止 P7A 文件／本機 reconciliation 工作；它們阻止完整 release readiness 與正式 cutover。
+### 下一階段入口：可維護、可配置、可擴充
+
+1. 先把現有 `line_agents.settings` 依 workflow 建立 Zod schema；UI 與現有 JSON storage 不變，先消除任意設定與手動型別判斷。
+2. 固定概念邊界：Agent role、deployment-scoped Agent instance、event、versioned workflow、provider connection 分開；不能再把事件類型當 Agent 類型。
+3. 以現有真實 workflow 逐條映射 trigger、config、use case、provider、side effect 與 recovery；先採 code registry，不做任意 low-code DSL。
+4. 新企業需求優先用「每客戶獨立 app／Supabase／keys」交付；只有共享營運與至少兩個活躍客戶證明需要時，才開 tenant／RLS／secret resolver 專案。
+5. 新需求碰到 `src/lib`、大型 page 或 KB forwarding facade 時才 touch-and-migrate；只合併單 caller 純轉發，不做水平搬檔。
+6. 補 provider／cron observability 與自動通知，但 retry、queue、workflow engine 仍由真實 failure／throughput 證據觸發。
+
+下一階段先產出 Agent／workflow configuration 的產品情境與 change contract，再動 code；本輪 P8／P9 不提前實作平台抽象。

@@ -82,6 +82,7 @@ describe("database surface inventory", () => {
       "20260814162213_visit_invite_fulfilment_phase.sql",
       "20260814164718_visit_offer_timeout_recovery.sql",
       "20260816175456_backfill_terminal_agent_run_steps.sql",
+      "20260817015215_kv_schedule_runtime.sql",
     ]);
 
     const baseline = readFileSync(
