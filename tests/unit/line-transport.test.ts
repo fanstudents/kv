@@ -15,6 +15,7 @@ const LINE_ENV = [
 ] as const;
 
 const originalEnvironment = Object.fromEntries(LINE_ENV.map((name) => [name, process.env[name]]));
+const RETRY_KEY = "550e8400-e29b-41d4-a716-446655440000";
 
 function restoreEnvironment() {
   for (const name of LINE_ENV) {
@@ -73,6 +74,72 @@ describe("LINE transport", () => {
         messages: [{ type: "text", text: "hello" }],
       }),
     });
+  });
+
+  it("adds the LINE retry key header only when a retry key is supplied", async () => {
+    process.env.LINE_CHANNEL_ACCESS_TOKEN = "primary-token";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await pushLineMessage(
+      "U-primary",
+      "hello",
+      "primary",
+      RETRY_KEY,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.line.me/v2/bot/message/push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer primary-token",
+        "X-Line-Retry-Key": RETRY_KEY,
+      },
+      body: JSON.stringify({
+        to: "U-primary",
+        messages: [{ type: "text", text: "hello" }],
+      }),
+    });
+  });
+
+  it("treats LINE's accepted retry response as a successful push", async () => {
+    process.env.LINE_CHANNEL_ACCESS_TOKEN = "primary-token";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: "The retry key is already accepted" }), {
+        status: 409,
+        headers: { "x-line-accepted-request-id": "accepted-request-1" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(pushLineMessage("U-primary", "hello", "primary", RETRY_KEY)).resolves.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("preserves an unrecognized 409 even when a retry key is supplied", async () => {
+    process.env.LINE_CHANNEL_ACCESS_TOKEN = "primary-token";
+    const fetchMock = vi.fn().mockResolvedValue(new Response("conflict", { status: 409 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(pushLineMessage("U-primary", "hello", "primary", RETRY_KEY)).rejects.toThrow(
+      "LINE push failed (409): conflict",
+    );
+  });
+
+  it("preserves an accepted-looking 409 when no retry key was supplied", async () => {
+    process.env.LINE_CHANNEL_ACCESS_TOKEN = "primary-token";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response("already accepted", {
+        status: 409,
+        headers: { "x-line-accepted-request-id": "accepted-request-1" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(pushLineMessage("U-primary", "hello")).rejects.toThrow(
+      "LINE push failed (409): already accepted",
+    );
   });
 
   it("uses the support token for reply payloads and preserves provider failures", async () => {

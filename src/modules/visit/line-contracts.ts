@@ -29,7 +29,7 @@ export interface VisitLineActivityPort {
 export interface VisitLineDeliveryPort {
   replyText(replyToken: string, text: string): Promise<void>;
   replyMessages(replyToken: string, messages: unknown[]): Promise<void>;
-  pushText(lineUserId: string, text: string): Promise<void>;
+  pushText(lineUserId: string, text: string, retryKey?: string): Promise<void>;
 }
 
 export type VisitLineContactIdRow = Pick<LegacyContactRow, "id">;

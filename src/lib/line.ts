@@ -64,7 +64,12 @@ export async function getLineProfile(userId: string, channel: LineChannel = "pri
   return { displayName: data.displayName ?? "", pictureUrl: data.pictureUrl };
 }
 
-export async function pushLineMessage(to: string, text: string, channel: LineChannel = "primary") {
+export async function pushLineMessage(
+  to: string,
+  text: string,
+  channel: LineChannel = "primary",
+  retryKey?: string,
+) {
   const { token } = channelEnv(channel);
   if (!token) throw new Error(`Missing LINE access token for channel "${channel}"`);
 
@@ -73,6 +78,7 @@ export async function pushLineMessage(to: string, text: string, channel: LineCha
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
+      ...(retryKey ? { "X-Line-Retry-Key": retryKey } : {}),
     },
     body: JSON.stringify({
       to,
@@ -80,7 +86,10 @@ export async function pushLineMessage(to: string, text: string, channel: LineCha
     }),
   });
 
-  if (!res.ok) {
+  const retryWasAlreadyAccepted = Boolean(
+    retryKey && res.status === 409 && res.headers.get("x-line-accepted-request-id"),
+  );
+  if (!res.ok && !retryWasAlreadyAccepted) {
     const body = await res.text().catch(() => "");
     throw new Error(`LINE push failed (${res.status}): ${body}`);
   }

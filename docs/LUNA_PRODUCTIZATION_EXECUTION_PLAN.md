@@ -16,7 +16,7 @@
 | Last verified | 2026-08-17；P3 hosted Support、P4 驗收矩陣、P5 證據驅動修正、P6 集中重驗／cleanup、P7A U2、真實 Primary LINE Visit happy path 與 terminal step ledger 修復均完成 |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
 | Current package | P7 Teachify closure／waiver；P8 canonical release、backup／restore 與 rollback ownership |
-| Readiness | P0～P6 已完成；Support hosted evidence、真實 marker reply 與 cleanup 均完成；Primary LINE Visit 已完成 image、決策卡、兩段 postback、Gmail、Calendar、LINE 通知、背景研究與 Chrome TV happy path。Visit 只剩 hosted timeout／recovery；另有 P7 Teachify truth／waiver 與 P8 canonical repo／deploy、backup／restore、schedule／rollback owner，仍不可直接把產品化 branch 當正式版 |
+| Readiness | P0～P6 已完成；Support hosted evidence、真實 marker reply 與 cleanup 均完成；Primary LINE Visit 已完成 image、決策卡、兩段 postback、Gmail、Calendar、LINE 通知、背景研究、Chrome TV happy path、hosted timeout 單次處理與重跑防重複，以及 LINE retry-key recovery contract。Visit 只剩既有 happy-path fixture／Calendar cleanup；另有 Meeting 真實媒體 journey、P7 Teachify truth／waiver，以及 P8 canonical repo／deploy、backup／restore、schedule／rollback owner，仍不可直接把產品化 branch 當正式版 |
 
 開始任何工作前先執行：
 
@@ -219,7 +219,7 @@ P0 文件與設定真相
 |---|---|---|---|---|
 | Auth／Integrations | Done | current HEAD production build 通過；Playwright smoke 147／147；Chrome 本機 production build 可登入；正確 staging `https://kv-staging.zeabur.app/api/health` 為 `ok`；P5 部署 `48f8d95` 後 `/api/version` 精確回傳完整 SHA，Main privileged 與 deployment identity 皆 configured；Chrome 顯示 9 個已連線服務，缺 secret 的 Teachify 為「未連線」 | 舊 `kva.zeabur.app` 不是本 staging canonical host；Teachify 真實 provider gate 仍由 P7 關閉 | Auth／proxy、integration status、Zeabur deploy owner |
 | Agent／Chat | Done | 57 個 focused tests 通過；OpenAI acceptance 1／1；Chrome 以 current local production build＋staging Main＋真實 OpenAI 從 dashboard 對 Vivian 發訊息並收到唯一 P4 回覆 | 無 chat fixture；AI usage audit 依產品紀錄保留 | Agent chat route、OpenAI adapter、context owner |
-| Visit | Blocked | Visit／Orders／Meeting batch 229 tests 通過；Google write 2／2、Visit delivery 1／1、Primary LINE 1／1；2026-08-17 真實 Primary LINE 名片完成 OCR、contact／offer、決策與核准卡、Gmail、公開時段回覆、Calendar、感謝信、LINE 通知、背景研究及 Chrome TV 投影；terminal step ledger 已修復並回填 | Happy path 與 ledger truth 已完成；只剩 hosted timeout／recovery trigger 與本次 fixture／Calendar cleanup | Visit workflow、Primary LINE、Google、cron owner |
+| Visit | Blocked | Visit／Orders／Meeting batch 229 tests 通過；Google write 2／2、Visit delivery 1／1、Primary LINE 1／1；2026-08-17 真實 Primary LINE 名片完成 OCR、contact／offer、決策與核准卡、Gmail、公開時段回覆、Calendar、感謝信、LINE 通知、背景研究及 Chrome TV 投影；terminal step ledger 已修復並回填；hosted timeout 第一次 `handled=1`、第二次 `handled=0`，Primary LINE 僅推送一次，fixture residue 為 0；相同 offer 的 recovery 使用固定 LINE retry key，官方 duplicate-accepted `409` 會繼續完成 checkpoint | Happy path、ledger truth、timeout no-duplicate 與受控 recovery contract 已完成；只剩既有 happy-path fixture／Calendar cleanup。為避免額外不可逆推播，不刻意製造真實 LINE duplicate receipt | Visit workflow、Primary LINE、Google、cron owner |
 | Orders | Blocked | Orders staging DB 1／1；Primary composites 3／3，包含 normalize、Main persistence、delivery ledger、Primary LINE 與 cleanup | 缺 Teachify 官方 signing secret、header／algorithm、去識別真實 event 與 replay ordering；由 P7 closure 或 waiver | Teachify contract、Orders ledger、Primary LINE |
 | Knowledge Base | Done | KB focused tests 通過；staging atomic index 2／2；Firecrawl＋OpenAI acceptance 1／1 完成 crawl、draft、publish、index、semantic search；Chrome KB 頁正常 | DB fixture 已清除；Firecrawl credit／OpenAI usage不可逆但受 gate 限制；PDF／site crawl 屬後續擴充驗收 | KB domain、Firecrawl、OpenAI、Main RPC |
 | Support／Subscribers／Broadcast | Done | P3 hosted Support marker／reply、simulator receipt、Main rows 與 Chrome 已完成；本輪 Primary composites 真實 broadcast 通過；Chrome Support／Subscribers 頁正常 | P6 已清除 marker、Main rows 與 simulator receipt，residue 為 0；不可逆 LINE receipt 以 marker 識別 | Support relay、subscriber/broadcast、Primary／Support LINE |
@@ -345,6 +345,8 @@ P0 文件與設定真相
 - 使用者核准後 Gmail 真實送達；公開回覆選擇 `8/20（四）09:00`、地點「公司」，Google Calendar event `mkj7dletaoeqk8dr3iu8flbsl4` 為 confirmed，時區 `Asia/Taipei`，invite `fulfilment_phase=completed` 且沒有 fulfilment error；使用者收到 Primary LINE 完成通知。
 - 背景研究 run 成功，保存 5 個公開連結、2 則近況與 4 個 talking points；Chrome TV ticker／Coco 詳情顯示名片、已寄邀約、行事曆／感謝信與研究完成。
 - 本次暴露並修正的 runtime ledger defect：`finishRun` 現在會把同一 run 的 open steps 依 terminal run status 映射為 `done／failed／skipped`，step cleanup 失敗仍不阻斷 run 結案；focused 57 tests、完整 unit 751 tests、typecheck、build 與真實 Main staging integration 2／2 通過。Migration `20260816175456_backfill_terminal_agent_run_steps.sql` 已回填既有 terminal runs，三筆 Visit run 的 open step 均為 0；Chrome `/runs/[id]` before 顯示 `running／waiting`，after 七步全為 `done`。測試中途替換收件人所留下的舊 Email activity 屬 staging fixture 操作紀錄，cleanup 時一併移除，不以全域歷史重寫處理。
+- Hosted timeout acceptance 使用唯一 marker 建立一筆過期 offer，未建立 pending invite，因此不會觸發 Gmail／Calendar。第一次 authenticated cron 回 `handled=1`，offer 進入 `declined／completed` 且 Primary LINE 真實推送一次；第二次回 `handled=0`，activity 仍為 1，證明同 fixture 不重複通知。contact／offer／activity／lock／逾時 live-task marker 均已精確清除，residue 與 active Visit run 都是 0；Chrome `/agents/visit`、`/runs`、`/tv` 正常且未殘留 timeout marker。這次實測暴露「LINE push 成功、但 `line_notified` phase 寫回失敗」的 recovery 邊界，後續以受控 provider／repository failure test 關閉，不用 live cron 猜測。
+- Recovery 已依 LINE 官方 retry contract 關閉：timeout delivery 以持久化 `visit_offers.id` UUID 作為 `X-Line-Retry-Key`；同一 offer 的 recovery 重用同 key，不同 offer 使用不同 key。只有「有 retry key、HTTP 409、且帶 `x-line-accepted-request-id`」才視為先前已接受並繼續寫入 `line_notified／completed`；其他 409 仍失敗。Focused transport／adapter／application tests 17／17 通過，未用 live provider 製造第二次不可逆推播。
 
 #### CI schema gate closure（2026-08-17）
 
@@ -459,7 +461,7 @@ P0 文件與設定真相
 **完整 release 尚未 Ready 的原因：**
 
 - Support hosted flow 已完成：simulator URL／owner、真實 test user／room marker receipt、DB／Chrome evidence 與 P6 cleanup 均已確認，不再是 release blocker。
-- Primary LINE Visit 的真實 image、兩段 postback、Gmail、Calendar、LINE 通知、背景研究與 Chrome TV happy path 已完成；只剩 hosted timeout／recovery journey，以及本次 fixture／Calendar cleanup。
+- Primary LINE Visit 的真實 image、兩段 postback、Gmail、Calendar、LINE 通知、背景研究、Chrome TV happy path、hosted timeout no-duplicate 與受控 recovery contract 已完成；只剩既有 happy-path fixture／Calendar cleanup。
 - P7 缺 Teachify provider truth 或產品 waiver。
 - P8 缺 canonical repo／deploy owner、Main Supabase backup／restore、schedule failure notification 與 app rollback owner evidence。
 

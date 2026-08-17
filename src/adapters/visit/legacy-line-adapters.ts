@@ -39,8 +39,12 @@ export function createLegacyVisitLineDeliveryAdapter(): VisitLineDeliveryPort {
     async replyMessages(replyToken, messages) {
       await replyLineRawMessages(replyToken, messages);
     },
-    async pushText(lineUserId, text) {
-      await pushLineMessage(lineUserId, text);
+    async pushText(lineUserId, text, retryKey) {
+      if (retryKey === undefined) {
+        await pushLineMessage(lineUserId, text);
+      } else {
+        await pushLineMessage(lineUserId, text, "primary", retryKey);
+      }
     },
   };
 }

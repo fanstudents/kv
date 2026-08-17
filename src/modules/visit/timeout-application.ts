@@ -100,10 +100,13 @@ export async function runVisitTimeoutApplication(
         .catch((error) => console.error("[visit-timeout] live task projection failed", error));
 
       if (!phaseReached(phase, "line_notified") && offer.lineUserId) {
+        // visit_offers.id is a persisted UUID, so it remains stable across
+        // recovery attempts while remaining distinct for each offer.
         await dependencies.delivery
           .pushText(
             offer.lineUserId,
-            `名片「${name}」等了 3 分鐘沒收到你的指示，我先幫你標記「待跟進」存起來了 📌\n要安排拜訪的話再跟我說，或重新傳一次名片即可。`
+            `名片「${name}」等了 3 分鐘沒收到你的指示，我先幫你標記「待跟進」存起來了 📌\n要安排拜訪的話再跟我說，或重新傳一次名片即可。`,
+            offer.id,
           );
         await dependencies.workflow.markTimeoutPhase(offer.id, "line_notified");
         phase = "line_notified";
