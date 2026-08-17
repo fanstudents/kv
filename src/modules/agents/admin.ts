@@ -1,4 +1,5 @@
 import { mapLineAgentOverride, type AgentStatusCatalogEntry } from "@/modules/agents/identity";
+import { validateVisitSettingsForWrite } from "@/modules/visit/settings";
 
 export type AgentInstanceRecord = Record<string, unknown>;
 
@@ -44,13 +45,35 @@ interface AgentInstanceUpdateInput {
   settingsChanged: boolean;
 }
 
+interface AgentInstanceUpdateInputError {
+  errorMessage: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function recordUpdateFailure(slug: string, message: string, repository: AgentAdminRepository) {
+  return repository.recordActivity({
+    agent_slug: slug,
+    summary: `更新設定失敗：${message}`,
+    status: "failed",
+  });
+}
+
 export function parseAgentInstanceUpdateRequest(
   body: AgentInstanceUpdateBody,
-  now = new Date().toISOString()
-): AgentInstanceUpdateInput {
+  now = new Date().toISOString(),
+  slug?: string,
+): AgentInstanceUpdateInput | AgentInstanceUpdateInputError {
   const update: Record<string, unknown> = { updated_at: now };
   const enabledChanged = typeof body.enabled === "boolean";
   const settingsChanged = Boolean(body.settings && typeof body.settings === "object");
+
+  if (settingsChanged && slug === "visit") {
+    const validation = validateVisitSettingsForWrite(body.settings);
+    if (!validation.success) return { errorMessage: validation.message };
+  }
 
   if (enabledChanged) update.enabled = body.enabled;
   if (settingsChanged) update.settings = body.settings;
@@ -83,15 +106,36 @@ export async function updateAgentInstance(
   repository: AgentAdminRepository,
   now?: string
 ): Promise<AgentInstanceUpdateResult> {
-  const input = parseAgentInstanceUpdateRequest(body, now);
+  const input = parseAgentInstanceUpdateRequest(body, now, slug);
+  if ("errorMessage" in input) {
+    await recordUpdateFailure(slug, input.errorMessage, repository);
+    return { kind: "error", message: input.errorMessage };
+  }
+
+  if (slug === "visit" && input.settingsChanged && isRecord(input.update.settings)) {
+    // Agent pages send their current page projection. Merge it with the
+    // existing row before writing so unknown/future Visit keys are not silently
+    // deleted by a save from an older page bundle.
+    const current = await repository.getBySlug(slug);
+    if (current.errorMessage) {
+      await recordUpdateFailure(slug, `Visit 設定讀取失敗：${current.errorMessage}`, repository);
+      return { kind: "error", message: `Visit 設定讀取失敗：${current.errorMessage}` };
+    }
+    const currentSettings = current.data?.settings;
+    if (isRecord(currentSettings)) {
+      input.update.settings = { ...currentSettings, ...input.update.settings };
+      const mergedValidation = validateVisitSettingsForWrite(input.update.settings);
+      if (!mergedValidation.success) {
+        await recordUpdateFailure(slug, mergedValidation.message, repository);
+        return { kind: "error", message: mergedValidation.message };
+      }
+    }
+  }
+
   const result = await repository.updateBySlug(slug, input.update);
 
   if (result.errorMessage) {
-    await repository.recordActivity({
-      agent_slug: slug,
-      summary: `更新設定失敗：${result.errorMessage}`,
-      status: "failed",
-    });
+    await recordUpdateFailure(slug, result.errorMessage, repository);
     return { kind: "error", message: result.errorMessage };
   }
 

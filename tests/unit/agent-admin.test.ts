@@ -77,6 +77,47 @@ describe("agent admin compatibility", () => {
     });
   });
 
+  it("rejects invalid Visit settings before writing them", async () => {
+    const updateBySlug = vi.fn(async () => ({ data: null, errorMessage: null }));
+    const visit = repository({ updateBySlug });
+
+    await expect(
+      updateAgentInstance("visit", { settings: { rangeStartDays: "8", rangeEndDays: "3" } }, visit, "now"),
+    ).resolves.toEqual({
+      kind: "error",
+      message: expect.stringContaining("rangeEndDays"),
+    });
+    expect(updateBySlug).not.toHaveBeenCalled();
+    expect(visit.recordActivity).toHaveBeenCalledWith({
+      agent_slug: "visit",
+      summary: expect.stringContaining("更新設定失敗"),
+      status: "failed",
+    });
+  });
+
+  it("merges existing Visit settings so unknown keys survive a page save", async () => {
+    const updateBySlug = vi.fn(async () => ({ data: { slug: "visit" }, errorMessage: null }));
+    const visit = repository({
+      getBySlug: vi.fn(async () => ({
+        data: { settings: { futureVisitKey: { version: 2 }, inputSources: ["Email"] } },
+        errorMessage: null,
+      })),
+      updateBySlug,
+    });
+
+    await expect(
+      updateAgentInstance("visit", { settings: { rangeStartDays: "4" } }, visit, "now"),
+    ).resolves.toEqual({ kind: "updated", data: { slug: "visit" } });
+    expect(updateBySlug).toHaveBeenCalledWith("visit", {
+      updated_at: "now",
+      settings: {
+        futureVisitKey: { version: 2 },
+        inputSources: ["Email"],
+        rangeStartDays: "4",
+      },
+    });
+  });
+
   it("keeps database status precedence and static fallback", async () => {
     const catalog = [
       { slug: "active", status: "active" },

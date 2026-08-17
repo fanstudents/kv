@@ -12,7 +12,7 @@
 | Repository／branch | `F:\ownproject\kv`／`codex/kv-wp0-toolchain` |
 | Planning base | `33e8eed`（P0-P9／Loopwise contract 收尾基準） |
 | Last verified | 2026-08-18；source、CodeGraph、設定 consumer map、P0～P9 handoff evidence |
-| Readiness | Ready for N2；N1 source-level truth 已完成，仍須由 N2 驗證實際資料列與 typed boundary |
+| Readiness | N2 進行中；Visit typed boundary 已完成，下一批為 Orders、Support／Team Lead |
 
 開始或恢復工作時：
 
@@ -229,7 +229,7 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 
 **驗證／Done When：** 每個被 runtime 使用的 key 都能指到一個 owner、consumer、default 與 failure behavior；每個 settings page 的 UI-only key 也有明確標記；沒有 secret 被歸進 Agent settings；N2 不需再猜 schema。N1 的完成證據是本矩陣與 source anchors，不包含 live row parse 或 provider acceptance。
 
-### N2：建立 workflow-owned Zod settings boundary `[pending]`
+### N2：建立 workflow-owned Zod settings boundary `[in progress：Visit done]`
 
 **Contribution：** G-01、G-03；依賴 N1。
 
@@ -238,6 +238,8 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 3. 在 runtime read boundary parse 舊 JSON、套 canonical defaults；選定 unknown-key 的保留或拒絕策略。
 4. Visit 先落地，再依真實 consumer 順序處理 Orders、Support／Team Lead 與其他現有 settings。
 5. UI payload 與 `line_agents.settings` storage 形狀保持相容；除非 N1 證明需要，不新增 migration。
+
+**Visit outcome（2026-08-18）：** `src/modules/visit/settings.ts` 現在持有 Visit runtime schema、defaults、legacy parse 與 write validation；API 在寫入前拒絕非法範圍／時間，並 merge 現有 JSON，避免舊頁面儲存時刪除未知 key。Supabase adapter 已移除手動 cast。staging `visit` row 的 settings 為 `{}`，可由 defaults 解析；Chrome 本機後台完成儲存、重載，`3／7／60／喝咖啡／樊松蒲 Dennis` 保持不變。未改 UI、DB schema 或 provider side effect。
 
 **驗證／Done When：** current rows 全部可 parse；invalid／missing／unknown cases 有 focused tests；Agent 設定頁保存與 reload 的 Chrome 行為不變；runtime 不再自行 cast 本批涵蓋的 settings。
 
@@ -331,16 +333,17 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 | P8 release infrastructure | migration `20260817015215`、backup／restore rehearsal、Supabase Cron、rollback compatibility | Done |
 | P9 handoff | CI run `31987861315`、staging commit `69132b9`、README runbook | Done |
 | N1 settings truth | `docs/PRODUCTIZATION_PLAN.md` 的 source-level settings matrix、CodeGraph snapshot、current page／runtime consumer anchors | Done；live row parse、typed validation 與 real provider acceptance 留在 N2／provider gates |
+| N2 Visit typed settings | Visit-owned Zod schema、API 400 contract、legacy/default parser、unknown-key merge、focused tests、Chrome save/reload | Done；N2 其餘 workflow 尚待 Orders、Support／Team Lead |
 
 ## 11. Readiness verdict
 
-### Verdict：Ready for N2
+### Verdict：N2 Visit done；ready for remaining settings owners
 
 - **Healthy enough now：** 隔離 staging、核心 journeys、migration、backup／restore、schedule、CI、deploy 與 rollback compatibility 已就位。
-- **真正缺口：** settings 尚未有 workflow-owned canonical schema；identity bindings 仍是 compatibility placeholder；企業差異尚未形成 deployment profile；provider／cron observability 尚未完整。
+- **真正缺口：** Orders、Support／Team Lead 尚未完成各自的 typed settings boundary；identity bindings 仍是 compatibility placeholder；企業差異尚未形成 deployment profile；provider／cron observability 尚未完整。
 - **N1 已完成：** 已逐一標出 runtime-used keys、UI-only keys、defaults、讀寫 owner、failure behavior、schema target、分類與敏感度；也確認 `reportTo` 等同名欄位不能直接共用。
-- **下一步：** N2 先把 Visit 的 runtime-used settings 轉成 typed boundary，再依 evidence 處理 Orders、Support／Team Lead；不要先替 UI-only 欄位建立假的 runtime schema。
-- **重新評估點：** N2 若讀到 live row 含未列出的 key，先決定保留／棄用／移除條件，不要讓 AgentPageShell 在無意間刪除未知設定。
+- **N2 Visit 已完成：** runtime-used settings 已由 Visit domain 持有；舊 JSON 可 parse、新的非法設定會在寫入前被拒絕、未知 key 會在 page save 時保留，Chrome 已驗證儲存與重載。
+- **下一步：** 依真實 consumer 處理 Orders、Support／Team Lead；共用只限 `pushStyle` 這類窄 presentation value，不建立萬用 AgentSettings，也不替 UI-only 欄位建立假的 runtime schema。
 
 ## 12. 文件政策
 

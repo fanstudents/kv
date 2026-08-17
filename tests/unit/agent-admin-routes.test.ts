@@ -68,6 +68,23 @@ describe("agent admin route contracts", () => {
     expect(repository.updateBySlug).toHaveBeenCalledWith("operations", { updated_at: expect.any(String) });
   });
 
+  it("returns a client error for invalid Visit settings", async () => {
+    createSupabaseAgentAdminRepository.mockReturnValueOnce({
+      getBySlug: vi.fn(),
+      updateBySlug: vi.fn(),
+      recordActivity: vi.fn(async () => undefined),
+    });
+    const response = await patchAgent(
+      new NextRequest("http://localhost/api/agents/visit", {
+        method: "PATCH",
+        body: JSON.stringify({ settings: { rangeStartDays: "8", rangeEndDays: "3" } }),
+      }),
+      { params: Promise.resolve({ slug: "visit" }) },
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: expect.stringContaining("rangeEndDays") });
+  });
+
   it("keeps test-push validation and delivery failure statuses", async () => {
     const invalid = await postTestPush(
       new NextRequest("http://localhost/api/agents/operations/test-push", { method: "POST", body: "{}" }),
