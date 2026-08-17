@@ -36,7 +36,7 @@ npm run test:e2e:run:staging
 ```
 
 `verify:full` 的 browser smoke 不等於真實功能 E2E；需要登入、資料庫或外部 provider 的 journey 必須使用對應環境另行驗證。
-`test:e2e:run:staging` 會載入 Git ignored `.env.local` 驗證真實 Main read paths；會寫入 Main 的 integration／acceptance 一律維持 opt-in gate，執行後必須確認 fixture cleanup，詳細 gate 與證據只維護在 `docs/LUNA_PRODUCTIZATION_EXECUTION_PLAN.md`。
+`test:e2e:run:staging` 會載入 Git ignored `.env.local` 驗證真實 Main read paths；會寫入 Main 的 integration／acceptance 一律維持 opt-in gate，執行後必須確認 fixture cleanup。現行執行原則與外部 gate 維護在 `docs/PRODUCTIZATION_PLAN.md`，可執行命令與操作方式以本 README、tests 與 CI 為準。
 
 ## Release 與 rollback
 
@@ -99,7 +99,6 @@ Zeabur 免費方案若不提供一鍵 rollback，application rollback 仍以同�
 
 ## 重構文件
 
-- [產品化接續執行計畫](./docs/LUNA_PRODUCTIZATION_EXECUTION_PLAN.md)：唯一執行計畫、進度表與 acceptance ledger。
-- [歷史產品化盤點](./docs/PRODUCTIZATION_TODO.md)：精簡封存指標；完整歷史由 Git 保存，不再決定後續順序。
+- [產品化控制計畫](./docs/PRODUCTIZATION_PLAN.md)：唯一執行計畫、TODO、架構決策入口與 readiness 判定。
 
 不要新增逐 route contract、micro-checkpoint 或平行計畫。行為契約放在 tests，symbol/consumer 影響以 CodeGraph 即時查詢。

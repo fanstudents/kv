@@ -2,6 +2,7 @@
 
 > 適用範圍：agent-team 銷售頁、後台 Avatar、未來所有新 Agent 的角色創作。
 > 原則：**角色是「配方」，不是「插畫」**——新增角色時不重新發想，只填配方。
+> 行銷 catalog 的 20 隻角色是銷售展示；後台目前有 12 個 runtime Agent，兩者不能互相當成啟用狀態或業務能力來源。
 
 ## 角色配方
 
@@ -53,8 +54,8 @@
 - 道具泡泡：白圓 `cx=49 cy=51 r=8.8`＋emoji 置中
 - 物種特徵一律只動「耳朵／頭頂」區域，臉部不變
 
-實作：`marketing/agent-team-landing.html` 內的 `mascotSVG(species, color, prop)` 函式，
-之後可直接移植成後台的 React `<Mascot>` 元件取代 `Avatar.tsx` 的照片版。
+實作：銷售頁使用 `marketing/agent-team-landing.html` 的 `mascotSVG(species, color, prop)`；
+後台 React 實作位於 `src/components/agents/Mascot.tsx`。兩者都應遵守本文件，不各自發明角色比例。
 
 ## 高精度插畫版（廣告素材／LINE 貼圖用）AI 生圖 Prompt 模板
 

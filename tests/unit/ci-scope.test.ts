@@ -8,7 +8,7 @@ import {
 
 describe("CI schema scope policy", () => {
   it("skips the expensive replay for documentation-only changes", () => {
-    expect(classifySchemaScope(["README.md", "docs/PRODUCTIZATION_TODO.md"])).toMatchObject({
+    expect(classifySchemaScope(["README.md", "docs/PRODUCTIZATION_PLAN.md"])).toMatchObject({
       required: false,
     });
   });
@@ -41,7 +41,7 @@ describe("CI schema scope policy", () => {
 
 describe("CI quality scope policy", () => {
   it("skips heavy quality work only for reader-facing documentation", () => {
-    expect(classifyQualityScope(["README.md", "docs/LUNA_PRODUCTIZATION_EXECUTION_PLAN.md"])).toMatchObject({
+    expect(classifyQualityScope(["README.md", "docs/PRODUCTIZATION_PLAN.md"])).toMatchObject({
       required: false,
       reason: expect.stringContaining("documentation-only"),
     });
