@@ -4,7 +4,7 @@
 
 ## 1. 我們現在要解決的問題
 
-KV 不能只是一套替 Dennis 客製完成、日後每加一名 AI 員工就複製更多程式碼的專案。它也不應直接膨脹成另一套 n8n。
+KV 不能只是一套替 Dennis 客製完成、日後每加一名 AI 員工就複製更多程式碼的專案。它也不能因為追求自由客製，最後變成一套需要自行維護的通用流程編排平台。
 
 我們要把它做成一項可重複販售的企業服務：
 
@@ -16,7 +16,7 @@ KV 不能只是一套替 Dennis 客製完成、日後每加一名 AI 員工就�
 
 主要讀者是 CabLate 的產品決策者、工程團隊與未來的導入人員。這份文件要幫大家回答四個問題：賣什麼、哪些可以配置、哪些需要開發、哪些需求不該接。
 
-## 2. 目前版本：受控客製，不自建 n8n
+## 2. 目前版本：受控客製，不自建通用流程平台
 
 ### 已決定的方向
 
@@ -24,11 +24,11 @@ KV 不能只是一套替 Dennis 客製完成、日後每加一名 AI 員工就�
 2. 產品提供固定、可組合的能力與 workflow，不承諾任意拖拉式流程編排。
 3. 業務規則留在各 domain module；共用層只提供註冊、版本、設定驗證、執行紀錄與測試契約。
 4. 新客戶差異優先透過設定與既有 workflow binding 解決。只有真正新的業務決策才新增 domain workflow。
-5. 外圍、通用、低風險的自動化，日後可透過穩定 API／event 交給 n8n；Visit、Orders、Support、人工核准等核心狀態流程仍由 KV 持有。
+5. KV 只建立目前產品真正需要的共用契約，不規劃視覺化編排器、任意步驟 DSL 或通用自動化平台。
 
 ### 版本 0 快照：客製需求的三個層級
 
-這是本輪開始時的模型，保留用來記錄思路演進。壓力測試發現它把 provider 差異、外圍自動化與拒絕條件都擠進「擴充」，因此已由第 7 節的六出口模型取代，不作為執行分類。
+這是本輪開始時的模型，保留用來記錄思路演進。壓力測試發現它把 provider 差異與拒絕條件都擠進「擴充」，因此已由第 7 節的五出口模型取代，不作為執行分類。
 
 | 層級 | 客戶需求 | 我們怎麼做 | 交付成本 |
 |---|---|---|---|
@@ -36,7 +36,7 @@ KV 不能只是一套替 Dennis 客製完成、日後每加一名 AI 員工就�
 | L2 組合 | 新員工沿用既有能力與流程 | 建立 Agent instance，綁定已支援的 workflow 與 provider connection | 中低；不複製 route／module |
 | L3 擴充 | 新的產業決策、狀態或副作用順序 | 用標準 Workflow SDK 新增 domain workflow、adapter、測試與驗收 | 中高；納入共用產品線 |
 
-如果需求只是一次性資料搬運、通知轉接或 SaaS 串接，可評估放在外部自動化工具，不把所有東西塞進 KV。
+一次性資料搬運、通知轉接或與 KV 商品無關的 SaaS 串接，不應被當成核心平台能力；需要時另案界定與報價。
 
 三個核心概念仍保留，但編號與邊界以第 7 節為準。
 
@@ -69,7 +69,6 @@ flowchart LR
     Fit -->|"只差參數"| L1["L1 設定"]
     Fit -->|"可重組現有流程"| L2["L2 綁定 workflow"]
     Fit -->|"有新的業務決策"| L3["L3 新增 domain workflow"]
-    Fit -->|"只是外圍自動化"| N8N["外部 n8n／整合工具"]
     Fit -->|"成本或風險失控"| Reject["拒絕或重新報價"]
     L1 --> Product["同一產品線"]
     L2 --> Product
@@ -85,7 +84,7 @@ flowchart LR
 - 如何把 demo 轉成可量化的 proof of value，再轉成正式合約？
 - 初始導入費、月費、外部用量、客製開發與維運支援應如何拆分，才不會越賣越虧？
 - 哪些能力要成為固定產品包，哪些只做加購，哪些不承諾？
-- 客製需求如何分流到設定、binding、adapter、domain workflow、外部 n8n 或拒絕？
+- 客製需求如何分流到設定、binding、adapter、domain workflow 或拒絕？
 - 多個客戶部署後，如何統一升級、觀察版本漂移、處理 migration 與回復？
 - 何時才值得做 multi-tenant、管理 UI、workflow builder 或更完整的平台？
 - 9 月要展示與販售的是哪個最小完整商品，而不是一張功能清單？
@@ -105,7 +104,7 @@ flowchart LR
 
 KV 的定位是：
 
-> 一套由工程團隊維護的企業 AI workflow product line。企業可以快速選擇與配置既有流程；新的產業流程用標準化、code-owned 的方式擴充；外圍自動化可以交給 n8n，核心狀態與副作用仍由 KV 負責。
+> 一套由工程團隊維護的企業 AI workflow product line。企業可以快速選擇與配置既有流程；新的產業流程用標準化、code-owned 的方式擴充；共用架構只治理產品內真正存在的流程，不發展成通用編排平台。
 
 銷售單位是「可驗收的業務結果」，不是畫面上的 Agent 數量。目前只有 Visit、Orders、Support、Team Lead 等流程有較完整的 runtime 行為；其他頁面仍混有 read-only、UI-only 或 demo projection。銷售資料必須標明成熟度，不能把所有 Agent 說成同樣完整。
 
@@ -116,7 +115,7 @@ KV 的定位是：
 
 這個定位刻意避開兩個陷阱：
 
-- 不和 n8n、Zapier 或低程式碼平台比「什麼都能拉」。
+- 不承諾「什麼流程都能自由編排」，也不為了這種承諾自建低程式碼平台。
 - 不讓每個客戶各自長出一份無法升級的程式碼。
 
 ## 6. 誰最可能先買
@@ -142,7 +141,7 @@ KV 的定位是：
 
 產業只決定話術與特殊規則；真正的產品楔子是「高頻、可驗收、有 owner 的流程」。
 
-## 7. 所有客製需求只能走六個出口
+## 7. 所有客製需求只能走五個出口
 
 這是防止 codebase 與交付成本爆炸的核心規則。
 
@@ -153,13 +152,11 @@ flowchart TD
     Q -->|"重組既有員工與流程"| B["L2 Agent Binding"]
     Q -->|"同一流程，外部系統不同"| A["L3 Adapter"]
     Q -->|"新的決策、狀態或副作用順序"| W["L4 Domain Workflow"]
-    Q -->|"外圍、低風險自動化"| N["L5 n8n／整合工具"]
     Q -->|"責任、成本或風險不可控"| X["L0 拒絕／另案報價"]
     C --> P["同一產品線與 release"]
     B --> P
     A --> P
     W --> P
-    N --> API["穩定 API／event contract"]
 ```
 
 | 出口 | 何時使用 | 交付內容 | 不能偷做的事 |
@@ -168,8 +165,7 @@ flowchart TD
 | L2 Agent Binding | 新員工只是使用既有流程組合 | role、instance、workflow binding、safe config | 不複製整套 Agent 程式 |
 | L3 Adapter | 業務規則相同，只換 Calendar、訂單來源或訊息服務 | provider contract 翻譯、錯誤、timeout、receipt | 不把業務判斷搬進 adapter |
 | L4 Domain Workflow | 新的決策、狀態機、核准分支、資料生命週期或副作用順序 | versioned workflow、typed config、ports、測試、recovery、驗收 | 不把流程硬翻成通用 JSON steps |
-| L5 外部自動化 | 非核心通知、CRM 同步、資料搬運、下游 fan-out | 穩定 API／event、acknowledgement、必要的去重 | 不交出 KV 必須保證的核心狀態 |
-| L0 拒絕／另案 | 永久 fork、無限客製、高風險不可回復寫入、責任不明 | 重新界定、提高報價、限定維護或不接 | 不默默塞進基本月費 |
+| L0 拒絕／另案 | 永久 fork、無限客製、一次性雜務、高風險不可回復寫入、責任不明 | 重新界定、提高報價、限定維護、另立專案或不接 | 不默默塞進基本月費或核心平台 |
 
 ### 一名新員工實際上怎麼產生
 
@@ -234,17 +230,21 @@ Route / Event
 
 Capability 也不能只是好看的字串。它要代表可驗證的操作契約，例如 `read.calendar`、`write.calendar`、`send.line`、`receive.order.webhook`。每個 capability 必須連到 workflow requirement、provider readiness、execution trace 與 acceptance evidence。
 
-## 9. KV 與 n8n 的分界
+## 9. 防止自建通用編排平台的硬邊界
 
-| 留在 KV | 可以交給 n8n／外部工具 |
-|---|---|
-| Visit 狀態機與人工核准 | Slack／Teams／Email 的外圍通知 |
-| Orders 真實狀態、去重與 delivery receipt | CRM 欄位同步 |
-| Support relay 的責任與結果 | 一次性資料搬運 |
-| 金流／訂單等不可亂重送的狀態 | KV 完成決策後的 downstream fan-out |
-| 需要審計、回復、idempotency 的核心流程 | 低風險、可重跑的 SaaS glue |
+我們不是要找另一套工具承接 KV，而是要控制 KV 自己不要越做越像通用流程平台。
 
-判斷問題很簡單：如果外部流程壞掉會讓 KV 的業務 truth 不正確，就不能把責任丟給 n8n。
+每一個共用抽象都必須回答：目前有哪兩個真實 consumer，或它是否真的持有 provider translation、transaction、concurrency、idempotency、recovery 或多副作用協調。答不出來就不建立。
+
+以下能力不列入產品方向：
+
+- 視覺化拖拉流程。
+- 任意 `if`／`loop`／`call_api` step graph。
+- 讓客戶動態執行任意程式或載入任意 plugin。
+- 跨 domain 的萬用狀態機與 retry policy。
+- 只為「未來可能需要」建立的工具、capability 或 workflow registry。
+
+KV 只需要讓既有和已成交的 domain workflow 容易註冊、組合、設定、追蹤與升級。
 
 ## 10. 商品不要包成 12 個 Agent
 
@@ -364,7 +364,6 @@ Paid PoV 不是「Agent 有回答」就算完成。每案應選一至三個可�
 | Binding | event → workflow version → owner trace、代表 journey |
 | Adapter | provider fixture、timeout／錯誤、mock、staging smoke、receipt |
 | Domain workflow | seeded DB、完整 journey、重複事件、失敗回復、side effect |
-| n8n integration | 穩定 API／event、去重、external acknowledgement |
 | Deployment | doctor、profile、migration、health、version、rollback |
 
 「能寫完」不是交付成本。每一案都要估測試、導入、驗收、支援、升級與回復。
@@ -401,7 +400,7 @@ Paid PoV 不是「Agent 有回答」就算完成。每案應選一至三個可�
 
 - 只允許 Config、existing binding、少量 adapter 與明確收費的 domain workflow。
 - 記錄導入天數、設定工時、provider 問題、支援工時、人工介入率、成本與客戶成果。
-- 每次需求都經過六出口分流，不先做 platform feature。
+- 每次需求都經過五出口分流，不先做 platform feature。
 
 ### 兩至三個活躍客戶後
 
@@ -409,7 +408,7 @@ Paid PoV 不是「Agent 有回答」就算完成。每案應選一至三個可�
 
 ### 重複擴充需求出現後
 
-逐步補齊窄版 Workflow SDK 與 n8n integration templates。沒有真實重複需求，就不做 builder、marketplace、generic queue 或任意 DSL。
+逐步補齊窄版 Workflow SDK。沒有真實重複需求，就不做 builder、marketplace、generic queue 或任意 DSL。
 
 ## 17. 要量測的商業與營運資料
 
@@ -441,9 +440,9 @@ Paid PoV 不是「Agent 有回答」就算完成。每案應選一至三個可�
 ### 現在決定
 
 - 賣 workflow outcome，不賣 Agent 數量。
-- 採受控客製與六出口分流。
+- 採受控客製與五出口分流。
 - 每客戶隔離部署，同一份 code release，不建立 customer fork。
-- 核心流程留在 KV，外圍自動化才交給 n8n。
+- KV 只治理已存在或已成交的產品流程，不發展成任意編排平台。
 - L4 workflow 明確報價並回到共用產品線。
 - Demo、Paid PoV 與 Production 的承諾和證據分開。
 
@@ -463,7 +462,6 @@ Paid PoV 不是「Agent 有回答」就算完成。每案應選一至三個可�
 | Fleet／control plane | 兩至三個活躍部署已造成重複升級與監控成本 |
 | Multi-tenant／RBAC／billing | 共享營運需求與共同資料／權限模型已確認 |
 | 更完整 Workflow SDK | 相似 workflow 擴充已重複出現，現有 code-owned contract 不足 |
-| n8n templates | 外圍 SaaS 串接重複出現，且 KV 已有穩定 event／API |
 | Queue／worker | 真實 timeout、backlog、吞吐或重播需求被量測到 |
 | 管理 UI／builder | 非工程人員自助修改的需求、風險與付費意願都被證明 |
 
@@ -473,7 +471,7 @@ Paid PoV 不是「Agent 有回答」就算完成。每案應選一至三個可�
 2. 第一個 PoV 的流程 owner、真實使用者與成果指標是誰／什麼？
 3. PoV 是否付費，包含哪些 provider、資料與支援？
 4. 哪些 UI／Agent 頁面只作展示，不能進合約承諾？
-5. L0～L5 分流與另案報價規則由誰核准？
+5. L0～L4 分流與另案報價規則由誰核准？
 6. 客戶是否使用自己的外部服務帳號？誰承擔用量與權限問題？
 7. 合作夥伴可以承諾哪些固定商品，哪些必須先回工程評估？
 8. 第一批案子要記錄哪些成本與轉換資料，何時回顧？
