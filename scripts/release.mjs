@@ -294,10 +294,9 @@ function rehearseBackup(databaseUrl, path) {
   const sourceSnapshot = databaseSnapshot(databaseUrl);
   runCommand("psql", [databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-c", `create database ${databaseName} template template0;`]);
   try {
+    runCommand("psql", [targetUrl, "-X", "-v", "ON_ERROR_STOP=1", "-c", "drop schema public cascade;"]);
     runCommand("pg_restore", [
       "--exit-on-error",
-      "--clean",
-      "--if-exists",
       "--no-owner",
       "--no-privileges",
       `--dbname=${targetUrl}`,
