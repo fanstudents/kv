@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildScheduleApplySql,
   commitsMatch,
   databaseUrlMatchesProject,
+  schedulePlanSql,
+  scheduleVerificationSql,
   verifyRemoteRelease,
 } from "../../scripts/release.mjs";
 
@@ -65,5 +68,30 @@ describe("release command contracts", () => {
       },
       fetchImpl,
     })).rejects.toThrow("Remote schema version does not match release schema");
+  });
+
+  it("builds the complete Supabase Cron schedule without exposing unsupported endpoints", () => {
+    const sql = buildScheduleApplySql({
+      baseUrl: "https://kv-staging.example.com/",
+      cronSecret: "cron-'secret",
+    });
+
+    expect(sql).toContain("kv-visit-timeout");
+    expect(sql).toContain("*/2 * * * *");
+    expect(sql).toContain("/api/cron/support-daily-report");
+    expect(sql).toContain("/api/cron/team-lead-report");
+    expect(sql).toContain("/api/cron/metric-snapshot");
+    expect(sql).toContain("/api/cron/kb-recheck");
+    expect(sql).toContain("cron-''secret");
+    expect(sql).not.toContain("/api/cron/retry");
+    expect(sql).not.toContain("/api/cron/agent-tasks");
+  });
+
+  it("keeps schedule planning read-only and verification secret-safe", () => {
+    expect(schedulePlanSql()).toContain("from cron.job");
+    expect(schedulePlanSql()).not.toContain("decrypted_secret");
+    expect(scheduleVerificationSql()).toContain("has_cron_secret");
+    expect(scheduleVerificationSql()).toContain("net._http_response");
+    expect(scheduleVerificationSql()).not.toContain("vault.decrypted_secrets");
   });
 });

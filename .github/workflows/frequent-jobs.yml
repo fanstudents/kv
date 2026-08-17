@@ -1,0 +1,53 @@
+name: KV Ops Manual Fallback
+
+# Recurring work is owned by Supabase Cron. This workflow deliberately has no
+# schedule trigger, so recovery does not consume Actions minutes continuously.
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Select one endpoint to invoke manually
+        required: true
+        type: choice
+        options:
+          - visit-timeout
+          - support-daily-report
+          - team-lead-report
+          - metric-snapshot
+          - kb-recheck
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kv-ops-fallback-${{ inputs.job }}
+  cancel-in-progress: false
+
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      APP_BASE_URL: ${{ vars.KV_APP_BASE_URL }}
+    steps:
+      - name: Validate recovery configuration
+        run: |
+          test -n "$APP_BASE_URL"
+          test -n "${{ secrets.CRON_SECRET }}"
+
+      - name: Invoke selected KV job
+        run: |
+          curl -fsS --max-time 300 \
+            -H "x-cron-key: ${{ secrets.CRON_SECRET }}" \
+            "$APP_BASE_URL/api/cron/${{ inputs.job }}"
+
+      - name: Record operator evidence
+        if: always()
+        run: |
+          {
+            echo "## KV manual schedule fallback"
+            echo "- Job: \`${{ inputs.job }}\`"
+            echo "- Target: \`$APP_BASE_URL\`"
+            echo "- Outcome: \`${{ job.status }}\`"
+            echo "- Owner: CabLate release owner"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { buildDoctorReport } from "./doctor.mjs";
 
 const RELEASE_PROFILES = new Set(["staging", "live"]);
 const MIGRATION_PATTERN = /^(\d{14})_[a-z0-9_]+\.sql$/;
+const REHEARSAL_DATABASE_PATTERN = /^kv_restore_rehearsal_\d{13}$/;
+const SCHEDULES = [
+  ["kv-visit-timeout", "*/2 * * * *", "/api/cron/visit-timeout"],
+  ["kv-support-daily-report", "0 1 * * *", "/api/cron/support-daily-report"],
+  ["kv-team-lead-report", "5 1 * * *", "/api/cron/team-lead-report"],
+  ["kv-metric-snapshot", "10 17 * * *", "/api/cron/metric-snapshot"],
+  ["kv-kb-recheck", "0 18 * * 1", "/api/cron/kb-recheck"],
+];
 
 function required(value, name) {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -131,6 +139,178 @@ function runSupabase(args) {
   if (result.status !== 0) throw new Error(`Supabase CLI failed with exit code ${result.status ?? "unknown"}`);
 }
 
+function runCommand(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    encoding: options.capture ? "utf8" : undefined,
+    stdio: options.capture ? "pipe" : "inherit",
+    shell: false,
+  });
+  if (result.status !== 0) {
+    const detail = options.capture ? result.stderr?.trim() : "";
+    throw new Error(`${command} failed with exit code ${result.status ?? "unknown"}${detail ? `: ${detail}` : ""}`);
+  }
+  return options.capture ? result.stdout.trim() : "";
+}
+
+function sqlLiteral(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
+function upsertVaultSecretSql(name, value, description) {
+  return `
+do $vault$
+declare
+  v_secret_id uuid;
+begin
+  select id into v_secret_id from vault.secrets where name = ${sqlLiteral(name)};
+  if v_secret_id is null then
+    perform vault.create_secret(${sqlLiteral(value)}, ${sqlLiteral(name)}, ${sqlLiteral(description)});
+  else
+    perform vault.update_secret(v_secret_id, ${sqlLiteral(value)}, ${sqlLiteral(name)}, ${sqlLiteral(description)});
+  end if;
+end
+$vault$;`;
+}
+
+export function buildScheduleApplySql({ baseUrl, cronSecret }) {
+  const root = required(baseUrl, "APP_BASE_URL").replace(/\/$/, "");
+  const secret = required(cronSecret, "CRON_SECRET");
+  const scheduleSql = SCHEDULES.map(([name, expression, endpoint]) => `
+select cron.unschedule(jobid) from cron.job where jobname = ${sqlLiteral(name)};
+select cron.schedule(
+  ${sqlLiteral(name)},
+  ${sqlLiteral(expression)},
+  $command$select kv_ops.dispatch_scheduled_endpoint(${sqlLiteral(name)}, ${sqlLiteral(endpoint)});$command$
+);`).join("\n");
+  return `${upsertVaultSecretSql("kv_app_base_url", root, "KV deployment base URL used by Supabase Cron")}
+${upsertVaultSecretSql("kv_cron_secret", secret, "KV x-cron-key used by Supabase Cron")}
+${scheduleSql}
+select cron.unschedule(jobid) from cron.job where jobname = 'kv-schedule-ledger-prune';
+select cron.schedule(
+  'kv-schedule-ledger-prune',
+  '30 18 * * *',
+  $command$select kv_ops.prune_schedule_dispatches();$command$
+);
+`;
+}
+
+export function schedulePlanSql() {
+  return `
+select extname, extversion
+from pg_extension
+where extname in ('pg_cron', 'pg_net', 'supabase_vault')
+order by extname;
+
+select jobid, jobname, schedule, active
+from cron.job
+where jobname like 'kv-%'
+order by jobname;
+`;
+}
+
+export function scheduleVerificationSql() {
+  return `${schedulePlanSql()}
+select
+  exists(select 1 from vault.secrets where name = 'kv_app_base_url') as has_base_url,
+  exists(select 1 from vault.secrets where name = 'kv_cron_secret') as has_cron_secret;
+
+select d.job_name, d.endpoint, d.enqueued_at, r.status_code, r.timed_out, r.error_msg
+from kv_ops.schedule_dispatches d
+left join net._http_response r on r.id = d.request_id
+order by d.enqueued_at desc
+limit 20;
+`;
+}
+
+function runSupabaseSql(databaseUrl, sql) {
+  const path = join(process.env.TEMP || process.cwd(), `kv-release-${Date.now()}-${Math.random().toString(16).slice(2)}.sql`);
+  writeFileSync(path, sql, "utf8");
+  try {
+    runSupabase(["db", "query", "--db-url", databaseUrl, "--file", path]);
+  } finally {
+    rmSync(path, { force: true });
+  }
+}
+
+function backupPath(env, cwd) {
+  const path = resolve(required(env.KV_BACKUP_PATH, "KV_BACKUP_PATH"));
+  const withinRepo = relative(cwd, path);
+  if (withinRepo && !withinRepo.startsWith("..") && !resolve(withinRepo).startsWith("..")) {
+    throw new Error("KV_BACKUP_PATH must be outside the repository");
+  }
+  if (!existsSync(dirname(path))) throw new Error("KV_BACKUP_PATH parent directory does not exist");
+  return path;
+}
+
+function databaseUrlForName(databaseUrl, databaseName) {
+  const parsed = new URL(databaseUrl);
+  parsed.pathname = `/${databaseName}`;
+  return parsed.toString();
+}
+
+function assertRehearsalDatabaseName(databaseName) {
+  if (!REHEARSAL_DATABASE_PATTERN.test(databaseName)) {
+    throw new Error("Unsafe restore rehearsal database name");
+  }
+  return databaseName;
+}
+
+function databaseSnapshot(databaseUrl) {
+  return runCommand("psql", [databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-Atc", `
+select 'tables=' || count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';
+select 'line_agents=' || count(*) from public.line_agents;
+select 'line_subscribers=' || count(*) from public.line_subscribers;
+select 'contacts=' || count(*) from public.contacts;
+select 'knowledge_base=' || count(*) from public.knowledge_base;
+select 'meetings=' || count(*) from public.meetings;
+select 'teachify_orders=' || count(*) from public.teachify_orders;
+`], { capture: true });
+}
+
+function createBackup(databaseUrl, path) {
+  if (existsSync(path)) throw new Error("KV_BACKUP_PATH already exists; refusing to overwrite it");
+  runCommand("pg_dump", [
+    databaseUrl,
+    "--format=custom",
+    "--schema=public",
+    "--no-owner",
+    "--no-privileges",
+    `--file=${path}`,
+  ]);
+}
+
+function verifyBackup(path) {
+  if (!existsSync(path)) throw new Error("KV_BACKUP_PATH does not exist");
+  const listing = runCommand("pg_restore", ["--list", path], { capture: true });
+  const tableEntries = listing.split(/\r?\n/).filter((line) => / TABLE public /.test(line));
+  if (tableEntries.length === 0) throw new Error("Backup archive contains no public tables");
+  return tableEntries.length;
+}
+
+function rehearseBackup(databaseUrl, path) {
+  verifyBackup(path);
+  const databaseName = assertRehearsalDatabaseName(`kv_restore_rehearsal_${Date.now()}`);
+  const targetUrl = databaseUrlForName(databaseUrl, databaseName);
+  const sourceSnapshot = databaseSnapshot(databaseUrl);
+  runCommand("psql", [databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-c", `create database ${databaseName} template template0;`]);
+  try {
+    runCommand("pg_restore", [
+      "--exit-on-error",
+      "--no-owner",
+      "--no-privileges",
+      `--dbname=${targetUrl}`,
+      path,
+    ]);
+    const restoredSnapshot = databaseSnapshot(targetUrl);
+    if (restoredSnapshot !== sourceSnapshot) {
+      throw new Error(`Restore snapshot mismatch\nsource:\n${sourceSnapshot}\nrestored:\n${restoredSnapshot}`);
+    }
+    return { databaseName, snapshot: restoredSnapshot };
+  } finally {
+    runCommand("psql", [databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-c", `drop database if exists ${databaseName} with (force);`]);
+  }
+}
+
 export async function verifyRemoteRelease({ baseUrl, expected, fetchImpl = fetch }) {
   const root = required(baseUrl, "APP_BASE_URL").replace(/\/$/, "");
   const [versionResponse, healthResponse] = await Promise.all([
@@ -169,9 +349,54 @@ async function main() {
   }
 
   const target = projectTarget(process.env, profile);
+  if (command === "backup-create") {
+    const path = backupPath(process.env, process.cwd());
+    createBackup(target.databaseUrl, path);
+    console.log(`Backup created outside repository: ${path}`);
+    return;
+  }
+
+  if (command === "backup-verify") {
+    const path = backupPath(process.env, process.cwd());
+    console.log(`Backup archive verified: ${verifyBackup(path)} public table entries`);
+    return;
+  }
+
+  if (command === "backup-rehearse") {
+    if (process.env.KV_RELEASE_RESTORE_REHEARSAL !== "1") {
+      throw new Error("KV_RELEASE_RESTORE_REHEARSAL must be 1");
+    }
+    const path = backupPath(process.env, process.cwd());
+    const result = rehearseBackup(target.databaseUrl, path);
+    console.log(`Restore rehearsal passed and temporary database was removed: ${result.databaseName}`);
+    console.log(result.snapshot);
+    return;
+  }
+
   if (command === "migration-plan") {
     runSupabase(["migration", "list", "--db-url", target.databaseUrl]);
     runSupabase(["db", "push", "--dry-run", "--db-url", target.databaseUrl]);
+    return;
+  }
+
+  if (command === "schedule-plan") {
+    runSupabaseSql(target.databaseUrl, schedulePlanSql());
+    return;
+  }
+
+  if (command === "schedule-apply") {
+    const confirmedProject = required(optionValue(args, "confirm-project"), "--confirm-project");
+    if (confirmedProject !== target.projectRef) throw new Error("Confirmed project ref does not match release target");
+    if (process.env.KV_RELEASE_SCHEDULE_APPLY !== "1") throw new Error("KV_RELEASE_SCHEDULE_APPLY must be 1");
+    runSupabaseSql(target.databaseUrl, buildScheduleApplySql({
+      baseUrl: process.env.APP_BASE_URL,
+      cronSecret: process.env.CRON_SECRET,
+    }));
+    return;
+  }
+
+  if (command === "schedule-verify") {
+    runSupabaseSql(target.databaseUrl, scheduleVerificationSql());
     return;
   }
 
