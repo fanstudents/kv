@@ -182,7 +182,8 @@ select cron.schedule(
   ${sqlLiteral(expression)},
   $command$select kv_ops.dispatch_scheduled_endpoint(${sqlLiteral(name)}, ${sqlLiteral(endpoint)});$command$
 );`).join("\n");
-  return `${upsertVaultSecretSql("kv_app_base_url", root, "KV deployment base URL used by Supabase Cron")}
+  return `begin;
+${upsertVaultSecretSql("kv_app_base_url", root, "KV deployment base URL used by Supabase Cron")}
 ${upsertVaultSecretSql("kv_cron_secret", secret, "KV x-cron-key used by Supabase Cron")}
 ${scheduleSql}
 select cron.unschedule(jobid) from cron.job where jobname = 'kv-schedule-ledger-prune';
@@ -191,6 +192,7 @@ select cron.schedule(
   '30 18 * * *',
   $command$select kv_ops.prune_schedule_dispatches();$command$
 );
+commit;
 `;
 }
 
@@ -226,7 +228,7 @@ function runSupabaseSql(databaseUrl, sql) {
   const path = join(process.env.TEMP || process.cwd(), `kv-release-${Date.now()}-${Math.random().toString(16).slice(2)}.sql`);
   writeFileSync(path, sql, "utf8");
   try {
-    runSupabase(["db", "query", "--db-url", databaseUrl, "--file", path]);
+    runCommand("psql", [databaseUrl, "-X", "-v", "ON_ERROR_STOP=1", "-f", path]);
   } finally {
     rmSync(path, { force: true });
   }
