@@ -178,10 +178,10 @@ export class RealtimeVoiceSession {
       case "conversation.item.input_audio_transcription.completed":
         if (typeof evt.transcript === "string") this.handlers.onUserTranscript?.(evt.transcript.trim());
         break;
-      case "response.audio_transcript.delta":
+      case "response.output_audio_transcript.delta":
         if (typeof evt.delta === "string") this.handlers.onAssistantTranscriptDelta?.(evt.delta);
         break;
-      case "response.audio_transcript.done":
+      case "response.output_audio_transcript.done":
         if (typeof evt.transcript === "string") this.handlers.onAssistantTranscriptDone?.(evt.transcript.trim());
         break;
       case "output_audio_buffer.started":
