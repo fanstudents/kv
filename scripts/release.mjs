@@ -299,6 +299,9 @@ create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
 create extension if not exists "uuid-ossp" with schema extensions;
 create extension if not exists vector with schema extensions;
+create schema if not exists auth;
+create table if not exists auth.users (id uuid primary key);
+create or replace function auth.uid() returns uuid language sql stable as 'select null::uuid';
 `]);
     runCommand("psql", [targetUrl, "-X", "-v", "ON_ERROR_STOP=1", "-c", "drop schema public cascade;"]);
     runCommand("pg_restore", [
