@@ -22,7 +22,10 @@ export async function POST(req: NextRequest) {
   const deliveryLedger = createSupabaseOrderDeliveryLedger(supabase);
   const rawBody = await req.text();
 
-  const verification = verifyTeachifyWebhook(rawBody, req.headers.get("x-teachify-signature"));
+  // Loopwise's official webhook contract uses this header. Do not fall back to
+  // the old guessed header: accepting an undocumented alias would hide a
+  // provider contract mismatch during rollout.
+  const verification = verifyTeachifyWebhook(rawBody, req.headers.get("loopwise-webhook-signature"));
   if (verification === "invalid") {
     try {
       await repository.recordActivity({

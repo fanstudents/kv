@@ -17,12 +17,13 @@ describe("Teachify webhook signature contract", () => {
     expect(verifyTeachifyWebhook('{"id":"synthetic-order"}', null)).toBe("unverified");
   });
 
-  it("accepts the deterministic HMAC-SHA256 fixture", () => {
+  it("accepts Loopwise's HMAC-SHA256 hex over the exact raw body", () => {
     const rawBody = '{"id":"codex-teachify-acceptance","amount":1680}';
     process.env.TEACHIFY_WEBHOOK_SECRET = "fixture-secret";
     const signature = createHmac("sha256", "fixture-secret").update(rawBody).digest("hex");
 
     expect(verifyTeachifyWebhook(rawBody, signature)).toBe("ok");
+    expect(verifyTeachifyWebhook(`${rawBody} `, signature)).toBe("invalid");
   });
 
   it("rejects missing, malformed, and mismatched signatures when verification is enabled", () => {

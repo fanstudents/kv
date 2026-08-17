@@ -24,6 +24,29 @@ const payload = {
   items: [{ name: "產品化工作坊" }],
 };
 
+const loopwisePaidPayload = {
+  type: "payment.paid",
+  data: {
+    id: "loopwise-order-1",
+    user: { name: "Loopwise Student", email: "student@example.test" },
+    trade_no: "LW-PAID-1",
+    currency: "TWD",
+    amount: 1680,
+    paid_at: "2026-08-18T01:00:00.000Z",
+    payment_state: "paid",
+    lineitems: [{ name: "產品化工作坊" }],
+    coupon: { code: "LOOPWISE" },
+  },
+};
+
+const loopwiseRefundPayload = {
+  type: "payment.refund",
+  data: {
+    ...loopwisePaidPayload.data,
+    payment_state: "refunded",
+  },
+};
+
 const order: NormalizedOrder = {
   id: "order-1",
   tradeNo: "T-1",
@@ -168,6 +191,28 @@ describe("Orders request and notification rules", () => {
     );
   });
 
+  it("normalizes the official Loopwise payment envelopes", () => {
+    expect(parseOrderPayload(loopwisePaidPayload)).toEqual({
+      id: "loopwise-order-1",
+      tradeNo: "LW-PAID-1",
+      amount: 1680,
+      currency: "TWD",
+      userName: "Loopwise Student",
+      userEmail: "student@example.test",
+      itemNames: ["產品化工作坊"],
+      couponCode: "LOOPWISE",
+      isRefund: false,
+      paidAt: "2026-08-18T01:00:00.000Z",
+    });
+    expect(parseOrderPayload(loopwiseRefundPayload)).toMatchObject({
+      id: "loopwise-order-1",
+      userName: "Loopwise Student",
+      itemNames: ["產品化工作坊"],
+      couponCode: "LOOPWISE",
+      isRefund: true,
+    });
+  });
+
   it("preserves disabled, recipient, and delivery planning", () => {
     expect(planOrderNotification(order, { enabled: false })).toEqual({ type: "disabled" });
     expect(planOrderNotification(order, null).type).toBe("missing_recipient");
@@ -196,6 +241,54 @@ describe("Orders request and notification rules", () => {
 });
 
 describe("Orders webhook orchestration", () => {
+  it("keeps paid and refund Loopwise events on separate delivery keys", () => {
+    const paid = parseOrderPayload(loopwisePaidPayload);
+    const refund = parseOrderPayload(loopwiseRefundPayload);
+    if (!paid || !refund) throw new Error("Loopwise fixtures did not normalize");
+
+    expect(deriveOrderEventKey(loopwisePaidPayload, paid)).not.toBe(
+      deriveOrderEventKey(loopwiseRefundPayload, refund)
+    );
+  });
+
+  it("delivers an official Loopwise payment with nested customer and item fields", async () => {
+    const delivered: Array<{ title: string; text: string }> = [];
+    const result = await processOrderPayload({
+      payload: loopwisePaidPayload,
+      rawBody: JSON.stringify(loopwisePaidPayload),
+      dependencies: {
+        repository: {
+          upsertOrder: vi.fn(async (order) => {
+            expect(order).toMatchObject({
+              id: "loopwise-order-1",
+              userName: "Loopwise Student",
+              userEmail: "student@example.test",
+              itemNames: ["產品化工作坊"],
+              couponCode: "LOOPWISE",
+            });
+          }),
+          getAgentConfig: vi.fn(async () => ({ settings: { reportTo: "U123", pushStyle: "text" } })),
+          recordActivity: vi.fn(async () => undefined),
+        },
+        delivery: {
+          deliver: vi.fn(async (notification) => {
+            delivered.push({ title: notification.title, text: notification.text });
+          }),
+        },
+      },
+    });
+
+    expect(result).toEqual({ type: "delivered" });
+    expect(delivered).toEqual([
+      {
+        title: "新訂單通知",
+        text: expect.stringContaining("Loopwise Student"),
+      },
+    ]);
+    expect(delivered[0].text).toContain("產品化工作坊");
+    expect(delivered[0].text).toContain("LOOPWISE");
+  });
+
   it("derives stable keys for exact business-event replays and new refund states", () => {
     const key = deriveOrderEventKey(payload, order);
     expect(key).toBe(deriveOrderEventKey(payload, order));

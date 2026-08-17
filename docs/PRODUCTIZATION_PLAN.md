@@ -85,7 +85,7 @@ Runtime consumers
 | role／instance／binding 模型已存在，但目前 deployment 固定為 `legacy-static-registry`，bindings／capabilities 為空 | `modules/agents/identity.ts` | 這是 compatibility seam，不得宣稱已可動態編排；N3 才加入真實 bindings |
 | domain modules／provider adapters 主幹已就位；`src/lib` 與 KB forwarding facade 仍有過渡 ownership | `src/modules`、`src/adapters`、`src/lib/kb-*` | 只在 N2／N3 或新需求碰到時 touch-and-migrate |
 | Main DB、provider credentials 與 app runtime 都是 deployment-global | `lib/supabase.ts`、provider env readers、`.env.example` | 先採每客戶隔離部署；只加 `tenant_id` 不會變成 SaaS |
-| P0～P9 已完成 staging、migration、backup／restore、Supabase Cron、CI、Chrome 與 rollback compatibility | README release runbook、CI run `31987861315`、commit `69132b9` | 下一階段不重做基礎建設；Teachify 仍維持 provider waiver |
+| P0～P9 已完成 staging、migration、backup／restore、Supabase Cron、CI、Chrome 與 rollback compatibility | README release runbook、CI run `31987861315`、commit `69132b9` | 下一階段不重做基礎建設；Teachify contract 已對齊，仍待真實 provider event |
 
 ## 5. 目標概念與責任
 
@@ -218,7 +218,7 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 
 | 項目 | 決定／狀態 | 阻塞什麼 | 不阻塞什麼 |
 |---|---|---|---|
-| Teachify provider truth | Waiver；取得官方 secret＋去識別 event 後重開 | Teachify 對客啟用 | N1～N6 其餘工作 |
+| Teachify provider truth | 官方 Loopwise header／payload contract 已確認並接入；secret 已由 owner 提供但本地／deployment configuration 尚未在此驗證；仍待真實 `payment.paid`／`payment.refund` event | Teachify 真實 provider 驗收與對客啟用 | N1～N6 其餘工作 |
 | 第一個新產業客製需求 | 尚未提供；以 feature intake 加入 | 尚未定義的新 workflow 行為 | 現有 settings schema／workflow mapping |
 | Multi-tenant | Deferred；需至少兩個活躍客戶＋共享營運需求 | shared SaaS runtime | per-customer isolated deployment |
 | Generic workflow／queue／plugin | Rejected until proven | 任意平台能力 | versioned code definitions、domain use cases |
@@ -230,7 +230,7 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 
 | Outcome | Representative evidence | Result |
 |---|---|---|
-| P0～P7 現有功能接管、真實 journeys 與可靠性修復 | domain／provider tests、staging DB／LINE／Google／OpenAI／Firecrawl／Meeting／Chrome evidence | Done；Teachify provider 以 waiver 關閉 |
+| P0～P7 現有功能接管、真實 journeys 與可靠性修復 | domain／provider tests、staging DB／LINE／Google／OpenAI／Firecrawl／Meeting／Chrome evidence | Done；Teachify contract 已對齊，真實 provider event 仍待驗收 |
 | P7A upstream reconciliation | current-owner implementations 與 commit ledger，Git history 保存細節 | Done；不直接 merge legacy ownership |
 | P8 release infrastructure | migration `20260817015215`、backup／restore rehearsal、Supabase Cron、rollback compatibility | Done |
 | P9 handoff | CI run `31987861315`、staging commit `69132b9`、README runbook | Done |

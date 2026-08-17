@@ -100,13 +100,14 @@ export const DEMO_ORDER: NormalizedOrder = {
 export function parseOrderPayload(body: unknown): NormalizedOrder | null {
   if (!body || typeof body !== "object") return null;
   const envelope = body as Record<string, unknown>;
+  const eventType = typeof envelope.type === "string" ? envelope.type : undefined;
 
   let candidate: Record<string, unknown> | null = null;
   if (isOrderLike(envelope)) candidate = envelope;
   else if (isOrderLike(envelope.order)) candidate = envelope.order as Record<string, unknown>;
   else if (isOrderLike(envelope.data)) candidate = envelope.data as Record<string, unknown>;
 
-  if (candidate) return normalizeOrderCandidate(candidate);
+  if (candidate) return normalizeOrderCandidate(candidate, eventType);
   return parseEnrollmentPayload(envelope);
 }
 
@@ -131,6 +132,12 @@ export function deriveOrderEventKey(payload: unknown, order: NormalizedOrder): s
   if (explicit !== undefined) return `event:${String(explicit)}`;
 
   const fingerprint = JSON.stringify({
+    eventType:
+      typeof envelope.type === "string"
+        ? envelope.type
+        : order.isRefund
+          ? "refund"
+          : "paid",
     id: order.id,
     tradeNo: order.tradeNo,
     amount: order.amount,
@@ -341,29 +348,48 @@ function isOrderPushStyle(value: unknown): value is OrderPushStyle {
 function isOrderLike(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const order = value as Record<string, unknown>;
-  return "id" in order && ("amount" in order || "trade_no" in order || "items" in order);
+  return "id" in order && ("amount" in order || "trade_no" in order || "items" in order || "lineitems" in order);
 }
 
-function normalizeOrderCandidate(candidate: Record<string, unknown>): NormalizedOrder {
+function normalizeOrderCandidate(candidate: Record<string, unknown>, eventType?: string): NormalizedOrder {
   const items = Array.isArray(candidate.items)
     ? (candidate.items as Record<string, unknown>[])
-    : [];
+    : Array.isArray(candidate.lineitems)
+      ? (candidate.lineitems as Record<string, unknown>[])
+      : [];
   const itemNames = items
     .map((item) => (typeof item.name === "string" ? item.name : null))
     .filter((name): name is string => Boolean(name));
+  const user = isRecord(candidate.user) ? candidate.user : null;
+  const coupon = isRecord(candidate.coupon) ? candidate.coupon : null;
+  const paymentState = typeof candidate.payment_state === "string" ? candidate.payment_state.toLowerCase() : "";
 
   return {
     id: String(candidate.id ?? ""),
     tradeNo: String(candidate.trade_no ?? candidate.tradeNo ?? ""),
     amount: Number(candidate.amount ?? 0),
     currency: String(candidate.currency ?? "TWD"),
-    userName: String(candidate.user_name ?? candidate.userName ?? "（未提供姓名）"),
-    userEmail: String(candidate.user_email ?? candidate.userEmail ?? ""),
+    userName: String(candidate.user_name ?? candidate.userName ?? user?.name ?? "（未提供姓名）"),
+    userEmail: String(candidate.user_email ?? candidate.userEmail ?? user?.email ?? ""),
     itemNames: itemNames.length > 0 ? itemNames : ["（未提供品項名稱）"],
-    couponCode: typeof candidate.coupon_code === "string" ? candidate.coupon_code : null,
-    isRefund: Boolean(candidate.refund) || candidate.status === "refunded",
+    couponCode:
+      typeof candidate.coupon_code === "string"
+        ? candidate.coupon_code
+        : typeof coupon?.code === "string"
+          ? coupon.code
+          : null,
+    isRefund:
+      eventType === "payment.refund" ||
+      Boolean(candidate.refund) ||
+      candidate.status === "refunded" ||
+      paymentState === "refund" ||
+      paymentState === "refunded",
     paidAt: typeof candidate.paid_at === "string" ? candidate.paid_at : null,
   };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function parseEnrollmentPayload(envelope: Record<string, unknown>): NormalizedOrder | null {

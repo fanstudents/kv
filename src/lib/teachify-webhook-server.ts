@@ -1,9 +1,10 @@
 import "server-only";
 import crypto from "node:crypto";
 
-// 若有設定 TEACHIFY_WEBHOOK_SECRET，會嘗試用 HMAC-SHA256 驗證簽章。
-// 目前 Teachify 實際的簽章 header 名稱與演算法尚未跟平台文件核對過，
-// 沒設定密鑰時會直接放行（並在呼叫端記錄成「未驗證」），待確認後再收緊。
+// Loopwise 的官方 webhook contract：route 會把
+// `loopwise-webhook-signature`（raw body 的 HMAC-SHA256 hex）傳進來。
+// 沒設定密鑰時保留目前的 unverified fallback，讓本地 fixture／舊環境仍可
+// 解析 payload；deployment 設定 secret 後則必須提供正確簽章。
 export function verifyTeachifyWebhook(rawBody: string, signatureHeader: string | null): "ok" | "unverified" | "invalid" {
   const secret = process.env.TEACHIFY_WEBHOOK_SECRET;
   if (!secret) return "unverified";

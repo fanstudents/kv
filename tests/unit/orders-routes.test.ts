@@ -45,6 +45,25 @@ beforeEach(() => {
 });
 
 describe("Orders route contracts", () => {
+  it("uses the official Loopwise signature header without falling back to the guessed legacy name", async () => {
+    const rawBody = JSON.stringify({ id: "official-header-order", items: [] });
+    verifyTeachifyWebhook.mockReturnValue("invalid");
+
+    const response = await postTeachifyOrder(
+      new NextRequest("http://localhost/api/webhooks/teachify-order", {
+        method: "POST",
+        body: rawBody,
+        headers: {
+          "loopwise-webhook-signature": "official-signature",
+          "x-teachify-signature": "legacy-signature",
+        },
+      })
+    );
+
+    expect(response.status).toBe(401);
+    expect(verifyTeachifyWebhook).toHaveBeenCalledWith(rawBody, "official-signature");
+  });
+
   it("keeps invalid Teachify signature and payload responses", async () => {
     const repository = {
       recordActivity: vi.fn(async () => undefined),
