@@ -8,14 +8,14 @@
 
 | 欄位 | 內容 |
 |---|---|
-| Lifecycle | P0～P9 closing；下一階段另行規劃 |
+| Lifecycle | P0～P9 Closed；下一階段另行規劃 |
 | Profile | Standard productization handoff |
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-17；P0～P7A journeys 完成，P8 migration／backup／restore／schedule／deploy／rollback compatibility 完成；Teachify 維持產品 waiver |
+| Last verified | 2026-08-17；P0～P9 完成，hosted CI run `31987861315` 全綠；Teachify 維持產品 waiver |
 | Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能；Teachify 程式契約保留，但未取得官方素材前不得宣稱 provider 已驗證或對客啟用 |
-| Current package | P9 final verification、文件收斂與 handoff |
+| Current package | 本輪已結束；下一階段先討論 Agent／workflow configuration contract |
 | Readiness | 隔離 staging 的現有功能、Main migration、backup／restore、Supabase Cron、exact deploy identity 與 rollback compatibility 已有證據。可結束本輪基礎建設；這不代表 Teachify provider 已驗證、default `main` 已 cutover，或系統已成為 multi-tenant／任意 workflow 平台 |
 
 開始任何工作前先執行：
@@ -407,7 +407,7 @@ P0 文件與設定真相
 ### P8：Release、backup 與 rollback `[done: 968d6cb..8d00d8e]`
 
 - [x] Canonical repo 為 `fanstudents/kv`；本輪 release branch 為 `codex/kv-wp0-toolchain`，Zeabur deploy owner 為 CabLate engineering。default `main` cutover 不在本輪假裝完成。
-- [ ] Hosted CI 對 final P8／P9 source commit 執行 install、lint、typecheck、unit、build、schema replay 與 Playwright smoke；本項在 P9 唯一一次 hosted run 關閉。
+- [x] Hosted CI run `31987861315` 對 `b3c7eef` 執行完整 gate：schema 2m17s、quality 3m45s，install、lint、typecheck、765 tests、build、clean migration replay、generated types 與 152 browser smoke 全綠。
 - [x] Main migration promotion 完成：remote history 8／8，latest schema `20260817015215`。
 - [x] Backup `F:\ownproject\kv-backups\kv-staging-pre-schedule-20260817.dump` 已建立、archive verify 通過；隔離 restore DB 比對 33 tables 與關鍵 row counts 後已刪除。
 - [x] App／DB rollback 分離：DB 保持 additive forward-fix；上一版 app `21e2a267` 已對新 schema 完成 93-page production build、隔離 health `ok` 與 version contract。Zeabur 一鍵 rollback 因免費方案受限，正式回退改為重新部署 immutable commit。
@@ -424,17 +424,17 @@ P0 文件與設定真相
 - **執行策略：** 本地完成整個 P8 coherent batch 後只觸發一次 hosted CI；post-change 再以同類 change 比較 cold／warm wall time 與 job-sum。
 - **本機證據：** quality／schema classifier 7／7、完整 unit 145 files／765 tests、lint、typecheck、93-page production build 與 152 個 browser smoke 全通過。此工作站沒有 Docker CLI；remote migration promotion 8／8 與 restore rehearsal 已完成，hosted schema replay 仍由 P9 唯一一次乾淨 run 證明。
 
-**Done When：** 另一位工程師只靠 README／release CLI 可備份、還原演練、套 migration、配置排程、部署、辨認版本、診斷並以 immutable commit 回退。除 hosted CI final run 外已達成。
+**Done When：** 另一位工程師只靠 README／release CLI 可備份、還原演練、套 migration、配置排程、部署、辨認版本、診斷並以 immutable commit 回退。已達成。
 
-### P9：Cleanup 與交接 `[closing]`
+### P9：Cleanup 與交接 `[done: b3c7eef]`
 
 - [x] 保留仍屬產品 contract 的 Support relay；未為減檔案刪除真實 adapter／fixture。
 - [x] 舊 `PRODUCTIZATION_TODO.md` 收斂為 archive pointer；本文件維持唯一狀態與後續入口。
 - [x] README 補齊 backup／restore／schedule／rollback runbook，不重複 acceptance ledger。
 - [x] Final local verify 通過：lint、typecheck、145 files／765 tests、93-page build、152 browser smoke；Chrome 登入後實機載入 dashboard、integrations、goals、KB、Visit、Support、Meeting。
 - [x] CodeGraph status 可用：483 files／4,222 nodes／10,620 edges；唯一 pending 是本輪 migration inventory test，不是 production source architecture drift。
-- [ ] 推送 coherent handoff commit，執行唯一一次 hosted CI，確認 worktree／commit 可追溯。
-- [ ] 寫入 final CI run 與下一階段入口後關閉本輪。
+- [x] Coherent handoff commit `b3c7eef` 已推送；唯一一次 hosted CI run `31987861315` 的 schema／quality jobs 全綠。
+- [x] CI evidence、範圍邊界與下一階段入口已寫回唯一主文件；最後 evidence-only commit 不再消耗第二次 heavy CI。
 
 **Done When：** 下一位工程師能定位 owner、重跑核心 journey、發布、診斷和回退；沒有無 owner 的 transitional path。
 
@@ -480,9 +480,9 @@ P0 文件與設定真相
 
 ## 9. Readiness Verdict
 
-### Verdict：Infrastructure Ready（isolated staging）；P9 closing
+### Verdict：Infrastructure Ready（isolated staging）；P0～P9 Closed
 
-**本輪只剩：** final local／Chrome／hosted CI 證據與 clean handoff。P7 Teachify 維持 temporary waiver，不阻塞 P8／P9 closure。
+**本輪已結束：** local、Chrome、hosted CI、migration、backup／restore、schedule、deploy identity 與 rollback compatibility 均有可追溯證據。P7 Teachify 維持 temporary waiver，不影響本輪 closure。
 
 **本判定的邊界：**
 
