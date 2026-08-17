@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifySchemaScope, evaluateSchemaScope } from "../../scripts/ci-scope.mjs";
+import {
+  classifyQualityScope,
+  classifySchemaScope,
+  evaluateQualityScope,
+  evaluateSchemaScope,
+} from "../../scripts/ci-scope.mjs";
 
 describe("CI schema scope policy", () => {
   it("skips the expensive replay for documentation-only changes", () => {
@@ -28,6 +33,35 @@ describe("CI schema scope policy", () => {
 
   it("runs the full gate when the comparison range cannot be resolved", () => {
     expect(evaluateSchemaScope({ base: "", head: "abc1234" })).toMatchObject({
+      required: true,
+      reason: expect.stringContaining("fail closed"),
+    });
+  });
+});
+
+describe("CI quality scope policy", () => {
+  it("skips heavy quality work only for reader-facing documentation", () => {
+    expect(classifyQualityScope(["README.md", "docs/LUNA_PRODUCTIZATION_EXECUTION_PLAN.md"])).toMatchObject({
+      required: false,
+      reason: expect.stringContaining("documentation-only"),
+    });
+  });
+
+  it("keeps source, tests, dependencies, workflows, public assets, and unknown files fail-closed", () => {
+    for (const paths of [
+      ["src/app/dashboard/page.tsx"],
+      ["tests/unit/ci-scope.test.ts"],
+      ["package-lock.json"],
+      [".github/workflows/ci.yml"],
+      ["public/avatars/vivian.webp"],
+      ["unexpected/file.txt"],
+    ]) {
+      expect(classifyQualityScope(paths).required).toBe(true);
+    }
+  });
+
+  it("runs the full quality gate when the comparison range cannot be resolved", () => {
+    expect(evaluateQualityScope({ base: "", head: "abc1234" })).toMatchObject({
       required: true,
       reason: expect.stringContaining("fail closed"),
     });

@@ -25,6 +25,15 @@ const SCHEMA_EXEMPTIONS = [
   /^\.github\/workflows\/(?:daily-support-report|daily-team-lead-report|scheduled-jobs)\.yml$/i,
 ];
 
+// Only reader-facing documentation can skip the expensive quality pipeline.
+// Everything else—including workflow, dependency, source, test, generated,
+// configuration, and unknown paths—deliberately falls back to the full gate.
+const QUALITY_EXEMPTIONS = [
+  /^README(?:\.[^/]+)?$/i,
+  /^CHANGELOG(?:\.[^/]+)?$/i,
+  /^docs\//i,
+];
+
 /**
  * @typedef {{ required: boolean, paths: string[], reason: string }} SchemaScopeResult
  * @typedef {{ base?: string | null, head?: string | null, paths?: string[] | null }} SchemaScopeInput
@@ -61,6 +70,33 @@ export function classifySchemaScope(paths) {
   };
 }
 
+/** @param {string[]} paths @returns {SchemaScopeResult} */
+export function classifyQualityScope(paths) {
+  const normalized = paths.map(normalizePath).filter(Boolean);
+  if (normalized.length === 0) {
+    return {
+      required: true,
+      paths: normalized,
+      reason: "changed-file list is empty; fail closed",
+    };
+  }
+
+  const unsafe = normalized.filter((path) => !QUALITY_EXEMPTIONS.some((pattern) => pattern.test(path)));
+  if (unsafe.length > 0) {
+    return {
+      required: true,
+      paths: normalized,
+      reason: `quality-sensitive or unknown paths: ${unsafe.join(", ")}`,
+    };
+  }
+
+  return {
+    required: false,
+    paths: normalized,
+    reason: "all changed paths are documentation-only",
+  };
+}
+
 function changedFiles(base, head) {
   if (!base || !head || /^0+$/.test(base)) return null;
   try {
@@ -87,22 +123,41 @@ export function evaluateSchemaScope({ base, head, paths = null } = {}) {
   return classifySchemaScope(changed);
 }
 
-function writeGitHubOutput(result) {
+/** @param {SchemaScopeInput} input @returns {SchemaScopeResult} */
+export function evaluateQualityScope({ base, head, paths = null } = {}) {
+  const changed = paths ?? changedFiles(base, head);
+  if (changed === null) {
+    return {
+      required: true,
+      paths: [],
+      reason: "unable to resolve the comparison range; fail closed",
+    };
+  }
+  return classifyQualityScope(changed);
+}
+
+function writeGitHubOutput(schema, quality) {
   const outputFile = process.env.GITHUB_OUTPUT;
   if (!outputFile) return;
   appendFileSync(
     outputFile,
-    `schema-required=${result.required}\nchanged-count=${result.paths.length}\nreason=${result.reason.replaceAll("\n", " ")}\n`,
+    `schema-required=${schema.required}\n` +
+      `schema-reason=${schema.reason.replaceAll("\n", " ")}\n` +
+      `quality-required=${quality.required}\n` +
+      `quality-reason=${quality.reason.replaceAll("\n", " ")}\n` +
+      `changed-count=${schema.paths.length}\n`,
   );
 }
 
 function main() {
-  const result = evaluateSchemaScope({
+  const input = {
     base: process.env.CI_SCOPE_BASE_SHA,
     head: process.env.CI_SCOPE_HEAD_SHA || process.env.GITHUB_SHA,
-  });
-  writeGitHubOutput(result);
-  console.log(JSON.stringify(result));
+  };
+  const schema = evaluateSchemaScope(input);
+  const quality = evaluateQualityScope(input);
+  writeGitHubOutput(schema, quality);
+  console.log(JSON.stringify({ schema, quality }));
 }
 
 const entry = process.argv[1] ? resolve(process.argv[1]) : "";
