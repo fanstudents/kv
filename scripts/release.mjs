@@ -296,6 +296,8 @@ function rehearseBackup(databaseUrl, path) {
   try {
     runCommand("pg_restore", [
       "--exit-on-error",
+      "--clean",
+      "--if-exists",
       "--no-owner",
       "--no-privileges",
       `--dbname=${targetUrl}`,
