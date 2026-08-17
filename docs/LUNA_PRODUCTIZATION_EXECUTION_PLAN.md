@@ -13,10 +13,10 @@
 | Repository | `F:\ownproject\kv` |
 | Branch | `codex/kv-wp0-toolchain` |
 | Base commit | `905f2ab`（P0～P2 完成，P3 deployment prep 完成） |
-| Last verified | 2026-08-17；P3 hosted Support、P4 驗收矩陣、P5 證據驅動修正、P6 集中重驗／cleanup、P7A U2、真實 Primary LINE Visit happy path 與 terminal step ledger 修復均完成 |
-| Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能 |
-| Current package | P7 Teachify closure／waiver；P8 canonical release、backup／restore 與 rollback ownership |
-| Readiness | P0～P6 已完成；Support hosted evidence、真實 marker reply 與 cleanup 均完成；Primary LINE Visit 已完成 image、決策卡、兩段 postback、Gmail、Calendar、LINE 通知、背景研究、Chrome TV happy path、hosted timeout 單次處理與重跑防重複，以及 LINE retry-key recovery contract。Meeting 已完成真實 hosted session、文字回覆、TTS、STT、無錄音 finish 與 cleanup，只剩真人 camera／mic／WebRTC／recording journey。Visit 另剩既有 happy-path fixture／Calendar cleanup；此外有 P7 Teachify truth／waiver，以及 P8 canonical repo／deploy、backup／restore、schedule／rollback owner，仍不可直接把產品化 branch 當正式版 |
+| Last verified | 2026-08-17；P0～P7A、Primary LINE Visit、Meeting 真人 WebRTC／錄音與對話持久化均完成；Teachify 已由產品負責人核准暫時 waiver |
+| Release intent | 九月底 production slice：現有功能全部納入，不新增平台功能；Teachify 程式契約保留，但未取得官方素材前不得宣稱 provider 已驗證或對客啟用 |
+| Current package | P8 canonical release、CI budget、backup／restore、schedule 與 rollback ownership |
+| Readiness | Support、Primary LINE Visit、Meeting、KB、Agent Chat、Goals／Checklist 等已完成真實 journey 與 cleanup。Teachify 以明確限制、owner 與重啟條件關閉 P7，不再阻塞本次 P8；Visit 另剩既有 happy-path fixture／Calendar cleanup。P8 canonical repo／deploy、backup／restore、schedule／rollback owner 尚未關閉，仍不可直接把產品化 branch 當正式版 |
 
 開始任何工作前先執行：
 
@@ -73,7 +73,7 @@
 | Resolved | LINE Console Verify 曾回 `401`；2026-08-16 已同步 Support credentials、重部署 `kv-app`，Verify 回 `200 Success` | hosted signature boundary、真實 marker message／reply 與 cleanup 均已完成，不再是 Support blocker |
 | Fact | `kv-support-relay-simulator` 已在 `kv-staging` 建立獨立 Zeabur service；主 app 透過同專案 internal target `:4010/relay` 連線 | 不覆寫 `kv-app`，不依賴公開 TLS relay domain |
 | Verified | 測試者已傳送唯一 marker；simulator receipt 為 `replied`，Main staging 有 1 筆 support activity、1 筆 customer conversation、1 筆 support subscriber，Chrome `/agents/support` 顯示該訊息 | P3 functional acceptance 完成；P6 已精確清除 marker、DB rows 與 simulator receipt，residue 為 0 |
-| Gap | 尚未取得 Teachify 真實 signing secret／event truth | 只阻塞 P7 Teachify row，不阻塞其他工作 |
+| Decision | 產品負責人於 2026-08-17 核准 Teachify 暫時 waiver；尚未取得真實 signing secret／event truth | 保留 Orders／Teachify 程式契約；整合頁維持「未連線」，不得宣稱 provider 已驗證；正式對客啟用前重開 P7 |
 | Fact | canonical GitHub repo 是 `fanstudents/kv`，default branch 是 `main`；產品化成果目前在 `codex/kv-wp0-toolchain` | Zeabur staging 可驗 branch，但正式 cutover 前必須先收斂 branch ownership |
 | Fact | 2026-08-16 snapshot：產品化 branch 對 `main` 為 443 commits ahead／13 commits behind；merge-tree 顯示 26 個實質 conflict，涵蓋 runtime、LINE／Visit、Meeting、Teachify、CI 與 Supabase config | 不做一次性 merge，不把 upstream 舊 `src/lib` ownership 灌回新版架構；先執行 P7A |
 | Fact | default branch 的 hosted `Frequent Jobs` 約每 5 分鐘執行，且所有舊 schedules 指向 `https://kva.zeabur.app`；正確 isolated staging 是 `https://kv-staging.zeabur.app` | P8 必須建立可驗證的 schedule target／owner；未核准前不得直接把正式排程切到 staging |
@@ -220,7 +220,7 @@ P0 文件與設定真相
 | Auth／Integrations | Done | current HEAD production build 通過；Playwright smoke 147／147；Chrome 本機 production build 可登入；正確 staging `https://kv-staging.zeabur.app/api/health` 為 `ok`；P5 部署 `48f8d95` 後 `/api/version` 精確回傳完整 SHA，Main privileged 與 deployment identity 皆 configured；Chrome 顯示 9 個已連線服務，缺 secret 的 Teachify 為「未連線」 | 舊 `kva.zeabur.app` 不是本 staging canonical host；Teachify 真實 provider gate 仍由 P7 關閉 | Auth／proxy、integration status、Zeabur deploy owner |
 | Agent／Chat | Done | 57 個 focused tests 通過；OpenAI acceptance 1／1；Chrome 以 current local production build＋staging Main＋真實 OpenAI 從 dashboard 對 Vivian 發訊息並收到唯一 P4 回覆 | 無 chat fixture；AI usage audit 依產品紀錄保留 | Agent chat route、OpenAI adapter、context owner |
 | Visit | Blocked | Visit／Orders／Meeting batch 229 tests 通過；Google write 2／2、Visit delivery 1／1、Primary LINE 1／1；2026-08-17 真實 Primary LINE 名片完成 OCR、contact／offer、決策與核准卡、Gmail、公開時段回覆、Calendar、感謝信、LINE 通知、背景研究及 Chrome TV 投影；terminal step ledger 已修復並回填；hosted timeout 第一次 `handled=1`、第二次 `handled=0`，Primary LINE 僅推送一次，fixture residue 為 0；相同 offer 的 recovery 使用固定 LINE retry key，官方 duplicate-accepted `409` 會繼續完成 checkpoint | Happy path、ledger truth、timeout no-duplicate 與受控 recovery contract 已完成；只剩既有 happy-path fixture／Calendar cleanup。為避免額外不可逆推播，不刻意製造真實 LINE duplicate receipt | Visit workflow、Primary LINE、Google、cron owner |
-| Orders | Blocked | Orders staging DB 1／1；Primary composites 3／3，包含 normalize、Main persistence、delivery ledger、Primary LINE 與 cleanup | 缺 Teachify 官方 signing secret、header／algorithm、去識別真實 event 與 replay ordering；由 P7 closure 或 waiver | Teachify contract、Orders ledger、Primary LINE |
+| Orders | Not required (Teachify waiver) | Orders staging DB 1／1；Primary composites 3／3，包含 normalize、Main persistence、delivery ledger、Primary LINE 與 cleanup；本地 webhook signature／payload contract 保留 | 未取得 Teachify 官方 signing secret、header／algorithm、去識別真實 event 與 replay ordering。整合頁必須維持未連線；正式對客啟用 Teachify 前重開 P7 | CabLate 產品負責人＋Orders／Teachify engineering owner |
 | Knowledge Base | Done | KB focused tests 通過；staging atomic index 2／2；Firecrawl＋OpenAI acceptance 1／1 完成 crawl、draft、publish、index、semantic search；Chrome KB 頁正常 | DB fixture 已清除；Firecrawl credit／OpenAI usage不可逆但受 gate 限制；PDF／site crawl 屬後續擴充驗收 | KB domain、Firecrawl、OpenAI、Main RPC |
 | Support／Subscribers／Broadcast | Done | P3 hosted Support marker／reply、simulator receipt、Main rows 與 Chrome 已完成；本輪 Primary composites 真實 broadcast 通過；Chrome Support／Subscribers 頁正常 | P6 已清除 marker、Main rows 與 simulator receipt，residue 為 0；不可逆 LINE receipt 以 marker 識別 | Support relay、subscriber/broadcast、Primary／Support LINE |
 | Meeting | Done | Hosted `start → command → TTS → STT → finish` provider composite 完成；真人 Chrome camera／mic／Realtime WebRTC／整場錄音亦完成。第一輪 Agent 可聽見並回話，但 DB 為 `2 boss／0 agent`、畫面顯示 0 則對話；確認 client 仍監聽舊 `response.audio_transcript.*`。`21e2a26` 改用 OpenAI 現行 `response.output_audio_transcript.*` 並補 transport regression tests；第二輪 27 秒真人驗收顯示 2 則對話，DB 為 `1 boss／2 agent`，錄音存在；staging `/api/version` 精確對應 `21e2a267f2fa14fed0b8bfd7ff7e54fe8b8a5f2c` 且 health `ok` | 兩輪共 2 meetings、5 turns、4 Realtime usage rows、2 recording objects 已精確清除，四類 residue 均為 0。Voice instruction 已要求台灣腔；口音改善另以 voice audition 作產品調校，不阻塞功能驗收 | Meeting session／storage、OpenAI realtime、Chrome media |
@@ -230,7 +230,7 @@ P0 文件與設定真相
 
 **共同證據：** CodeGraph 483 files／4,222 nodes／10,620 edges，無 drift；最新完整 unit 為 145 files／760 tests 全通過，lint、typecheck 與 93-page production build 通過；Playwright smoke 147／147；四組 staging DB integration 共 6 tests 全通過；OpenAI、Google read／write、Visit delivery、Primary LINE、Primary composites、KB provider acceptance 與真人 Meeting WebRTC／recording 全通過。Chrome 以 current staging production build 巡覽 dashboard、integrations、Visit、Orders、KB、Support、Meeting、Goals、Todos、Subscribers、Operations、Reporting、TV、Outputs 與 AI usage。
 
-**P4 經後續真實 journey 收斂後的結論：** 7 列 Done、3 列 Blocked。Blocked 都有精確外部 gate；不能把缺外部素材改寫成假完成。
+**P4 經後續真實 journey 收斂後的結論：** 7 列 Done、1 列 Not required（Teachify waiver）、2 列 Blocked。Blocked 都有精確外部 gate；waiver 不得改寫成 provider 已驗證。
 
 ### P5：只修 P2～P4 暴露的問題
 
@@ -291,6 +291,16 @@ P0 文件與設定真相
 - 此 waiver 必須寫明使用限制、重新開啟條件與 owner；mock 不得標成完成。
 
 **Done When：** 真實 provider 證據完成，或產品 waiver 已核准並反映在 release scope。
+
+#### P7 outcome（2026-08-17）：Temporary waiver approved
+
+- **已交付：** Orders normalize、Main persistence、delivery claim／ledger、Primary LINE delivery、cleanup 與本地 webhook contract。
+- **未交付：** Teachify 官方 signature、真實 event／event ID、replay concurrency 與 stale／out-of-order provider 語意。
+- **使用限制：** staging／release UI 必須如實顯示 Teachify 未連線；不得把 mock 或本地 secret 測試宣稱為真實 provider acceptance，也不得在客戶環境啟用。
+- **重啟條件：** 取得官方帳號／signing secret 與一筆去識別可重播 event，或任何客戶／合約要求正式啟用 Teachify；滿足任一條件即重開 P7 真實驗收。
+- **Owner：** CabLate 產品負責人決定 release scope；Orders／Teachify engineering owner 負責重開與驗收。
+
+**P7 結論：** 以產品 waiver 關閉，不再阻塞 P8；這不是 Teachify provider Done。
 
 ### P7A：Dennis upstream reconciliation
 
@@ -400,6 +410,15 @@ P0 文件與設定真相
 - 確認 scheduled workflows 的 secret、部署 URL、通知與失敗 owner。
 - 輪替曾在聊天中出現過的 OpenAI key。
 
+#### CI budget change contract（2026-08-17）
+
+- **Baseline：** 最近一次完整 hosted CI 的 quality 為 3m18s、schema 為 2m19s；quality 主要成本為 build、Chromium runtime 與 147 個 browser smoke。
+- **新規則：** 只有 `README／CHANGELOG／docs/**` 可略過 heavy quality 與 schema；source、tests、public assets、dependency、workflow、migration、generated types、unknown path、空 diff 或無法取得比較基準一律 fail-closed。
+- **保留責任：** 非文件變更仍由原 `quality` check 持有 install、config、lint、typecheck、unit、build、browser smoke；schema-sensitive 變更仍由 `schema` check 持有 migration replay 與 generated type drift。
+- **拒絕的假優化：** 不移除 browser／schema gate、不用 `continue-on-error`、不快取約 2.1 GB Playwright runtime（實測安裝約 20 秒，storage／transfer 成本不划算）。
+- **執行策略：** 本地完成整個 P8 coherent batch 後只觸發一次 hosted CI；post-change 再以同類 change 比較 cold／warm wall time 與 job-sum。
+- **本機證據：** quality／schema classifier 7／7、完整 unit 145 files／763 tests、lint、typecheck、93-page production build 與 152 個 browser smoke 全通過。此工作站沒有 Docker CLI，local schema rehearsal 在 migration 前即停止；workflow／classifier 會 fail-closed，留待 P8 唯一一次乾淨 hosted run 執行 schema replay，不把本機環境缺件記成 migration 通過。
+
 **Done When：** 另一位工程師只靠 release artifact／runbook 可部署、辨認版本、診斷並回退。
 
 ### P9：Cleanup 與交接
@@ -436,7 +455,7 @@ P0 文件與設定真相
 | 外部輸入 | 阻塞內容 | 不阻塞內容 | 關閉證據 |
 |---|---|---|---|
 | Support test user／room | 已完成；不再阻塞 | P7 Teachify、P8 release／owner work | LINE receipt + DB + simulator + Chrome + cleanup 已完成 |
-| Teachify secret／event truth | P7 provider closure | P0～P6、P8 repo-local 工作 | 真實 signature／event／replay evidence |
+| Teachify secret／event truth | 已由 P7 temporary waiver 關閉；只阻塞 Teachify 對客啟用 | P8／P9 與其餘九月 release scope | 取得官方素材後重開 P7；真實 signature／event／replay evidence |
 | Canonical repo／Zeabur owner | P8 promotion／rollback | 所有本機與隔離 staging 工作 | exact commit deploy + owner sign-off |
 | Backup／schedule owner | P8 release closure | code、tests、acceptance | restore／failure notification rehearsal |
 
@@ -454,15 +473,15 @@ P0 文件與設定真相
 
 ## 9. Readiness Verdict
 
-### Verdict：Needs Revision（完整 release）；P7A U3／U4 ledger ready
+### Verdict：Needs Revision（完整 release）；P8 active
 
-**下一個可執行工作包：** P7 Teachify closure 或產品 waiver；完成後進入 P8 canonical release／backup／rollback owner package。P7A U3／U4 已完成 current-source reconciliation，沒有待做的 runtime patch。
+**下一個可執行工作包：** P8 canonical release／CI budget／backup／rollback／schedule owner package。P7 Teachify 已由 temporary waiver 關閉；P7A U3／U4 已完成 current-source reconciliation，沒有待做的 runtime patch。
 
 **完整 release 尚未 Ready 的原因：**
 
 - Support hosted flow 已完成：simulator URL／owner、真實 test user／room marker receipt、DB／Chrome evidence 與 P6 cleanup 均已確認，不再是 release blocker。
 - Primary LINE Visit 的真實 image、兩段 postback、Gmail、Calendar、LINE 通知、背景研究、Chrome TV happy path、hosted timeout no-duplicate 與受控 recovery contract 已完成；只剩既有 happy-path fixture／Calendar cleanup。
-- P7 缺 Teachify provider truth 或產品 waiver。
+- Teachify 缺 provider truth，但已有明確 temporary waiver、使用限制與重啟條件，不再阻塞本次 P8；仍不得宣稱已完成真實 provider acceptance。
 - P8 缺 canonical repo／deploy owner、Main Supabase backup／restore、schedule failure notification 與 app rollback owner evidence。
 
 這些剩餘缺口不阻止 P7A 文件／本機 reconciliation 工作；它們阻止完整 release readiness 與正式 cutover。
