@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pushStyleSchema } from "@/modules/agents/push-style";
 
 export const VISIT_SETTINGS_DEFAULTS = {
   rangeStartDays: 3,
@@ -37,7 +38,7 @@ const visitSettingsWriteSchema = z
     workingHoursEnd: z.string().regex(TIME_PATTERN, "格式必須是 HH:mm").optional(),
     senderName: nonEmptyText.optional(),
     requireApproval: z.boolean().optional(),
-    pushStyle: z.enum(["text", "flex", "confirm", "buttons"]).optional(),
+    pushStyle: pushStyleSchema.optional(),
   })
   // UI-only fields and future Visit fields remain in the JSON payload. The
   // boundary validates the keys this workflow actually owns without stripping

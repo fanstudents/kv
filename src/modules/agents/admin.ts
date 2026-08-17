@@ -1,4 +1,7 @@
 import { mapLineAgentOverride, type AgentStatusCatalogEntry } from "@/modules/agents/identity";
+import { validateOrdersSettingsForWrite } from "@/modules/orders/settings";
+import { validateTeamLeadReportSettingsForWrite } from "@/modules/reporting/team-lead-settings";
+import { validateSupportReportSettingsForWrite } from "@/modules/support/settings";
 import { validateVisitSettingsForWrite } from "@/modules/visit/settings";
 
 export type AgentInstanceRecord = Record<string, unknown>;
@@ -61,6 +64,30 @@ function recordUpdateFailure(slug: string, message: string, repository: AgentAdm
   });
 }
 
+function isWorkflowSettingsSlug(slug: string): boolean {
+  return slug === "visit" || slug === "orders" || slug === "support" || slug === "teamlead";
+}
+
+function validateWorkflowSettingsForWrite(
+  slug: string,
+  value: unknown,
+): { success: true; value: Record<string, unknown> } | { success: false; message: string } {
+  switch (slug) {
+    case "visit":
+      return validateVisitSettingsForWrite(value);
+    case "orders":
+      return validateOrdersSettingsForWrite(value);
+    case "support":
+      return validateSupportReportSettingsForWrite(value);
+    case "teamlead":
+      return validateTeamLeadReportSettingsForWrite(value);
+    default:
+      // Other pages are still compatibility JSON projections. Do not invent
+      // a schema for a workflow whose runtime consumer has not been proven.
+      return { success: true, value: value as Record<string, unknown> };
+  }
+}
+
 export function parseAgentInstanceUpdateRequest(
   body: AgentInstanceUpdateBody,
   now = new Date().toISOString(),
@@ -70,8 +97,8 @@ export function parseAgentInstanceUpdateRequest(
   const enabledChanged = typeof body.enabled === "boolean";
   const settingsChanged = Boolean(body.settings && typeof body.settings === "object");
 
-  if (settingsChanged && slug === "visit") {
-    const validation = validateVisitSettingsForWrite(body.settings);
+  if (settingsChanged && isWorkflowSettingsSlug(slug ?? "")) {
+    const validation = validateWorkflowSettingsForWrite(slug ?? "", body.settings);
     if (!validation.success) return { errorMessage: validation.message };
   }
 
@@ -112,19 +139,19 @@ export async function updateAgentInstance(
     return { kind: "error", message: input.errorMessage };
   }
 
-  if (slug === "visit" && input.settingsChanged && isRecord(input.update.settings)) {
+  if (isWorkflowSettingsSlug(slug) && input.settingsChanged && isRecord(input.update.settings)) {
     // Agent pages send their current page projection. Merge it with the
-    // existing row before writing so unknown/future Visit keys are not silently
+    // existing row before writing so unknown/future keys are not silently
     // deleted by a save from an older page bundle.
     const current = await repository.getBySlug(slug);
     if (current.errorMessage) {
-      await recordUpdateFailure(slug, `Visit 設定讀取失敗：${current.errorMessage}`, repository);
-      return { kind: "error", message: `Visit 設定讀取失敗：${current.errorMessage}` };
+      await recordUpdateFailure(slug, `${slug} 設定讀取失敗：${current.errorMessage}`, repository);
+      return { kind: "error", message: `${slug} 設定讀取失敗：${current.errorMessage}` };
     }
     const currentSettings = current.data?.settings;
     if (isRecord(currentSettings)) {
       input.update.settings = { ...currentSettings, ...input.update.settings };
-      const mergedValidation = validateVisitSettingsForWrite(input.update.settings);
+      const mergedValidation = validateWorkflowSettingsForWrite(slug, input.update.settings);
       if (!mergedValidation.success) {
         await recordUpdateFailure(slug, mergedValidation.message, repository);
         return { kind: "error", message: mergedValidation.message };

@@ -1,4 +1,7 @@
-export type TeamLeadReportPushStyle = "text" | "flex" | "confirm" | "buttons";
+import { parseTeamLeadReportSettings } from "@/modules/reporting/team-lead-settings";
+import type { PushStyle } from "@/modules/agents/push-style";
+
+export type TeamLeadReportPushStyle = PushStyle;
 
 export interface TeamLeadReportActivity {
   agent_slug: string | null;
@@ -83,9 +86,9 @@ export function planTeamLeadDelivery(
     return { type: "disabled", message: "總管 Agent 已停用，略過匯報" };
   }
 
-  const settings = (agentRow?.settings ?? {}) as Record<string, unknown>;
-  const reportTo = typeof settings.reportTo === "string" ? settings.reportTo.trim() : "";
-  const style = isTeamLeadReportPushStyle(settings.pushStyle) ? settings.pushStyle : "flex";
+  const settings = parseTeamLeadReportSettings(agentRow?.settings);
+  const reportTo = settings.reportTo.trim();
+  const style = settings.pushStyle;
 
   if (!reportTo) {
     return { type: "missing_recipient", message: "尚未設定匯報對象（reportTo）" };
@@ -207,8 +210,4 @@ export async function runDailyTeamLeadReport(params: {
     ok: true,
     message: `晨報已送出，彙整 ${prepared.meaningful.length} 筆團隊動態`,
   };
-}
-
-function isTeamLeadReportPushStyle(value: unknown): value is TeamLeadReportPushStyle {
-  return value === "text" || value === "flex" || value === "confirm" || value === "buttons";
 }

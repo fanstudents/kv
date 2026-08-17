@@ -1,4 +1,7 @@
-export type SupportReportPushStyle = "text" | "flex" | "confirm" | "buttons";
+import { parseSupportReportSettings } from "@/modules/support/settings";
+import type { PushStyle } from "@/modules/agents/push-style";
+
+export type SupportReportPushStyle = PushStyle;
 
 export interface SupportConversation {
   line_user_id: string;
@@ -85,9 +88,9 @@ export function planSupportReportDelivery(
     return { type: "disabled", message: "客服 Agent 已停用，略過匯報" };
   }
 
-  const settings = (agentRow?.settings ?? {}) as Record<string, unknown>;
-  const reportTo = typeof settings.reportTo === "string" ? settings.reportTo.trim() : "";
-  const style = isSupportReportPushStyle(settings.pushStyle) ? settings.pushStyle : "flex";
+  const settings = parseSupportReportSettings(agentRow?.settings);
+  const reportTo = settings.reportTo.trim();
+  const style = settings.pushStyle;
 
   if (!reportTo) {
     return { type: "missing_recipient", message: "尚未設定匯報對象（reportTo）" };
@@ -216,8 +219,4 @@ export async function runSupportReport(params: {
     ok: true,
     message: `客服彙報已送出（${prepared.customerCount} 位客戶、${prepared.messageCount} 則留言）`,
   };
-}
-
-function isSupportReportPushStyle(value: unknown): value is SupportReportPushStyle {
-  return value === "text" || value === "flex" || value === "confirm" || value === "buttons";
 }

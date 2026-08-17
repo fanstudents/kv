@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { parseOrdersSettings } from "@/modules/orders/settings";
+import type { PushStyle } from "@/modules/agents/push-style";
 
 export interface NormalizedOrder {
   id: string;
@@ -13,7 +15,7 @@ export interface NormalizedOrder {
   paidAt: string | null;
 }
 
-export type OrderPushStyle = "text" | "flex" | "confirm" | "buttons";
+export type OrderPushStyle = PushStyle;
 
 export interface OrdersAgentConfig {
   enabled?: boolean | null;
@@ -169,9 +171,9 @@ export function planOrderNotification(
 ): OrderNotificationPlan {
   if (agentRow?.enabled === false) return { type: "disabled" };
 
-  const settings = (agentRow?.settings ?? {}) as Record<string, unknown>;
-  const reportTo = typeof settings.reportTo === "string" ? settings.reportTo.trim() : "";
-  const style = isOrderPushStyle(settings.pushStyle) ? settings.pushStyle : "flex";
+  const settings = parseOrdersSettings(agentRow?.settings);
+  const reportTo = settings.reportTo.trim();
+  const style = settings.pushStyle;
 
   if (!reportTo) {
     return {
@@ -285,9 +287,9 @@ export async function processOrderPayload(params: {
 export function planOrderTestNotification(
   agentConfig: OrdersAgentConfig | null
 ): OrderTestNotificationPlan {
-  const settings = (agentConfig?.settings ?? {}) as Record<string, unknown>;
-  const recipient = typeof settings.reportTo === "string" ? settings.reportTo.trim() : "";
-  const style = isOrderPushStyle(settings.pushStyle) ? settings.pushStyle : "flex";
+  const settings = parseOrdersSettings(agentConfig?.settings);
+  const recipient = settings.reportTo.trim();
+  const style = settings.pushStyle;
 
   if (!recipient) {
     return {
@@ -339,10 +341,6 @@ export async function runOrderTestNotification(
   }
 
   return { kind: "success", message: "測試通知已送出，請查看 LINE" };
-}
-
-function isOrderPushStyle(value: unknown): value is OrderPushStyle {
-  return value === "text" || value === "flex" || value === "confirm" || value === "buttons";
 }
 
 function isOrderLike(value: unknown): boolean {

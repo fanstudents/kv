@@ -12,7 +12,7 @@
 | Repository／branch | `F:\ownproject\kv`／`codex/kv-wp0-toolchain` |
 | Planning base | `33e8eed`（P0-P9／Loopwise contract 收尾基準） |
 | Last verified | 2026-08-18；source、CodeGraph、設定 consumer map、P0～P9 handoff evidence |
-| Readiness | N2 進行中；Visit typed boundary 已完成，下一批為 Orders、Support／Team Lead |
+| Readiness | N2 typed settings boundary 完成；下一步為 N3 workflow definitions／bindings |
 
 開始或恢復工作時：
 
@@ -66,7 +66,7 @@
 ```text
 Agent pages / AgentPageShell
   -> PATCH /api/agents/[slug]
-  -> modules/agents/admin（只判斷 truthy object；沒有 slug schema）
+  -> modules/agents/admin（Visit／Orders／Support／Team Lead 按 slug 驗證；其他頁維持 compatibility JSON）
   -> Supabase agent repository（只確認可序列化 JSON）
   -> line_agents.settings
 
@@ -81,9 +81,9 @@ Runtime consumers
 | Fact | Stable anchor | 對下一步的影響 |
 |---|---|---|
 | `line_agents.settings` 是目前 deployment setting truth，資料庫型別為 `jsonb`／`Json`、預設 `{}`；目前 write boundary 只保證可序列化 JSON，admin parser 會接受 truthy object（陣列也會通過） | `modules/agents/admin.ts`、`supabase-agent-admin-repository.ts`、`database.types.ts` | 先保留 storage；在 read／write boundary 加 schema，不先改 DB |
-| Agent pages 以 `Record<string, unknown>` 傳設定，各頁自行載入與判斷欄位；儲存時只送該頁目前 state 加上 `pushStyle`，未被該頁載入的未知 key 可能在下一次儲存時消失 | `AgentPageShell.tsx`、`app/(dashboard)/agents/*/page.tsx` | N1 已完成 source matrix；N2 必須決定 unknown-key policy |
-| Visit 已有獨立 `VisitSettingsPort`，但 adapter 仍手動轉型與預設 | `modules/visit/settings-ports.ts`、`adapters/visit/supabase-visit-settings.ts` | 可作第一個 typed-config slice；不再包一層 forwarding interface |
-| Orders、Support、Team Lead 直接把 settings cast 成 record 後讀 `reportTo`／`pushStyle` | `modules/orders/orders.ts`、`modules/support/report.ts`、`modules/reporting/team-lead.ts` | 共享 field 名稱不代表共享 workflow；schema 依 domain 持有，可重用窄 field schema |
+| Agent pages 以 `Record<string, unknown>` 傳設定，各頁自行載入與判斷欄位；workflow page 的 PATCH 現在先 merge 既有 JSON，其他尚未接 runtime 的頁面仍是 compatibility projection | `AgentPageShell.tsx`、`app/(dashboard)/agents/*/page.tsx`、`modules/agents/admin.ts` | N2 已決定 unknown-key 保留策略；未接 runtime 的 UI-only 欄位不建立假的 schema |
+| Visit 已有獨立 `VisitSettingsPort`，adapter 現在經 `parseVisitRuntimeSettings` 取得 canonical defaults | `modules/visit/settings.ts`、`adapters/visit/supabase-visit-settings.ts` | typed-config slice 已完成；不再包一層 forwarding interface |
+| Orders、Support、Team Lead 各自透過 domain parser 讀 `reportTo`／`pushStyle`；共用的只有窄 presentation schema | `modules/orders/settings.ts`、`modules/support/settings.ts`、`modules/reporting/team-lead-settings.ts` | 同名 `reportTo` 不合併 workflow policy；錯值 read fallback、寫入前拒絕 |
 | role／instance／binding 模型已存在，但目前 deployment 固定為 `legacy-static-registry`，bindings／capabilities 為空 | `modules/agents/identity.ts` | 這是 compatibility seam，不得宣稱已可動態編排；N3 才加入真實 bindings |
 | domain modules／provider adapters 主幹已就位；`src/lib` 與 KB forwarding facade 仍有過渡 ownership | `src/modules`、`src/adapters`、`src/lib/kb-*` | 只在 N2／N3 或新需求碰到時 touch-and-migrate |
 | Main DB、provider credentials 與 app runtime 都是 deployment-global | `lib/supabase.ts`、provider env readers、`.env.example` | 先採每客戶隔離部署；只加 `tenant_id` 不會變成 SaaS |
@@ -216,7 +216,7 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 | Calendar／GA4／GSC／Meta／Teachify 連線 | 部分頁面有選擇或識別碼欄位，但實際連線不是由這些 JSON key 驅動 | provider connection 必須分開 | deployment profile／provider adapter | 不把 API key、refresh token、webhook secret 放進 JSON |
 | 新增企業流程或新的 Agent | 目前不能由 settings JSON 表達 | 需要 N3 code-owned versioned binding | workflow definition + domain owner | 不先建 JSON DSL、通用 runner 或複製 customer fork |
 
-**N1 結論：** source-level settings truth 已完成。這證明 N2 可以開始設計 typed boundary；它不宣稱目前所有 UI 欄位已接上 runtime，也不宣稱 live DB 每一列都已通過新 schema。live row parse、invalid／unknown tests 與 Chrome save/reload 是 N2 的驗證責任。
+**N1 結論：** source-level settings truth 已完成。它先區分真正的 runtime consumer 與 UI-only projection，並確認 `reportTo` 不能因同名而合併；N2 已依此完成 typed boundary。它不宣稱 UI-only 欄位已接上 runtime。
 
 **步驟：**
 
@@ -229,17 +229,21 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 
 **驗證／Done When：** 每個被 runtime 使用的 key 都能指到一個 owner、consumer、default 與 failure behavior；每個 settings page 的 UI-only key 也有明確標記；沒有 secret 被歸進 Agent settings；N2 不需再猜 schema。N1 的完成證據是本矩陣與 source anchors，不包含 live row parse 或 provider acceptance。
 
-### N2：建立 workflow-owned Zod settings boundary `[in progress：Visit done]`
+### N2：建立 workflow-owned Zod settings boundary `[done]`
 
 **Contribution：** G-01、G-03；依賴 N1。
 
 1. 依 workflow 建立 Zod schema 與 inferred type；共用的只抽窄 field schema，不建立萬用 AgentSettings。
 2. 在 API write boundary 驗證 slug 對應 schema；回傳相容且可理解的 4xx error。
 3. 在 runtime read boundary parse 舊 JSON、套 canonical defaults；選定 unknown-key 的保留或拒絕策略。
-4. Visit 先落地，再依真實 consumer 順序處理 Orders、Support／Team Lead 與其他現有 settings。
+4. Visit 先落地，再依真實 consumer 順序處理 Orders、Support／Team Lead；沒有 runtime consumer 的 UI-only 欄位不建立假的 workflow schema。
 5. UI payload 與 `line_agents.settings` storage 形狀保持相容；除非 N1 證明需要，不新增 migration。
 
 **Visit outcome（2026-08-18）：** `src/modules/visit/settings.ts` 現在持有 Visit runtime schema、defaults、legacy parse 與 write validation；API 在寫入前拒絕非法範圍／時間，並 merge 現有 JSON，避免舊頁面儲存時刪除未知 key。Supabase adapter 已移除手動 cast。staging `visit` row 的 settings 為 `{}`，可由 defaults 解析；Chrome 本機後台完成儲存、重載，`3／7／60／喝咖啡／樊松蒲 Dennis` 保持不變。未改 UI、DB schema 或 provider side effect。
+
+**Orders／Support／Team Lead outcome（2026-08-18）：** 各 domain 新增自己的 settings schema、runtime type、defaults、legacy read parser 與 write validator；三者只共用 `pushStyle` 這個窄 presentation schema，`reportTo` 仍由各 workflow 獨立持有。Orders runtime 只讀 `reportTo`／`pushStyle`；Support runtime 只讀客服彙報的 `reportTo`／`pushStyle`，`autoReplyText`／`reportTime` 仍明確是 UI-only；Team Lead runtime 只讀晨報的 `reportTo`／`pushStyle`，`reportTime` 仍是 UI-only。`PATCH /api/agents/[slug]` 依 slug 驗證四個已證實的 workflow、先讀取並 merge 既有 `line_agents.settings`，保留未知／未載入的 UI JSON；其他尚未有 runtime consumer 的頁面維持 compatibility JSON。staging read-only query 確認 `orders`／`support`／`teamlead` 三列都是 object（目前空設定），可由 defaults 解析；未改 UI、DB schema、migration 或 provider side effect。
+
+**N2 evidence（2026-08-18）：** 全部 unit tests 為 147 files／789 tests passed，focused settings/admin/domain tests、`npm run lint`、`npm run typecheck` 與 production build 均通過。未知 key merge、錯誤欄位 400、舊 row 缺值／錯值 fallback 均有測試；Chrome 本機後台已逐頁完成 Visit／Orders／Support／Team Lead 儲存、PATCH 200、重載與頁面回復，未觸發 provider side effect。
 
 **驗證／Done When：** current rows 全部可 parse；invalid／missing／unknown cases 有 focused tests；Agent 設定頁保存與 reload 的 Chrome 行為不變；runtime 不再自行 cast 本批涵蓋的 settings。
 
@@ -333,17 +337,18 @@ N6 provider／cron observability ──可在 N1 後平行，於 N4 前整合─
 | P8 release infrastructure | migration `20260817015215`、backup／restore rehearsal、Supabase Cron、rollback compatibility | Done |
 | P9 handoff | CI run `31987861315`、staging commit `69132b9`、README runbook | Done |
 | N1 settings truth | `docs/PRODUCTIZATION_PLAN.md` 的 source-level settings matrix、CodeGraph snapshot、current page／runtime consumer anchors | Done；live row parse、typed validation 與 real provider acceptance 留在 N2／provider gates |
-| N2 Visit typed settings | Visit-owned Zod schema、API 400 contract、legacy/default parser、unknown-key merge、focused tests、Chrome save/reload | Done；N2 其餘 workflow 尚待 Orders、Support／Team Lead |
+| N2 typed workflow settings | Visit／Orders／Support／Team Lead 各自 Zod schema、runtime parser/defaults、slug API 400 contract、unknown-key merge、窄 `pushStyle` schema、tests、staging row read、四頁 Chrome save/reload | Done；未改 UI／DB；provider-backed acceptance 留在既有 domain gate |
 
 ## 11. Readiness verdict
 
-### Verdict：N2 Visit done；ready for remaining settings owners
+### Verdict：N2 typed settings done；ready for N3
 
 - **Healthy enough now：** 隔離 staging、核心 journeys、migration、backup／restore、schedule、CI、deploy 與 rollback compatibility 已就位。
-- **真正缺口：** Orders、Support／Team Lead 尚未完成各自的 typed settings boundary；identity bindings 仍是 compatibility placeholder；企業差異尚未形成 deployment profile；provider／cron observability 尚未完整。
+- **真正缺口：** identity bindings 仍是 compatibility placeholder；企業差異尚未形成 deployment profile；provider／cron observability 尚未完整；Teachify 仍待真實 provider event。
 - **N1 已完成：** 已逐一標出 runtime-used keys、UI-only keys、defaults、讀寫 owner、failure behavior、schema target、分類與敏感度；也確認 `reportTo` 等同名欄位不能直接共用。
 - **N2 Visit 已完成：** runtime-used settings 已由 Visit domain 持有；舊 JSON 可 parse、新的非法設定會在寫入前被拒絕、未知 key 會在 page save 時保留，Chrome 已驗證儲存與重載。
-- **下一步：** 依真實 consumer 處理 Orders、Support／Team Lead；共用只限 `pushStyle` 這類窄 presentation value，不建立萬用 AgentSettings，也不替 UI-only 欄位建立假的 runtime schema。
+- **N2 全部完成：** 四個已證實 runtime workflow 各自持有設定邊界；`reportTo` 沒有被錯誤合併，UI-only 欄位沒有被宣稱已接通，未知 JSON 在 page save 時會 merge 保留。
+- **下一步：** 進入 N3，建立最小 versioned workflow definition／binding，只定位既有 domain owner，不建立通用 AgentSettings、workflow engine 或 plugin registry。
 
 ## 12. 文件政策
 

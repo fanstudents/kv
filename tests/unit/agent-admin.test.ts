@@ -118,6 +118,42 @@ describe("agent admin compatibility", () => {
     });
   });
 
+  it.each([
+    ["orders", { reportTo: "UORDERS" }, { futureOrdersKey: { version: 2 } }],
+    ["support", { reportTo: "USUPPORT", autoReplyText: "保留頁面內容" }, { futureSupportKey: true }],
+    ["teamlead", { reportTo: "UTEAM", reportTime: "09:00" }, { futureTeamLeadKey: [1, 2] }],
+  ] as const)("merges existing %s settings before writing the page projection", async (slug, incoming, existing) => {
+    const updateBySlug = vi.fn(async () => ({ data: { slug }, errorMessage: null }));
+    const workflow = repository({
+      getBySlug: vi.fn(async () => ({ data: { settings: existing }, errorMessage: null })),
+      updateBySlug,
+    });
+
+    await expect(updateAgentInstance(slug, { settings: incoming }, workflow, "now")).resolves.toEqual({
+      kind: "updated",
+      data: { slug },
+    });
+    expect(updateBySlug).toHaveBeenCalledWith(slug, {
+      updated_at: "now",
+      settings: { ...existing, ...incoming },
+    });
+  });
+
+  it.each([
+    ["orders", { reportTo: 42 }],
+    ["support", { pushStyle: "card" }],
+    ["teamlead", { reportTo: { id: "U1" } }],
+  ] as const)("rejects invalid %s settings before writing", async (slug, settings) => {
+    const updateBySlug = vi.fn(async () => ({ data: null, errorMessage: null }));
+    const workflow = repository({ updateBySlug });
+
+    await expect(updateAgentInstance(slug, { settings }, workflow, "now")).resolves.toMatchObject({
+      kind: "error",
+      message: expect.stringContaining(slug === "teamlead" ? "Team Lead" : slug[0].toUpperCase() + slug.slice(1)),
+    });
+    expect(updateBySlug).not.toHaveBeenCalled();
+  });
+
   it("keeps database status precedence and static fallback", async () => {
     const catalog = [
       { slug: "active", status: "active" },
